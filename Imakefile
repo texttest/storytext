@@ -1,8 +1,8 @@
 XCOMM Install test components in generally available place.
-XCOMM $Id: Imakefile,v 1.1 2004/06/22 14:09:41 geoff Exp $
+XCOMM $Id: Imakefile,v 1.2 2004/06/22 14:34:24 geoff Exp $
 
 MODULEDIR=/usr/local/lib/python
-FRAMEWORK_MODULES=gtkusecase.py ndict.py usecase.py
+FRAMEWORK_MODULES=gtkusecase.py log4py.py ndict.py usecase.py
 
 CarmFirstTarget()
 
