@@ -102,7 +102,7 @@ class VideoStore:
         dialog.vbox.pack_start(label, expand=gtk.TRUE, fill=gtk.TRUE)
         label.show()
         # dialog.connect("response", self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
-        self.scriptEngine.connect("accept error dialogue", "response", dialog, self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
+        self.scriptEngine.connect("accept error saying \"" + message + "\"", "response", dialog, self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
         dialog.show()
     def destroyErrorDialogue(self, dialog, *args):
         dialog.destroy()
