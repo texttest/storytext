@@ -91,6 +91,8 @@ class ScriptEngine:
         self.stdinScript = None
         prevArg = ""
         for arg in sys.argv[1:]:
+            if prevArg.find("-delay") != -1:
+                self.replayer.delay = int(arg)
             if prevArg.find("-replay") != -1:
                 self.replayer.addScript(ReplayScript(arg))
             if prevArg.find("-record") != -1:
@@ -155,6 +157,7 @@ class UseCaseReplayer:
         self.logger = logger
         self.scripts = []
         self.events = {}
+        self.delay = 0
         self.waitingForEvent = None
         self.applicationEventNames = []
         self.processId = os.getpid() # So we can generate signals for ourselves...
@@ -220,7 +223,9 @@ class UseCaseReplayer:
         self.write("")
         if commandName == waitCommandName:
             return self.processWaitCommand(argumentString)
-        elif commandName == signalCommandName:
+        if self.delay:
+            time.sleep(self.delay)
+        if commandName == signalCommandName:
             return self.processSignalCommand(argumentString)
         else:
             self.generateEvent(commandName, argumentString)
@@ -245,9 +250,6 @@ class UseCaseReplayer:
         self.write("'" + eventName + "' event created with arguments '" + argumentString + "'")
         event = self.events[eventName]
         event.generate(argumentString)
-        # Can be useful to uncomment if you want a slow-motion replay...
-        #import time
-        #time.sleep(2)
     def processWaitCommand(self, applicationEventName):
         self.write("Waiting for application event '" + applicationEventName + "' to occur.")
         if applicationEventName in self.applicationEventNames:
