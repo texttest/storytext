@@ -68,6 +68,7 @@ import usecase, gtk, os, string
 
 # Base class for all GTK events due to widget signals
 class SignalEvent(usecase.UserEvent):
+    anyWindowingEvent = None
     def __init__(self, name, widget, signalName):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
@@ -77,12 +78,14 @@ class SignalEvent(usecase.UserEvent):
     def _outputForScript(self, *args):
         return self.name
     def generate(self, argumentString):
-        self.widget.emit(self.signalName)
+        try:
+            self.widget.emit(self.signalName)
+        except TypeError:
+            self.widget.emit(self.signalName, self.anyWindowingEvent)
             
 # Events we monitor via GUI focus when we don't want all the gory details
 # and don't want programmtic state changes recorded
 class StateChangeEvent(SignalEvent):
-    anyWindowingEvent = None
     def __init__(self, name, widget, relevantState = None):
         SignalEvent.__init__(self, name, widget, "leave-notify-event")
         self.relevantState = relevantState
@@ -100,7 +103,7 @@ class StateChangeEvent(SignalEvent):
             except TypeError:
                 pass
     def storeWindowingEvent(self, widget, event, *args):
-        StateChangeEvent.anyWindowingEvent = event
+        SignalEvent.anyWindowingEvent = event
         self.widget.disconnect(self.anyEventHandler)  
     def updateState(self, *args):
         self.oldState = self.getState()
