@@ -89,6 +89,11 @@ class SignalEvent(usecase.UserEvent):
     def _outputForScript(self, *args):
         return self.name
     def generate(self, argumentString):
+        self.widget.grab_focus()
+        # Seems grabbing the focus doesn't always generate a focus in event...
+        self.widget.emit("focus-in-event", self.anyEvent)
+        self._generate(argumentString)
+    def _generate(self, argumentString):
         try:
             self.widget.emit(self.signalName)
         except TypeError:
@@ -102,7 +107,7 @@ class StateChangeEvent(SignalEvent):
         SignalEvent.__init__(self, name, widget, "focus-out-event")
         self.relevantState = relevantState
         self.updateState()
-        # When we focus in we should update with any programmatic changes
+        # When we focus in we should update with any programmatic changes.
         self.widget.connect("focus-in-event", self.updateState)
     def updateState(self, *args):
         self.oldState = self.getState()
@@ -117,8 +122,7 @@ class StateChangeEvent(SignalEvent):
     def _outputForScript(self, *args):
         self.updateState()
         return self.stateDescription()
-    def generate(self, argumentString):
-        self.widget.emit("focus-in-event", self.anyEvent)
+    def _generate(self, argumentString):
         self.generateStateChange(argumentString)
         self.widget.emit(self.signalName, self.anyEvent)
         
@@ -135,14 +139,14 @@ class ActivateEvent(StateChangeEvent):
         return self.widget.get_active()
     def generateStateChange(self, argumentString):
         self.widget.set_active(self.relevantState)
-
+    
 class ResponseEvent(SignalEvent):
     def __init__(self, name, widget, responseId):
         SignalEvent.__init__(self, name, widget, "response")
         self.responseId = responseId
     def shouldRecord(self, widget, responseId, *args):
         return self.responseId == responseId
-    def generate(self, argumentString):
+    def _generate(self, argumentString):
         self.widget.emit(self.signalName, self.responseId)
 
 class NotebookPageChangeEvent(SignalEvent):
@@ -151,7 +155,7 @@ class NotebookPageChangeEvent(SignalEvent):
     def _outputForScript(self, page, page_num, *args):
         newPage = self.widget.get_nth_page(page_num)
         return self.name + " " + self.widget.get_tab_label_text(newPage)
-    def generate(self, argumentString):
+    def _generate(self, argumentString):
         for i in range(len(self.widget.get_children())):
             page = self.widget.get_nth_page(i)
             if self.widget.get_tab_label_text(page) == argumentString:
@@ -159,104 +163,67 @@ class NotebookPageChangeEvent(SignalEvent):
                 return
         raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
 
-class TreeSignalEvent(SignalEvent):
-    def __init__(self, name, widget, signalName, argumentParseData):
+class TreeViewSignalEvent(SignalEvent):
+    def __init__(self, name, widget, signalName, indexer):
         SignalEvent.__init__(self, name, widget, signalName)
-        self.column, self.valueId = argumentParseData
-        self.model = self.getModel()
-    def getOutput(self, path):
-        return self.name + " " + self.model.get_value(self.model.get_iter(path), self.valueId)
-    def getPathData(self, argumentString):
-        path = self.findTreePath(self.model.get_iter_root(), argumentString)
+        self.indexer = indexer
+    def _outputForScript(self, path, *args):
+        return self.name + " " + self.indexer.path2string(path)
+    def _generate(self, argumentString):
+        path = self.indexer.string2path(argumentString)
+        self.widget.emit(self.signalName, path, self.indexer.column)
+
+class TreeSelectionEvent(StateChangeEvent):
+    def __init__(self, name, widget, indexer):
+        self.selection = widget
+        StateChangeEvent.__init__(self, name, widget.get_tree_view())
+        self.indexer = indexer
+        # Activating rows should update the state.
+        self.widget.connect("row_activated", self.updateState)
+    def getState(self):
+        return string.join(self.findSelectedPaths(), ",")
+    def stateDescription(self):
+        return self.name + " " + self.oldState
+    def generateStateChange(self, argumentString):
+        self.selection.unselect_all()
+        paths = map(self.indexer.string2path, argumentString.split(","))
+        for path in paths:
+            self.selection.select_path(path)
+    def findSelectedPaths(self):
+        paths = []
+        self.selection.selected_foreach(self.addSelPath, paths)
+        return paths
+    def addSelPath(self, model, path, iter, paths):
+        paths.append(self.indexer.path2string(path))
+
+# Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
+class TreeModelIndexer:
+    def __init__(self, model, column, valueId):
+        self.model = model
+        self.column = column
+        self.valueId = valueId
+    def path2string(self, path):
+        return self.model.get_value(self.model.get_iter(path), self.valueId)
+    def string2path(self, pathString):
+        path = self._findTreePath(self.model.get_iter_root(), pathString)
         if not path:
-            raise usecase.UseCaseScriptError, "Could not find row '" + argumentString + "' in Tree View"
+            raise usecase.UseCaseScriptError, "Could not find row '" + pathString + "' in Tree View"
         return path
-    def findTreePath(self, iter, argumentText):
-        if self.pathHasText(iter, argumentText):
+    def _findTreePath(self, iter, argumentText):
+        if self._pathHasText(iter, argumentText):
             return self.model.get_path(iter)
         childIter = self.model.iter_children(iter)
         if childIter:
-            childPath = self.findTreePath(childIter, argumentText)
+            childPath = self._findTreePath(childIter, argumentText)
             if childPath:
                 return childPath
         nextIter = self.model.iter_next(iter)
         if nextIter:
-            return self.findTreePath(nextIter, argumentText)
+            return self._findTreePath(nextIter, argumentText)
         return None
-    def pathHasText(self, iter, argumentText):
+    def _pathHasText(self, iter, argumentText):
         return self.model.get_value(iter, self.valueId) == argumentText
 
-class TreeViewSignalEvent(TreeSignalEvent):
-    def getModel(self):
-        return self.widget.get_model()
-    def _outputForScript(self, path, *args):
-        return self.getOutput(path)
-    def generate(self, argumentString):
-        path = self.getPathData(argumentString)
-        self.widget.emit(self.signalName, path, self.column)
-
-class TreeSelectionSignalEvent(TreeSignalEvent):
-    def __init__(self, name, widget, signalName, sense, argumentParseData):
-        TreeSignalEvent.__init__(self, name, widget, signalName, argumentParseData)
-        self.oldSelectedPaths = self.findSelectedPaths()
-        self.newSelectedPaths = self.oldSelectedPaths
-        self.sense = sense
-        self.skipNextRecord = 0
-        self.recordActive = 1
-        if self.sense > 0:
-            widget.get_tree_view().connect("row_activated", self.disableNext)
-    def getModel(self):
-        return self.widget.get_tree_view().get_model()
-    def disableNext(self, *args):
-        self.skipNextRecord = 1
-    def setMonitoring(self, active):
-        self.recordActive = active
-        if active:
-            self.oldSelectedPaths = self.newSelectedPaths
-    def reenableRecord(self):
-        if not self.recordActive:
-            return 0
-        if self.skipNextRecord:
-            self.skipNextRecord = 0
-            self.oldSelectedPaths = self.newSelectedPaths
-            return 0
-        return 1
-    def shouldRecord(self, *args):
-        self.newSelectedPaths = self.findSelectedPaths()
-        if self.sense > 0 and len(self.newSelectedPaths) > len(self.oldSelectedPaths):
-            return self.reenableRecord()
-        elif self.sense < 0 and len(self.newSelectedPaths) < len(self.oldSelectedPaths):
-            return self.reenableRecord()
-        self.oldSelectedPaths = self.newSelectedPaths
-        return 0
-    def _outputForScript(self, *args):
-        extraPaths = self.extraPaths()
-        self.oldSelectedPaths = self.newSelectedPaths
-        outputList = map(self.getOutput, extraPaths)
-        return string.join(outputList, os.linesep)
-    def extraPaths(self):
-        if self.sense > 0:
-            return self._extraPaths(self.newSelectedPaths, self.oldSelectedPaths)
-        else:
-            return self._extraPaths(self.oldSelectedPaths, self.newSelectedPaths)
-    def _extraPaths(self, longPaths, shortPaths):
-        extraPaths = []
-        for path in longPaths:
-            if not path in shortPaths:
-                extraPaths.append(path)
-        return extraPaths
-    def findSelectedPaths(self):
-        paths = []
-        self.widget.selected_foreach(self.addSelPath, paths)
-        return paths
-    def addSelPath(self, model, path, iter, paths):
-        paths.append(path)
-    def generate(self, argumentString):
-        path = self.getPathData(argumentString)
-        if self.sense > 0:
-            self.widget.select_path(path)
-        else:
-            self.widget.unselect_path(path)
 
 class ScriptEngine(usecase.ScriptEngine):
     def __init__(self, logger = None, enableShortcuts = 0):
@@ -269,19 +236,11 @@ class ScriptEngine(usecase.ScriptEngine):
             self._addEventToScripts(signalEvent)
         if method:
             widget.connect(signalName, method, *data)
-    def monitorTreeSelection(self, additionName, removalName, selection, argumentParseData):
+    def monitor(self, eventName, selection, argumentParseData = None):
         if self.active():
-            addEvent = TreeSelectionSignalEvent(self.standardName(additionName), selection, "changed", 1, argumentParseData)
-            remEvent = TreeSelectionSignalEvent(self.standardName(removalName), selection, "changed", -1, argumentParseData)
-            self._addEventToScripts(addEvent)
-            self._addEventToScripts(remEvent)
-    def setSelection(self, selection, iters):
-        # Disable recording of changes while we set the selection programatically
-        self._setMonitoring(selection, 0)
-        selection.unselect_all()
-        for iter in iters:
-            selection.select_iter(iter)
-        self._setMonitoring(selection, 1)
+            stdName = self.standardName(eventName)
+            stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData)
+            self._addEventToScripts(stateChangeEvent)
     def registerEntry(self, entry, description):
         if self.active():
             stateChangeName = self.standardName(description)
@@ -423,12 +382,6 @@ class ScriptEngine(usecase.ScriptEngine):
             return TreeViewSignalEvent(eventName, widget, signalName, argumentParseData)
         else:
             return SignalEvent(eventName, widget, signalName)
-    def _setMonitoring(self, selection, active):
-        # Allow disabling and enabling of the tree selection monitoring. This to avoid recording changes made programatically
-        if self.recorderActive():
-            for event in self.recorder.events:
-                if event.widget == selection:
-                    event.setMonitoring(active)
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
