@@ -44,14 +44,20 @@ class VideoStore:
         sortButton.set_label("Sort")
         # sortButton.connect("clicked", self.sortMovies)
         self.scriptEngine.connect("sort movies", "clicked", sortButton, self.sortMovies)
+        clearButton = gtk.Button()
+        clearButton.set_label("Clear")
+        # clearButton.connect("clicked", self.sortMovies)
+        self.scriptEngine.connect("clear list", "clicked", clearButton, self.clearMovies)
         taskBar.pack_start(label, expand=gtk.FALSE, fill=gtk.TRUE)
         taskBar.pack_start(nameEntry, expand=gtk.TRUE, fill=gtk.TRUE)
         taskBar.pack_start(button, expand=gtk.FALSE, fill=gtk.FALSE)
         taskBar.pack_start(sortButton, expand=gtk.FALSE, fill=gtk.FALSE)
+        taskBar.pack_start(clearButton, expand=gtk.FALSE, fill=gtk.FALSE)
         label.show()
         nameEntry.show()
         button.show()
         sortButton.show()
+        clearButton.show()
         taskBar.show()
         return taskBar
     def getVideoView(self):
@@ -82,6 +88,8 @@ class VideoStore:
             print "Adding movie '" + movieName + "'. There are now", self.model.iter_n_children(None), "movies."
         else:
             self.showError("Movie '" + movieName + "' has already been added")
+    def clearMovies(self, *args):
+        self.model.clear()
     def sortMovies(self, *args):
         movieNames = self.getMovieNames()
         movieNames.sort()

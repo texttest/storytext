@@ -8,19 +8,21 @@ scriptEngine = ScriptEngine(logger = None, enableShortcuts = 0)
 (here <logger> is a log4py logger for logging replayed events, if desired: if not they
 are logged to standard output. enableShortcuts turns on GUI shortcuts, see later)
 
-The module reads the sys.argv command line options directly, and understands the options
--recinp <stdin_script>
--record <record_script>
--replay <replay_script>
+The module reads the following environment variables, all of which are set appropriately by TextTest:
+USECASE_RECORD_SCRIPT
+USECASE_REPLAY_SCRIPT
+USECASE_REPLAY_DELAY
+USECASE_RECORD_STDIN
 
 These will then be capable of
 
-(1) Recording standard input for later replay to <stdin_script>
+(1) Recording standard input for later replay.
     - This is acheived by calling scriptEngine.readStdin() instead of sys.stdin.readline()
-    directly.
+    directly. The results are recorded to the script indicated by USECASE_RECORD_STDIN
     
 (2) Record and replaying external signals received by the process
-    - This will just happen, whether you like it or not...
+    - If USECASE_RECORD_SCRIPT is defined, they will be recorded there. If USECASE_REPLAY_SCRIPT
+    is defined and a signal command read from it, they will be generated.
     
 (3) Recording specified 'application events'
     - These are events that are not caused by the user doing something, generally the
@@ -28,9 +30,9 @@ These will then be capable of
 
     scriptEngine.applicationEvent("idle handler exit")
 
-    Recording will take the form of recording a "wait" command in <record_script>, in this
-    case as "wait for idle handler exit". When replaying, the script will suspend and
-    wait to be told that this application event has occurred before proceeding.
+    Recording will take the form of recording a "wait" command in USECASE_RECORD_SCRIPT in this
+    case as "wait for idle handler exit". When such a command is read from USECASE_REPLAY_SCRIPT,
+    the script will suspend and wait to be told that this application event has occurred before proceeding.
 
     By default, these will overwrite each other, so that only the last one before any other event
     is recorded in the script.
@@ -42,6 +44,10 @@ These will then be capable of
 (4) Being extended to be able to deal with GUI events and shortcuts.
     - This is necessarily specific to particular GUI libraries. One such extension is currently
     available for PyGTK (gtkusecase.py)
+
+(5) Being able to pause between replaying replay script events.
+    - This allows you to see what is happening more easily and is controlled by the environment
+    variable USECASE_REPLAY_DELAY.
 """
 
 import os, string, sys, signal, time
@@ -88,18 +94,7 @@ class ScriptEngine:
         self.replayer = self.createReplayer(logger)
         self.recorder = UseCaseRecorder()
         self.enableShortcuts = enableShortcuts
-        self.stdinScript = None
-        prevArg = ""
-        for arg in sys.argv[1:]:
-            if prevArg.find("-delay") != -1:
-                self.replayer.delay = int(arg)
-            if prevArg.find("-replay") != -1:
-                self.replayer.addScript(ReplayScript(arg))
-            if prevArg.find("-record") != -1:
-                self.recorder.addScript(arg)
-            if prevArg.find("-recinp") != -1:
-                self.stdinScript = RecordScript(arg)
-            prevArg = arg
+        self.stdinScript = os.getenv("USECASE_RECORD_STDIN")
         self.thread = currentThread()
         ScriptEngine.instance = self
     def recorderActive(self):
@@ -157,10 +152,13 @@ class UseCaseReplayer:
         self.logger = logger
         self.scripts = []
         self.events = {}
-        self.delay = 0
+        self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
         self.waitingForEvent = None
         self.applicationEventNames = []
         self.processId = os.getpid() # So we can generate signals for ourselves...
+        replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
+        if replayScript:
+            self.addScript(ReplayScript(replayScript))
     def addEvent(self, event):
         self.events[event.name] = event
     def addScript(self, script):
@@ -319,6 +317,9 @@ class UseCaseRecorder:
         self.suspended = 0
         self.realSignalHandlers = {}
         self.signalNames = {}
+        recordScript = os.getenv("USECASE_RECORD_SCRIPT")
+        if recordScript:
+            self.addScript(recordScript)
         for entry in dir(signal):
             if entry.startswith("SIG") and not entry.startswith("SIG_"):
                 exec "number = signal." + entry
