@@ -1,0 +1,11 @@
+XCOMM Install test components in generally available place.
+XCOMM $Id: Imakefile,v 1.1 2004/06/22 14:09:41 geoff Exp $
+
+MODULEDIR=/usr/local/lib/python
+FRAMEWORK_MODULES=gtkusecase.py ndict.py usecase.py
+
+CarmFirstTarget()
+
+XCOMM These might be installed in different places, as they are in fact different
+CopyFiles(install,$(FRAMEWORK_MODULES),$(MODULEDIR),a=r)
+
