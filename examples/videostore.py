@@ -35,6 +35,7 @@ class VideoStore:
         label = gtk.Label("New Movie Name  ")
         nameEntry = gtk.Entry()
         self.scriptEngine.registerEntry(nameEntry, "set new movie name to")
+        self.scriptEngine.connect("add movie by pressing <enter>", "activate", nameEntry, self.addMovie, None, nameEntry)
         button = gtk.Button()
         button.set_label("Add")
         # button.connect("clicked", self.addMovie, nameEntry)
