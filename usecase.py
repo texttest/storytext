@@ -352,7 +352,11 @@ class UseCaseRecorder:
     def readTranslationFile(self):
         fileName = os.path.join(os.environ["USECASE_HOME"], "usecase_translation")
         configParser = ConfigParser()
-        configParser.read(fileName)
+        try:
+            configParser.read(fileName)
+        except:
+            # If we can't read it, press on...
+            pass
         return configParser
     def record(self, line):
         for script in self.scripts:
