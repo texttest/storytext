@@ -33,7 +33,7 @@ by providing a 'register' method, so that an extra call is made to scriptEngine
 entry = gtk.Entry()
 scriptEngine.registerEntry(entry, "enter file name = ")
 
-which would tie the "focus-out-event" to the script command "enter file name = <current_entry_contents>".
+which would tie the "leave-notify-event" to the script command "enter file name = <current_entry_contents>".
 
 (3) There are also composite widgets like the TreeView where you need to be able to specify an argument.
 In this case the application has to provide extra information as to how the text is to be translated
@@ -68,47 +68,40 @@ import usecase, gtk, os, string
 
 # Base class for all GTK events due to widget signals
 class SignalEvent(usecase.UserEvent):
-    anyEvent = None
     def __init__(self, name, widget, signalName):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
         self.signalName = signalName
-        # Signals often need to be emitted with a corresponding event.
-        # This is very hard to fake. The only way I've found is to seize a random event
-        # and use that... this is not foolproof...
-        if not self.anyEvent:
-            try:
-                self.anyEventHandler = self.widget.connect("event", self.storeEvent)
-            except TypeError:
-                pass
-    def storeEvent(self, widget, event, *args):
-        SignalEvent.anyEvent = event
-        self.widget.disconnect(self.anyEventHandler)
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
     def _outputForScript(self, *args):
         return self.name
     def generate(self, argumentString):
-        self.widget.grab_focus()
-        # Seems grabbing the focus doesn't always generate a focus in event...
-        self.widget.emit("focus-in-event", self.anyEvent)
-        self._generate(argumentString)
-    def _generate(self, argumentString):
-        try:
-            self.widget.emit(self.signalName)
-        except TypeError:
-            # The simplest way I could find to fake a gtk.gdk.Event
-            self.widget.emit(self.signalName, self.anyEvent)
+        self.widget.emit(self.signalName)
             
 # Events we monitor via GUI focus when we don't want all the gory details
 # and don't want programmtic state changes recorded
 class StateChangeEvent(SignalEvent):
+    anyWindowingEvent = None
     def __init__(self, name, widget, relevantState = None):
-        SignalEvent.__init__(self, name, widget, "focus-out-event")
+        SignalEvent.__init__(self, name, widget, "leave-notify-event")
         self.relevantState = relevantState
         self.updateState()
-        # When we focus in we should update with any programmatic changes.
-        self.widget.connect("focus-in-event", self.updateState)
+        self.captureWindowingEvents()
+        # When we enter the widget we should update with any programmatic changes.
+        self.widget.connect("enter-notify-event", self.updateState)
+    def captureWindowingEvents(self):
+        # Signals often need to be emitted with a corresponding event.
+        # This is very hard to fake. The only way I've found is to seize a random event
+        # and use that... this is not foolproof...
+        if not self.anyWindowingEvent:
+            try:
+                self.anyEventHandler = self.widget.connect("event", self.storeWindowingEvent)
+            except TypeError:
+                pass
+    def storeWindowingEvent(self, widget, event, *args):
+        StateChangeEvent.anyWindowingEvent = event
+        self.widget.disconnect(self.anyEventHandler)  
     def updateState(self, *args):
         self.oldState = self.getState()
     def stateDescription(self):
@@ -122,9 +115,10 @@ class StateChangeEvent(SignalEvent):
     def _outputForScript(self, *args):
         self.updateState()
         return self.stateDescription()
-    def _generate(self, argumentString):
+    def generate(self, argumentString):
+        self.widget.emit("enter-notify-event", self.anyWindowingEvent)
         self.generateStateChange(argumentString)
-        self.widget.emit(self.signalName, self.anyEvent)
+        self.widget.emit(self.signalName, self.anyWindowingEvent)
         
 class EntryEvent(StateChangeEvent):
     def getState(self):
@@ -146,7 +140,7 @@ class ResponseEvent(SignalEvent):
         self.responseId = responseId
     def shouldRecord(self, widget, responseId, *args):
         return self.responseId == responseId
-    def _generate(self, argumentString):
+    def generate(self, argumentString):
         self.widget.emit(self.signalName, self.responseId)
 
 class NotebookPageChangeEvent(SignalEvent):
@@ -155,7 +149,7 @@ class NotebookPageChangeEvent(SignalEvent):
     def _outputForScript(self, page, page_num, *args):
         newPage = self.widget.get_nth_page(page_num)
         return self.name + " " + self.widget.get_tab_label_text(newPage)
-    def _generate(self, argumentString):
+    def generate(self, argumentString):
         for i in range(len(self.widget.get_children())):
             page = self.widget.get_nth_page(i)
             if self.widget.get_tab_label_text(page) == argumentString:
@@ -169,7 +163,7 @@ class TreeViewSignalEvent(SignalEvent):
         self.indexer = indexer
     def _outputForScript(self, path, *args):
         return self.name + " " + self.indexer.path2string(path)
-    def _generate(self, argumentString):
+    def generate(self, argumentString):
         path = self.indexer.string2path(argumentString)
         self.widget.emit(self.signalName, path, self.indexer.column)
 
