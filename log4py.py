@@ -1,6 +1,6 @@
 """
 
-Python logging module - Version 1.2
+Python logging module - Version 1.3
 
 Loglevels:
 
@@ -61,6 +61,12 @@ CONFIGURATION_FILES[1] = "log4py.conf"                    # local directory
 CONFIGURATION_FILES[2] = "$HOME/.log4py.conf"             # hidden file in the home directory
 CONFIGURATION_FILES[3] = "/etc/log4py.conf"               # system wide file
 
+# Constants for the FileAppender
+ROTATE_NONE = 0
+ROTATE_DAILY = 1
+ROTATE_WEEKLY = 2
+ROTATE_MONTHLY = 3
+
 # The following constants are of internal interest only
 
 # Message constants (used for ansi colors and for logtype %L)
@@ -94,6 +100,7 @@ from types import StringType, ClassType, InstanceType, FileType, TupleType
 from string import zfill, atoi, lower, upper, join, replace, split, strip
 from re import sub
 from ConfigParser import ConfigParser, NoOptionError
+from os import stat, rename
 
 import sys
 import traceback
@@ -109,6 +116,19 @@ try:
     mysql_available = TRUE
 except:
     mysql_available = FALSE
+
+def get_homedirectory():
+    if (sys.platform == "win32"):
+        if (os.environ.has_key("USERPROFILE")):
+            return os.environ["USERPROFILE"]
+        else:
+            return "C:\\"
+    else:
+        if (os.environ.has_key("HOME")):
+            return os.environ["HOME"]
+        else:
+            # No home directory set
+            return ""
 
 # This is the main class for the logging module
 
@@ -214,8 +234,8 @@ class Logger:
             else:
                 if (type(target) == StringType):
                     if (target not in SPECIAL_TARGETS):
-                        target = os.path.expanduser(target)
-                        target = os.path.expandvars(target)
+                        # This is a filename
+                        target = FileAppender(target, self.__Logger_rotation)
                 if ((target == TARGET_SYSLOG) and (os.name != "posix")):
                     self.warn("TARGET_SYSLOG is not available on non-posix platforms!")
                 else:
@@ -232,8 +252,8 @@ class Logger:
         """ Set a single target. """
         if (type(target) == StringType):
             if (target not in SPECIAL_TARGETS):
-                target = os.path.expanduser(target)
-                target = os.path.expandvars(target)
+                # File target
+                target = FileAppender(target, self.__Logger_rotation)
         self.__Logger_targets = [ target ]
 
     def remove_all_targets(self):
@@ -261,6 +281,14 @@ class Logger:
     def set_time_format(self, timeformat):
         """ Set the time format (default: loaded from the system locale). """
         self.__Logger_timeformat = timeformat
+        
+    def set_rotation(self, rotation):
+        """ Set the file rotation mode to one of ROTATE_NONE, ROTATE_DAILY, ROTATE_WEEKLY, ROTATE_MONTHLY """
+        self.__Logger_rotation = rotation
+        for i in range(len(self.__Logger_targets)):
+            target = self.__Logger_targets[i]
+            if (isinstance(target, FileAppender)):
+                target.set_rotation(rotation)
 
     # Method to get properties
 
@@ -279,6 +307,10 @@ class Logger:
     def get_time_format(self):
         """ Returns the current time format. """
         return self.__Logger_timeformat
+
+    def get_rotation(self):
+        """ Returns the current rotation setting. """
+        return self.__Logger_rotation
 
     # Methods to push and pop trace messages for nested contexts
 
@@ -345,6 +377,7 @@ class Logger:
         self.__Logger_targets = [ TARGET_SYS_STDOUT ]            # default target = sys.stdout
         self.__Logger_formatstring = FMT_LONG
         self.__Logger_loglevel = LOGLEVEL_NORMAL
+        self.__Logger_rotation = ROTATE_NONE
         self.__Logger_useansicodes = FALSE
         self.__Logger_functionname = ""
         self.__Logger_filename = ""
@@ -366,17 +399,7 @@ class Logger:
             configfilename = ""
             for i in range(len(priorities)):
                 filename = CONFIGURATION_FILES[priorities[i]]
-                if (sys.platform == "win32"):
-                    if (os.environ.has_key("USERPROFILE")):
-                        home_directory = os.environ["USERPROFILE"]
-                    else:
-                        home_directory = "C:\\"
-                else:
-                    if (os.environ.has_key("HOME")):
-                        home_directory = os.environ["HOME"]
-                    else:
-                        # No home directory set
-                        home_directory = ""
+                home_directory = get_homedirectory()
                 if (os.sep == "\\"):
                     home_directory = replace(home_directory, "\\", "\\\\")
                 filename = sub("\$HOME", home_directory, filename)
@@ -461,32 +484,32 @@ class Logger:
         timedifflaststep = "%.3f" % (currenttime - self.__Logger_timelaststep)
         self.__Logger_timelaststep = currenttime
         milliseconds = int(round((currenttime - long(currenttime)) * 1000))
-        timeformat = sub("%S", "%S." + (zfill(milliseconds, 3)), self.__Logger_timeformat)
+        timeformat = self.__Logger_timeformat.replace("%S", "%S." + (zfill(milliseconds, 3)))
         currentformattedtime = strftime(timeformat, localtime(currenttime))
 
         line = self.__Logger_formatstring
-        line = sub("%C", str(self.__Logger_classname), line)
-        line = sub("%D", timedifference, line)
-        line = sub("%d", timedifflaststep, line)
-        line = sub("%F", self.__Logger_functionname, line)
-        line = sub("%f", self.__Logger_filename, line)
-        line = sub("%U", self.__Logger_module, line)
-        line = sub("%u", os.path.split(self.__Logger_module)[-1], line)
+        line = line.replace("%C", str(self.__Logger_classname))
+        line = line.replace("%D", timedifference)
+        line = line.replace("%d", timedifflaststep)
+        line = line.replace("%F", self.__Logger_functionname)
+        line = line.replace("%f", self.__Logger_filename)
+        line = line.replace("%U", self.__Logger_module)
+        line = line.replace("%u", os.path.split(self.__Logger_module)[-1])
         ndc = self.__Logger_get_ndc()
         if (ndc != ""):
-            line = sub("%x", "%s - " % ndc, line)
+            line = line.replace("%x", "%s - " % ndc)
         else:
-            line = sub("%x", "", line)
+            line = line.replace("%x", "")
         message = replace(message, "\\", "\\\\")
         if (self.__Logger_useansicodes == TRUE):
-            line = sub("%L", self.__Logger_ansi(LOG_MSG[messagesource], messagesource), line)
-            line = sub("%M", self.__Logger_ansi(message, messagesource), line)
+            line = line.replace("%L", self.__Logger_ansi(LOG_MSG[messagesource], messagesource))
+            line = line.replace("%M", self.__Logger_ansi(message, messagesource))
         else:
-            line = sub("%L", LOG_MSG[messagesource], line)
-            line = sub("%M", message, line)
-        line = sub("%N", str(self.__Logger_linenumber), line)
-        line = sub("%T", currentformattedtime, line)
-        line = sub("%t", `currenttime`, line)
+            line = line.replace("%L", LOG_MSG[messagesource])
+            line = line.replace("%M", message)
+        line = line.replace("%N", str(self.__Logger_linenumber))
+        line = line.replace("%T", currentformattedtime)
+        line = line.replace("%t", `currenttime`)
 
         for i in range(len(self.__Logger_targets)):
             target = self.__Logger_targets[i]
@@ -497,14 +520,12 @@ class Logger:
             elif (target == TARGET_SYSLOG):
                 # We don't need time and stuff here
                 syslog.syslog(message)
+            elif (isinstance(target, FileAppender)):
+                target.writeline(line)
             elif (target == sys.stdout) or (lower(target) == TARGET_SYS_STDOUT) or (lower(target) == TARGET_SYS_STDOUT_ALIAS):
                 sys.stdout.write("%s\n" % line)
             elif (target == sys.stderr) or (lower(target) == TARGET_SYS_STDERR) or (lower(target) == TARGET_SYS_STDERR_ALIAS):
                 sys.stderr.write("%s\n" % line)
-            elif (type(target) == StringType):
-                file = open(target, "a")
-                file.write("%s\n" % line)
-                file.close()
             else:
                 target.write("%s\n" % line)
 
@@ -518,3 +539,55 @@ class Logger:
         bg = bg + 10
         text = "\033[%d;%sm%s\033[0m" % (bg, fg, text)
         return text
+
+class FileAppender:
+
+    def __init__(self, filename, rotation = ROTATE_NONE):
+        """ **(private)** Class initalization & customization. """
+        self.__FileAppender_filename = sub("\$HOME", get_homedirectory(), filename)
+        self.__FileAppender_filename = os.path.expanduser(self.__FileAppender_filename)
+        self.__FileAppender_filename = os.path.expandvars(self.__FileAppender_filename)
+        self.__FileAppender_rotation = rotation
+
+    def __FileAppender_rotate(self, modification_time):
+        """ **(private)** Check, wether the file has to be rotated yet or not. """
+        if (self.__FileAppender_rotation == ROTATE_DAILY):
+            strftime_mask = "%Y%j"
+        elif (self.__FileAppender_rotation == ROTATE_WEEKLY):
+            strftime_mask = "%Y%W"
+        elif (self.__FileAppender_rotation == ROTATE_MONTHLY):
+            strftime_mask = "%Y%m"
+        return (strftime(strftime_mask, localtime(time())) != strftime(strftime_mask, localtime(modification_time)))
+
+    def __FileAppender_date_string(self, modification_time):
+        """ **(private)** Returns a new filename for the rotated file with the appropriate time included. """
+        if (self.__FileAppender_rotation == ROTATE_DAILY):
+            return strftime("%Y-%m-%d", localtime(modification_time))
+        elif (self.__FileAppender_rotation == ROTATE_WEEKLY):
+            return strftime("%Y-Week %W", localtime(modification_time))
+        elif (self.__FileAppender_rotation == ROTATE_MONTHLY):
+            return strftime("%Y-Month %m", localtime(modification_time))
+
+    def get_rotation(self):
+        """ Returns the current rotation setting. """
+        return self.__FileAppender_rotation
+
+    def set_rotation(self, rotation):
+        """ Set the file rotation mode to one of ROTATE_NONE, ROTATE_DAILY, ROTATE_WEEKLY, ROTATE_MONTHLY """
+        self.__FileAppender_rotation = rotation
+
+    def write(self, text):
+        """ Write some text to the file appender. """
+        if ((os.path.exists(self.__FileAppender_filename)) and (self.__FileAppender_rotation != ROTATE_NONE)):
+            statinfo = stat(self.__FileAppender_filename)
+            if (self.__FileAppender_rotate(statinfo[8])):
+                splitted = os.path.splitext(self.__FileAppender_filename)
+                target_file = "%s-%s%s" % (splitted[0], self.__FileAppender_date_string(statinfo[8]), splitted[1])
+                rename(self.__FileAppender_filename, target_file)
+        file = open(self.__FileAppender_filename, "a")
+        file.write(text)
+        file.close()
+
+    def writeline(self, text):
+        """ Write some text including newline to the file appender. """
+        self.write("%s\n" % text)
