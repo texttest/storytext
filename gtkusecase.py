@@ -28,13 +28,10 @@ remaing unchanged.
 (2) Some GUI widgets have "state" rather than relying on signals (for example text entries, toggle buttons),
 so that the GUI itself may not necessarily make any calls to 'connect'. But you still want to generate
 script commands when they change state, and be able to change them programatically. I have done this
-by wrapping the constructor for such widgets, so that instead of
+by providing a 'register' method, so that an extra call is made to scriptEngine
 
 entry = gtk.Entry()
-
-you would write
-
-entry = scriptEngine.createEntry("enter file name = ")
+scriptEngine.registerEntry(entry, "enter file name = ")
 
 which would tie the "focus-out-event" to the script command "enter file name = <current_entry_contents>".
 
@@ -268,16 +265,22 @@ class ScriptEngine(usecase.ScriptEngine):
         for iter in iters:
             selection.select_iter(iter)
         self._setMonitoring(selection, 1)
-    def createEntry(self, description, defaultValue):
-        entry = gtk.Entry()
-        entry.set_text(defaultValue)
+    def registerEntry(self, entry, description):
         if self.active():
             stateChangeName = self.standardName(description)
             entryEvent = EntryEvent(stateChangeName, entry)
             if self.recorderActive():
                 entryEvent.widget.connect("activate", self.recorder.writeEvent, entryEvent)
             self._addEventToScripts(entryEvent)
-        return entry
+    def registerToggleButton(self, button, checkDescription, uncheckDescription = ""):
+        if self.active():
+            checkChangeName = self.standardName(checkDescription)
+            checkEvent = ActivateEvent(checkChangeName, button)
+            self._addEventToScripts(checkEvent)
+            if uncheckDescription:
+                uncheckChangeName = self.standardName(uncheckDescription)
+                uncheckEvent = ActivateEvent(uncheckChangeName, button, gtk.FALSE)
+                self._addEventToScripts(uncheckEvent)
     def createNotebook(self, description, pages):
         notebook = gtk.Notebook()
         for page, tabText in pages:
@@ -288,19 +291,6 @@ class ScriptEngine(usecase.ScriptEngine):
             event = NotebookPageChangeEvent(stateChangeName, notebook)
             self._addEventToScripts(event)
         return notebook
-    def createCheckButton(self, description, defaultValue):
-        button = gtk.CheckButton(description)
-        if defaultValue:
-            button.set_active(gtk.TRUE)
-
-        if self.active():
-            checkChangeName = "check " + self.standardName(description)
-            uncheckChangeName = "uncheck " + self.standardName(description)
-            checkEvent = ActivateEvent(checkChangeName, button)
-            uncheckEvent = ActivateEvent(uncheckChangeName, button, gtk.FALSE)
-            self._addEventToScripts(checkEvent)
-            self._addEventToScripts(uncheckEvent)
-        return button
     def createShortcutBar(self):
         if not self.enableShortcuts:
             return None
@@ -355,7 +345,8 @@ class ScriptEngine(usecase.ScriptEngine):
     def addStopControls(self, buttonbox, existingbox):
         label = gtk.Label("Recording shortcut named:")
         buttonbox.pack_start(label, expand=gtk.FALSE, fill=gtk.FALSE)
-        entry = self.createEntry("set shortcut name to", "")
+        entry = gtk.Entry()
+        self.registerEntry(entry, "set shortcut name to")
         buttonbox.pack_start(entry, expand=gtk.FALSE, fill=gtk.FALSE)
         stopButton = gtk.Button()
         stopButton.set_label("Stop")

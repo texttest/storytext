@@ -33,8 +33,8 @@ class VideoStore:
     def getTaskBar(self):
         taskBar = gtk.HBox()
         label = gtk.Label("New Movie Name  ")
-        #nameEntry = gtk.Entry()
-        nameEntry = self.scriptEngine.createEntry("set new movie name to", "")
+        nameEntry = gtk.Entry()
+        self.scriptEngine.registerEntry(nameEntry, "set new movie name to")
         button = gtk.Button()
         button.set_label("Add")
         # button.connect("clicked", self.addMovie, nameEntry)
