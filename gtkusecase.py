@@ -66,33 +66,13 @@ To see this in action, try out the video store example.
 
 import usecase, gtk, os, string
 
-# Base class for all GTK events due to widget signals
-class SignalEvent(usecase.UserEvent):
+# Abstract Base class for all GTK events
+class GtkEvent(usecase.UserEvent):
     anyWindowingEvent = None
-    def __init__(self, name, widget, signalName):
+    def __init__(self, name, widget):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
-        self.signalName = signalName
-    def outputForScript(self, widget, *args):
-        return self._outputForScript(*args)
-    def _outputForScript(self, *args):
-        return self.name
-    def generate(self, argumentString):
-        try:
-            self.widget.emit(self.signalName)
-        except TypeError:
-            self.widget.emit(self.signalName, self.anyWindowingEvent)
-            
-# Events we monitor via GUI focus when we don't want all the gory details
-# and don't want programmtic state changes recorded
-class StateChangeEvent(SignalEvent):
-    def __init__(self, name, widget, relevantState = None):
-        SignalEvent.__init__(self, name, widget, "leave-notify-event")
-        self.relevantState = relevantState
-        self.updateState()
         self.captureWindowingEvents()
-        # When we enter the widget we should update with any programmatic changes.
-        self.widget.connect("enter-notify-event", self.updateState)
     def captureWindowingEvents(self):
         # Signals often need to be emitted with a corresponding event.
         # This is very hard to fake. The only way I've found is to seize a random event
@@ -103,8 +83,46 @@ class StateChangeEvent(SignalEvent):
             except TypeError:
                 pass
     def storeWindowingEvent(self, widget, event, *args):
-        SignalEvent.anyWindowingEvent = event
-        self.widget.disconnect(self.anyEventHandler)  
+        GtkEvent.anyWindowingEvent = event
+        self.widget.disconnect(self.anyEventHandler) 
+    def getRecordSignals(self):
+        return []
+    def outputForScript(self, widget, *args):
+        return self._outputForScript(*args)
+    def _outputForScript(self, *args):
+        return self.name
+            
+# Base class for all GTK events due to widget signals
+class SignalEvent(GtkEvent):
+    def __init__(self, name, widget, signalName):
+        GtkEvent.__init__(self, name, widget)
+        self.signalName = signalName
+    def getRecordSignals(self):
+        return [ self.signalName ]
+    def generate(self, argumentString):
+        try:
+            self.widget.emit(self.signalName)
+        except TypeError:
+            self.widget.emit(self.signalName, self.anyWindowingEvent)
+            
+# Events we monitor via GUI focus (note both keyboard and mouse focus, which are different)
+# when we don't want all the gory details
+# and don't want programmtic state changes recorded
+class StateChangeEvent(GtkEvent):
+    def __init__(self, name, widget, relevantState = None):
+        GtkEvent.__init__(self, name, widget)
+        self.relevantState = relevantState
+        self.updateState()
+        # When we enter the widget we should update with any programmatic changes.
+        for signal in self.getFocusInSignals():
+            self.widget.connect(signal, self.updateState)
+    def getRecordSignals(self):
+        return self.getFocusOutSignals()
+    # The signals. First column is mouse focus, second is keyboard focus (!)
+    def getFocusInSignals(self):
+        return [ "enter-notify-event", "focus-in-event" ]
+    def getFocusOutSignals(self):    
+        return [ "leave-notify-event", "focus-out-event" ]
     def updateState(self, *args):
         self.oldState = self.getState()
     def stateDescription(self):
@@ -119,9 +137,10 @@ class StateChangeEvent(SignalEvent):
         self.updateState()
         return self.stateDescription()
     def generate(self, argumentString):
-        self.widget.emit("enter-notify-event", self.anyWindowingEvent)
+        # Doesn't matter whether we fake this with mouse or keyboard
+        self.widget.emit(self.getFocusInSignals()[0], self.anyWindowingEvent)
         self.generateStateChange(argumentString)
-        self.widget.emit(self.signalName, self.anyWindowingEvent)
+        self.widget.emit(self.getFocusOutSignals()[0], self.anyWindowingEvent)
         
 class EntryEvent(StateChangeEvent):
     def getState(self):
@@ -179,6 +198,12 @@ class TreeSelectionEvent(StateChangeEvent):
         self.widget.connect("row_activated", self.updateState)
     def getState(self):
         return string.join(self.findSelectedPaths(), ",")
+    def getFocusOutSignals(self):
+        # Tree views seem to behave strangely with keyboard focus... on clicking a button
+        # in the same window, a focus out event is created for the tree view (with no corresponding focus in),
+        # which can lead to programatically set changes being recorded. This is bad... therefore
+        # we don't look for focus out events and rely on the mouse
+        return [ "leave-notify-event" ]
     def stateDescription(self):
         return self.name + " " + self.oldState
     def generateStateChange(self, argumentString):
@@ -371,7 +396,8 @@ class ScriptEngine(usecase.ScriptEngine):
             self.replayer.addEvent(event)
         if self.recorderActive():
             self.recorder.addEvent(event)
-            event.widget.connect(event.signalName, self.recorder.writeEvent, event)
+            for signal in event.getRecordSignals():
+                event.widget.connect(signal, self.recorder.writeEvent, event)
     def _createSignalEvent(self, signalName, eventName, widget, argumentParseData):
         if signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
