@@ -295,7 +295,7 @@ class RecordScript:
     def _record(self, line):
         if not self.fileForAppend:
             self.fileForAppend = open(self.scriptName, "w")
-        self.fileForAppend.write(line + os.linesep)
+        self.fileForAppend.write(line + "\n")
     def registerShortcut(self, shortcut):
         self.shortcutTrackers.append(ShortcutTracker(shortcut))
     def rerecord(self, newCommands):
