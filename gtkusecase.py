@@ -95,29 +95,46 @@ class SignalEvent(usecase.UserEvent):
             # The simplest way I could find to fake a gtk.gdk.Event
             self.widget.emit(self.signalName, self.anyEvent)
             
-class ActivateEvent(SignalEvent):
-    def __init__(self, name, widget, active = gtk.TRUE):
-        SignalEvent.__init__(self, name, widget, "toggled")
-        self.active = active
-    def shouldRecord(self, *args):
-        return self.widget.get_active() == self.active
-    def generate(self, argumentString):
-        self.widget.set_active(self.active)
-        
-class EntryEvent(SignalEvent):
-    def __init__(self, name, widget):
+# Events we monitor via GUI focus when we don't want all the gory details
+# and don't want programmtic state changes recorded
+class StateChangeEvent(SignalEvent):
+    def __init__(self, name, widget, relevantState = None):
         SignalEvent.__init__(self, name, widget, "focus-out-event")
-        self.oldText = widget.get_text()
+        self.relevantState = relevantState
+        self.updateState()
+        # When we focus in we should update with any programmatic changes
+        self.widget.connect("focus-in-event", self.updateState)
+    def updateState(self, *args):
+        self.oldState = self.getState()
+    def stateDescription(self):
+        return self.name
     def shouldRecord(self, *args):
-        text = self.widget.get_text()
-        return text != self.oldText
+        state = self.getState()
+        if not self.relevantState is None and state != self.relevantState:
+            self.updateState()
+            return 0
+        return state != self.oldState
     def _outputForScript(self, *args):
-        text = self.widget.get_text()
-        self.oldText = text
-        return self.name + " " + text
+        self.updateState()
+        return self.stateDescription()
     def generate(self, argumentString):
-        self.widget.set_text(argumentString)
+        self.widget.emit("focus-in-event", self.anyEvent)
+        self.generateStateChange(argumentString)
         self.widget.emit(self.signalName, self.anyEvent)
+        
+class EntryEvent(StateChangeEvent):
+    def getState(self):
+        return self.widget.get_text()
+    def stateDescription(self):
+        return self.name + " " + self.oldState
+    def generateStateChange(self, argumentString):
+        self.widget.set_text(argumentString)
+
+class ActivateEvent(StateChangeEvent):
+    def getState(self):
+        return self.widget.get_active()
+    def generateStateChange(self, argumentString):
+        self.widget.set_active(self.relevantState)
 
 class ResponseEvent(SignalEvent):
     def __init__(self, name, widget, responseId):
@@ -275,7 +292,7 @@ class ScriptEngine(usecase.ScriptEngine):
     def registerToggleButton(self, button, checkDescription, uncheckDescription = ""):
         if self.active():
             checkChangeName = self.standardName(checkDescription)
-            checkEvent = ActivateEvent(checkChangeName, button)
+            checkEvent = ActivateEvent(checkChangeName, button, gtk.TRUE)
             self._addEventToScripts(checkEvent)
             if uncheckDescription:
                 uncheckChangeName = self.standardName(uncheckDescription)
