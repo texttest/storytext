@@ -1,6 +1,6 @@
 """
 
-Python logging module - Version 1.3
+Python logging module - Version 1.3.1
 
 Loglevels:
 
@@ -179,6 +179,11 @@ class Logger:
             classid = classid.__name__
         elif (type(classid) == InstanceType):
             classid = classid.__class__.__name__
+        elif (type(classid) == StringType):
+            pass
+        else:
+            # Unknown object, so convert it to a string to make it usable
+            classid = str(classid)
 
         # classid has to be lowercase, because the ConfigParser returns sections lowercase
         classid = lower(classid)
@@ -484,32 +489,32 @@ class Logger:
         timedifflaststep = "%.3f" % (currenttime - self.__Logger_timelaststep)
         self.__Logger_timelaststep = currenttime
         milliseconds = int(round((currenttime - long(currenttime)) * 1000))
-        timeformat = self.__Logger_timeformat.replace("%S", "%S." + (zfill(milliseconds, 3)))
+        timeformat = sub("%S", "%S." + (zfill(milliseconds, 3)), self.__Logger_timeformat)
         currentformattedtime = strftime(timeformat, localtime(currenttime))
 
         line = self.__Logger_formatstring
-        line = line.replace("%C", str(self.__Logger_classname))
-        line = line.replace("%D", timedifference)
-        line = line.replace("%d", timedifflaststep)
-        line = line.replace("%F", self.__Logger_functionname)
-        line = line.replace("%f", self.__Logger_filename)
-        line = line.replace("%U", self.__Logger_module)
-        line = line.replace("%u", os.path.split(self.__Logger_module)[-1])
+        line = sub("%C", str(self.__Logger_classname), line)
+        line = sub("%D", timedifference, line)
+        line = sub("%d", timedifflaststep, line)
+        line = sub("%F", self.__Logger_functionname, line)
+        line = sub("%f", replace(self.__Logger_filename, "\\", "\\\\"), line)
+        line = sub("%U", replace(self.__Logger_module, "\\", "\\\\"), line)
+        line = sub("%u", os.path.split(self.__Logger_module)[-1], line)
         ndc = self.__Logger_get_ndc()
         if (ndc != ""):
-            line = line.replace("%x", "%s - " % ndc)
+            line = sub("%x", "%s - " % ndc, line)
         else:
-            line = line.replace("%x", "")
+            line = sub("%x", "", line)
         message = replace(message, "\\", "\\\\")
         if (self.__Logger_useansicodes == TRUE):
-            line = line.replace("%L", self.__Logger_ansi(LOG_MSG[messagesource], messagesource))
-            line = line.replace("%M", self.__Logger_ansi(message, messagesource))
+            line = sub("%L", self.__Logger_ansi(LOG_MSG[messagesource], messagesource), line)
+            line = sub("%M", self.__Logger_ansi(message, messagesource), line)
         else:
-            line = line.replace("%L", LOG_MSG[messagesource])
-            line = line.replace("%M", message)
-        line = line.replace("%N", str(self.__Logger_linenumber))
-        line = line.replace("%T", currentformattedtime)
-        line = line.replace("%t", `currenttime`)
+            line = sub("%L", LOG_MSG[messagesource], line)
+            line = sub("%M", message, line)
+        line = sub("%N", str(self.__Logger_linenumber), line)
+        line = sub("%T", currentformattedtime, line)
+        line = sub("%t", `currenttime`, line)
 
         for i in range(len(self.__Logger_targets)):
             target = self.__Logger_targets[i]
