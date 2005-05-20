@@ -50,14 +50,17 @@ These will then be capable of
     variable USECASE_REPLAY_DELAY.
 """
 
-import os, string, sys, signal, time
+import os, string, sys, signal, time, stat
 from threading import Thread, currentThread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
+from shutil import copyfile
 
 # Hard coded commands
 waitCommandName = "wait for"
 signalCommandName = "receive signal"
+terminateCommandName = "terminate process that"
+fileEditCommandName = "make changes to file"
 
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
@@ -112,6 +115,13 @@ class ScriptEngine:
             self.recorder.registerApplicationEvent(name, category)
         if self.replayerActive():
             self.replayer.registerApplicationEvent(name, timeDelay)
+    def monitorProcess(self, name, process, filesEditing = []):
+        if self.recorderActive():
+            self.recorder.monitorProcess(name, process, filesEditing)
+        if self.replayerActive():
+            for file in filesEditing:
+                self.replayer.registerEditableFile(file)
+            self.replayer.monitorProcess(name, process)
     def readStdin(self):
         line = sys.stdin.readline().strip()
         if self.stdinScript:
@@ -156,14 +166,21 @@ class UseCaseReplayer:
         self.waitingForEvent = None
         self.applicationEventNames = []
         self.processId = os.getpid() # So we can generate signals for ourselves...
+        self.processes = {}
+        self.fileFullPaths = {}
+        self.fileEditDir = None
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if replayScript:
+            replayDir, local = os.path.split(replayScript)
+            self.fileEditDir = os.path.join(replayDir, "file_edits")
             self.addScript(ReplayScript(replayScript))
     def addEvent(self, event):
         self.events[event.name] = event
     def addScript(self, script):
         self.scripts.append(script)
         self.enableReading()
+    def registerEditableFile(self, fullPath):
+        self.fileFullPaths[os.path.basename(fullPath)] = fullPath
     def enableReading(self):
         # If events fail, we store them and wait for the relevant handler
         self.waitingForEvent = None
@@ -181,6 +198,8 @@ class UseCaseReplayer:
                 time.sleep(timeDelay)
             self.enableReading()
         self.applicationEventNames.append(eventName)
+    def monitorProcess(self, name, process):
+        self.processes[name] = process
     def runCommands(self):
         while self.runNextCommand():
             pass
@@ -223,7 +242,11 @@ class UseCaseReplayer:
             return self.processWaitCommand(argumentString)
         if self.delay:
             time.sleep(self.delay)
-        if commandName == signalCommandName:
+        if commandName == fileEditCommandName:
+            return self.processFileEditCommand(argumentString)
+        if commandName == terminateCommandName:
+            return self.processTerminateCommand(argumentString)
+        elif commandName == signalCommandName:
             return self.processSignalCommand(argumentString)
         else:
             self.generateEvent(commandName, argumentString)
@@ -239,6 +262,10 @@ class UseCaseReplayer:
             return waitCommandName
         if command.startswith(signalCommandName):
             return signalCommandName
+        if command.startswith(fileEditCommandName):
+            return fileEditCommandName
+        if command.startswith(terminateCommandName):
+            return terminateCommandName
         longestEventName = ""
         for eventName in self.events.keys():
             if command.startswith(eventName) and len(eventName) > len(longestEventName):
@@ -260,6 +287,27 @@ class UseCaseReplayer:
         exec "signalNum = signal." + signalArg
         self.write("Generating signal " + signalArg)
         os.kill(self.processId, signalNum)
+        return 1
+    def processFileEditCommand(self, fileName):
+        self.write("Making changes to file " + fileName + "...")
+        sourceFile = os.path.join(self.fileEditDir, fileName)
+        if os.path.isfile(sourceFile):
+            if self.fileFullPaths.has_key(fileName):
+                targetFile = self.fileFullPaths[fileName]
+                copyfile(sourceFile, targetFile)
+            else:
+                self.write("ERROR: No file named '" + fileName + "' is being edited, cannot update!")
+        else:
+            self.write("ERROR: Could not find updated version of file " + fileName)
+        return 1
+    def processTerminateCommand(self, procName):
+        self.write("Terminating process that " + procName + "...")
+        if self.processes.has_key(procName):
+            process = self.processes[procName]
+            process.killAll()
+            del self.processes[procName]
+        else:
+            self.write("ERROR: Could not find process that '" + procName + "' to terminate!!")
         return 1
 
 class ShortcutTracker:
@@ -317,9 +365,12 @@ class UseCaseRecorder:
         self.suspended = 0
         self.realSignalHandlers = {}
         self.signalNames = {}
+        self.processes = []
+        self.recordDir = None
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
+            self.recordDir, local = os.path.split(recordScript)
         for entry in dir(signal):
             if entry.startswith("SIG") and not entry.startswith("SIG_"):
                 exec "number = signal." + entry
@@ -359,7 +410,39 @@ class UseCaseRecorder:
             # If we can't read it, press on...
             pass
         return configParser
+    def modifiedTime(self, file):
+        if os.path.isfile(file):
+            return os.stat(file)[stat.ST_MTIME]
+        else:
+            return 0
+    def monitorProcess(self, name, process, filesEdited):
+        filesWithDates = []
+        for file in filesEdited:
+            filesWithDates.append((file, self.modifiedTime(file)))
+        self.processes.append((name, process, filesWithDates))
+    def recordTermination(self, name, filesWithDates):
+        for file, oldModTime in filesWithDates:
+            if self.modifiedTime(file) != oldModTime:
+                self.recordFileUpdate(file)
+        self._record(terminateCommandName + " " + name)
+    def recordFileUpdate(self, file):
+        localName = os.path.basename(file)
+        editDir = os.path.join(self.recordDir, "file_edits")
+        os.makedirs(editDir)
+        copyfile(file, os.path.join(editDir, localName))
+        self._record(fileEditCommandName + " " + localName)
+    def checkProcesses(self):
+        newProcesses = []
+        for name, process, filesWithDates in self.processes:
+            if process.hasTerminated():
+                self.recordTermination(name, filesWithDates)
+            else:
+                newProcesses.append((name, process, filesWithDates))
+        self.processes = newProcesses
     def record(self, line):
+        self.checkProcesses()
+        self._record(line)
+    def _record(self, line):
         for script in self.scripts:
             script.record(line)
     def recordSignal(self, signum, stackFrame):
