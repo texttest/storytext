@@ -97,7 +97,10 @@ class ScriptEngine:
         self.replayer = self.createReplayer(logger)
         self.recorder = UseCaseRecorder()
         self.enableShortcuts = enableShortcuts
-        self.stdinScript = os.getenv("USECASE_RECORD_STDIN")
+        self.stdinScript = None
+        stdinScriptName = os.getenv("USECASE_RECORD_STDIN")
+        if stdinScriptName:
+            self.stdinScript = RecordScript(stdinScriptName)
         self.thread = currentThread()
         ScriptEngine.instance = self
     def recorderActive(self):
@@ -243,6 +246,8 @@ class UseCaseReplayer:
         if self.delay:
             time.sleep(self.delay)
         if commandName == fileEditCommandName:
+            # Get the process termination that follows
+            self.runNextCommand()
             return self.processFileEditCommand(argumentString)
         if commandName == terminateCommandName:
             return self.processTerminateCommand(argumentString)
@@ -428,7 +433,8 @@ class UseCaseRecorder:
     def recordFileUpdate(self, file):
         localName = os.path.basename(file)
         editDir = os.path.join(self.recordDir, "file_edits")
-        os.makedirs(editDir)
+        if not os.path.isdir(editDir):
+            os.makedirs(editDir)
         copyfile(file, os.path.join(editDir, localName))
         self._record(fileEditCommandName + " " + localName)
     def checkProcesses(self):
