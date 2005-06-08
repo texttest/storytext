@@ -368,6 +368,8 @@ class UseCaseRecorder:
         self.applicationEvents = seqdict()
         self.translationParser = self.readTranslationFile()
         self.suspended = 0
+        # Don't record signals until at least one other thing is recorded
+        self.recordSignals = 0
         self.realSignalHandlers = {}
         self.signalNames = {}
         self.processes = []
@@ -449,11 +451,13 @@ class UseCaseRecorder:
         self.checkProcesses()
         self._record(line)
     def _record(self, line):
+        self.recordSignals = 1
         for script in self.scripts:
             script.record(line)
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
-        self.record(signalCommandName + " " + self.signalNames[signum])
+        if self.recordSignals:
+            self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
         # If there was no handler-override installed, resend the signal with the handler reset
