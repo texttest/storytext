@@ -65,6 +65,7 @@ To see this in action, try out the video store example.
 """
 
 import usecase, gtk, os, string
+from gobject import idle_add
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
@@ -273,11 +274,11 @@ class ScriptEngine(usecase.ScriptEngine):
     def registerToggleButton(self, button, checkDescription, uncheckDescription = ""):
         if self.active():
             checkChangeName = self.standardName(checkDescription)
-            checkEvent = ActivateEvent(checkChangeName, button, gtk.TRUE)
+            checkEvent = ActivateEvent(checkChangeName, button, True)
             self._addEventToScripts(checkEvent)
             if uncheckDescription:
                 uncheckChangeName = self.standardName(uncheckDescription)
-                uncheckEvent = ActivateEvent(uncheckChangeName, button, gtk.FALSE)
+                uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
     def createNotebook(self, description, pages):
         notebook = gtk.Notebook()
@@ -295,11 +296,11 @@ class ScriptEngine(usecase.ScriptEngine):
         # Standard thing to add at the bottom of the GUI...
         buttonbox = gtk.HBox()
         existingbox = self.createExistingShortcutBox()
-        buttonbox.pack_start(existingbox, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(existingbox, expand=False, fill=False)
         newbox = gtk.HBox()
         self.addNewButton(newbox)
         self.addStopControls(newbox, existingbox)
-        buttonbox.pack_start(newbox, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(newbox, expand=False, fill=False)
         existingbox.show()
         newbox.show()
         return buttonbox
@@ -317,7 +318,7 @@ class ScriptEngine(usecase.ScriptEngine):
         buttonbox = gtk.HBox()
         files = self.getShortcutFiles()
         label = gtk.Label("Shortcuts:")
-        buttonbox.pack_start(label, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(label, expand=False, fill=False)
         for fileName in files:
             replayScript = usecase.ReplayScript(fileName)
             self.addShortcutButton(buttonbox, replayScript)
@@ -328,7 +329,7 @@ class ScriptEngine(usecase.ScriptEngine):
         newButton.set_label("New")
         self.connect("create new shortcut", "clicked", newButton, self.createShortcut, None, buttonbox)
         newButton.show()
-        buttonbox.pack_start(newButton, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(newButton, expand=False, fill=False)
     def addShortcutButton(self, buttonbox, replayScript):
         button = gtk.Button()
         buttonName = replayScript.getShortcutName()
@@ -339,19 +340,19 @@ class ScriptEngine(usecase.ScriptEngine):
             button.show()
             self.recorder.registerShortcut(replayScript)
         self.commandButtons.append((replayScript, button))
-        buttonbox.pack_start(button, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(button, expand=False, fill=False)
     def addStopControls(self, buttonbox, existingbox):
         label = gtk.Label("Recording shortcut named:")
-        buttonbox.pack_start(label, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(label, expand=False, fill=False)
         entry = gtk.Entry()
         self.registerEntry(entry, "set shortcut name to")
-        buttonbox.pack_start(entry, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(entry, expand=False, fill=False)
         stopButton = gtk.Button()
         stopButton.set_label("Stop")
         self.connect("stop recording", "clicked", stopButton, self.stopRecording, None, label, entry, buttonbox, existingbox)
         self.recorder.blockTopLevel("stop recording")
         self.recorder.blockTopLevel("set shortcut name to")
-        buttonbox.pack_start(stopButton, expand=gtk.FALSE, fill=gtk.FALSE)
+        buttonbox.pack_start(stopButton, expand=False, fill=False)
     def createShortcut(self, button, buttonbox, *args):
         buttonbox.show_all()
         button.hide()
@@ -409,10 +410,4 @@ class ScriptEngine(usecase.ScriptEngine):
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
      def executeCommandsInBackground(self):
-         gtk.idle_add(self.runNextCommand)
-     def runNextCommand(self):
-         retValue = usecase.UseCaseReplayer.runNextCommand(self)
-         if retValue:
-             return gtk.TRUE
-         else:
-             return gtk.FALSE
+         idle_add(self.runNextCommand)

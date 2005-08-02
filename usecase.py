@@ -219,14 +219,14 @@ class UseCaseReplayer:
     def runNextCommand(self):
         command = self.getCommand()
         if not command:
-            return 0
+            return False
         try:
             return self.processCommand(command)
         except UseCaseScriptError:
             type, value, traceback = sys.exc_info()
             self.write("ERROR: " + str(value))
             # We don't terminate scripts if they contain errors
-        return 1
+        return True
     def write(self, line):
         if self.logger:
             try:
@@ -255,7 +255,7 @@ class UseCaseReplayer:
             return self.processSignalCommand(argumentString)
         else:
             self.generateEvent(commandName, argumentString)
-            return 1
+            return True
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
         if not commandName:
@@ -284,15 +284,15 @@ class UseCaseReplayer:
         self.write("Waiting for application event '" + applicationEventName + "' to occur.")
         if applicationEventName in self.applicationEventNames:
             self.write("Expected application event '" + applicationEventName + "' occurred, proceeding.")
-            return 1
+            return True
         else:
             self.waitingForEvent = applicationEventName
-            return 0
+            return False
     def processSignalCommand(self, signalArg):
         exec "signalNum = signal." + signalArg
         self.write("Generating signal " + signalArg)
         os.kill(self.processId, signalNum)
-        return 1
+        return True
     def processFileEditCommand(self, fileName):
         self.write("Making changes to file " + fileName + "...")
         sourceFile = os.path.join(self.fileEditDir, fileName)
@@ -304,7 +304,7 @@ class UseCaseReplayer:
                 self.write("ERROR: No file named '" + fileName + "' is being edited, cannot update!")
         else:
             self.write("ERROR: Could not find updated version of file " + fileName)
-        return 1
+        return True
     def processTerminateCommand(self, procName):
         self.write("Terminating process that " + procName + "...")
         if self.processes.has_key(procName):
@@ -313,7 +313,7 @@ class UseCaseReplayer:
             del self.processes[procName]
         else:
             self.write("ERROR: Could not find process that '" + procName + "' to terminate!!")
-        return 1
+        return True
 
 class ShortcutTracker:
     def __init__(self, replayScript):
