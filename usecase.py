@@ -51,7 +51,7 @@ These will then be capable of
 """
 
 import os, string, sys, signal, time, stat
-from threading import Thread, currentThread
+from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
@@ -101,7 +101,6 @@ class ScriptEngine:
         stdinScriptName = os.getenv("USECASE_RECORD_STDIN")
         if stdinScriptName:
             self.stdinScript = RecordScript(stdinScriptName)
-        self.thread = currentThread()
         ScriptEngine.instance = self
     def recorderActive(self):
         return self.enableShortcuts or len(self.recorder.scripts) > 0
@@ -112,8 +111,6 @@ class ScriptEngine:
     def createReplayer(self, logger):
         return UseCaseReplayer(logger)
     def applicationEvent(self, name, category = None, timeDelay = 0):
-        if currentThread() != self.thread:
-            raise UseCaseScriptError, "Can only register application events in the same thread as the script engine"
         if self.recorderActive():
             self.recorder.registerApplicationEvent(name, category)
         if self.replayerActive():
