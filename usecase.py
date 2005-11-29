@@ -139,8 +139,9 @@ class ReplayScript:
         if not os.path.isfile(scriptName):
             raise UseCaseScriptError, "Cannot replay script " + scriptName + ", no such file or directory"
         for line in open(scriptName).xreadlines():
+            line = line.strip()
             if line != "" and line[0] != "#":
-                self.commands.append(line.strip())
+                self.commands.append(line)
     def addExitObserver(self, observer):
         self.exitObservers.append(observer)
     def getShortcutName(self):
