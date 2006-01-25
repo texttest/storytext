@@ -145,7 +145,7 @@ class ReplayScript:
     def addExitObserver(self, observer):
         self.exitObservers.append(observer)
     def getShortcutName(self):
-        return os.path.basename(self.name).split(".")[0].replace("_", " ")
+        return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
     def getCommand(self):
         if self.pointer >= len(self.commands):
             for observer in self.exitObservers:

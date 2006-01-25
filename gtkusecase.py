@@ -326,13 +326,15 @@ class ScriptEngine(usecase.ScriptEngine):
         return buttonbox
     def addNewButton(self, buttonbox):
         newButton = gtk.Button()
-        newButton.set_label("New")
+        newButton.set_use_underline(1)
+        newButton.set_label("_New")
         self.connect("create new shortcut", "clicked", newButton, self.createShortcut, None, buttonbox)
         newButton.show()
         buttonbox.pack_start(newButton, expand=False, fill=False)
     def addShortcutButton(self, buttonbox, replayScript):
         button = gtk.Button()
         buttonName = replayScript.getShortcutName()
+        button.set_use_underline(1)
         button.set_label(buttonName)
         self.connect(buttonName.lower(), "clicked", button, self.replayShortcut, None, replayScript)
         firstCommand = replayScript.commands[0]
@@ -348,7 +350,8 @@ class ScriptEngine(usecase.ScriptEngine):
         self.registerEntry(entry, "set shortcut name to")
         buttonbox.pack_start(entry, expand=False, fill=False)
         stopButton = gtk.Button()
-        stopButton.set_label("Stop")
+        stopButton.set_use_underline(1)
+        stopButton.set_label("S_top")
         self.connect("stop recording", "clicked", stopButton, self.stopRecording, None, label, entry, buttonbox, existingbox)
         self.recorder.blockTopLevel("stop recording")
         self.recorder.blockTopLevel("set shortcut name to")
@@ -365,7 +368,7 @@ class ScriptEngine(usecase.ScriptEngine):
         label.hide()
         entry.hide()
         buttonName = entry.get_text()
-        newScriptName = self.getShortcutFileName(buttonName)
+        newScriptName = self.getShortcutFileName(buttonName.replace("_", "#")) # Save 'real' _ (mnemonics9 from being replaced in file name ...
         scriptExistedPreviously = os.path.isfile(newScriptName)
         os.rename(self.getTmpShortcutName(), newScriptName)
         if not scriptExistedPreviously:
