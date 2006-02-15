@@ -48,6 +48,24 @@ These will then be capable of
 (5) Being able to pause between replaying replay script events.
     - This allows you to see what is happening more easily and is controlled by the environment
     variable USECASE_REPLAY_DELAY.
+
+(6) Monitoring and killing external processes started by the system under test
+    - This is achieved by calling scriptEngine.monitorProcess, passing the process and a name to refer
+    to it. The process should be an object with the methods hasTerminated and killAll provided. An example
+    class for child processes on UNIX is provided below (UnixChildProcess). Note that the code does not
+    actually use this class but only the interface it fulfils.
+
+    In record mode, PyUseCase will then check before recording anything else whether the process is still
+    running (according to hasTerminated), if it is not, it will record "terminate process that" followed
+    by the description passed to monitorProcess. On reading such a command in replay mode, naturally,
+    it will call the killAll() method.
+
+(7) Simulating file edits made by such external programs as monitored in (6)
+    - By providing a list of files that may be edited by the program in the third argument of monitorProcess,
+    you can ensure a check is made to see if they are updated when the program is closed. If they are and you
+    are in record mode, a "make changes to file" statement is recorded along with the file name. The new contents
+    of the file are then stored in a directory called 'file_edits' relative to where the script is being recorded.
+    In replay mode this will cause the actual file to be overwritten with the contents of the one in file_edits.
 """
 
 import os, string, sys, signal, time, stat
@@ -65,6 +83,19 @@ fileEditCommandName = "make changes to file"
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
     pass
+
+# Example process class for the process handling
+class UnixChildProcess:
+    def __init__(self, pid):
+        self.pid = pid
+    def hasTerminated(self):
+        try:
+            procId, status = os.waitpid(self.pid, os.WNOHANG)
+            return procId > 0 or status > 0
+        except OSError:
+            return True
+    def killAll(self):
+        os.kill(self.pid, signal.SIGTERM)
 
 # Base class for events caused by the action of a user on a GUI. Generally assumed
 # to be doing something on a particular widget, and being named explicitly by the
