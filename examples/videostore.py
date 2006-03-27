@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-# Test GUI for 'PyUseCase'. Illustrates use of (a) simple signal connection, as in buttons (b) text entries and (c) the shortcut bar
+# Test GUI for 'PyUseCase'. Illustrates use of
+#  (a) simple signal connection, as in buttons
+#  (b) text entries and
+#  (c) the shortcut bar
+#  (d) menus
 # Above each use of the PyUseCase script engine is the equivalent code without it, commented.
 
 import gtk, gobject
@@ -10,6 +14,8 @@ class VideoStore:
     def __init__(self):
         self.scriptEngine = ScriptEngine(enableShortcuts=1)
         self.model = gtk.ListStore(gobject.TYPE_STRING)
+        self.nameEntry = gtk.Entry()
+        self.buttons = []
     def createTopWindow(self):
         # Create toplevel window to show it all.
         win = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -23,6 +29,7 @@ class VideoStore:
         return win
     def createWindowContents(self):
         vbox = gtk.VBox()
+        vbox.pack_start(self.getMenuBar(), expand=False, fill=False)
         vbox.pack_start(self.getTaskBar(), expand=False, fill=False)
         vbox.pack_start(self.getVideoView(), expand=True, fill=True)
         shortcutBar = self.scriptEngine.createShortcutBar()
@@ -30,16 +37,59 @@ class VideoStore:
         shortcutBar.show()
         vbox.show()
         return vbox
+    def getMenuBar(self):
+        addItem = gtk.MenuItem("Add")
+        sortItem = gtk.MenuItem("Sort")
+        clearItem = gtk.MenuItem("Clear")
+        buttonsItem = gtk.CheckMenuItem("Show buttons")
+        sepItem = gtk.SeparatorMenuItem() # Works?
+        quitItem = gtk.MenuItem("Quit")
+        addItem.show()
+        sortItem.show()
+        clearItem.show()
+        buttonsItem.set_active(True)
+        buttonsItem.show()
+        quitItem.show()
+        
+        actionsSubMenu = gtk.Menu()
+        actionsSubMenu.append(addItem)
+        actionsSubMenu.append(sortItem)
+        actionsSubMenu.append(clearItem)
+        actionsSubMenu.show()
+        actionsItem = gtk.MenuItem("Actions")
+        actionsItem.set_submenu(actionsSubMenu)
+        actionsItem.show()
+        
+        fileMenu = gtk.Menu()
+        fileMenu.append(actionsItem)
+        fileMenu.append(buttonsItem)        
+        fileMenu.append(quitItem)        
+        fileMenu.show()
+        fileItem = gtk.MenuItem("File")
+        fileItem.set_submenu(fileMenu)        
+        fileItem.show()
+        
+        self.scriptEngine.connect("select menu 'File'", "activate", fileItem)
+        self.scriptEngine.connect("select menu item 'Actions'", "activate", actionsItem)
+        self.scriptEngine.connect("select menu item 'Add'", "activate", addItem, self.addMovie, None, self.nameEntry)
+        self.scriptEngine.connect("select menu item 'Sort'", "activate", sortItem, self.sortMovies)
+        self.scriptEngine.connect("select menu item 'Clear'", "activate", clearItem, self.clearMovies)
+        self.scriptEngine.connect("select menu item 'Show buttons'", "activate", buttonsItem, self.toggleButtons)
+        self.scriptEngine.connect("select menu item 'Quit'", "activate", quitItem, self.quit)
+        
+        menuBar = gtk.MenuBar()
+        menuBar.append(fileItem)
+        menuBar.show()
+        return menuBar
     def getTaskBar(self):
         taskBar = gtk.HBox()
         label = gtk.Label("New Movie Name  ")
-        nameEntry = gtk.Entry()
-        self.scriptEngine.registerEntry(nameEntry, "set new movie name to")
-        self.scriptEngine.connect("add movie by pressing <enter>", "activate", nameEntry, self.addMovie, None, nameEntry)
+        self.scriptEngine.registerEntry(self.nameEntry, "set new movie name to")
+        self.scriptEngine.connect("add movie by pressing <enter>", "activate", self.nameEntry, self.addMovie, None, self.nameEntry)
         button = gtk.Button()
         button.set_label("Add")
-        # button.connect("clicked", self.addMovie, nameEntry)
-        self.scriptEngine.connect("add movie", "clicked", button, self.addMovie, None, nameEntry)
+        # button.connect("clicked", self.addMovie, self.nameEntry)
+        self.scriptEngine.connect("add movie", "clicked", button, self.addMovie, None, self.nameEntry)
         sortButton = gtk.Button()
         sortButton.set_label("Sort")
         # sortButton.connect("clicked", self.sortMovies)
@@ -49,12 +99,17 @@ class VideoStore:
         # clearButton.connect("clicked", self.sortMovies)
         self.scriptEngine.connect("clear list", "clicked", clearButton, self.clearMovies)
         taskBar.pack_start(label, expand=False, fill=True)
-        taskBar.pack_start(nameEntry, expand=True, fill=True)
+        taskBar.pack_start(self.nameEntry, expand=True, fill=True)
         taskBar.pack_start(button, expand=False, fill=False)
         taskBar.pack_start(sortButton, expand=False, fill=False)
         taskBar.pack_start(clearButton, expand=False, fill=False)
+
+        self.buttons.append(button)
+        self.buttons.append(sortButton)
+        self.buttons.append(clearButton)
+
         label.show()
-        nameEntry.show()
+        self.nameEntry.show()
         button.show()
         sortButton.show()
         clearButton.show()
@@ -73,6 +128,13 @@ class VideoStore:
         scrolled.add(view)
         scrolled.show()    
         return scrolled
+    def toggleButtons(self, item):
+        if item.get_active():
+            for b in self.buttons:
+                b.show()
+        else:
+            for b in self.buttons:
+                b.hide()            
     def getWindowHeight(self):
         return (gtk.gdk.screen_height() * 2) / 5
     def getWindowWidth(self):
