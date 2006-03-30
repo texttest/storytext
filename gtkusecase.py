@@ -100,15 +100,21 @@ class SignalEvent(GtkEvent):
         self.signalName = signalName
     def getRecordSignals(self):
         return [ self.signalName ]
-    def generate(self, argumentString):
+    def generate(self, argumentString):        
         try:
-            self.widget.emit(self.signalName)
+            if self.widget.get_property("visible"):
+                if self.widget.get_property("sensitive"):
+                    self.widget.emit(self.signalName)
+                else:
+                    raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
+            else:
+                raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not visible at the moment, cannot simulate event " + repr(self.name)
         except TypeError:
             self.widget.emit(self.signalName, self.anyWindowingEvent)
             
 # Events we monitor via GUI focus (note both keyboard and mouse focus, which are different)
 # when we don't want all the gory details
-# and don't want programmtic state changes recorded
+# and don't want programmatic state changes recorded
 class StateChangeEvent(GtkEvent):
     def __init__(self, name, widget, relevantState = None):
         GtkEvent.__init__(self, name, widget)

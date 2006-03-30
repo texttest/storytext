@@ -42,44 +42,39 @@ class VideoStore:
         sortItem = gtk.MenuItem("Sort")
         clearItem = gtk.MenuItem("Clear")
         buttonsItem = gtk.CheckMenuItem("Show buttons")
+        buttons2Item = gtk.CheckMenuItem("Enable buttons")
         sepItem = gtk.SeparatorMenuItem() # Works?
         quitItem = gtk.MenuItem("Quit")
-        addItem.show()
-        sortItem.show()
-        clearItem.show()
         buttonsItem.set_active(True)
-        buttonsItem.show()
-        quitItem.show()
+        buttons2Item.set_active(True)
         
         actionsSubMenu = gtk.Menu()
         actionsSubMenu.append(addItem)
         actionsSubMenu.append(sortItem)
         actionsSubMenu.append(clearItem)
-        actionsSubMenu.show()
         actionsItem = gtk.MenuItem("Actions")
         actionsItem.set_submenu(actionsSubMenu)
-        actionsItem.show()
         
         fileMenu = gtk.Menu()
         fileMenu.append(actionsItem)
         fileMenu.append(buttonsItem)        
+        fileMenu.append(buttons2Item)        
         fileMenu.append(quitItem)        
-        fileMenu.show()
         fileItem = gtk.MenuItem("File")
         fileItem.set_submenu(fileMenu)        
-        fileItem.show()
         
         self.scriptEngine.connect("select menu 'File'", "activate", fileItem)
         self.scriptEngine.connect("select menu item 'Actions'", "activate", actionsItem)
         self.scriptEngine.connect("select menu item 'Add'", "activate", addItem, self.addMovie, None, self.nameEntry)
         self.scriptEngine.connect("select menu item 'Sort'", "activate", sortItem, self.sortMovies)
         self.scriptEngine.connect("select menu item 'Clear'", "activate", clearItem, self.clearMovies)
-        self.scriptEngine.connect("select menu item 'Show buttons'", "activate", buttonsItem, self.toggleButtons)
+        self.scriptEngine.connect("select menu item 'Show buttons'", "activate", buttonsItem, self.hideButtons)
+        self.scriptEngine.connect("select menu item 'Enable buttons'", "activate", buttons2Item, self.enableButtons)
         self.scriptEngine.connect("select menu item 'Quit'", "activate", quitItem, self.quit)
         
         menuBar = gtk.MenuBar()
         menuBar.append(fileItem)
-        menuBar.show()
+        menuBar.show_all()
         return menuBar
     def getTaskBar(self):
         taskBar = gtk.HBox()
@@ -90,6 +85,10 @@ class VideoStore:
         button.set_label("Add")
         # button.connect("clicked", self.addMovie, self.nameEntry)
         self.scriptEngine.connect("add movie", "clicked", button, self.addMovie, None, self.nameEntry)
+        deleteButton = gtk.Button()
+        deleteButton.set_label("Delete")
+        # button.connect("clicked", self.deleteMovie, self.nameEntry)
+        self.scriptEngine.connect("delete movie", "clicked", deleteButton, self.deleteMovie, None, self.nameEntry)
         sortButton = gtk.Button()
         sortButton.set_label("Sort")
         # sortButton.connect("clicked", self.sortMovies)
@@ -98,22 +97,22 @@ class VideoStore:
         clearButton.set_label("Clear")
         # clearButton.connect("clicked", self.sortMovies)
         self.scriptEngine.connect("clear list", "clicked", clearButton, self.clearMovies)
+
+        # Place buttons
         taskBar.pack_start(label, expand=False, fill=True)
         taskBar.pack_start(self.nameEntry, expand=True, fill=True)
         taskBar.pack_start(button, expand=False, fill=False)
+        taskBar.pack_start(deleteButton, expand=False, fill=False)
         taskBar.pack_start(sortButton, expand=False, fill=False)
         taskBar.pack_start(clearButton, expand=False, fill=False)
 
+        # Store buttons, to be able to hide/disable them later
         self.buttons.append(button)
+        self.buttons.append(deleteButton)
         self.buttons.append(sortButton)
         self.buttons.append(clearButton)
 
-        label.show()
-        self.nameEntry.show()
-        button.show()
-        sortButton.show()
-        clearButton.show()
-        taskBar.show()
+        taskBar.show_all()
         return taskBar
     def getVideoView(self):
         view = gtk.TreeView(self.model)
@@ -128,13 +127,20 @@ class VideoStore:
         scrolled.add(view)
         scrolled.show()    
         return scrolled
-    def toggleButtons(self, item):
+    def hideButtons(self, item):
         if item.get_active():
             for b in self.buttons:
                 b.show()
         else:
             for b in self.buttons:
                 b.hide()            
+    def enableButtons(self, item):
+        if item.get_active():
+            for b in self.buttons:
+                b.set_sensitive(True)
+        else:
+            for b in self.buttons:
+                b.set_sensitive(False)            
     def getWindowHeight(self):
         return (gtk.gdk.screen_height() * 2) / 5
     def getWindowWidth(self):
@@ -150,6 +156,18 @@ class VideoStore:
             print "Adding movie '" + movieName + "'. There are now", self.model.iter_n_children(None), "movies."
         else:
             self.showError("Movie '" + movieName + "' has already been added")
+    def deleteMovie(self, button, entry, *args):
+        movieName = entry.get_text()
+        if movieName in self.getMovieNames():
+            iter = self.model.get_iter_root()
+            while iter:
+                if self.model.get_value(iter, 0) == movieName:
+                    self.model.remove(iter)
+                    print "Deleting movie '" + movieName + "'. There are now", self.model.iter_n_children(None), "movies."
+                    break
+                iter = self.model.iter_next(iter)
+        else:
+            self.showError("Movie '" + movieName + "' does not exist.")
     def clearMovies(self, *args):
         self.model.clear()
     def sortMovies(self, *args):
