@@ -39,6 +39,7 @@ class VideoStore:
         return vbox
     def getMenuBar(self):
         addItem = gtk.MenuItem("Add")
+        deleteItem = gtk.MenuItem("Delete")
         sortItem = gtk.MenuItem("Sort")
         clearItem = gtk.MenuItem("Clear")
         buttonsItem = gtk.CheckMenuItem("Show buttons")
@@ -50,6 +51,7 @@ class VideoStore:
         
         actionsSubMenu = gtk.Menu()
         actionsSubMenu.append(addItem)
+        actionsSubMenu.append(deleteItem)
         actionsSubMenu.append(sortItem)
         actionsSubMenu.append(clearItem)
         actionsItem = gtk.MenuItem("Actions")
@@ -66,6 +68,7 @@ class VideoStore:
         self.scriptEngine.connect("select menu 'File'", "activate", fileItem)
         self.scriptEngine.connect("select menu item 'Actions'", "activate", actionsItem)
         self.scriptEngine.connect("select menu item 'Add'", "activate", addItem, self.addMovie, None, self.nameEntry)
+        self.scriptEngine.connect("select menu item 'Delete'", "activate", deleteItem, self.deleteMovie, None, self.nameEntry)
         self.scriptEngine.connect("select menu item 'Sort'", "activate", sortItem, self.sortMovies)
         self.scriptEngine.connect("select menu item 'Clear'", "activate", clearItem, self.clearMovies)
         self.scriptEngine.connect("select menu item 'Show buttons'", "activate", buttonsItem, self.hideButtons)
