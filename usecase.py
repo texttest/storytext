@@ -111,11 +111,14 @@ class UserEvent:
     def __init__(self, name):
         self.name = name
     def shouldRecord(self, *args):
-        return 1
+        return True
     def outputForScript(self, *args):
         return self.name
     def generate(self, argumentString):
         pass
+    def isStateChange(self):
+        # If this is true, recorder will wait before recording and only record if a different event comes in
+        return False
 
 # Behaves as a singleton...
 class ScriptEngine:
@@ -403,6 +406,7 @@ class UseCaseRecorder:
         self.signalNames = {}
         self.processes = []
         self.recordDir = None
+        self.stateChangeEvent = None
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
@@ -511,15 +515,28 @@ class UseCaseRecorder:
         if len(self.scripts) == 0 or self.suspended == 1:
             return
         event = self.findEvent(*args)
-        if event.shouldRecord(*args):
-            self.writeApplicationEventDetails()
-            scriptOutput = event.outputForScript(*args)
-            lineToRecord = self.translate(scriptOutput, event.name)
-            if event.name in self.eventsBlockedTopLevel:
-                for script in self.scripts[:-1]:
-                    script.record(lineToRecord)
-            else:
-                self.record(lineToRecord)
+        if not event.shouldRecord(*args):
+            return
+
+        self.writeApplicationEventDetails()
+        if event.isStateChange():
+            if self.stateChangeEvent and not event is self.stateChangeEvent:
+                self.recordEvent(self.stateChangeEvent, *args)
+            self.stateChangeEvent = event
+            return
+
+        if self.stateChangeEvent:
+            self.recordEvent(self.stateChangeEvent, *args)
+            self.stateChangeEvent = None
+        self.recordEvent(event, *args)
+    def recordEvent(self, event, *args):
+        scriptOutput = event.outputForScript(*args)
+        lineToRecord = self.translate(scriptOutput, event.name)
+        if event.name in self.eventsBlockedTopLevel:
+            for script in self.scripts[:-1]:
+                script.record(lineToRecord)
+        else:
+            self.record(lineToRecord)
     def findEvent(self, *args):
         for arg in args:
             if isinstance(arg, UserEvent):

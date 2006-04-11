@@ -69,10 +69,105 @@ from gobject import idle_add
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
-    anyWindowingEvent = None
     def __init__(self, name, widget):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
+    def getRecordSignal(self):
+        pass
+    def connectRecord(self, method):
+        self.widget.connect(self.getRecordSignal(), method, self)
+    def outputForScript(self, widget, *args):
+        return self._outputForScript(*args)
+    def _outputForScript(self, *args):
+        return self.name
+            
+# Base class for all GTK events due to widget signals
+class SignalEvent(GtkEvent):
+    def __init__(self, name, widget, signalName):
+        GtkEvent.__init__(self, name, widget)
+        self.signalName = signalName
+    def getRecordSignal(self):
+        return self.signalName
+    def generate(self, argumentString):
+        self.widget.grab_focus()
+        if self.widget.get_property("visible"):
+            if self.widget.get_property("sensitive"):
+                self.widget.emit(self.signalName)
+            else:
+                raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
+        else:
+            raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not visible at the moment, cannot simulate event " + repr(self.name)
+            
+# Some widgets have state. We note every change but allow consecutive changes to
+# overwrite each other. Assume that if the state is set programatically the widget won't be in focus
+class StateChangeEvent(GtkEvent):
+    def getRecordSignal(self):
+        return "changed"
+    def isStateChange(self):
+        return True
+    def shouldRecord(self, *args):
+        return self.widget.is_focus()
+    def generate(self, argumentString):
+        self.widget.grab_focus()
+        self.generateStateChange(argumentString)
+    def _outputForScript(self, *args):
+        return self.name + " " + self.getStateDescription()
+        
+class EntryEvent(StateChangeEvent):
+    def getStateDescription(self):
+        return self.widget.get_text()
+    def generateStateChange(self, argumentString):
+        self.widget.set_text(argumentString)
+
+class ActivateEvent(StateChangeEvent):
+    def __init__(self, name, widget, relevantState):
+        StateChangeEvent.__init__(self, name, widget)
+        self.relevantState = relevantState
+    def getRecordSignal(self):
+        return "toggled"
+    def shouldRecord(self, *args):
+        return self.widget.is_focus() and self.widget.get_active() == self.relevantState
+    def _outputForScript(self, *args):
+        return self.name
+    def getStateDescription(self):
+        return self.name
+    def generateStateChange(self, argumentString):
+        self.widget.set_active(self.relevantState)
+
+class TreeSelectionEvent(StateChangeEvent):
+    def __init__(self, name, widget, indexer):
+        self.selection = widget
+        StateChangeEvent.__init__(self, name, widget.get_tree_view())
+        self.indexer = indexer
+    def connectRecord(self, method):
+        self.selection.connect("changed", method, self)
+    def getStateDescription(self):
+        return string.join(self.findSelectedPaths(), ",")
+    def generateStateChange(self, argumentString):
+        self.selection.unselect_all()
+        paths = map(self.indexer.string2path, argumentString.split(","))
+        for path in paths:
+            self.selection.select_path(path)
+    def findSelectedPaths(self):
+        paths = []
+        self.selection.selected_foreach(self.addSelPath, paths)
+        return paths
+    def addSelPath(self, model, path, iter, paths):
+        paths.append(self.indexer.path2string(path))
+    
+class ResponseEvent(SignalEvent):
+    def __init__(self, name, widget, responseId):
+        SignalEvent.__init__(self, name, widget, "response")
+        self.responseId = responseId
+    def shouldRecord(self, widget, responseId, *args):
+        return self.responseId == responseId
+    def generate(self, argumentString):
+        self.widget.emit(self.signalName, self.responseId)
+
+class DeletionEvent(SignalEvent):
+    anyWindowingEvent = None
+    def __init__(self, name, widget, signalName):
+        SignalEvent.__init__(self, name, widget, signalName)
         self.captureWindowingEvents()
     def captureWindowingEvents(self):
         # Signals often need to be emitted with a corresponding event.
@@ -84,94 +179,13 @@ class GtkEvent(usecase.UserEvent):
             except TypeError:
                 pass
     def storeWindowingEvent(self, widget, event, *args):
-        GtkEvent.anyWindowingEvent = event
-        self.widget.disconnect(self.anyEventHandler) 
-    def getRecordSignals(self):
-        return []
-    def outputForScript(self, widget, *args):
-        return self._outputForScript(*args)
-    def _outputForScript(self, *args):
-        return self.name
-            
-# Base class for all GTK events due to widget signals
-class SignalEvent(GtkEvent):
-    def __init__(self, name, widget, signalName):
-        GtkEvent.__init__(self, name, widget)
-        self.signalName = signalName
-    def getRecordSignals(self):
-        return [ self.signalName ]
-    def generate(self, argumentString):        
-        try:
-            if self.widget.get_property("visible"):
-                if self.widget.get_property("sensitive"):
-                    self.widget.emit(self.signalName)
-                else:
-                    raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
-            else:
-                raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not visible at the moment, cannot simulate event " + repr(self.name)
-        except TypeError:
-            self.widget.emit(self.signalName, self.anyWindowingEvent)
-            
-# Events we monitor via GUI focus (note both keyboard and mouse focus, which are different)
-# when we don't want all the gory details
-# and don't want programmatic state changes recorded
-class StateChangeEvent(GtkEvent):
-    def __init__(self, name, widget, relevantState = None):
-        GtkEvent.__init__(self, name, widget)
-        self.relevantState = relevantState
-        self.updateState()
-        # When we enter the widget we should update with any programmatic changes.
-        for signal in self.getFocusInSignals():
-            self.widget.connect(signal, self.updateState)
-    def getRecordSignals(self):
-        return self.getFocusOutSignals()
-    # The signals. First column is mouse focus, second is keyboard focus (!)
-    def getFocusInSignals(self):
-        return [ "enter-notify-event", "focus-in-event" ]
-    def getFocusOutSignals(self):    
-        return [ "leave-notify-event", "focus-out-event" ]
-    def updateState(self, *args):
-        self.oldState = self.getState()
-    def stateDescription(self):
-        return self.name
-    def shouldRecord(self, *args):
-        state = self.getState()
-        if not self.relevantState is None and state != self.relevantState:
-            self.updateState()
-            return 0
-        return state != self.oldState
-    def _outputForScript(self, *args):
-        self.updateState()
-        return self.stateDescription()
+        DeletionEvent.anyWindowingEvent = event
+        self.widget.disconnect(self.anyEventHandler)
     def generate(self, argumentString):
-        # Doesn't matter whether we fake this with mouse or keyboard
-        self.widget.emit(self.getFocusInSignals()[0], self.anyWindowingEvent)
-        self.generateStateChange(argumentString)
-        self.widget.emit(self.getFocusOutSignals()[0], self.anyWindowingEvent)
-        
-class EntryEvent(StateChangeEvent):
-    def getState(self):
-        return self.widget.get_text()
-    def stateDescription(self):
-        return self.name + " " + self.oldState
-    def generateStateChange(self, argumentString):
-        self.widget.set_text(argumentString)
-
-class ActivateEvent(StateChangeEvent):
-    def getState(self):
-        return self.widget.get_active()
-    def generateStateChange(self, argumentString):
-        self.widget.set_active(self.relevantState)
+        # Hack - may not work everywhere. Can't find out how to programatically delete windows and still
+        # be able to respond to the deletion...
+        self.widget.emit("delete_event", self.anyWindowingEvent)
     
-class ResponseEvent(SignalEvent):
-    def __init__(self, name, widget, responseId):
-        SignalEvent.__init__(self, name, widget, "response")
-        self.responseId = responseId
-    def shouldRecord(self, widget, responseId, *args):
-        return self.responseId == responseId
-    def generate(self, argumentString):
-        self.widget.emit(self.signalName, self.responseId)
-
 class NotebookPageChangeEvent(SignalEvent):
     def __init__(self, name, widget):
         SignalEvent.__init__(self, name, widget, "switch-page")
@@ -195,35 +209,6 @@ class TreeViewSignalEvent(SignalEvent):
     def generate(self, argumentString):
         path = self.indexer.string2path(argumentString)
         self.widget.emit(self.signalName, path, self.indexer.column)
-
-class TreeSelectionEvent(StateChangeEvent):
-    def __init__(self, name, widget, indexer):
-        self.selection = widget
-        StateChangeEvent.__init__(self, name, widget.get_tree_view())
-        self.indexer = indexer
-        # Activating rows should update the state.
-        self.widget.connect("row_activated", self.updateState)
-    def getState(self):
-        return string.join(self.findSelectedPaths(), ",")
-    def getFocusOutSignals(self):
-        # Tree views seem to behave strangely with keyboard focus... on clicking a button
-        # in the same window, a focus out event is created for the tree view (with no corresponding focus in),
-        # which can lead to programatically set changes being recorded. This is bad... therefore
-        # we don't look for focus out events and rely on the mouse
-        return [ "leave-notify-event" ]
-    def stateDescription(self):
-        return self.name + " " + self.oldState
-    def generateStateChange(self, argumentString):
-        self.selection.unselect_all()
-        paths = map(self.indexer.string2path, argumentString.split(","))
-        for path in paths:
-            self.selection.select_path(path)
-    def findSelectedPaths(self):
-        paths = []
-        self.selection.selected_foreach(self.addSelPath, paths)
-        return paths
-    def addSelPath(self, model, path, iter, paths):
-        paths.append(self.indexer.path2string(path))
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:
@@ -269,7 +254,7 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.active():
             stdName = self.standardName(eventName)
             stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData)
-            self._addEventToScripts(stateChangeEvent)
+            self._addEventToScripts(stateChangeEvent)        
     def registerEntry(self, entry, description):
         if self.active():
             stateChangeName = self.standardName(description)
@@ -406,9 +391,10 @@ class ScriptEngine(usecase.ScriptEngine):
             self.replayer.addEvent(event)
         if self.recorderActive():
             self.recorder.addEvent(event)
-            for signal in event.getRecordSignals():
-                event.widget.connect(signal, self.recorder.writeEvent, event)
+            event.connectRecord(self.recorder.writeEvent)
     def _createSignalEvent(self, signalName, eventName, widget, argumentParseData):
+        if signalName == "delete_event":
+            return DeletionEvent(eventName, widget, signalName)
         if signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
         elif isinstance(widget, gtk.TreeView):
