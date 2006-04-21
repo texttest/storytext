@@ -1,13 +1,18 @@
 XCOMM Install test components in generally available place.
-XCOMM $Id: Imakefile,v 1.3 2006/04/20 11:35:28 uddeborg Exp $
+XCOMM $Id: Imakefile,v 1.4 2006/04/21 14:11:45 uddeborg Exp $
 
 MODULEDIR=/usr/local/share/python
 FRAMEWORK_MODULES=gtkusecase.py log4py.py ndict.py usecase.py
 PYTHONVERSIONS=2.2 2.3 2.4
-ALLTARGETS=$(addprefix $(MODULEDIR)/, $(foreach ver, $(PYTHONVERSIONS), $(addprefix $(ver)/, $(FRAMEWORK_MODULES))))
+ALLDIRS=$(addprefix $(MODULEDIR)/, $(PYTHONVERSIONS))
+ALLTARGETS=$(foreach ver, $(ALLDIRS), $(addprefix $(ver)/, $(FRAMEWORK_MODULES)))
 
 CarmFirstTarget()
 
 install:: $(ALLTARGETS)
-$(ALLTARGETS): $$(@F)
-	cp $< $@
+$(addsuffix /%, $(ALLDIRS)): %
+	@set -xv; \
+	for pv in $(PYTHONVERSIONS); \
+	do  rm -f $(MODULEDIR)/$$pv/$<; \
+	    cp $< $(MODULEDIR)/$$pv; \
+	done
