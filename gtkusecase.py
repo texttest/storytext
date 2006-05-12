@@ -134,6 +134,21 @@ class ActivateEvent(StateChangeEvent):
     def generateStateChange(self, argumentString):
         self.widget.set_active(self.relevantState)
 
+class NotebookPageChangeEvent(StateChangeEvent):
+    def getRecordSignal(self):
+        return "switch-page"
+    def getStateDescription(self):
+        page_num = self.widget.get_current_page()
+        newPage = self.widget.get_nth_page(page_num)
+        return self.widget.get_tab_label_text(newPage)
+    def generateStateChange(self, argumentString):
+        for i in range(len(self.widget.get_children())):
+            page = self.widget.get_nth_page(i)
+            if self.widget.get_tab_label_text(page) == argumentString:
+                self.widget.set_current_page(i)
+                return
+        raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
+
 class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer):
         self.selection = widget
@@ -186,20 +201,6 @@ class DeletionEvent(SignalEvent):
         # be able to respond to the deletion...
         self.widget.emit("delete_event", self.anyWindowingEvent)
     
-class NotebookPageChangeEvent(SignalEvent):
-    def __init__(self, name, widget):
-        SignalEvent.__init__(self, name, widget, "switch-page")
-    def _outputForScript(self, page, page_num, *args):
-        newPage = self.widget.get_nth_page(page_num)
-        return self.name + " " + self.widget.get_tab_label_text(newPage)
-    def generate(self, argumentString):
-        for i in range(len(self.widget.get_children())):
-            page = self.widget.get_nth_page(i)
-            if self.widget.get_tab_label_text(page) == argumentString:
-                self.widget.set_current_page(i)
-                return
-        raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
-
 class TreeViewSignalEvent(SignalEvent):
     def __init__(self, name, widget, signalName, indexer):
         SignalEvent.__init__(self, name, widget, signalName)
