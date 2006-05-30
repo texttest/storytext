@@ -31,7 +31,7 @@ class VideoStore:
         vbox = gtk.VBox()
         vbox.pack_start(self.getMenuBar(), expand=False, fill=False)
         vbox.pack_start(self.getTaskBar(), expand=False, fill=False)
-        vbox.pack_start(self.getVideoView(), expand=True, fill=True)
+        vbox.pack_start(self.getNotebook(), expand=True, fill=True)
         shortcutBar = self.scriptEngine.createShortcutBar()
         vbox.pack_start(shortcutBar, expand=False, fill=False)
         shortcutBar.show()
@@ -117,6 +117,18 @@ class VideoStore:
 
         taskBar.show_all()
         return taskBar
+    def getNotebook(self):
+        videoView = self.getVideoView()
+        textView = self.getTextView()
+        pages = [ (textView, "text info"), (videoView, "video view") ]
+        #notebook = gtk.Notebook()
+        #for page, tabText in pages:
+        #    label = gtk.Label(tabText)
+        #    notebook.append_page(page, label)
+        notebook = self.scriptEngine.createNotebook("show", pages)
+        notebook.show()
+        notebook.set_current_page(1)
+        return notebook
     def getVideoView(self):
         view = gtk.TreeView(self.model)
         renderer = gtk.CellRendererText()
@@ -130,6 +142,12 @@ class VideoStore:
         scrolled.add(view)
         scrolled.show()    
         return scrolled
+    def getTextView(self):
+        textview = gtk.TextView()
+        textbuffer = textview.get_buffer()
+        textbuffer.set_text("This is the Video Store, an example program for PyUseCase")
+        textview.show()
+        return textview
     def hideButtons(self, item):
         if item.get_active():
             for b in self.buttons:
