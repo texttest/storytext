@@ -137,6 +137,10 @@ class ActivateEvent(StateChangeEvent):
 class NotebookPageChangeEvent(StateChangeEvent):
     def getRecordSignal(self):
         return "switch-page"
+    def shouldRecord(self, *args):
+        # Damn thing never has focus anyway... create our own way of checking for programmatic changes
+        # Don't record if there aren't any pages
+        return not self.widget.programmaticChange and self.widget.get_current_page() != -1
     def getStateDescription(self):
         page_num = self.widget.get_current_page()
         newPage = self.widget.get_nth_page(page_num)
@@ -145,7 +149,7 @@ class NotebookPageChangeEvent(StateChangeEvent):
         for i in range(len(self.widget.get_children())):
             page = self.widget.get_nth_page(i)
             if self.widget.get_tab_label_text(page) == argumentString:
-                self.widget.set_current_page(i)
+                self.widget.setCurrentPage(i)
                 return
         raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
 
@@ -211,6 +215,23 @@ class TreeViewSignalEvent(SignalEvent):
         path = self.indexer.string2path(argumentString)
         self.widget.emit(self.signalName, path, self.indexer.column)
 
+# Inherit gtk.Notebook, the only way I've really found to create a sensible setup
+# Focus is a dead loss because the notebook never has it and the pages only get it after the switch-page signal
+class Notebook(gtk.Notebook):
+    def __init__(self, pages):
+        gtk.Notebook.__init__(self)
+        self.programmaticChange = False
+        for page, tabText in pages:
+            label = gtk.Label(tabText)
+            self.append_page(page, label)
+    def setCurrentPage(self, pageNum):
+        # called internally!
+        gtk.Notebook.set_current_page(self, pageNum)
+    def set_current_page(self, pageNum):
+        self.programmaticChange = True
+        self.setCurrentPage(pageNum)
+        self.programmaticChange = False
+
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:
     def __init__(self, model, column, valueId):
@@ -273,10 +294,7 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
     def createNotebook(self, description, pages):
-        notebook = gtk.Notebook()
-        for page, tabText in pages:
-            label = gtk.Label(tabText)
-            notebook.append_page(page, label)
+        notebook = Notebook(pages)
         if self.active():
             stateChangeName = self.standardName(description)
             event = NotebookPageChangeEvent(stateChangeName, notebook)
@@ -362,10 +380,12 @@ class ScriptEngine(usecase.ScriptEngine):
         buttonName = entry.get_text()
         newScriptName = self.getShortcutFileName(buttonName.replace("_", "#")) # Save 'real' _ (mnemonics9 from being replaced in file name ...
         scriptExistedPreviously = os.path.isfile(newScriptName)
-        os.rename(self.getTmpShortcutName(), newScriptName)
-        if not scriptExistedPreviously:
-            replayScript = usecase.ReplayScript(newScriptName)
-            self.addShortcutButton(existingbox, replayScript)
+        tmpFileName = self.getTmpShortcutName()
+        if os.path.isfile(tmpFileName):
+            os.rename(tmpFileName, newScriptName)
+            if not scriptExistedPreviously:
+                replayScript = usecase.ReplayScript(newScriptName)
+                self.addShortcutButton(existingbox, replayScript)
     def replayShortcut(self, button, script, *args):
         self.replayer.addScript(script)
         if len(self.recorder.scripts):
