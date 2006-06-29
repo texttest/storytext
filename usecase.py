@@ -204,6 +204,7 @@ class UseCaseReplayer:
         self.processes = {}
         self.fileFullPaths = {}
         self.fileEditDir = None
+        self.replayThread = None
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if replayScript:
             replayDir, local = os.path.split(replayScript)
@@ -223,11 +224,13 @@ class UseCaseReplayer:
     def executeCommandsInBackground(self):
         # By default, we create a separate thread for background execution
         # GUIs will want to do this as idle handlers
-        thread = Thread(target=self.runCommands)
-        thread.start()
+        self.replayThread = Thread(target=self.runCommands)
+        self.replayThread.start()
         #gtk.idle_add(method)
     def registerApplicationEvent(self, eventName, timeDelay = 0):
         if self.waitingForEvent == eventName:
+            if self.replayThread:
+                self.replayThread.join()
             self.write("Expected application event '" + eventName + "' occurred, proceeding.")
             if timeDelay:
                 time.sleep(timeDelay)
