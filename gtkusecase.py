@@ -97,27 +97,70 @@ class SignalEvent(GtkEvent):
                 raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
         else:
             raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not visible at the moment, cannot simulate event " + repr(self.name)
-            
+
+class MethodIntercept:
+    def __init__(self, method, event):
+        self.method = method
+        self.events = [ event ]
+    def addEvent(self, event):
+        self.events.append(event)
+    def __call__(self, *args, **kwds):
+        for event in self.events:
+            event.programmaticChange = True
+        retVal = apply(self.method, args, kwds)
+        for event in self.events:
+            event.programmaticChange = False
+        return retVal
+
 # Some widgets have state. We note every change but allow consecutive changes to
 # overwrite each other. Assume that if the state is set programatically the widget won't be in focus
 class StateChangeEvent(GtkEvent):
+    def __init__(self, name, widget):
+        GtkEvent.__init__(self, name, widget)
+        self.programmaticChange = False
+        self.changeMethod = self.getRealMethod(self.getChangeMethod())
+        allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
+        for method in allChangeMethods:
+            self.interceptMethod(method)
+    def interceptMethod(self, method):
+        if isinstance(method, MethodIntercept):
+            method.addEvent(self)
+        else:
+            setattr(self.getSelf(method), method.__name__, MethodIntercept(method, self))
+    def getSelf(self, method):
+        # seems to be different for built-in and bound methods
+        try:
+            return method.im_self
+        except AttributeError:
+            return method.__self__
+    def getRealMethod(self, method):
+        if isinstance(method, MethodIntercept):
+            return method.method
+        else:
+            return method
+    def getProgrammaticChangeMethods(self):
+        return []
     def getRecordSignal(self):
         return "changed"
     def isStateChange(self):
         return True
     def shouldRecord(self, *args):
-        return self.widget.is_focus()
+        return not self.programmaticChange and self.eventIsRelevant()
+    def eventIsRelevant(self):
+        return True
     def generate(self, argumentString):
-        self.widget.grab_focus()
-        self.generateStateChange(argumentString)
+        arg = self.getStateChangeArgument(argumentString)
+        self.changeMethod(arg)
+    def getStateChangeArgument(self, argumentString):
+        return argumentString
     def _outputForScript(self, *args):
         return self.name + " " + self.getStateDescription()
         
 class EntryEvent(StateChangeEvent):
     def getStateDescription(self):
         return self.widget.get_text()
-    def generateStateChange(self, argumentString):
-        self.widget.set_text(argumentString)
+    def getChangeMethod(self):
+        return self.widget.set_text
 
 class ActivateEvent(StateChangeEvent):
     def __init__(self, name, widget, relevantState):
@@ -125,54 +168,61 @@ class ActivateEvent(StateChangeEvent):
         self.relevantState = relevantState
     def getRecordSignal(self):
         return "toggled"
-    def shouldRecord(self, *args):
-        return self.widget.is_focus() and self.widget.get_active() == self.relevantState
+    def eventIsRelevant(self):
+        return self.widget.get_active() == self.relevantState
     def _outputForScript(self, *args):
         return self.name
-    def getStateDescription(self):
-        return self.name
-    def generateStateChange(self, argumentString):
-        self.widget.set_active(self.relevantState)
-
+    def getStateChangeArgument(self, argumentString):
+        return self.relevantState
+    def getChangeMethod(self):
+        return self.widget.set_active
+        
 class NotebookPageChangeEvent(StateChangeEvent):
+    def getChangeMethod(self):
+        return self.widget.set_current_page
     def getRecordSignal(self):
         return "switch-page"
-    def shouldRecord(self, *args):
-        # Damn thing never has focus anyway... create our own way of checking for programmatic changes
+    def eventIsRelevant(self):
         # Don't record if there aren't any pages
-        return not self.widget.programmaticChange and self.widget.get_current_page() != -1
+        return self.widget.get_current_page() != -1
     def getStateDescription(self):
         page_num = self.widget.get_current_page()
         newPage = self.widget.get_nth_page(page_num)
         return self.widget.get_tab_label_text(newPage)
-    def generateStateChange(self, argumentString):
+    def getStateChangeArgument(self, argumentString):
         for i in range(len(self.widget.get_children())):
             page = self.widget.get_nth_page(i)
             if self.widget.get_tab_label_text(page) == argumentString:
-                self.widget.setCurrentPage(i)
-                return
+                return i
         raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
 
 class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer):
-        self.selection = widget
-        StateChangeEvent.__init__(self, name, widget.get_tree_view())
         self.indexer = indexer
-    def connectRecord(self, method):
-        self.selection.connect("changed", method, self)
+        # cache these before calling base class constructor, or they get intercepted...
+        self.unselect_all = widget.unselect_all
+        self.select_path = widget.select_path
+        StateChangeEvent.__init__(self, name, widget)
+    def getChangeMethod(self):
+        return self.widget.select_path
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.unselect_all, self.widget.select_iter, \
+                 self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
+                 self.widget.get_tree_view().get_model().remove ]
     def getStateDescription(self):
         return string.join(self.findSelectedPaths(), ",")
-    def generateStateChange(self, argumentString):
-        self.selection.unselect_all()
-        paths = map(self.indexer.string2path, argumentString.split(","))
-        for path in paths:
-            self.selection.select_path(path)
     def findSelectedPaths(self):
         paths = []
-        self.selection.selected_foreach(self.addSelPath, paths)
+        self.widget.selected_foreach(self.addSelPath, paths)
         return paths
     def addSelPath(self, model, path, iter, paths):
         paths.append(self.indexer.path2string(path))
+    def getStateChangeArgument(self, argumentString):
+        return map(self.indexer.string2path, argumentString.split(","))
+    def generate(self, argumentString):
+        self.unselect_all()
+        for path in self.getStateChangeArgument(argumentString):
+            self.select_path(path)
     
 class ResponseEvent(SignalEvent):
     def __init__(self, name, widget, responseId):
@@ -205,7 +255,7 @@ class DeletionEvent(SignalEvent):
         # be able to respond to the deletion...
         self.widget.emit("delete_event", self.anyWindowingEvent)
     
-class TreeViewSignalEvent(SignalEvent):
+class RowActivationEvent(SignalEvent):
     def __init__(self, name, widget, signalName, indexer):
         SignalEvent.__init__(self, name, widget, signalName)
         self.indexer = indexer
@@ -213,24 +263,7 @@ class TreeViewSignalEvent(SignalEvent):
         return self.name + " " + self.indexer.path2string(path)
     def generate(self, argumentString):
         path = self.indexer.string2path(argumentString)
-        self.widget.emit(self.signalName, path, self.indexer.column)
-
-# Inherit gtk.Notebook, the only way I've really found to create a sensible setup
-# Focus is a dead loss because the notebook never has it and the pages only get it after the switch-page signal
-class Notebook(gtk.Notebook):
-    def __init__(self, pages):
-        gtk.Notebook.__init__(self)
-        self.programmaticChange = False
-        for page, tabText in pages:
-            label = gtk.Label(tabText)
-            self.append_page(page, label)
-    def setCurrentPage(self, pageNum):
-        # called internally!
-        gtk.Notebook.set_current_page(self, pageNum)
-    def set_current_page(self, pageNum):
-        self.programmaticChange = True
-        self.setCurrentPage(pageNum)
-        self.programmaticChange = False
+        self.widget.row_activated(path, self.indexer.column)
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:
@@ -276,7 +309,7 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.active():
             stdName = self.standardName(eventName)
             stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData)
-            self._addEventToScripts(stateChangeEvent)        
+            self._addEventToScripts(stateChangeEvent)
     def registerEntry(self, entry, description):
         if self.active():
             stateChangeName = self.standardName(description)
@@ -294,7 +327,10 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
     def createNotebook(self, description, pages):
-        notebook = Notebook(pages)
+        notebook = gtk.Notebook()
+        for page, tabText in pages:
+            label = gtk.Label(tabText)
+            notebook.append_page(page, label)
         if self.active():
             stateChangeName = self.standardName(description)
             event = NotebookPageChangeEvent(stateChangeName, notebook)
@@ -418,8 +454,8 @@ class ScriptEngine(usecase.ScriptEngine):
             return DeletionEvent(eventName, widget, signalName)
         if signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
-        elif isinstance(widget, gtk.TreeView):
-            return TreeViewSignalEvent(eventName, widget, signalName, argumentParseData)
+        elif signalName == "row_activated":
+            return RowActivationEvent(eventName, widget, signalName, argumentParseData)
         else:
             return SignalEvent(eventName, widget, signalName)
 
