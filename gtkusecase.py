@@ -263,7 +263,12 @@ class RowActivationEvent(SignalEvent):
         return self.name + " " + self.indexer.path2string(path)
     def generate(self, argumentString):
         path = self.indexer.string2path(argumentString)
+        self.widget.get_selection().unselect_all()
         self.widget.row_activated(path, self.indexer.column)
+    def implies(self, stateChangeEvent):
+        if not isinstance(stateChangeEvent, TreeSelectionEvent):
+            return False
+        return self.widget.get_selection() is stateChangeEvent.widget
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:

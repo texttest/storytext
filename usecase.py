@@ -119,6 +119,9 @@ class UserEvent:
     def isStateChange(self):
         # If this is true, recorder will wait before recording and only record if a different event comes in
         return False
+    def implies(self, stateChangeEvent):
+        # If this is true, recorder will not record the state change if immediately followed by this event
+        return False
 
 # Behaves as a singleton...
 class ScriptEngine:
@@ -529,7 +532,8 @@ class UseCaseRecorder:
             return
 
         if self.stateChangeEvent:
-            self.recordEvent(self.stateChangeEvent, *args)
+            if not event.implies(self.stateChangeEvent):
+                self.recordEvent(self.stateChangeEvent, *args)
             self.stateChangeEvent = None
         self.recordEvent(event, *args)
     def recordEvent(self, event, *args):
