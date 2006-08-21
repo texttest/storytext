@@ -73,6 +73,7 @@ from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
+from process import Process
 
 # Hard coded commands
 waitCommandName = "wait for"
@@ -83,19 +84,6 @@ fileEditCommandName = "make changes to file"
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
     pass
-
-# Example process class for the process handling
-class UnixChildProcess:
-    def __init__(self, pid):
-        self.pid = pid
-    def hasTerminated(self):
-        try:
-            procId, status = os.waitpid(self.pid, os.WNOHANG)
-            return procId > 0 or status > 0
-        except OSError:
-            return True
-    def killAll(self):
-        os.kill(self.pid, signal.SIGTERM)
 
 # Base class for events caused by the action of a user on a GUI. Generally assumed
 # to be doing something on a particular widget, and being named explicitly by the
@@ -203,7 +191,7 @@ class UseCaseReplayer:
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
         self.waitingForEvent = None
         self.applicationEventNames = []
-        self.processId = os.getpid() # So we can generate signals for ourselves...
+        self.process = Process(os.getpid()) # So we can generate signals for ourselves...
         self.processes = {}
         self.fileFullPaths = {}
         self.fileEditDir = None
@@ -329,7 +317,7 @@ class UseCaseReplayer:
     def processSignalCommand(self, signalArg):
         exec "signalNum = signal." + signalArg
         self.write("Generating signal " + signalArg)
-        os.kill(self.processId, signalNum)
+        self.process.killAll(signalNum)
         return True
     def processFileEditCommand(self, fileName):
         self.write("Making changes to file " + fileName + "...")
