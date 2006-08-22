@@ -190,18 +190,20 @@ class Process:
     def kill(self, killSignal, verbose=1):
         if killSignal:
             return self.tryKill(killSignal)
-        if self.tryKill(signal.SIGINT, verbose):
+        if self.tryKillAndWait(signal.SIGINT, verbose):
             return
-        if self.tryKill(signal.SIGTERM, verbose):
+        if self.tryKillAndWait(signal.SIGTERM, verbose):
             return
-        self.tryKill(signal.SIGKILL, verbose)
-    def tryKill(self, killSignal, verbose=0):
-        if verbose:
-            print "Killed process", self.processId, "with signal", killSignal
+        self.tryKillAndWait(signal.SIGKILL, verbose)
+    def tryKill(self, killSignal):
         try:
             self.processHandler.kill(self.processId, killSignal)
         except OSError:
             pass
+    def tryKillAndWait(self, killSignal, verbose=0):
+        if verbose:
+            print "Killed process", self.processId, "with signal", killSignal
+        self.tryKill(killSignal)
         for i in range(10):
             time.sleep(0.1)
             if self.processHandler.hasTerminated(self.processId):
