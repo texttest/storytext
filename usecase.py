@@ -189,7 +189,7 @@ class UseCaseReplayer:
         self.scripts = []
         self.events = {}
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
-        self.waitingForEvent = None
+        self.waitingForEvents = []
         self.applicationEventNames = []
         self.process = Process(os.getpid()) # So we can generate signals for ourselves...
         self.processes = {}
@@ -210,7 +210,7 @@ class UseCaseReplayer:
         self.fileFullPaths[os.path.basename(fullPath)] = fullPath
     def enableReading(self):
         # If events fail, we store them and wait for the relevant handler
-        self.waitingForEvent = None
+        self.waitingForEvents = []
         self.executeCommandsInBackground()
     def executeCommandsInBackground(self):
         # By default, we create a separate thread for background execution
@@ -219,14 +219,20 @@ class UseCaseReplayer:
         self.replayThread.start()
         #gtk.idle_add(method)
     def registerApplicationEvent(self, eventName, timeDelay = 0):
-        if self.waitingForEvent == eventName:
+        self.applicationEventNames.append(eventName)
+        if self.waitingCompleted():
             if self.replayThread:
                 self.replayThread.join()
-            self.write("Expected application event '" + eventName + "' occurred, proceeding.")
+            for eventName in self.waitingForEvents:
+                self.write("Expected application event '" + eventName + "' occurred, proceeding.")
             if timeDelay:
                 time.sleep(timeDelay)
             self.enableReading()
-        self.applicationEventNames.append(eventName)
+    def waitingCompleted(self):
+        for eventName in self.waitingForEvents:
+            if not eventName in self.applicationEventNames:
+                return False
+        return True
     def monitorProcess(self, name, process):
         self.processes[name] = process
     def runCommands(self):
@@ -306,14 +312,16 @@ class UseCaseReplayer:
         self.write("'" + eventName + "' event created with arguments '" + argumentString + "'")
         event = self.events[eventName]
         event.generate(argumentString)
-    def processWaitCommand(self, applicationEventName):
-        self.write("Waiting for application event '" + applicationEventName + "' to occur.")
-        if applicationEventName in self.applicationEventNames:
-            self.write("Expected application event '" + applicationEventName + "' occurred, proceeding.")
-            return True
-        else:
-            self.waitingForEvent = applicationEventName
-            return False
+    def processWaitCommand(self, applicationEventStr):
+        allHappened = True
+        for applicationEventName in applicationEventStr.split(", "):
+            self.write("Waiting for application event '" + applicationEventName + "' to occur.")
+            if applicationEventName in self.applicationEventNames:
+                self.write("Expected application event '" + applicationEventName + "' occurred, proceeding.")
+            else:
+                self.waitingForEvents.append(applicationEventName)
+                allHappened = False
+        return allHappened
     def processSignalCommand(self, signalArg):
         exec "signalNum = signal." + signalArg
         self.write("Generating signal " + signalArg)
@@ -544,9 +552,10 @@ class UseCaseRecorder:
             self.applicationEvents = seqdict()
             self.applicationEvents["gtkscript_DEFAULT"] = eventName
     def writeApplicationEventDetails(self):
-        for eventName in self.applicationEvents.values():
-            self.record(waitCommandName + " " + eventName)
-        self.applicationEvents = seqdict()
+        if len(self.applicationEvents) > 0:
+            eventString = string.join(self.applicationEvents.values(), ", ")
+            self.record(waitCommandName + " " + eventString)
+            self.applicationEvents = seqdict()
     def registerShortcut(self, replayScript):
         for script in self.scripts:
             script.registerShortcut(replayScript)
