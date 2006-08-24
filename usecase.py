@@ -229,6 +229,8 @@ class UseCaseReplayer:
                 time.sleep(timeDelay)
             self.enableReading()
     def waitingCompleted(self):
+        if len(self.waitingForEvents) == 0:
+            return False
         for eventName in self.waitingForEvents:
             if not eventName in self.applicationEventNames:
                 return False
