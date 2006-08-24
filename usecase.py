@@ -196,6 +196,7 @@ class UseCaseReplayer:
         self.fileFullPaths = {}
         self.fileEditDir = None
         self.replayThread = None
+        self.timeDelayNextCommand = 0
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if replayScript:
             replayDir, local = os.path.split(replayScript)
@@ -225,8 +226,7 @@ class UseCaseReplayer:
                 self.replayThread.join()
             for eventName in self.waitingForEvents:
                 self.write("Expected application event '" + eventName + "' occurred, proceeding.")
-            if timeDelay:
-                time.sleep(timeDelay)
+            self.timeDelayNextCommand = timeDelay
             self.enableReading()
     def waitingCompleted(self):
         if len(self.waitingForEvents) == 0:
@@ -251,6 +251,9 @@ class UseCaseReplayer:
 
         return self.getCommand()
     def runNextCommand(self):
+        if self.timeDelayNextCommand:
+            time.sleep(self.timeDelayNextCommand)
+            self.timeDelayNextCommand = 0
         command = self.getCommand()
         if not command:
             return False
