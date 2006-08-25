@@ -176,7 +176,7 @@ class ActivateEvent(StateChangeEvent):
         return self.relevantState
     def getChangeMethod(self):
         return self.widget.set_active
-        
+
 class NotebookPageChangeEvent(StateChangeEvent):
     def getChangeMethod(self):
         return self.widget.set_current_page
@@ -206,9 +206,14 @@ class TreeSelectionEvent(StateChangeEvent):
     def getChangeMethod(self):
         return self.widget.select_path
     def getProgrammaticChangeMethods(self):
-        return [ self.widget.unselect_all, self.widget.select_iter, \
-                 self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
-                 self.widget.get_tree_view().get_model().remove ]
+        if isinstance(self.widget.get_tree_view().get_model(), gtk.TreeModelFilter):
+            return [ self.widget.unselect_all, self.widget.select_iter, \
+                     self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
+                     self.widget.get_tree_view().get_model().get_model().remove ]
+        else:
+            return [ self.widget.unselect_all, self.widget.select_iter, \
+                     self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
+                     self.widget.get_tree_view().get_model().remove ]
     def getStateDescription(self):
         return string.join(self.findSelectedPaths(), ",")
     def findSelectedPaths(self):
@@ -269,6 +274,27 @@ class RowActivationEvent(SignalEvent):
         if not isinstance(stateChangeEvent, TreeSelectionEvent):
             return False
         return self.widget.get_selection() is stateChangeEvent.widget
+
+# Remember: self.widget is not really a widget here,
+# since gtk.CellRenderer is not a gtk.Widget.
+class CellToggleEvent(SignalEvent):
+    def __init__(self, name, cellRenderer, signalName, indexer):
+        SignalEvent.__init__(self, name, cellRenderer, signalName)
+        self.indexer = indexer
+    def _outputForScript(self, path, *args):
+        return self.name + " " + self.indexer.path2string(path)
+    def generate(self, argumentString):
+        path = self.indexer.string2path(argumentString)
+        # For some reason, the treemodel access methods I use
+        # don't like the (3,0) list-type paths created by
+        # the above call, so we'll have to manually create a
+        # '3:0' string-type path instead ...
+        strPath = ""
+        for i in xrange(0, len(path)):
+            strPath += str(path[i])
+            if i < len(path) - 1:
+                strPath += ":"
+        self.widget.emit("toggled", strPath)
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:
@@ -461,6 +487,8 @@ class ScriptEngine(usecase.ScriptEngine):
             return ResponseEvent(eventName, widget, argumentParseData)
         elif signalName == "row_activated":
             return RowActivationEvent(eventName, widget, signalName, argumentParseData)
+        elif isinstance(widget, gtk.CellRendererToggle) and signalName == "toggled":
+            return CellToggleEvent(eventName, widget, signalName, argumentParseData)
         else:
             return SignalEvent(eventName, widget, signalName)
 
