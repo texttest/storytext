@@ -72,51 +72,6 @@ class GtkEvent(usecase.UserEvent):
     def __init__(self, name, widget):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
-    def getRecordSignal(self):
-        pass
-    def connectRecord(self, method):
-        self.widget.connect(self.getRecordSignal(), method, self)
-    def outputForScript(self, widget, *args):
-        return self._outputForScript(*args)
-    def _outputForScript(self, *args):
-        return self.name
-            
-# Base class for all GTK events due to widget signals
-class SignalEvent(GtkEvent):
-    def __init__(self, name, widget, signalName):
-        GtkEvent.__init__(self, name, widget)
-        self.signalName = signalName
-    def getRecordSignal(self):
-        return self.signalName
-    def generate(self, argumentString):
-        self.widget.grab_focus()
-        if self.widget.get_property("visible"):
-            if self.widget.get_property("sensitive"):
-                self.widget.emit(self.signalName)
-            else:
-                raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
-        else:
-            raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + " is not visible at the moment, cannot simulate event " + repr(self.name)
-
-class MethodIntercept:
-    def __init__(self, method, event):
-        self.method = method
-        self.events = [ event ]
-    def addEvent(self, event):
-        self.events.append(event)
-    def __call__(self, *args, **kwds):
-        for event in self.events:
-            event.programmaticChange = True
-        retVal = apply(self.method, args, kwds)
-        for event in self.events:
-            event.programmaticChange = False
-        return retVal
-
-# Some widgets have state. We note every change but allow consecutive changes to
-# overwrite each other. Assume that if the state is set programatically the widget won't be in focus
-class StateChangeEvent(GtkEvent):
-    def __init__(self, name, widget):
-        GtkEvent.__init__(self, name, widget)
         self.programmaticChange = False
         self.changeMethod = self.getRealMethod(self.getChangeMethod())
         allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
@@ -141,16 +96,75 @@ class StateChangeEvent(GtkEvent):
     def getProgrammaticChangeMethods(self):
         return []
     def getRecordSignal(self):
+        pass
+    def connectRecord(self, method):
+        self.widget.connect(self.getRecordSignal(), method, self)
+    def outputForScript(self, widget, *args):
+        return self._outputForScript(*args)
+    def shouldRecord(self, *args):
+        return not self.programmaticChange
+    def _outputForScript(self, *args):
+        return self.name
+    def getProperty(self, property):
+        try:
+            return self.widget.get_property(property)
+        except TypeError:
+            # Some widgets don't support this in PyGTK 2.4. Should remove this when we have at least 2.6
+            return True
+    def generate(self, argumentString):
+        if not self.getProperty("visible"):
+            raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + \
+                  " is not visible at the moment, cannot simulate event " + repr(self.name)
+
+        if not self.getProperty("sensitive"):
+            raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + \
+                  " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
+
+        args = self.getGenerationArguments(argumentString)
+        self.changeMethod(*args)    
+        
+            
+# Generic class for all GTK events due to widget signals. Many won't be able to use this, however
+class SignalEvent(GtkEvent):
+    def __init__(self, name, widget, signalName):
+        GtkEvent.__init__(self, name, widget)
+        self.signalName = signalName
+    def getRecordSignal(self):
+        return self.signalName
+    def getChangeMethod(self):
+        return self.widget.emit
+    def getGenerationArguments(self, argumentString):
+        return [ self.signalName ] + self.getEmissionArgs(argumentString)
+    def getEmissionArgs(self, argumentString):
+        return []
+
+class MethodIntercept:
+    def __init__(self, method, event):
+        self.method = method
+        self.events = [ event ]
+    def addEvent(self, event):
+        self.events.append(event)
+    def __call__(self, *args, **kwds):
+        for event in self.events:
+            event.programmaticChange = True
+        retVal = apply(self.method, args, kwds)
+        for event in self.events:
+            event.programmaticChange = False
+        return retVal
+
+# Some widgets have state. We note every change but allow consecutive changes to
+# overwrite each other. Assume that if the state is set programatically the widget won't be in focus
+class StateChangeEvent(GtkEvent):
+    def getRecordSignal(self):
         return "changed"
     def isStateChange(self):
         return True
     def shouldRecord(self, *args):
-        return not self.programmaticChange and self.eventIsRelevant()
+        return GtkEvent.shouldRecord(self, *args) and self.eventIsRelevant()
     def eventIsRelevant(self):
         return True
-    def generate(self, argumentString):
-        arg = self.getStateChangeArgument(argumentString)
-        self.changeMethod(arg)
+    def getGenerationArguments(self, argumentString):
+        return [ self.getStateChangeArgument(argumentString) ]
     def getStateChangeArgument(self, argumentString):
         return argumentString
     def _outputForScript(self, *args):
@@ -196,6 +210,70 @@ class NotebookPageChangeEvent(StateChangeEvent):
                 return i
         raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
 
+class TreeViewEvent(GtkEvent):
+    def __init__(self, name, widget, indexer):
+        GtkEvent.__init__(self, name, widget)
+        self.indexer = indexer
+    def _outputForScript(self, iterOrPath, *args):
+        return self.name + " " + self.indexer.path2string(iterOrPath)
+    def getGenerationArguments(self, argumentString):
+        return [ self.indexer.string2path(argumentString) ] + self.getTreeViewArgs()
+    def getTreeViewArgs(self):
+        return []
+
+class RowExpandEvent(TreeViewEvent):
+    def getChangeMethod(self):
+        return self.widget.expand_row
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.expand_to_path ]
+    def getRecordSignal(self):
+        return "row-expanded"
+    def getTreeViewArgs(self):
+        # don't open all subtree parts
+        return [ False ]
+
+class RowCollapseEvent(TreeViewEvent):
+    def getChangeMethod(self):
+        return self.widget.collapse_row
+    def getRecordSignal(self):
+        return "row-collapsed"
+
+class RowActivationEvent(TreeViewEvent):
+    def getChangeMethod(self):
+        return self.widget.row_activated
+    def getRecordSignal(self):
+        return "row-activated"
+    def generate(self, argumentString):
+        # clear the selection before generating as that's what the real event does
+        self.widget.get_selection().unselect_all()
+        TreeViewEvent.generate(self, argumentString)
+    def getTreeViewArgs(self):
+        return [ self.indexer.column ]
+    def implies(self, stateChangeEvent):
+        if not isinstance(stateChangeEvent, TreeSelectionEvent):
+            return False
+        return self.widget.get_selection() is stateChangeEvent.widget
+
+# Remember: self.widget is not really a widget here,
+# since gtk.CellRenderer is not a gtk.Widget.
+class CellToggleEvent(TreeViewEvent):
+    def getChangeMethod(self):
+        return self.widget.emit
+    def getRecordSignal(self):
+        return "toggled"
+    def getGenerationArguments(self, argumentString):
+        path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]
+        # For some reason, the treemodel access methods I use
+        # don't like the (3,0) list-type paths created by
+        # the above call, so we'll have to manually create a
+        # '3:0' string-type path instead ...
+        strPath = ""
+        for i in xrange(0, len(path)):
+            strPath += str(path[i])
+            if i < len(path) - 1:
+                strPath += ":"
+        return [ "toggled", strPath ]
+    
 class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer):
         self.indexer = indexer
@@ -205,15 +283,16 @@ class TreeSelectionEvent(StateChangeEvent):
         StateChangeEvent.__init__(self, name, widget)
     def getChangeMethod(self):
         return self.widget.select_path
-    def getProgrammaticChangeMethods(self):
-        if isinstance(self.widget.get_tree_view().get_model(), gtk.TreeModelFilter):
-            return [ self.widget.unselect_all, self.widget.select_iter, \
-                     self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
-                     self.widget.get_tree_view().get_model().get_model().remove ]
+    def getModel(self):
+        model = self.widget.get_tree_view().get_model()
+        if isinstance(model, gtk.TreeModelFilter):
+            return model.get_model()
         else:
-            return [ self.widget.unselect_all, self.widget.select_iter, \
-                     self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
-                     self.widget.get_tree_view().get_model().remove ]
+            return model
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.unselect_all, self.widget.select_iter, \
+                 self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
+                 self.getModel().remove ]
     def getStateDescription(self):
         return string.join(self.findSelectedPaths(), ",")
     def findSelectedPaths(self):
@@ -235,8 +314,8 @@ class ResponseEvent(SignalEvent):
         self.responseId = responseId
     def shouldRecord(self, widget, responseId, *args):
         return self.responseId == responseId
-    def generate(self, argumentString):
-        self.widget.emit(self.signalName, self.responseId)
+    def getEmissionArgs(self, argumentString):
+        return [ self.responseId ]
 
 class DeletionEvent(SignalEvent):
     anyWindowingEvent = None
@@ -255,46 +334,10 @@ class DeletionEvent(SignalEvent):
     def storeWindowingEvent(self, widget, event, *args):
         DeletionEvent.anyWindowingEvent = event
         self.widget.disconnect(self.anyEventHandler)
-    def generate(self, argumentString):
+    def getEmissionArgs(self, argumentString):
         # Hack - may not work everywhere. Can't find out how to programatically delete windows and still
         # be able to respond to the deletion...
-        self.widget.emit("delete_event", self.anyWindowingEvent)
-    
-class RowActivationEvent(SignalEvent):
-    def __init__(self, name, widget, signalName, indexer):
-        SignalEvent.__init__(self, name, widget, signalName)
-        self.indexer = indexer
-    def _outputForScript(self, path, *args):
-        return self.name + " " + self.indexer.path2string(path)
-    def generate(self, argumentString):
-        path = self.indexer.string2path(argumentString)
-        self.widget.get_selection().unselect_all()
-        self.widget.row_activated(path, self.indexer.column)
-    def implies(self, stateChangeEvent):
-        if not isinstance(stateChangeEvent, TreeSelectionEvent):
-            return False
-        return self.widget.get_selection() is stateChangeEvent.widget
-
-# Remember: self.widget is not really a widget here,
-# since gtk.CellRenderer is not a gtk.Widget.
-class CellToggleEvent(SignalEvent):
-    def __init__(self, name, cellRenderer, signalName, indexer):
-        SignalEvent.__init__(self, name, cellRenderer, signalName)
-        self.indexer = indexer
-    def _outputForScript(self, path, *args):
-        return self.name + " " + self.indexer.path2string(path)
-    def generate(self, argumentString):
-        path = self.indexer.string2path(argumentString)
-        # For some reason, the treemodel access methods I use
-        # don't like the (3,0) list-type paths created by
-        # the above call, so we'll have to manually create a
-        # '3:0' string-type path instead ...
-        strPath = ""
-        for i in xrange(0, len(path)):
-            strPath += str(path[i])
-            if i < len(path) - 1:
-                strPath += ":"
-        self.widget.emit("toggled", strPath)
+        return [ self.anyWindowingEvent ]
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:
@@ -302,8 +345,14 @@ class TreeModelIndexer:
         self.model = model
         self.column = column
         self.valueId = valueId
-    def path2string(self, path):
-        return self.model.get_value(self.model.get_iter(path), self.valueId)
+    def path2string(self, iterOrPath):
+        iter = self.getIter(iterOrPath)
+        return self.model.get_value(iter, self.valueId)
+    def getIter(self, iterOrPath):
+        try:
+            return self.model.get_iter(iterOrPath)
+        except TypeError:
+            return iterOrPath
     def string2path(self, pathString):
         path = self._findTreePath(self.model.get_iter_root(), pathString)
         if not path:
@@ -341,6 +390,15 @@ class ScriptEngine(usecase.ScriptEngine):
             stdName = self.standardName(eventName)
             stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData)
             self._addEventToScripts(stateChangeEvent)
+    def monitorExpansion(self, treeView, expandDescription, collapseDescription = "", argumentParseData = None):
+        if self.active():
+            expandName = self.standardName(expandDescription)
+            expandEvent = RowExpandEvent(expandName, treeView, argumentParseData)
+            self._addEventToScripts(expandEvent)
+            if collapseDescription:
+                collapseName = self.standardName(collapseDescription)
+                collapseEvent = RowCollapseEvent(collapseName, treeView, argumentParseData)
+                self._addEventToScripts(collapseEvent)
     def registerEntry(self, entry, description):
         if self.active():
             stateChangeName = self.standardName(description)
@@ -486,9 +544,9 @@ class ScriptEngine(usecase.ScriptEngine):
         if signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
         elif signalName == "row_activated":
-            return RowActivationEvent(eventName, widget, signalName, argumentParseData)
+            return RowActivationEvent(eventName, widget, argumentParseData)
         elif isinstance(widget, gtk.CellRendererToggle) and signalName == "toggled":
-            return CellToggleEvent(eventName, widget, signalName, argumentParseData)
+            return CellToggleEvent(eventName, widget, argumentParseData)
         else:
             return SignalEvent(eventName, widget, signalName)
 
