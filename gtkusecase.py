@@ -292,7 +292,7 @@ class TreeSelectionEvent(StateChangeEvent):
     def getProgrammaticChangeMethods(self):
         return [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, \
                  self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
-                 self.getModel().remove ]
+                 self.getModel().remove, self.getModel().clear ]
     def getStateDescription(self):
         return string.join(self.findSelectedPaths(), ",")
     def findSelectedPaths(self):
