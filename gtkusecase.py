@@ -415,11 +415,7 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckChangeName = self.standardName(uncheckDescription)
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
-    def createNotebook(self, description, pages):
-        notebook = gtk.Notebook()
-        for page, tabText in pages:
-            label = gtk.Label(tabText)
-            notebook.append_page(page, label)
+    def monitorNotebook(self, notebook, description):
         if self.active():
             stateChangeName = self.standardName(description)
             event = NotebookPageChangeEvent(stateChangeName, notebook)
