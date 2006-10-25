@@ -118,14 +118,10 @@ class VideoStore:
         taskBar.show_all()
         return taskBar
     def getNotebook(self):
-        videoView = self.getVideoView()
-        textView = self.getTextView()
-        pages = [ (textView, "text info"), (videoView, "video view") ]
-        #notebook = gtk.Notebook()
-        #for page, tabText in pages:
-        #    label = gtk.Label(tabText)
-        #    notebook.append_page(page, label)
-        notebook = self.scriptEngine.createNotebook("show", pages)
+        notebook = gtk.Notebook()
+        notebook.append_page(self.getTextView(), gtk.Label("text info"))
+        notebook.append_page(self.getVideoView(), gtk.Label("video view"))
+        self.scriptEngine.monitorNotebook(notebook, "show")
         notebook.show()
         notebook.set_current_page(1)
         return notebook
