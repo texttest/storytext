@@ -66,6 +66,7 @@ To see this in action, try out the video store example.
 
 import usecase, gtk, os, string
 from gobject import idle_add
+from sets import Set
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
@@ -168,10 +169,10 @@ class StateChangeEvent(GtkEvent):
     def getStateChangeArgument(self, argumentString):
         return argumentString
     def _outputForScript(self, *args):
-        return self.name + " " + self.getStateDescription()
+        return self.name + " " + self.getStateDescription(*args)
         
 class EntryEvent(StateChangeEvent):
-    def getStateDescription(self):
+    def getStateDescription(self, *args):
         return self.widget.get_text()
     def getChangeMethod(self):
         return self.widget.set_text
@@ -199,9 +200,8 @@ class NotebookPageChangeEvent(StateChangeEvent):
     def eventIsRelevant(self):
         # Don't record if there aren't any pages
         return self.widget.get_current_page() != -1
-    def getStateDescription(self):
-        page_num = self.widget.get_current_page()
-        newPage = self.widget.get_nth_page(page_num)
+    def getStateDescription(self, ptr, pageNum, *args):
+        newPage = self.widget.get_nth_page(pageNum)
         return self.widget.get_tab_label_text(newPage)
     def getStateChangeArgument(self, argumentString):
         for i in range(len(self.widget.get_children())):
@@ -249,10 +249,10 @@ class RowActivationEvent(TreeViewEvent):
         TreeViewEvent.generate(self, argumentString)
     def getTreeViewArgs(self):
         return [ self.indexer.column ]
-    def implies(self, stateChangeEvent):
-        if not isinstance(stateChangeEvent, TreeSelectionEvent):
+    def implies(self, prevLine, prevEvent):
+        if not isinstance(prevEvent, TreeSelectionEvent):
             return False
-        return self.widget.get_selection() is stateChangeEvent.widget
+        return self.widget.get_selection() is prevEvent.widget
 
 # Remember: self.widget is not really a widget here,
 # since gtk.CellRenderer is not a gtk.Widget.
@@ -278,8 +278,9 @@ class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer):
         self.indexer = indexer
         # cache these before calling base class constructor, or they get intercepted...
-        self.unselect_all = widget.unselect_all
+        self.unselect_path = widget.unselect_path
         self.select_path = widget.select_path
+        self.prevSelected = []
         StateChangeEvent.__init__(self, name, widget)
     def getChangeMethod(self):
         return self.widget.select_path
@@ -290,11 +291,30 @@ class TreeSelectionEvent(StateChangeEvent):
         else:
             return model
     def getProgrammaticChangeMethods(self):
-        return [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, \
+        return [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, self.widget.unselect_path, \
                  self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
-                 self.getModel().remove, self.getModel().clear ]
-    def getStateDescription(self):
-        return string.join(self.findSelectedPaths(), ",")
+                 self.getModel().remove, self.getModel().clear ]    
+    def getStateDescription(self, *args):
+        return self._getStateDescription(storeSelected=True)
+    def selectedPreviously(self, path1, path2):
+        selPrev1 = path1 in self.prevSelected
+        selPrev2 = path2 in self.prevSelected
+        if selPrev1 and not selPrev2:
+            return -1
+        elif selPrev2 and not selPrev1:
+            return 1
+        elif selPrev1 and selPrev2:
+            index1 = self.prevSelected.index(path1)
+            index2 = self.prevSelected.index(path2)
+            return cmp(index1, index2)
+        else:
+            return 0
+    def _getStateDescription(self, storeSelected=False):
+        newSelected = self.findSelectedPaths()
+        newSelected.sort(self.selectedPreviously)
+        if storeSelected:
+            self.prevSelected = newSelected
+        return string.join(newSelected, ",")
     def findSelectedPaths(self):
         paths = []
         self.widget.selected_foreach(self.addSelPath, paths)
@@ -304,9 +324,50 @@ class TreeSelectionEvent(StateChangeEvent):
     def getStateChangeArgument(self, argumentString):
         return map(self.indexer.string2path, argumentString.split(","))
     def generate(self, argumentString):
-        self.unselect_all()
-        for path in self.getStateChangeArgument(argumentString):
-            self.select_path(path)
+        oldSelected = self.findSelectedPaths()
+        newSelected = self.parsePathNames(argumentString)
+        toUnselect, toSelect = self.findChanges(oldSelected, newSelected)
+        for pathName in toUnselect:
+            self.unselect_path(self.indexer.string2path(pathName))
+        for pathName in newSelected:
+            self.select_path(self.indexer.string2path(pathName))
+    def findChanges(self, oldSelected, newSelected):
+        if oldSelected == newSelected: # re-selecting should be recorded as clear-and-reselect, not do nothing
+            return oldSelected, newSelected
+        else:
+            oldSet = Set(oldSelected)
+            newSet = Set(newSelected)
+            if oldSet.issuperset(newSet):
+                return oldSet.difference(newSet), []
+            else:
+                index = self.findFirstDifferent(oldSelected, newSelected)
+                return oldSelected[index:], newSelected[index:]
+    def findFirstDifferent(self, oldSelected, newSelected):
+        for index in range(len(oldSelected)):
+            if index >= len(newSelected):
+                return index
+            if oldSelected[index] != newSelected[index]:
+                return index
+        return len(oldSelected)
+    def parsePathNames(self, argumentString):
+        if len(argumentString) == 0:
+            return []
+        else:
+            return argumentString.split(",")
+    def implies(self, prevLine, prevEvent):
+        if not isinstance(prevEvent, TreeSelectionEvent) or not prevLine.startswith(self.name):
+            return False
+        prevStateDesc = prevLine[len(self.name) + 1:]
+        currStateDesc = self._getStateDescription()
+        if len(currStateDesc) > len(prevStateDesc):
+            return currStateDesc.startswith(prevStateDesc)
+        elif len(currStateDesc) > 0:
+            oldSet = Set(self.parsePathNames(prevStateDesc))
+            newSet = Set(self.parsePathNames(currStateDesc))
+            return oldSet.issuperset(newSet)
+        else:
+            return False # always assume deselecting everything marks the beginning of a new conceptual action
+                         
     
 class ResponseEvent(SignalEvent):
     def __init__(self, name, widget, responseId):
