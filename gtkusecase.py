@@ -481,6 +481,7 @@ class ScriptEngine(usecase.ScriptEngine):
             stateChangeName = self.standardName(description)
             event = NotebookPageChangeEvent(stateChangeName, notebook)
             self._addEventToScripts(event)
+        notebook.set_scrollable(True)
         return notebook
     def createShortcutBar(self):
         if not self.enableShortcuts:
