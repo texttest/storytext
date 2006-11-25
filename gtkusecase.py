@@ -433,7 +433,17 @@ class TreeModelIndexer:
         return None
     def _pathHasText(self, iter, argumentText):
         return self.model.get_value(iter, self.valueId) == argumentText
-
+  
+# A utility class to set and get the indices of options in radio button groups.
+class RadioGroupIndexer:
+    def __init__(self, listOfButtons):
+        self.buttons = listOfButtons
+    def getActiveIndex(self):
+        for i in xrange(0, len(self.buttons)):
+            if self.buttons[i].get_active():
+                return i
+    def setActiveIndex(self, index):
+        self.buttons[index].set_active(True)
 
 class ScriptEngine(usecase.ScriptEngine):
     def __init__(self, logger = None, enableShortcuts = 0):
@@ -481,7 +491,6 @@ class ScriptEngine(usecase.ScriptEngine):
             stateChangeName = self.standardName(description)
             event = NotebookPageChangeEvent(stateChangeName, notebook)
             self._addEventToScripts(event)
-        notebook.set_scrollable(True)
         return notebook
     def createShortcutBar(self):
         if not self.enableShortcuts:
