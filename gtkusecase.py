@@ -327,8 +327,12 @@ class TreeSelectionEvent(StateChangeEvent):
         oldSelected = self.findSelectedPaths()
         newSelected = self.parsePathNames(argumentString)
         toUnselect, toSelect = self.findChanges(oldSelected, newSelected)
+        if len(toSelect) > 0:
+            self.widget.unseen_changes = True
         for pathName in toUnselect:
             self.unselect_path(self.indexer.string2path(pathName))
+        if len(toSelect) > 0:
+            delattr(self.widget, "unseen_changes")
         for pathName in newSelected:
             self.select_path(self.indexer.string2path(pathName))
     def findChanges(self, oldSelected, newSelected):
