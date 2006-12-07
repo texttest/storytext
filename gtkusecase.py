@@ -75,9 +75,10 @@ class GtkEvent(usecase.UserEvent):
         self.widget = widget
         self.programmaticChange = False
         self.changeMethod = self.getRealMethod(self.getChangeMethod())
-        allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
-        for method in allChangeMethods:
-            self.interceptMethod(method)
+        if self.changeMethod:
+            allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
+            for method in allChangeMethods:
+                self.interceptMethod(method)
     def interceptMethod(self, method):
         if isinstance(method, MethodIntercept):
             method.addEvent(self)
@@ -94,6 +95,8 @@ class GtkEvent(usecase.UserEvent):
             return method.method
         else:
             return method
+    def getChangeMethod(self):
+        pass
     def getProgrammaticChangeMethods(self):
         return []
     def getRecordSignal(self):
@@ -382,27 +385,21 @@ class ResponseEvent(SignalEvent):
     def getEmissionArgs(self, argumentString):
         return [ self.responseId ]
 
-class DeletionEvent(SignalEvent):
-    anyWindowingEvent = None
-    def __init__(self, name, widget, signalName):
-        SignalEvent.__init__(self, name, widget, signalName)
-        self.captureWindowingEvents()
-    def captureWindowingEvents(self):
-        # Signals often need to be emitted with a corresponding event.
-        # This is very hard to fake. The only way I've found is to seize a random event
-        # and use that... this is not foolproof...
-        if not self.anyWindowingEvent:
-            try:
-                self.anyEventHandler = self.widget.connect("event", self.storeWindowingEvent)
-            except TypeError:
-                pass
-    def storeWindowingEvent(self, widget, event, *args):
-        DeletionEvent.anyWindowingEvent = event
-        self.widget.disconnect(self.anyEventHandler)
-    def getEmissionArgs(self, argumentString):
-        # Hack - may not work everywhere. Can't find out how to programatically delete windows and still
-        # be able to respond to the deletion...
-        return [ self.anyWindowingEvent ]
+class DeletionEvent(GtkEvent):
+    def __init__(self, name, widget, method):
+        GtkEvent.__init__(self, name, widget)
+        self.method = method
+        self.recordMethod = None
+    def getRecordSignal(self):
+        return "delete-event"
+    def connectRecord(self, method):
+        GtkEvent.connectRecord(self, method)
+        self.recordMethod = method
+    def generate(self, argumentString):
+        if self.recordMethod:
+            self.recordMethod(self.widget, None, self)
+        if not self.method(self.widget, None):
+            self.widget.destroy()
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 class TreeModelIndexer:
@@ -456,7 +453,7 @@ class ScriptEngine(usecase.ScriptEngine):
     def connect(self, eventName, signalName, widget, method = None, argumentParseData = None, *data):
         if self.active():
             stdName = self.standardName(eventName)
-            signalEvent = self._createSignalEvent(signalName, stdName, widget, argumentParseData)
+            signalEvent = self._createSignalEvent(stdName, signalName, widget, method, argumentParseData)
             self._addEventToScripts(signalEvent)
         if method:
             widget.connect(signalName, method, *data)
@@ -609,9 +606,9 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.recorderActive():
             self.recorder.addEvent(event)
             event.connectRecord(self.recorder.writeEvent)
-    def _createSignalEvent(self, signalName, eventName, widget, argumentParseData):
+    def _createSignalEvent(self, eventName, signalName, widget, method, argumentParseData):
         if signalName == "delete_event":
-            return DeletionEvent(eventName, widget, signalName)
+            return DeletionEvent(eventName, widget, method)
         if signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
         elif signalName == "row_activated":
