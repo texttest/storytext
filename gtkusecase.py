@@ -194,6 +194,8 @@ class ActivateEvent(StateChangeEvent):
         return self.relevantState
     def getChangeMethod(self):
         return self.widget.set_active
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.toggled ]
 
 class NotebookPageChangeEvent(StateChangeEvent):
     def getChangeMethod(self):
