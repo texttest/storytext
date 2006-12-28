@@ -3,15 +3,53 @@
 #                                                                              #
 #  by Wolfgang Grafen                                                          #
 #                                                                              #
-#  Version 0.0    29. June 1999                                                #
+#  Version 0.2    11. February 2004
 #                                                                              #
 #  email to: WolfgangGrafen@gmx.de                                             #
 #                                                                              #
 ################################################################################
+# History
+# Version 0.2    11. February 2004                                             #
+# - Fixed slicing problem:
+# 
+#>>> s = seqdict.seqdict(['b'], {'b': 'b'})
+#>>> s[0:0] = seqdict.seqdict(['a'], {'a': 'a'})
+# >>> s
+#seqdict(
+#['a', 'b'],  #was ['a', 'b', 'a'],
+#{'a': 'a', 'b': 'b'})
+#
+# - Initialisation is now correct for:
+# a) Not all keys of dict given in list:
+#>>> seqdict(["a","b","c","d","b","a",],{"a":1,"b":2,"d":4,"c":3,"h":66,"j":77})
+#seqdict(
+#['c', 'd', 'b', 'a', 'h', 'j'],
+#{'a': 1, 'c': 3, 'b': 2, 'd': 4, 'h': 66, 'j': 77})
+#
+# b) exceeding key "p" in list:
+#>>> seqdict(["a","b","c","d","b","a","p"],{"a":1,"b":2,"d":4,"c":3})
+#Traceback (most recent call last):
+#  File "<stdin>", line 1, in ?
+#  File "seqdict/hide/ndict.py", line 53, in __init__
+#    assert self.dict.has_key(k),"key %r not in self.dict" % k
+#AssertionError: key 'p' not in self.dict
+#
+# Version 0.1    24. Oct  2002
+# - Bugfix seqdict(["a","b","c"],[1,2,3]) evaluated into 
+#   seqdict( ['a', 'b', 'd', 'c', 'd'], {'d': 4, 'b': 2, 'c': 3, 'a': 1})
+#
+# Version 0.0    29. June 1999
+
+def is_dict(whatever):
+  try:
+    whatever.keys()
+    return 1
+  except:
+    return 0
 
 class seqdict:
   def __init__(self,List=[],Dict={}):
-    if type(List)==type({}):
+    if is_dict(List):
       self.list = List.keys()
       self.dict = List.copy()
     elif List and not Dict:
@@ -26,7 +64,24 @@ class seqdict:
       for key,value in map(None,List,Dict):
         self.dict[key] = value
     else:
-      self.list,self.dict = List[:],Dict.copy()
+      lcopy = List[:]
+      lcopy.reverse()
+      lnew = []
+      for l in lcopy:
+          if not l in lnew:
+              lnew.append(l)
+
+      lnew.reverse()
+      self.list,self.dict = lnew,Dict.copy()
+
+    self_list = self.list
+    self_dict = self.dict
+    for k in self_list:
+        assert self_dict.has_key(k),"key %r not in self.dict" % k
+
+    for k in self_dict.keys():
+        if k not in self_list:
+            self_list.append(k)
       
   def append(self,key,value):
     if self.dict.has_key(key):
@@ -92,7 +147,7 @@ class seqdict:
     for key in self.list[start:stop]:
       del self.dict[key]
     self.list[start:stop] = newdict.list[:]
-    self.update(newdict.dict)
+    self.dict.update(newdict.dict)
   def __delslice__(self, start, stop):
       start = max(start, 0); stop = max(stop, 0)
       for key in self.list[start:stop]:
