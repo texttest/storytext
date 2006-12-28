@@ -289,16 +289,20 @@ class TreeSelectionEvent(StateChangeEvent):
         StateChangeEvent.__init__(self, name, widget)
     def getChangeMethod(self):
         return self.widget.select_path
-    def getModel(self):
+    def getModels(self):
         model = self.widget.get_tree_view().get_model()
         if isinstance(model, gtk.TreeModelFilter):
-            return model.get_model()
+            return model, model.get_model()
         else:
-            return model
+            return None, model
     def getProgrammaticChangeMethods(self):
-        return [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, self.widget.unselect_path, \
-                 self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row, \
-                 self.getModel().remove, self.getModel().clear ]    
+        modelFilter, realModel = self.getModels()
+        methods = [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, \
+                         self.widget.unselect_path, self.widget.get_tree_view().row_activated, \
+                         self.widget.get_tree_view().collapse_row, realModel.remove, realModel.clear ]
+        if modelFilter:
+            methods.append(realModel.set_value) # changing visibility column can change selection
+        return methods
     def getStateDescription(self, *args):
         return self._getStateDescription(storeSelected=True)
     def selectedPreviously(self, path1, path2):
