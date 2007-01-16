@@ -106,7 +106,7 @@ class GtkEvent(usecase.UserEvent):
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
     def shouldRecord(self, *args):
-        return not self.programmaticChange
+        return not self.programmaticChange and self.getProperty("visible")
     def _outputForScript(self, *args):
         return self.name
     def getProperty(self, property):
