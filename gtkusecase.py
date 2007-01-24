@@ -149,10 +149,12 @@ class MethodIntercept:
     def addEvent(self, event):
         self.events.append(event)
     def __call__(self, *args, **kwds):
-        for event in self.events:
+        # Allow for possibly nested programmatic changes, observation can have knock-on effects
+        eventsToBlock = filter(lambda event: not event.programmaticChange, self.events)
+        for event in eventsToBlock:
             event.programmaticChange = True
         retVal = apply(self.method, args, kwds)
-        for event in self.events:
+        for event in eventsToBlock:
             event.programmaticChange = False
         return retVal
 
@@ -298,8 +300,8 @@ class TreeSelectionEvent(StateChangeEvent):
     def getProgrammaticChangeMethods(self):
         modelFilter, realModel = self.getModels()
         methods = [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, \
-                         self.widget.unselect_path, self.widget.get_tree_view().row_activated, \
-                         self.widget.get_tree_view().collapse_row, realModel.remove, realModel.clear ]
+                    self.widget.unselect_path, self.widget.get_tree_view().row_activated, \
+                    self.widget.get_tree_view().collapse_row, realModel.remove, realModel.clear ]
         if modelFilter:
             methods.append(realModel.set_value) # changing visibility column can change selection
         return methods
