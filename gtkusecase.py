@@ -64,7 +64,7 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import usecase, gtk, os, string
+import usecase, gtk, os, string, paths
 from gobject import idle_add
 from sets import Set
 
@@ -280,7 +280,30 @@ class CellToggleEvent(TreeViewEvent):
             if i < len(path) - 1:
                 strPath += ":"
         return [ "toggled", strPath ]
-    
+
+class FileChooserEvent(StateChangeEvent):
+    def __init__(self, name, fileChooser, button, foldersToSearch):
+        self.fileChooser = fileChooser
+        self.foldersToSearch = foldersToSearch
+        StateChangeEvent.__init__(self, name, button)
+    def getRecordSignal(self):
+        return "clicked"
+    def getStateDescription(self, *args):
+        if self.fileChooser.get_filename():
+            return paths.getRelativeOrAbsolutePath(self.foldersToSearch,
+                                                   self.fileChooser.get_filename())           
+        else:
+            return ""
+    def getChangeMethod(self):
+        return self.setCurrentName
+    def setCurrentName(self, name):
+        absPath = paths.getAbsolutePath(self.foldersToSearch, name)
+        folder, file = os.path.split(absPath)
+        if folder:
+            self.fileChooser.set_current_folder(unicode(folder, "utf-8").encode("utf-8"))
+        if file:
+            self.fileChooser.set_current_name(unicode(file, "utf-8").encode("utf-8"))
+                                    
 class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer):
         self.indexer = indexer
@@ -495,6 +518,14 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckChangeName = self.standardName(uncheckDescription)
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
+    def registerFileChooser(self, description, fileChooser, button, relativeToFolder):
+        # Since we have not found and good way to connect to the FileChooser itself,
+        # we'll monitor pressing the (dialog OK) button given to us. When replaying,
+        # we'll call the appropriate method to set the file name ...
+        if self.active:
+            stdName = self.standardName(description)
+            event = FileChooserEvent(stdName, fileChooser, button, relativeToFolder)
+            self._addEventToScripts(event)
     def monitorNotebook(self, notebook, description):
         if self.active():
             stateChangeName = self.standardName(description)
