@@ -298,11 +298,14 @@ class FileChooserEvent(StateChangeEvent):
         return self.setCurrentName
     def setCurrentName(self, name):
         absPath = paths.getAbsolutePath(self.foldersToSearch, name)
-        folder, file = os.path.split(absPath)
-        if folder:
-            self.fileChooser.set_current_folder(unicode(folder, "utf-8").encode("utf-8"))
-        if file:
-            self.fileChooser.set_current_name(unicode(file, "utf-8").encode("utf-8"))
+        if self.fileChooser.get_action() == gtk.FILE_CHOOSER_ACTION_OPEN:
+            self.fileChooser.set_filename(absPath)
+        else:
+            folder, file = os.path.split(absPath)                   
+            if folder:
+                self.fileChooser.set_current_folder(unicode(folder, "utf-8").encode("utf-8"))
+            if file:
+                self.fileChooser.set_current_name(unicode(file, "utf-8").encode("utf-8"))
                                     
 class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer):
