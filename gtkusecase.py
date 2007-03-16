@@ -308,12 +308,13 @@ class FileChooserEvent(StateChangeEvent):
                 self.fileChooser.set_current_name(unicode(file, "utf-8").encode("utf-8"))
                                     
 class TreeSelectionEvent(StateChangeEvent):
-    def __init__(self, name, widget, indexer):
+    def __init__(self, name, widget, indexer, noImplies = False):
         self.indexer = indexer
         # cache these before calling base class constructor, or they get intercepted...
         self.unselect_path = widget.unselect_path
         self.select_path = widget.select_path
         self.prevSelected = []
+        self.noImplies = noImplies
         StateChangeEvent.__init__(self, name, widget)
     def getChangeMethod(self):
         return self.widget.select_path
@@ -325,7 +326,8 @@ class TreeSelectionEvent(StateChangeEvent):
             return None, model
     def getProgrammaticChangeMethods(self):
         modelFilter, realModel = self.getModels()
-        methods = [ self.widget.unselect_all, self.widget.select_iter, self.widget.unselect_iter, \
+        methods = [ self.widget.unselect_all, self.widget.select_all, \
+                    self.widget.select_iter, self.widget.unselect_iter, \
                     self.widget.unselect_path, self.widget.get_tree_view().row_activated, \
                     self.widget.get_tree_view().collapse_row, realModel.remove, realModel.clear ]
         if modelFilter:
@@ -396,10 +398,13 @@ class TreeSelectionEvent(StateChangeEvent):
         else:
             return argumentString.split(",")
     def implies(self, prevLine, prevEvent):
-        if not isinstance(prevEvent, TreeSelectionEvent) or not prevLine.startswith(self.name):
+        if not isinstance(prevEvent, TreeSelectionEvent) or \
+               not prevLine.startswith(self.name):
             return False
         prevStateDesc = prevLine[len(self.name) + 1:]
         currStateDesc = self._getStateDescription()
+        if self.noImplies:
+            return len(prevStateDesc) == 0
         if len(currStateDesc) > len(prevStateDesc):
             return currStateDesc.startswith(prevStateDesc)
         elif len(currStateDesc) > 0:
@@ -491,10 +496,10 @@ class ScriptEngine(usecase.ScriptEngine):
             self._addEventToScripts(signalEvent)
         if method:
             widget.connect(signalName, method, *data)
-    def monitor(self, eventName, selection, argumentParseData = None):
+    def monitor(self, eventName, selection, argumentParseData = None, noImplies = False):
         if self.active():
             stdName = self.standardName(eventName)
-            stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData)
+            stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData, noImplies)
             self._addEventToScripts(stateChangeEvent)
     def monitorExpansion(self, treeView, expandDescription, collapseDescription = "", argumentParseData = None):
         if self.active():
