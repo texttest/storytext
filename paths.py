@@ -2,7 +2,7 @@
 # Some useful path operations.
 #
 
-import os.path
+import os
 
 # If path is relative, try to find it in one of the folders.
 # If not, return the path itself.
@@ -11,6 +11,7 @@ import os.path
 # short hand name (~relative path, e.g. filter_files) of
 # the folder.
 def getAbsolutePath(foldersToSearch, path):
+    path = path.replace("\\", os.sep)# support mixed-OS paths: FileChoosers don't use the python interface...
     if os.path.isabs(path):
         return path
     for folder in foldersToSearch:
@@ -23,6 +24,7 @@ def getAbsolutePath(foldersToSearch, path):
 # suitable relative path, using the short name (see comment above).
 # If not, return absolute path.
 def getRelativeOrAbsolutePath(foldersToSearch, absPath):
+    absPath = absPath.replace("\\", os.sep) # support mixed-OS paths: FileChoosers don't use the python interface...
     for folder in foldersToSearch:
         realFolder = folder
         if not folder[1].endswith(os.sep):
