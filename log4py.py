@@ -117,19 +117,6 @@ try:
 except:
     mysql_available = FALSE
 
-def get_homedirectory():
-    if (sys.platform == "win32"):
-        if (os.environ.has_key("USERPROFILE")):
-            return os.environ["USERPROFILE"]
-        else:
-            return "C:\\"
-    else:
-        if (os.environ.has_key("HOME")):
-            return os.environ["HOME"]
-        else:
-            # No home directory set
-            return ""
-
 # This is the main class for the logging module
 
 class Logger:
@@ -403,11 +390,7 @@ class Logger:
             priorities.sort()
             configfilename = ""
             for i in range(len(priorities)):
-                filename = CONFIGURATION_FILES[priorities[i]]
-                home_directory = get_homedirectory()
-                if (os.sep == "\\"):
-                    home_directory = replace(home_directory, "\\", "\\\\")
-                filename = sub("\$HOME", home_directory, filename)
+                filename = os.path.expanduser(CONFIGURATION_FILES[priorities[i]])
                 if (os.path.exists(filename)):
                     configfilename = filename
                     break
@@ -549,9 +532,7 @@ class FileAppender:
 
     def __init__(self, filename, rotation = ROTATE_NONE):
         """ **(private)** Class initalization & customization. """
-        self.__FileAppender_filename = sub("\$HOME", get_homedirectory(), filename)
-        self.__FileAppender_filename = os.path.expanduser(self.__FileAppender_filename)
-        self.__FileAppender_filename = os.path.expandvars(self.__FileAppender_filename)
+        self.__FileAppender_filename = os.path.expandvars(os.path.expanduser(filename))
         self.__FileAppender_rotation = rotation
 
     def __FileAppender_rotate(self, modification_time):
