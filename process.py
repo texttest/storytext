@@ -59,7 +59,6 @@ class WindowsProcessHandler:
         self.processManagement = 1
         stdout = os.popen("handle none").read()
         if stdout.find("administrator") != -1:
-            print "Cannot determine process IDs: possibly lack of administrator rights for 'handle'"
             self.processManagement = 0
     def spawnProcess(self, commandLine, shellTitle, holdShell):
         # Start the process in a subshell so redirection works correctly
