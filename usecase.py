@@ -283,8 +283,6 @@ class UseCaseReplayer:
         if self.delay:
             time.sleep(self.delay)
         if commandName == fileEditCommandName:
-            # Get the process termination that follows
-            self.runNextCommand()
             return self.processFileEditCommand(argumentString)
         if commandName == terminateCommandName:
             return self.processTerminateCommand(argumentString)
@@ -523,10 +521,10 @@ class UseCaseRecorder:
             if not event.implies(*self.stateChangeEventInfo):
                 self.record(*self.stateChangeEventInfo)
 
-        self.writeApplicationEventDetails()
         scriptOutput = event.outputForScript(*args)
         lineToRecord = self.translate(scriptOutput, event.name)
         self.checkProcesses()
+        self.writeApplicationEventDetails()
         if event.isStateChange():
             self.stateChangeEventInfo = lineToRecord, event
         else:
