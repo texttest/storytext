@@ -73,7 +73,7 @@ from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
-from process import Process
+from jobprocess import JobProcess
 
 # Hard coded commands
 waitCommandName = "wait for"
@@ -191,7 +191,7 @@ class UseCaseReplayer:
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
         self.waitingForEvents = []
         self.applicationEventNames = []
-        self.process = Process(os.getpid()) # So we can generate signals for ourselves...
+        self.process = JobProcess(os.getpid()) # So we can generate signals for ourselves...
         self.processes = {}
         self.fileFullPaths = {}
         self.fileEditDir = None
@@ -328,7 +328,7 @@ class UseCaseReplayer:
     def processSignalCommand(self, signalArg):
         exec "signalNum = signal." + signalArg
         self.write("Generating signal " + signalArg)
-        self.process.killAll(signalNum)
+        JobProcess(self.process.pid).killAll(signalNum)
         return True
     def processFileEditCommand(self, fileName):
         self.write("Making changes to file " + fileName + "...")
@@ -346,7 +346,7 @@ class UseCaseReplayer:
         self.write("Terminating process that " + procName + "...")
         if self.processes.has_key(procName):
             process = self.processes[procName]
-            process.killAll()
+            JobProcess(process.pid).killAll()
             del self.processes[procName]
         else:
             self.write("ERROR: Could not find process that '" + procName + "' to terminate!!")
@@ -480,7 +480,7 @@ class UseCaseRecorder:
     def checkProcesses(self):
         newProcesses = []
         for name, process, filesWithDates in self.processes:
-            if process.hasTerminated():
+            if process.poll() is not None:
                 self.recordTermination(name, filesWithDates)
             else:
                 newProcesses.append((name, process, filesWithDates))
