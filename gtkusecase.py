@@ -159,7 +159,7 @@ class MethodIntercept:
         return retVal
 
 # Some widgets have state. We note every change but allow consecutive changes to
-# overwrite each other. Assume that if the state is set programatically the widget won't be in focus
+# overwrite each other. 
 class StateChangeEvent(GtkEvent):
     def getRecordSignal(self):
         return "changed"
@@ -281,31 +281,43 @@ class CellToggleEvent(TreeViewEvent):
                 strPath += ":"
         return [ "toggled", strPath ]
 
-class FileChooserEvent(StateChangeEvent):
-    def __init__(self, name, fileChooser, button, foldersToSearch):
-        self.fileChooser = fileChooser
-        self.foldersToSearch = foldersToSearch
-        StateChangeEvent.__init__(self, name, button)
+    
+class FileChooserFileSelectEvent(StateChangeEvent):
+    def __init__(self, name, widget):
+        StateChangeEvent.__init__(self, name, widget)
+        self.currentName = self.getStateDescription()
     def getRecordSignal(self):
-        return "clicked"
+        return "selection-changed"
+    def getChangeMethod(self):
+        return self.widget.select_filename
+    def eventIsRelevant(self):
+        if self.widget.get_filename() is None:
+            return False
+        return self.currentName != self._getStateDescription()
     def getStateDescription(self, *args):
-        if self.fileChooser.get_filename():
-            return paths.getRelativeOrAbsolutePath(self.foldersToSearch,
-                                                   self.fileChooser.get_filename())           
+        self.currentName = self._getStateDescription()
+        return self.currentName
+    def _getStateDescription(self):
+        fileName = self.widget.get_filename()
+        if fileName:
+            return os.path.basename(fileName)
         else:
             return ""
+    def getStateChangeArgument(self, argumentString):
+        return os.path.join(self.widget.get_current_folder(), argumentString)
+    
+class FileChooserFolderChangeEvent(StateChangeEvent):
+    def getRecordSignal(self):
+        return "current-folder-changed"
     def getChangeMethod(self):
-        return self.setCurrentName
-    def setCurrentName(self, name):
-        absPath = paths.getAbsolutePath(self.foldersToSearch, name)
-        if self.fileChooser.get_action() == gtk.FILE_CHOOSER_ACTION_OPEN:
-            self.fileChooser.set_filename(absPath)
-        else:
-            folder, file = os.path.split(absPath)                   
-            if folder:
-                self.fileChooser.set_current_folder(unicode(folder, "utf-8").encode("utf-8"))
-            if file:
-                self.fileChooser.set_current_name(unicode(file, "utf-8").encode("utf-8"))
+        return self.widget.set_current_folder
+    def getStateDescription(self, *args):
+        return os.path.basename(self.widget.get_current_folder())
+    def getStateChangeArgument(self, argumentString):
+        for folder in self.widget.list_shortcut_folders():
+            if os.path.basename(folder) == argumentString:
+                return folder
+        return argumentString
                                     
 class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer, noImplies = False):
@@ -526,14 +538,28 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckChangeName = self.standardName(uncheckDescription)
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
-    def registerFileChooser(self, description, fileChooser, button, relativeToFolder):
-        # Since we have not found and good way to connect to the FileChooser itself,
-        # we'll monitor pressing the (dialog OK) button given to us. When replaying,
-        # we'll call the appropriate method to set the file name ...
+    def registerFileChooser(self, fileChooser, fileChangeDesc, folderChangeDesc):
         if self.active:
-            stdName = self.standardName(description)
-            event = FileChooserEvent(stdName, fileChooser, button, relativeToFolder)
+            if fileChooser.get_action() == gtk.FILE_CHOOSER_ACTION_OPEN:
+                stdName = self.standardName(fileChangeDesc)
+                event = FileChooserFileSelectEvent(stdName, fileChooser)
+                self._addEventToScripts(event)
+            else:
+                entry = self.findSubWidget(fileChooser, gtk.Entry) # well, if they won't give it to us...
+                self.registerEntry(entry, fileChangeDesc)
+            stdName = self.standardName(folderChangeDesc)
+            event = FileChooserFolderChangeEvent(stdName, fileChooser)
             self._addEventToScripts(event)
+    def findSubWidget(self, widget, className):
+        if isinstance(widget, className):
+            return widget
+        try:
+            for child in widget.get_children():
+                subwidget = self.findSubWidget(child, className)
+                if subwidget:
+                    return subwidget
+        except AttributeError:
+            pass
     def monitorNotebook(self, notebook, description):
         if self.active():
             stateChangeName = self.standardName(description)
