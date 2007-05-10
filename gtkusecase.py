@@ -284,11 +284,19 @@ class CellToggleEvent(TreeViewEvent):
         return [ "toggled", strPath ]
 
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
+# Seems quite capable of generating too many of them also
 class FileChooserFolderChangeEvent(StateChangeEvent):
+    def __init__(self, name, widget):
+        self.currentFolder = widget.get_current_folder()
+        StateChangeEvent.__init__(self, name, widget)
     def setProgrammaticChange(self, val):
         if val:
             self.programmaticChange = val
     def shouldRecord(self, *args):
+        hasChanged = self.widget.get_current_folder() != self.currentFolder
+        self.currentFolder = self.widget.get_current_folder()
+        if not hasChanged:
+            return False
         ret = StateChangeEvent.shouldRecord(self, *args)
         self.programmaticChange = False
         return ret
