@@ -226,6 +226,7 @@ class UseCaseReplayer:
                 self.replayThread.join()
             for eventName in self.waitingForEvents:
                 self.write("Expected application event '" + eventName + "' occurred, proceeding.")
+                self.applicationEventNames.remove(eventName)
             self.timeDelayNextCommand = timeDelay
             self.enableReading()
     def waitingCompleted(self):

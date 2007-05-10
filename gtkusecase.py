@@ -99,6 +99,8 @@ class GtkEvent(usecase.UserEvent):
         pass
     def getProgrammaticChangeMethods(self):
         return []
+    def setProgrammaticChange(self, val):
+        self.programmaticChange = val
     def getRecordSignal(self):
         pass
     def connectRecord(self, method):
@@ -152,10 +154,10 @@ class MethodIntercept:
         # Allow for possibly nested programmatic changes, observation can have knock-on effects
         eventsToBlock = filter(lambda event: not event.programmaticChange, self.events)
         for event in eventsToBlock:
-            event.programmaticChange = True
+            event.setProgrammaticChange(True)
         retVal = apply(self.method, args, kwds)
         for event in eventsToBlock:
-            event.programmaticChange = False
+            event.setProgrammaticChange(False)
         return retVal
 
 # Some widgets have state. We note every change but allow consecutive changes to
@@ -281,7 +283,15 @@ class CellToggleEvent(TreeViewEvent):
                 strPath += ":"
         return [ "toggled", strPath ]
 
+# At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
 class FileChooserFolderChangeEvent(StateChangeEvent):
+    def setProgrammaticChange(self, val):
+        if val:
+            self.programmaticChange = val
+    def shouldRecord(self, *args):
+        ret = StateChangeEvent.shouldRecord(self, *args)
+        self.programmaticChange = False
+        return ret
     def getRecordSignal(self):
         return "current-folder-changed"
     def getChangeMethod(self):
@@ -323,6 +333,15 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
         return "selection-changed"
     def getChangeMethod(self):
         return self.fileChooser.select_filename
+    def shouldRecord(self, *args):
+        if os.name == "posix":
+            return FileChooserFileEvent.shouldRecord(self, *args)
+        # Windows seems to generate various spurious ones...
+        if self.currentName: # once we've got a name, everything is permissible...
+            return not self.programmaticChange
+        else:
+            self.currentName = self._getStateDescription()
+            return False
 
 class FileChooserEntryEvent(FileChooserFileEvent):
     def getRecordSignal(self):
