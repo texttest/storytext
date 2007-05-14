@@ -8,7 +8,7 @@
 # We try to make the JobProcess class look as much like subprocess.Popen objects as possible
 # so we can if necessary treat them interchangeably.
 
-import signal, sys, os, string, time, stat
+import signal, os, time, subprocess
 
 class UNIXProcessHandler:
     def findProcessName(self, pid):
@@ -46,8 +46,19 @@ class WindowsProcessHandler:
     def findChildProcesses(self, processId):
         return [] # you what?
     def kill(self, process, killSignal):
-        # Why isn't this in os.kill ???
-        return os.system("tskill " + str(process) + " > nul 2> nul") == 0
+        # Why isn't something like this in os.kill ???
+        try:
+            return self.tryKill("tskill", process)
+        except OSError:
+            try:
+                return self.tryKill("pskill", process)
+            except OSError:
+                print "WARNING - neither tskill nor pskill found, not able to kill processes"
+                # We don't propagate the exception or nothing at all might work...
+                return True
+    def tryKill(self, tool, process):
+        cmdArgs = [ tool, str(process) ]
+        return subprocess.call(cmdArgs, stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT) 
     def poll(self, pid):
         return True # We assume tskill always works, we have no way of checking otherwise...
 
