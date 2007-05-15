@@ -58,7 +58,7 @@ class WindowsProcessHandler:
                 return True
     def tryKill(self, tool, process):
         cmdArgs = [ tool, str(process) ]
-        return subprocess.call(cmdArgs, stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT) 
+        return subprocess.call(cmdArgs, stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT) == 0
     def poll(self, pid):
         return True # We assume tskill always works, we have no way of checking otherwise...
 
