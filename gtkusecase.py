@@ -64,7 +64,7 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import usecase, gtk, os, string, paths
+import usecase, gtk, os
 from gobject import idle_add
 from sets import Set
 
@@ -403,7 +403,7 @@ class TreeSelectionEvent(StateChangeEvent):
         newSelected.sort(self.selectedPreviously)
         if storeSelected:
             self.prevSelected = newSelected
-        return string.join(newSelected, ",")
+        return ",".join(newSelected)
     def findSelectedPaths(self):
         paths = []
         self.widget.selected_foreach(self.addSelPath, paths)
