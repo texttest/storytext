@@ -2,6 +2,6 @@
 from distutils.core import setup
 
 setup(name='PyUseCase',
-      version='1.2.devel',
-      py_modules=["usecase", "gtkusecase", "log4py", "jobprocess"],
+      version='1.3.devel',
+      py_modules=["usecase", "gtkusecase", "log4py", "ndict", "jobprocess"],
       )
