@@ -13,10 +13,10 @@ import signal, os, time, subprocess
 class UNIXProcessHandler:
     def findProcessName(self, pid):
         pslines = os.popen("ps -l -p " + str(pid) + " 2> /dev/null").readlines()
-        if len(pslines) == 0:
-            return self.findProcessName(pid)
-        else:
+        if len(pslines) > 1:
             return pslines[-1].split()[-1]
+        else:
+            return "" # process couldn't be found
     def findChildProcesses(self, pid):
         outLines = os.popen("ps -efl").readlines()
         return self.findChildProcessesInLines(pid, outLines)
@@ -69,6 +69,7 @@ class JobProcess:
         processHandler = WindowsProcessHandler()
     def __init__(self, pid):
         self.pid = pid
+        self.name = None
     def __repr__(self):
         return self.getName()
     def findAllProcesses(self):
@@ -77,7 +78,9 @@ class JobProcess:
         ids = self.processHandler.findChildProcesses(self.pid)
         return [ JobProcess(id) for id in ids ]
     def getName(self):
-        return self.processHandler.findProcessName(self.pid)
+        if self.name is None:
+            self.name = self.processHandler.findProcessName(self.pid)
+        return self.name
     def killAll(self, killSignal=None):
         processes = self.findAllProcesses()
         # If intent is to kill everything (signal not specified) start with the deepest child process...
