@@ -89,20 +89,17 @@ class JobProcess:
             processes.reverse()
         killedSomething = False
         for index in range(len(processes)):
-            verbose = index == 0
-            killedSomething |= processes[index].kill(killSignal, verbose)
+            killedSomething |= processes[index].kill(killSignal)
         return killedSomething
-    def kill(self, killSignal, verbose=1):
+    def kill(self, killSignal):
         if killSignal:
             return self.processHandler.kill(self.pid, killSignal)
-        if self.tryKillAndWait(signal.SIGINT, verbose):
+        if self.tryKillAndWait(signal.SIGINT):
             return True
-        if self.tryKillAndWait(signal.SIGTERM, verbose):
+        if self.tryKillAndWait(signal.SIGTERM):
             return True
-        return self.tryKillAndWait(signal.SIGKILL, verbose)
-    def tryKillAndWait(self, killSignal, verbose=0):
-        if verbose:
-            print "Killed process", self.pid, "with signal", killSignal
+        return self.tryKillAndWait(signal.SIGKILL)
+    def tryKillAndWait(self, killSignal):
         if not self.processHandler.kill(self.pid, killSignal):
             return False
         for i in range(10):
