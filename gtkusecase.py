@@ -342,9 +342,6 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
     def getChangeMethod(self):
         return self.fileChooser.select_filename
     def shouldRecord(self, *args):
-        if os.name == "posix":
-            return FileChooserFileEvent.shouldRecord(self, *args)
-        # Windows seems to generate various spurious ones...
         if self.currentName: # once we've got a name, everything is permissible...
             return not self.programmaticChange
         else:
