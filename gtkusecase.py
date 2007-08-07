@@ -343,7 +343,7 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
         return self.fileChooser.select_filename
     def shouldRecord(self, *args):
         if self.currentName: # once we've got a name, everything is permissible...
-            return not self.programmaticChange
+            return FileChooserFileEvent.shouldRecord(self, *args)
         else:
             self.currentName = self._getStateDescription()
             return False
