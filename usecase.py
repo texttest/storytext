@@ -322,6 +322,7 @@ class UseCaseReplayer:
             self.write("Waiting for application event '" + applicationEventName + "' to occur.")
             if applicationEventName in self.applicationEventNames:
                 self.write("Expected application event '" + applicationEventName + "' occurred, proceeding.")
+                self.applicationEventNames.remove(applicationEventName)
             else:
                 self.waitingForEvents.append(applicationEventName)
                 allHappened = False
