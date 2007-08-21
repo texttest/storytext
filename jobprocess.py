@@ -41,23 +41,26 @@ class UNIXProcessHandler:
             return "returncode" # should return return code but can't be bothered, don't use it currently
     
 class WindowsProcessHandler:
+    # Every new Windows version produces a new way of killing processes...
+    killCommands = [ [ "tskill" ], # Windows XP
+                     [ "taskkill", "/F", "/PID" ], # Windows Vista
+                     [ "pskill" ] ] # Windows 2000
     def findProcessName(self, pid):
         return "Process " + str(pid) # for want of anything better...
     def findChildProcesses(self, processId):
         return [] # you what?
     def kill(self, process, killSignal):
         # Why isn't something like this in os.kill ???
-        try:
-            return self.tryKill("tskill", process)
-        except OSError:
+        for killCommand in self.killCommands:    
             try:
-                return self.tryKill("pskill", process)
+                return self.tryKill(killCommand, process)
             except OSError:
-                print "WARNING - neither tskill nor pskill found, not able to kill processes"
-                # We don't propagate the exception or nothing at all might work...
-                return True
-    def tryKill(self, tool, process):
-        cmdArgs = [ tool, str(process) ]
+                pass
+        print "WARNING - none of taskkill (Vista), tskill (XP) nor pskill (2000) found, not able to kill processes"
+        # We don't propagate the exception or nothing at all might work...
+        return True
+    def tryKill(self, killCommand, process):
+        cmdArgs = killCommand + [ str(process) ]
         return subprocess.call(cmdArgs, stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT) == 0
     def poll(self, pid):
         return True # We assume tskill always works, we have no way of checking otherwise...
