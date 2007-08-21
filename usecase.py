@@ -104,6 +104,9 @@ class UserEvent:
         return self.name
     def generate(self, argumentString):
         pass
+    def readyForGeneration(self):
+        # If this is false, recorder will wait and then try again
+        return True
     def isStateChange(self):
         # If this is true, recorder will wait before recording and only record if a different event comes in
         return False
@@ -182,6 +185,8 @@ class ReplayScript:
         # Filter blank lines and comments
         self.pointer += 1
         return nextCommand
+    def rollback(self):
+        self.pointer -= 1
     
 class UseCaseReplayer:
     def __init__(self, logger):
@@ -277,8 +282,6 @@ class UseCaseReplayer:
             print line
     def processCommand(self, scriptCommand):
         commandName, argumentString = self.parseCommand(scriptCommand)
-        # Blank line... to make clear what belongs to what script command
-        self.write("")
         if commandName == waitCommandName:
             return self.processWaitCommand(argumentString)
         if self.delay:
@@ -290,7 +293,13 @@ class UseCaseReplayer:
         elif commandName == signalCommandName:
             return self.processSignalCommand(argumentString)
         else:
-            self.generateEvent(commandName, argumentString)
+            event = self.events[commandName]
+            if event.readyForGeneration():
+                self.write("")
+                self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
+                event.generate(argumentString)
+            else:
+                self.scripts[-1].rollback()
             return True
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
@@ -312,12 +321,10 @@ class UseCaseReplayer:
             if command.startswith(eventName) and len(eventName) > len(longestEventName):
                 longestEventName = eventName
         return longestEventName            
-    def generateEvent(self, eventName, argumentString):
-        self.write("'" + eventName + "' event created with arguments '" + argumentString + "'")
-        event = self.events[eventName]
-        event.generate(argumentString)
+    
     def processWaitCommand(self, applicationEventStr):
         allHappened = True
+        self.write("") # blank line
         for applicationEventName in applicationEventStr.split(", "):
             self.write("Waiting for application event '" + applicationEventName + "' to occur.")
             if applicationEventName in self.applicationEventNames:
@@ -329,10 +336,12 @@ class UseCaseReplayer:
         return allHappened
     def processSignalCommand(self, signalArg):
         exec "signalNum = signal." + signalArg
+        self.write("")
         self.write("Generating signal " + signalArg)
         JobProcess(self.process.pid).killAll(signalNum)
         return True
     def processFileEditCommand(self, fileName):
+        self.write("")
         self.write("Making changes to file " + fileName + "...")
         sourceFile = os.path.join(self.fileEditDir, fileName)
         if os.path.isfile(sourceFile):
@@ -345,6 +354,7 @@ class UseCaseReplayer:
             self.write("ERROR: Could not find updated version of file " + fileName)
         return True
     def processTerminateCommand(self, procName):
+        self.write("")
         self.write("Terminating process that " + procName + "...")
         if self.processes.has_key(procName):
             process = self.processes[procName]
