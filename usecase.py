@@ -461,11 +461,12 @@ class UseCaseRecorder:
     def readTranslationFile(self):
         fileName = os.path.join(os.environ["USECASE_HOME"], "usecase_translation")
         configParser = ConfigParser()
-        try:
-            configParser.read(fileName)
-        except:
-            # If we can't read it, press on...
-            pass
+        if os.path.isfile(fileName):
+            try:
+                configParser.read(fileName)
+            except:
+                # If we can't read it, press on...
+                pass
         return configParser
     def modifiedTime(self, file):
         if os.path.isfile(file):
