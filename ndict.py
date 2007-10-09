@@ -174,6 +174,11 @@ class seqdict:
     for i in liste:
       dict[i]=self.dict[i]
     return self.__class__(liste,dict)
+  def setdefault(self, key, failobj=None):
+    if key not in self.list:
+      self.list.append(key)
+    return self.dict.setdefault(key, failobj)
+
   def get(self, key, failobj=None):
         return self.dict.get(key, failobj)
   def index(self,key):return self.list.index(key)

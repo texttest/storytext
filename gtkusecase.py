@@ -187,6 +187,32 @@ class EntryEvent(StateChangeEvent):
     def getChangeMethod(self):
         return self.widget.set_text
 
+class PaneDragEvent(StateChangeEvent):
+    def __init__(self, name, widget):
+        StateChangeEvent.__init__(self, name, widget)
+        widget.connect("notify::max-position", self.changeMax)
+        self.prevState = ""
+    def changeMax(self, *args):
+        self.prevState = self.getStateDescription()
+    def eventIsRelevant(self):
+        newState = self.getStateDescription()
+        if newState != self.prevState:
+            self.prevPos = newState
+            return True
+        else:
+            return False
+    def getRecordSignal(self):
+        return "notify::position"
+    def getStatePercentage(self):
+        return float(100 * self.widget.get_position()) / self.widget.get_property("max-position")
+    def getStateDescription(self, *args):
+        return str(int(self.getStatePercentage() + 0.5)) + "% of the space"
+    def getStateChangeArgument(self, argumentString):
+        percentage = int(argumentString.split()[0][:-1])
+        return int(float(self.widget.get_property("max-position") * percentage) / 100 + 0.5)
+    def getChangeMethod(self):
+        return self.widget.set_position
+    
 class ActivateEvent(StateChangeEvent):
     def __init__(self, name, widget, relevantState):
         StateChangeEvent.__init__(self, name, widget)
@@ -572,6 +598,11 @@ class ScriptEngine(usecase.ScriptEngine):
             if self.recorderActive():
                 entryEvent.widget.connect("activate", self.recorder.writeEvent, entryEvent)
             self._addEventToScripts(entryEvent)
+    def registerPaned(self, paned, description):
+        if self.active():
+            stateChangeName = self.standardName(description)
+            event = PaneDragEvent(stateChangeName, paned)
+            self._addEventToScripts(event)
     def registerToggleButton(self, button, checkDescription, uncheckDescription = ""):
         if self.active():
             checkChangeName = self.standardName(checkDescription)
