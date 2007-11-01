@@ -339,7 +339,7 @@ class FileChooserFolderChangeEvent(StateChangeEvent):
         for folder in self.widget.list_shortcut_folders():
             if os.path.basename(folder) == argumentString:
                 return folder
-        return argumentString
+        return os.path.join(self.widget.get_current_folder(), argumentString)
 
 # Base class for selecting a file or typing a file name
 class FileChooserFileEvent(StateChangeEvent):
@@ -643,7 +643,7 @@ class ScriptEngine(usecase.ScriptEngine):
         if OKButton:
             # The OK button is what we monitor in the scriptEngine, so simulate that it is pressed ...
             fileChooser.connect("file-activated", self.simulateOKClick, OKButton)
-            return self.connect(OKDesc, "clicked", OKButton, respondMethod, None, True)
+            return self.connect(OKDesc, "clicked", OKButton, respondMethod, None, True, respondMethodArg)
         else:
             return self.connect(OKDesc, "response", fileChooser, respondMethod, gtk.RESPONSE_OK, respondMethodArg)
         
@@ -651,7 +651,7 @@ class ScriptEngine(usecase.ScriptEngine):
         button.clicked()
     def createCancelEvent(self, fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg):
         if cancelButton:
-            return self.connect(cancelDesc, "clicked", cancelButton, respondMethod, None, False)
+            return self.connect(cancelDesc, "clicked", cancelButton, respondMethod, None, False, respondMethodArg)
         else:
             return self.connect(cancelDesc, "response", fileChooser, respondMethod, gtk.RESPONSE_CANCEL, respondMethodArg)
 
