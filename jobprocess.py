@@ -91,8 +91,8 @@ class JobProcess:
         if not killSignal:
             processes.reverse()
         killedSomething = False
-        for index in range(len(processes)):
-            killedSomething |= processes[index].kill(killSignal)
+        for proc in processes:
+            killedSomething |= proc.kill(killSignal)
         return killedSomething
     def kill(self, killSignal):
         if killSignal:
