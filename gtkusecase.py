@@ -263,7 +263,7 @@ class RowExpandEvent(TreeViewEvent):
     def getChangeMethod(self):
         return self.widget.expand_row
     def getProgrammaticChangeMethods(self):
-        return [ self.widget.expand_to_path ]
+        return [ self.widget.expand_to_path, self.widget.expand_all ]
     def getRecordSignal(self):
         return "row-expanded"
     def getTreeViewArgs(self):
