@@ -105,7 +105,7 @@ class JobProcess:
     def tryKillAndWait(self, killSignal):
         if not self.processHandler.kill(self.pid, killSignal):
             return False
-        for i in range(10):
+        for i in range(20):
             time.sleep(0.1)
             if self.poll() is not None:
                 return True

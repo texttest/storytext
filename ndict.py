@@ -110,6 +110,8 @@ class seqdict:
         newdict[i]=self.dict[i]
       return self.__class__(key,newdict)
     return self.dict[key]
+  def __iter__(self):
+    return self.list.__iter__()
   def __setitem__(self,key,value):
     if not self.dict.has_key(key):
       self.list.append(key)
