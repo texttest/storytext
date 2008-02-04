@@ -64,7 +64,7 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import usecase, gtk, os
+import usecase, gtk, os, re
 from gobject import idle_add
 from sets import Set
 
@@ -252,13 +252,13 @@ class TreeViewEvent(GtkEvent):
     def __init__(self, name, widget, indexer):
         GtkEvent.__init__(self, name, widget)
         self.indexer = indexer
-    def _outputForScript(self, iterOrPath, *args):
-        return self.name + " " + self.indexer.path2string(iterOrPath)
+    def _outputForScript(self, iter, *args):
+        return self.name + " " + self.indexer.iter2string(iter)
     def getGenerationArguments(self, argumentString):
         return [ self.indexer.string2path(argumentString) ] + self.getTreeViewArgs()
     def getTreeViewArgs(self):
         return []
-
+   
 class RowExpandEvent(TreeViewEvent):
     def getChangeMethod(self):
         return self.widget.expand_row
@@ -281,12 +281,15 @@ class RowActivationEvent(TreeViewEvent):
         return self.widget.row_activated
     def getRecordSignal(self):
         return "row-activated"
+    def _outputForScript(self, path, *args):
+        return self.name + " " + self.indexer.path2string(path)
     def generate(self, argumentString):
         # clear the selection before generating as that's what the real event does
         self.widget.get_selection().unselect_all()
         TreeViewEvent.generate(self, argumentString)
     def getTreeViewArgs(self):
-        return [ self.indexer.column ]
+        # We don't care which column right now
+        return [ self.widget.get_column(0) ]
     def implies(self, prevLine, prevEvent):
         if not isinstance(prevEvent, TreeSelectionEvent):
             return False
@@ -299,6 +302,8 @@ class CellToggleEvent(TreeViewEvent):
         return self.widget.emit
     def getRecordSignal(self):
         return "toggled"
+    def _outputForScript(self, path, *args):
+        return self.name + " " + self.indexer.path2string(path)
     def getGenerationArguments(self, argumentString):
         path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]
         # For some reason, the treemodel access methods I use
@@ -311,6 +316,7 @@ class CellToggleEvent(TreeViewEvent):
             if i < len(path) - 1:
                 strPath += ":"
         return [ "toggled", strPath ]
+
 
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
 # Seems quite capable of generating too many of them also
@@ -387,13 +393,13 @@ class TreeSelectionEvent(StateChangeEvent):
     def __init__(self, name, widget, indexer, noImplies = False):
         self.indexer = indexer
         # cache these before calling base class constructor, or they get intercepted...
-        self.unselect_path = widget.unselect_path
-        self.select_path = widget.select_path
+        self.unselect_iter = widget.unselect_iter
+        self.select_iter = widget.select_iter
         self.prevSelected = []
         self.noImplies = noImplies
         StateChangeEvent.__init__(self, name, widget)
     def getChangeMethod(self):
-        return self.widget.select_path
+        return self.widget.select_iter
     def getModels(self):
         model = self.widget.get_tree_view().get_model()
         if isinstance(model, gtk.TreeModelFilter):
@@ -411,45 +417,45 @@ class TreeSelectionEvent(StateChangeEvent):
         return methods
     def getStateDescription(self, *args):
         return self._getStateDescription(storeSelected=True)
-    def selectedPreviously(self, path1, path2):
-        selPrev1 = path1 in self.prevSelected
-        selPrev2 = path2 in self.prevSelected
+    def selectedPreviously(self, iter1, iter2):
+        selPrev1 = iter1 in self.prevSelected
+        selPrev2 = iter2 in self.prevSelected
         if selPrev1 and not selPrev2:
             return -1
         elif selPrev2 and not selPrev1:
             return 1
         elif selPrev1 and selPrev2:
-            index1 = self.prevSelected.index(path1)
-            index2 = self.prevSelected.index(path2)
+            index1 = self.prevSelected.index(iter1)
+            index2 = self.prevSelected.index(iter2)
             return cmp(index1, index2)
         else:
             return 0
     def _getStateDescription(self, storeSelected=False):
-        newSelected = self.findSelectedPaths()
+        newSelected = self.findSelectedIters()
         newSelected.sort(self.selectedPreviously)
         if storeSelected:
             self.prevSelected = newSelected
         return ",".join(newSelected)
-    def findSelectedPaths(self):
-        paths = []
-        self.widget.selected_foreach(self.addSelPath, paths)
-        return paths
-    def addSelPath(self, model, path, iter, paths):
-        paths.append(self.indexer.path2string(path))
+    def findSelectedIters(self):
+        iters = []
+        self.widget.selected_foreach(self.addSelIter, iters)
+        return iters
+    def addSelIter(self, model, path, iter, iters):
+        iters.append(self.indexer.iter2string(iter))
     def getStateChangeArgument(self, argumentString):
-        return map(self.indexer.string2path, argumentString.split(","))
+        return map(self.indexer.string2iter, argumentString.split(","))
     def generate(self, argumentString):
-        oldSelected = self.findSelectedPaths()
-        newSelected = self.parsePathNames(argumentString)
+        oldSelected = self.findSelectedIters()
+        newSelected = self.parseIterNames(argumentString)
         toUnselect, toSelect = self.findChanges(oldSelected, newSelected)
         if len(toSelect) > 0:
             self.widget.unseen_changes = True
-        for pathName in toUnselect:
-            self.unselect_path(self.indexer.string2path(pathName))
+        for iterName in toUnselect:
+            self.unselect_iter(self.indexer.string2iter(iterName))
         if len(toSelect) > 0:
             delattr(self.widget, "unseen_changes")
-        for pathName in newSelected:
-            self.select_path(self.indexer.string2path(pathName))
+        for iterName in newSelected:
+            self.select_iter(self.indexer.string2iter(iterName))
             
     def findChanges(self, oldSelected, newSelected):
         if oldSelected == newSelected: # re-selecting should be recorded as clear-and-reselect, not do nothing
@@ -469,7 +475,7 @@ class TreeSelectionEvent(StateChangeEvent):
             if oldSelected[index] != newSelected[index]:
                 return index
         return len(oldSelected)
-    def parsePathNames(self, argumentString):
+    def parseIterNames(self, argumentString):
         if len(argumentString) == 0:
             return []
         else:
@@ -485,8 +491,8 @@ class TreeSelectionEvent(StateChangeEvent):
         if len(currStateDesc) > len(prevStateDesc):
             return currStateDesc.startswith(prevStateDesc)
         elif len(currStateDesc) > 0:
-            oldSet = Set(self.parsePathNames(prevStateDesc))
-            newSet = Set(self.parsePathNames(currStateDesc))
+            oldSet = Set(self.parseIterNames(prevStateDesc))
+            newSet = Set(self.parseIterNames(currStateDesc))
             return oldSet.issuperset(newSet)
         else:
             return False # always assume deselecting everything marks the beginning of a new conceptual action
@@ -519,38 +525,177 @@ class DeletionEvent(GtkEvent):
             
             
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
+# Application needs to guarantee unique values for get_value(iter, self.valueId) for all iter
 class TreeModelIndexer:
-    def __init__(self, model, column, valueId):
+    def __init__(self, model, column):
         self.model = model
         self.column = column
-        self.valueId = valueId
-    def path2string(self, iterOrPath):
-        iter = self.getIter(iterOrPath)
-        return self.model.get_value(iter, self.valueId)
-    def getIter(self, iterOrPath):
-        try:
-            return self.model.get_iter(iterOrPath)
-        except TypeError:
-            return iterOrPath
-    def string2path(self, pathString):
-        path = self._findTreePath(self.model.get_iter_root(), pathString)
-        if not path:
-            raise usecase.UseCaseScriptError, "Could not find row '" + pathString + "' in Tree View"
-        return path
-    def _findTreePath(self, iter, argumentText):
+    def iter2string(self, iter):
+        return self.getValue(iter)
+    def path2string(self, path):
+        return self.iter2string(self.model.get_iter(path))
+    def string2path(self, iterString):
+        return self.model.get_path(self.string2iter(iterString))
+    def getValue(self, iter):
+        fromModel = self.model.get_value(iter, self.column)
+        if fromModel is not None:
+            return re.sub("<[^>]*>", "", fromModel)
+    def string2iter(self, iterString):
+        iter = self._findTreeIter(self.model.get_iter_root(), iterString)
+        if not iter:
+            raise usecase.UseCaseScriptError, "Could not find row '" + iterString + "' in Tree View"
+        return iter
+    def _findTreeIter(self, iter, argumentText):
         if self._pathHasText(iter, argumentText):
-            return self.model.get_path(iter)
+            return iter
         childIter = self.model.iter_children(iter)
         if childIter:
-            childPath = self._findTreePath(childIter, argumentText)
-            if childPath:
-                return childPath
+            foundIter = self._findTreeIter(childIter, argumentText)
+            if foundIter:
+                return foundIter
         nextIter = self.model.iter_next(iter)
         if nextIter:
-            return self._findTreePath(nextIter, argumentText)
-        return None
+            return self._findTreeIter(nextIter, argumentText)
+
     def _pathHasText(self, iter, argumentText):
-        return self.model.get_value(iter, self.valueId) == argumentText
+        return self.getValue(iter) == argumentText
+
+# Where names aren't guaranteed to be unique, this more complex version will create and store such names for itself...
+# Can't store iterators on TreeModelFilters, store the underlying iterators and convert them at the last minute
+class NonUniqueTreeModelIndexer(TreeModelIndexer):
+    def __init__(self, model, valueId):
+        self.givenModel = model
+        modelToUse = self.findModelToUse()
+        TreeModelIndexer.__init__(self, modelToUse, valueId)
+        self.iter2name = {}
+        self.name2iter = {}
+        self.model.foreach(self.rowInserted)
+        self.model.connect("row-changed", self.rowChanged)
+        self.model.connect("row-inserted", self.rowInserted)
+        self.model.connect("row-deleted", self.rowDeleted)
+    def string2path(self, iterString):
+        return self.givenModel.get_path(self.string2iter(iterString))
+    def path2string(self, path):
+        return self.iter2string(self.givenModel.get_iter(path))
+    def usesFilter(self):
+        return isinstance(self.givenModel, gtk.TreeModelFilter)
+    def findModelToUse(self):
+        if self.usesFilter():
+            return self.givenModel.get_model()
+        else:
+            return self.givenModel
+    def convertFrom(self, iter):
+        if self.usesFilter():
+            return self.givenModel.convert_iter_to_child_iter(iter)
+        else:
+            return iter
+    def convertTo(self, iter, name):
+        if self.usesFilter():
+            try:
+                return self.givenModel.convert_child_iter_to_iter(iter)
+            except RuntimeError:
+                raise usecase.UseCaseScriptError, "Row '" + name + "' is currently hidden and cannot be accessed"
+        else:
+            return iter
+    def findStoredIter(self, iter):
+        name = self.getValue(iter)
+        path = self.model.get_path(iter)
+        return self._findStoredIter(path, self.name2iter.get(name, []))
+    def _findStoredIter(self, path, list):
+        for storedIter in list:
+            if self.model.get_path(storedIter) == path:
+                return storedIter
+        
+    def iter2string(self, iter):
+        actualIter = self.findStoredIter(self.convertFrom(iter))
+        names = self.iter2name.get(actualIter)
+        if len(names) > 0:
+            return names[-1]
+        else:
+            raise usecase.UseCaseScriptError, "Could not find name for path " + repr(self.givenModel.get_path(iter)) +\
+                  "\nKnown paths are " + repr(map(self.model.get_path, self.iter2name.keys()))
+    def string2iter(self, name):
+        iters = self.name2iter.get(name, [])
+        if len(iters) == 1:
+            return self.convertTo(iters[0], name)
+        elif len(iters) == 0:
+            raise usecase.UseCaseScriptError, "Could not find row '" + name + "' in Tree View\nKnown names are " + repr(self.name2iter.keys())
+        else:
+            raise usecase.UseCaseScriptError, "'" + name + "' in Tree View is ambiguous, could refer to " \
+                  + str(len(iters)) + " different paths"    
+    def rowInserted(self, model, path, iter):
+        givenName = self.getValue(iter)
+        if givenName is None:
+            return
+        iterCopy = iter.copy()
+        self.store(iterCopy, givenName)
+        allIterators = self.name2iter.get(givenName, [])
+        if len(allIterators) > 1:
+            newNames = self.getNewNames(allIterators, givenName)
+            for currIter in allIterators:
+                self.store(currIter, newNames[currIter])
+        
+    def rowDeleted(self, *args):
+        # The problem here is that we don't have a clue what's been removed, as the path is not valid any more!
+        # So we do a blanket check of all iterators and remove anything that isn't valid
+        for iter in self.iter2name.keys():
+            if not self.model.iter_is_valid(iter):
+                self.removeIter(iter)
+        
+    def removeIter(self, iter):
+        for storedName in self.iter2name.get(iter):
+            self.name2iter[storedName].remove(iter)
+            if len(self.name2iter[storedName]) == 0:
+                del self.name2iter[storedName]
+        del self.iter2name[iter]
+
+    def rowChanged(self, model, path, iter):
+        # Basically to pick up name changes
+        givenName = self.getValue(iter)
+        if givenName is not None:
+            storedIterMatchingName = self.findStoredIter(iter)
+            if storedIterMatchingName is None:
+                storedIter = self._findStoredIter(path, self.iter2name.keys())
+                if storedIter:
+                    self.removeIter(storedIter)
+                self.rowInserted(model, path, iter)
+        
+    def store(self, iter, name):
+        namelist = self.iter2name.setdefault(iter, [])
+        if not name in namelist:
+            namelist.append(name)
+        iterlist = self.name2iter.setdefault(name, [])
+        if not iter in iterlist:
+            iterlist.append(iter)
+
+    def getNewNames(self, iters, oldName):
+        parentSuffices = {}
+        for iter in iters:
+            if iter is None:
+                raise usecase.UseCaseScriptError, "Cannot index tree model, there exist non-unique paths for " + oldName
+            parent = self.model.iter_parent(iter)
+            parentSuffix = self.getParentSuffix(parent)
+            parentSuffices.setdefault(parentSuffix, []).append(iter)
+        
+        newNames = {}
+        for parentSuffix, iters in parentSuffices.items():
+            newName = oldName
+            if len(parentSuffices) > 1:
+                newName += parentSuffix
+            if len(iters) == 1:
+                newNames[iters[0]] = newName
+            else:
+                parents = map(self.model.iter_parent, iters)
+                parents2names = self.getNewNames(parents, newName)
+                for index, parent in enumerate(parents):
+                    newNames[iters[index]] = parents2names[parent]
+        return newNames
+
+    def getParentSuffix(self, parent):
+        if parent:
+            return " under " + self.getValue(parent)
+        else:
+            return " at top level"
   
 # A utility class to set and get the indices of options in radio button groups.
 class RadioGroupIndexer:
@@ -568,7 +713,8 @@ class ScriptEngine(usecase.ScriptEngine):
         usecase.ScriptEngine.__init__(self, logger, enableShortcuts)
         self.commandButtons = []
         self.fileChooserInfo = []
-    def connect(self, eventName, signalName, widget, method = None, argumentParseData = None, *data):
+        self.treeViewIndexers = {}
+    def connect(self, eventName, signalName, widget, method=None, argumentParseData=None, *data):
         signalEvent = None
         if self.active():
             stdName = self.standardName(eventName)
@@ -577,19 +723,21 @@ class ScriptEngine(usecase.ScriptEngine):
         if method:
             widget.connect(signalName, method, *data)
         return signalEvent
-    def monitor(self, eventName, selection, argumentParseData = None, noImplies = False):
+    def monitor(self, eventName, selection, keyColumn=0, guaranteeUnique=False, noImplies=False):
         if self.active():
             stdName = self.standardName(eventName)
-            stateChangeEvent = TreeSelectionEvent(stdName, selection, argumentParseData, noImplies)
+            indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn, guaranteeUnique)
+            stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer, noImplies)
             self._addEventToScripts(stateChangeEvent)
-    def monitorExpansion(self, treeView, expandDescription, collapseDescription = "", argumentParseData = None):
+    def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0, guaranteeUnique=False):
         if self.active():
             expandName = self.standardName(expandDescription)
-            expandEvent = RowExpandEvent(expandName, treeView, argumentParseData)
+            indexer = self.getTreeViewIndexer(treeView, keyColumn, guaranteeUnique)
+            expandEvent = RowExpandEvent(expandName, treeView, indexer)
             self._addEventToScripts(expandEvent)
             if collapseDescription:
                 collapseName = self.standardName(collapseDescription)
-                collapseEvent = RowCollapseEvent(collapseName, treeView, argumentParseData)
+                collapseEvent = RowCollapseEvent(collapseName, treeView, indexer)
                 self._addEventToScripts(collapseEvent)
     def registerEntry(self, entry, description):
         if self.active():
@@ -612,6 +760,11 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckChangeName = self.standardName(uncheckDescription)
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
+    def registerCellToggleButton(self, button, description, parentTreeView, *args, **kwargs):
+        if self.active():
+            eventName = self.standardName(description)
+            event = CellToggleEvent(eventName, button, self.getTreeViewIndexer(parentTreeView, *args, **kwargs))
+            self._addEventToScripts(event)
     def registerSaveFileChooser(self, fileChooser, fileDesc, folderChangeDesc, saveDesc, cancelDesc, 
                                 respondMethod, saveButton=None, cancelButton=None, respondMethodArg=None):
         # Since we have not found and good way to connect to the gtk.Entry for giving filenames to save
@@ -655,6 +808,20 @@ class ScriptEngine(usecase.ScriptEngine):
         else:
             return self.connect(cancelDesc, "response", fileChooser, respondMethod, gtk.RESPONSE_CANCEL, respondMethodArg)
 
+    def getTreeViewIndexer(self, treeView, *args, **kwargs):
+        if self.treeViewIndexers.has_key(treeView):
+            return self.treeViewIndexers[treeView]
+
+        newIndexer = self.createTreeViewIndexer(treeView, *args, **kwargs)
+        self.treeViewIndexers[treeView] = newIndexer
+        return newIndexer
+    def createTreeViewIndexer(self, treeView, keyColumn=0, guaranteeUnique=False):
+        model = treeView.get_model()
+        if guaranteeUnique:
+            return TreeModelIndexer(model, keyColumn)
+        else:
+            return NonUniqueTreeModelIndexer(model, keyColumn)
+        
     def notifyGenerate(self, event):
         for eventList in self.fileChooserInfo:
             if event in eventList:
@@ -807,11 +974,14 @@ class ScriptEngine(usecase.ScriptEngine):
         if signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
         elif signalName == "row_activated":
-            return RowActivationEvent(eventName, widget, argumentParseData)
-        elif isinstance(widget, gtk.CellRendererToggle) and signalName == "toggled":
-            return CellToggleEvent(eventName, widget, argumentParseData)
+            return RowActivationEvent(eventName, widget, self.getIndexerFromParseData(widget, argumentParseData))
         else:
             return SignalEvent(eventName, widget, signalName)
+    def getIndexerFromParseData(self, widget, argumentParseData):
+        if argumentParseData is not None:
+            return self.getTreeViewIndexer(widget, *argumentParseData)
+        else:
+            return self.getTreeViewIndexer(widget)
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
