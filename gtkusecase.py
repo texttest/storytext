@@ -390,13 +390,12 @@ class FileChooserEntryEvent(FileChooserFileEvent):
         return self.fileChooser.set_current_name                                    
                                     
 class TreeSelectionEvent(StateChangeEvent):
-    def __init__(self, name, widget, indexer, noImplies = False):
+    def __init__(self, name, widget, indexer):
         self.indexer = indexer
         # cache these before calling base class constructor, or they get intercepted...
         self.unselect_iter = widget.unselect_iter
         self.select_iter = widget.select_iter
         self.prevSelected = []
-        self.noImplies = noImplies
         StateChangeEvent.__init__(self, name, widget)
     def getChangeMethod(self):
         return self.widget.select_iter
@@ -486,8 +485,6 @@ class TreeSelectionEvent(StateChangeEvent):
             return False
         prevStateDesc = prevLine[len(self.name) + 1:]
         currStateDesc = self._getStateDescription()
-        if self.noImplies:
-            return len(prevStateDesc) == 0
         if len(currStateDesc) > len(prevStateDesc):
             return currStateDesc.startswith(prevStateDesc)
         elif len(currStateDesc) > 0:
@@ -723,11 +720,11 @@ class ScriptEngine(usecase.ScriptEngine):
         if method:
             widget.connect(signalName, method, *data)
         return signalEvent
-    def monitor(self, eventName, selection, keyColumn=0, guaranteeUnique=False, noImplies=False):
+    def monitor(self, eventName, selection, keyColumn=0, guaranteeUnique=False):
         if self.active():
             stdName = self.standardName(eventName)
             indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn, guaranteeUnique)
-            stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer, noImplies)
+            stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer)
             self._addEventToScripts(stateChangeEvent)
     def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0, guaranteeUnique=False):
         if self.active():
