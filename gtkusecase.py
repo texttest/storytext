@@ -190,11 +190,25 @@ class EntryEvent(StateChangeEvent):
 class PaneDragEvent(StateChangeEvent):
     def __init__(self, name, widget):
         StateChangeEvent.__init__(self, name, widget)
-        widget.connect("notify::max-position", self.changeMax)
+        widget.connect("notify::max-position", self.changeMaxMin)
+        widget.connect("notify::min-position", self.changeMaxMin)
         self.prevState = ""
-    def changeMax(self, *args):
-        self.prevState = self.getStateDescription()
+    def setProgrammaticChange(self, val):
+        if val:
+            self.programmaticChange = val
+    def changeMaxMin(self, *args):
+        if self.totalSpace() > 0:
+            self.prevState = self.getStateDescription()
+
+    def shouldRecord(self, *args):
+        ret = StateChangeEvent.shouldRecord(self, *args)
+        self.programmaticChange = False
+        return ret
+
     def eventIsRelevant(self):
+        if self.totalSpace() == 0:
+            return False
+        
         newState = self.getStateDescription()
         if newState != self.prevState:
             self.prevPos = newState
@@ -203,13 +217,17 @@ class PaneDragEvent(StateChangeEvent):
             return False
     def getRecordSignal(self):
         return "notify::position"
+    def totalSpace(self):
+        return self.widget.get_property("max-position") - self.widget.get_property("min-position")
     def getStatePercentage(self):
-        return float(100 * self.widget.get_position()) / self.widget.get_property("max-position")
+        return float(100 * (self.widget.get_position() - self.widget.get_property("min-position"))) / self.totalSpace()
     def getStateDescription(self, *args):
         return str(int(self.getStatePercentage() + 0.5)) + "% of the space"
     def getStateChangeArgument(self, argumentString):
         percentage = int(argumentString.split()[0][:-1])
-        return int(float(self.widget.get_property("max-position") * percentage) / 100 + 0.5)
+        return int(float(self.totalSpace() * percentage) / 100 + 0.5) + self.widget.get_property("min-position")
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.check_resize ]
     def getChangeMethod(self):
         return self.widget.set_position
     
