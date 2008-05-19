@@ -143,6 +143,10 @@ class ScriptEngine:
             self.recorder.registerApplicationEvent(name, category)
         if self.replayerActive():
             self.replayer.registerApplicationEvent(name, timeDelay)
+    def applicationEventRename(self, *args):
+        # We don't care in the recorder, the name we recorded is still valid
+        if self.replayerActive():
+            self.replayer.applicationEventRename(*args)
     def monitorProcess(self, name, process, filesEditing = []):
         if self.recorderActive():
             self.recorder.monitorProcess(name, process, filesEditing)
@@ -234,6 +238,12 @@ class UseCaseReplayer:
                 self.applicationEventNames.remove(eventName)
             self.timeDelayNextCommand = timeDelay
             self.enableReading()
+    def applicationEventRename(self, oldName, newName):
+        toRename = filter(lambda eventName: eventName.find(oldName) != -1 and eventName.find(newName) == -1,
+                          self.applicationEventNames)
+        for eventName in toRename:
+            newEventName = eventName.replace(oldName, newName)
+            self.registerApplicationEvent(newEventName)
     def waitingCompleted(self):
         if len(self.waitingForEvents) == 0:
             return False
