@@ -198,13 +198,9 @@ class seqdict:
   def __len__(self):return len(self.list)
   def pop(self,key=None):
     if key==None:
-      pos = -1
-      key = self.list[pos]
-    else:
-      pos = self.list.index(key)
-    tmp = self.dict[key]
-    del self.dict[key]
-    return {self.list.pop(pos):tmp}
+      key = self.list[-1]
+    self.list.remove(key)
+    return self.dict.pop(key)
   def push(self,key,value):
     self.append(key,value)
   def reduce(self,function,start=None):

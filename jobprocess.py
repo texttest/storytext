@@ -8,7 +8,7 @@
 # We try to make the JobProcess class look as much like subprocess.Popen objects as possible
 # so we can if necessary treat them interchangeably.
 
-import signal, os, time, subprocess
+import signal, os, time, subprocess, select
 
 class UNIXProcessHandler:
     def findProcessName(self, pid):
@@ -36,10 +36,18 @@ class UNIXProcessHandler:
         except OSError:
             return False
     def poll(self, processId):
-        lines = os.popen("ps -p " + str(processId) + " 2> /dev/null").readlines()
-        if len(lines) < 2 or lines[-1].strip().endswith("<defunct>"):
-            return "returncode" # should return return code but can't be bothered, don't use it currently
-    
+        try:
+            proc = subprocess.Popen([ "ps", "-p", str(processId) ], stdout=subprocess.PIPE,
+                                    stderr=open(os.devnull, "w"), stdin=open(os.devnull))
+            lines = proc.communicate()[0].splitlines()
+            if len(lines) < 2 or lines[-1].strip().endswith("<defunct>"):
+                return "returncode" # should return return code but can't be bothered, don't use it currently
+        except (OSError, select.error), detail:
+            if str(detail).find("Interrupted system call") != -1:
+                return self.poll(processId)
+            else:
+                raise
+        
 class WindowsProcessHandler:
     # Every new Windows version produces a new way of killing processes...
     killCommands = [ [ "tskill" ], # Windows XP
