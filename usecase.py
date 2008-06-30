@@ -73,7 +73,7 @@ from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
-from jobprocess import JobProcess
+from jobprocess import JobProcess, killSubProcessAndChildren
 
 # Hard coded commands
 waitCommandName = "wait for"
@@ -348,7 +348,7 @@ class UseCaseReplayer:
         exec "signalNum = signal." + signalArg
         self.write("")
         self.write("Generating signal " + signalArg)
-        JobProcess(self.process.pid).killAll(signalNum)
+        killSubProcessAndChildren(self.process, signalNum)
         return True
     def processFileEditCommand(self, fileName):
         self.write("")
@@ -368,7 +368,7 @@ class UseCaseReplayer:
         self.write("Terminating process that " + procName + "...")
         if self.processes.has_key(procName):
             process = self.processes[procName]
-            JobProcess(process.pid).killAll()
+            killSubProcessAndChildren(process)
             del self.processes[procName]
         else:
             self.write("ERROR: Could not find process that '" + procName + "' to terminate!!")
