@@ -200,7 +200,6 @@ class UseCaseReplayer:
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
         self.waitingForEvents = []
         self.applicationEventNames = []
-        self.process = JobProcess(os.getpid()) # So we can generate signals for ourselves...
         self.processes = {}
         self.fileFullPaths = {}
         self.fileEditDir = None
@@ -348,7 +347,7 @@ class UseCaseReplayer:
         exec "signalNum = signal." + signalArg
         self.write("")
         self.write("Generating signal " + signalArg)
-        killSubProcessAndChildren(self.process, signalNum)
+        JobProcess(os.getpid()).killAll(signalNum) # So we can generate signals for ourselves...
         return True
     def processFileEditCommand(self, fileName):
         self.write("")

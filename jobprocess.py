@@ -10,7 +10,7 @@
 
 import signal, os, time, subprocess, select
 
-class WrongOSException:
+class WrongOSException(RuntimeError):
     pass
         
 class JobProcess:
