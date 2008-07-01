@@ -48,22 +48,26 @@ class JobProcess:
 
     def kill(self, killSignal):
         if killSignal:
-            return self.tryKillAndWait(killSignal)
+            return self._kill(killSignal)
         if self.tryKillAndWait(signal.SIGINT):
             return True
         if self.tryKillAndWait(signal.SIGTERM):
             return True
         return self.tryKillAndWait(signal.SIGKILL)
 
-    def tryKillAndWait(self, killSignal):
+    def _kill(self, killSignal):
         try:
             os.kill(self.pid, killSignal)
+            return True
+        except OSError:
+            return False
+
+    def tryKillAndWait(self, killSignal):
+        if self._kill(killSignal):
             for i in range(20):
                 time.sleep(0.1)
                 if self.poll() is not None:
                     return True
-        except OSError:
-            return False
         return False
 
     def findProcessName(self):
