@@ -174,23 +174,42 @@ class ReplayScript:
             line = line.strip()
             if line != "" and line[0] != "#":
                 self.commands.append(line)
+
     def addExitObserver(self, observer):
         self.exitObservers.append(observer)
+
     def getShortcutName(self):
         return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
-    def getCommand(self):
+
+    def rollback(self):
+        self.pointer -= 1
+
+    def getCommand(self, name=""):
         if self.pointer >= len(self.commands):
             for observer in self.exitObservers:
                 observer.notifyExit()
-            self.pointer = 0
-            return None
+            if len(name) == 0:
+                # reset the script only if we weren't trying for a specific command
+                self.pointer = 0
+        else:
+            nextCommand = self.commands[self.pointer]
+            if len(name) == 0 or nextCommand.startswith(name):
+                # Filter blank lines and comments
+                self.pointer += 1
+                return nextCommand        
 
-        nextCommand = self.commands[self.pointer]
-        # Filter blank lines and comments
-        self.pointer += 1
-        return nextCommand
-    def rollback(self):
-        self.pointer -= 1
+    def getCommands(self):
+        command = self.getCommand()
+        if not command:
+            return []
+
+        # Process application events together with the previous command so the log comes out sensibly...
+        waitCommand = self.getCommand("wait for")
+        if waitCommand:
+            return [ command, waitCommand ]
+        else:
+            return [ command ]
+        
     
 class UseCaseReplayer:
     def __init__(self, logger):
@@ -214,7 +233,11 @@ class UseCaseReplayer:
         self.events[event.name] = event
     def addScript(self, script):
         self.scripts.append(script)
-        self.enableReading()
+        waitCommand = script.getCommand("wait for")
+        if waitCommand:
+            self.processCommand(waitCommand)
+        else:
+            self.enableReading()
     def registerEditableFile(self, fullPath):
         self.fileFullPaths[os.path.basename(fullPath)] = fullPath
     def enableReading(self):
@@ -255,30 +278,34 @@ class UseCaseReplayer:
     def runCommands(self):
         while self.runNextCommand():
             pass
-    def getCommand(self):
-        nextCommand = self.scripts[-1].getCommand()
-        if nextCommand:
-            return nextCommand
+    def getCommands(self):
+        nextCommands = self.scripts[-1].getCommands()
+        if len(nextCommands) > 0:
+            return nextCommands
 
         del self.scripts[-1]
-        if len(self.scripts) == 0:
-            return None
-
-        return self.getCommand()
+        if len(self.scripts) > 0:
+            return self.getCommands()
+        else:
+            return []
+        
     def runNextCommand(self):
         if self.timeDelayNextCommand:
             time.sleep(self.timeDelayNextCommand)
             self.timeDelayNextCommand = 0
-        command = self.getCommand()
-        if not command:
+        commands = self.getCommands()
+        if len(commands) == 0:
             return False
-        try:
-            return self.processCommand(command)
-        except UseCaseScriptError:
-            type, value, traceback = sys.exc_info()
-            self.write("ERROR: " + str(value))
+        for command in commands:
+            try:
+                if not self.processCommand(command):
+                    return False
+            except UseCaseScriptError:
+                type, value, traceback = sys.exc_info()
+                self.write("ERROR: " + str(value))
             # We don't terminate scripts if they contain errors
         return True
+    
     def write(self, line):
         if self.logger:
             try:
