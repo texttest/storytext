@@ -181,8 +181,8 @@ class ReplayScript:
     def getShortcutName(self):
         return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
 
-    def rollback(self):
-        self.pointer -= 1
+    def rollback(self, amount):
+        self.pointer -= amount
 
     def getCommand(self, name=""):
         if self.pointer >= len(self.commands):
@@ -204,7 +204,7 @@ class ReplayScript:
             return []
 
         # Process application events together with the previous command so the log comes out sensibly...
-        waitCommand = self.getCommand("wait for")
+        waitCommand = self.getCommand(waitCommandName)
         if waitCommand:
             return [ command, waitCommand ]
         else:
@@ -233,9 +233,9 @@ class UseCaseReplayer:
         self.events[event.name] = event
     def addScript(self, script):
         self.scripts.append(script)
-        waitCommand = script.getCommand("wait for")
+        waitCommand = script.getCommand(waitCommandName)
         if waitCommand:
-            self.processCommand(waitCommand)
+            self.processWait(self.getArgument(waitCommand, waitCommandName))
         else:
             self.enableReading()
     def registerEditableFile(self, fullPath):
@@ -298,8 +298,13 @@ class UseCaseReplayer:
             return False
         for command in commands:
             try:
-                if not self.processCommand(command):
-                    return False
+                commandName, argumentString = self.parseCommand(command)
+                if commandName == waitCommandName:
+                    if not self.processWait(argumentString):
+                        return False
+                elif not self.processCommand(commandName, argumentString):
+                    self.scripts[-1].rollback(len(commands))
+                    return True
             except UseCaseScriptError:
                 type, value, traceback = sys.exc_info()
                 self.write("ERROR: " + str(value))
@@ -316,10 +321,7 @@ class UseCaseReplayer:
                 pass
         else:
             print line
-    def processCommand(self, scriptCommand):
-        commandName, argumentString = self.parseCommand(scriptCommand)
-        if commandName == waitCommandName:
-            return self.processWaitCommand(argumentString)
+    def processCommand(self, commandName, argumentString):
         if self.delay:
             time.sleep(self.delay)
         if commandName == fileEditCommandName:
@@ -334,15 +336,17 @@ class UseCaseReplayer:
                 self.write("")
                 self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
                 event.generate(argumentString)
+                return True
             else:
-                self.scripts[-1].rollback()
-            return True
+                return False
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
         if not commandName:
             raise UseCaseScriptError, "Could not parse script command '" + scriptCommand + "'"
-        argumentString = scriptCommand.replace(commandName, "").strip()
+        argumentString = self.getArgument(scriptCommand, commandName)
         return commandName, argumentString
+    def getArgument(self, scriptCommand, commandName):
+        return scriptCommand.replace(commandName, "").strip()
     def findCommandName(self, command):
         if command.startswith(waitCommandName):
             return waitCommandName
@@ -358,7 +362,7 @@ class UseCaseReplayer:
                 longestEventName = eventName
         return longestEventName            
     
-    def processWaitCommand(self, applicationEventStr):
+    def processWait(self, applicationEventStr):
         allHappened = True
         self.write("") # blank line
         for applicationEventName in applicationEventStr.split(", "):
