@@ -104,9 +104,33 @@ class JobProcess:
             else:
                 raise
 
+def runCmd(cmdArgs):
+    try:
+        return subprocess.call(cmdArgs, stdout=open(os.devnull, "w"), stderr=subprocess.STDOUT) == 0
+    except OSError:
+        return False
+
+def killArbitaryProcess(pid, sig=None):
+    if os.name == "posix":
+        return JobProcess(pid).killAll(sig)
+    else:
+        pidStr = str(pid)
+        # Every new Windows version produces a new way of killing processes...
+        if runCmd([ "tskill", pidStr ]): # Windows XP
+            return True
+        elif runCmd([ "taskkill", "/F", "/PID", pidStr ]): # Windows Vista
+            return True
+        elif runCmd([ "pskill", pidStr ]): # Windows 2000
+            return True
+        else:
+            print "WARNING - none of taskkill (Vista), tskill (XP) nor pskill (2000) found, not able to kill processes"
+            return False
+
 def killSubProcessAndChildren(process, sig=None):
     if os.name == "posix":
-        JobProcess(process.pid).killAll(sig)
+        killArbitaryProcess(process.pid, sig)
     else:
         import ctypes
         ctypes.windll.kernel32.TerminateProcess(int(process._handle), -1)
+
+    
