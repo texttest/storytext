@@ -457,9 +457,8 @@ class UseCaseRecorder:
         self.applicationEvents = seqdict()
         self.translationParser = self.readTranslationFile()
         self.suspended = 0
-        # Don't record signals until at least one other thing is recorded
-        self.recordSignals = 0
         self.realSignalHandlers = {}
+        self.origSignal = signal.signal
         self.signalNames = {}
         self.processes = []
         self.recordDir = None
@@ -479,18 +478,26 @@ class UseCaseRecorder:
         if len(self.scripts) == 1:
             self.addSignalHandlers()
     def addSignalHandlers(self):
+        signal.signal = self.appRegistersSignal
         for signum in range(signal.NSIG):
             try:
                 # Don't record SIGCHLD unless told to, these are generally ignored
                 # Also don't record SIGCONT, which is sent by LSF when suspension resumed
                 if signum != signal.SIGCHLD and signum != signal.SIGCONT:
-                    self.realSignalHandlers[signum] = signal.signal(signum, self.recordSignal)
+                    self.realSignalHandlers[signum] = self.origSignal(signum, self.recordSignal)
             except:
                 # Various signals aren't really valid here...
                 pass
+    def appRegistersSignal(self, signum, handler):
+        # Don't want to interfere after a fork, leave child processes to the application to manage...
+        if os.getpid() == self.processId:
+            self.realSignalHandlers[signum] = handler
+        else:
+            self.origSignal(signum, handler)
+            
     def removeSignalHandlers(self):
         for signum, handler in self.realSignalHandlers.items():
-            signal.signal(signum, handler)
+            self.origSignal(signum, handler)
         self.realSignalHandlers = {}
     def blockTopLevel(self, eventName):
         self.eventsBlockedTopLevel.append(eventName)
@@ -540,18 +547,17 @@ class UseCaseRecorder:
         self.processes = newProcesses
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
-        if self.recordSignals:
-            self.checkProcesses()
-            self.record(signalCommandName + " " + self.signalNames[signum])
+        self.checkProcesses()
+        self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
         # If there was no handler-override installed, resend the signal with the handler reset
         if realHandler == signal.SIG_DFL:
-            signal.signal(signum, self.realSignalHandlers[signum])
+            self.origSignal(signum, self.realSignalHandlers[signum])
             print "Killing process", self.processId, "with signal", signum
             os.kill(self.processId, signum)
             # If we're still alive, set the signal handler back again to record future signals
-            signal.signal(signum, self.recordSignal)
+            self.origSignal(signum, self.recordSignal)
         else:
             # If there was a handler, just call it
             realHandler(signum, stackFrame)
@@ -584,7 +590,6 @@ class UseCaseRecorder:
             self.stateChangeEventInfo = None
             self.record(lineToRecord, event)
     def record(self, line, event=None):
-        self.recordSignals = 1
         for script in self.getScriptsToRecord(event):
             script.record(line)
     def getScriptsToRecord(self, event):   
