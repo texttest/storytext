@@ -66,7 +66,6 @@ To see this in action, try out the video store example.
 
 import usecase, gtk, os, re
 from gobject import idle_add
-from sets import Set
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
@@ -478,8 +477,8 @@ class TreeSelectionEvent(StateChangeEvent):
         if oldSelected == newSelected: # re-selecting should be recorded as clear-and-reselect, not do nothing
             return oldSelected, newSelected
         else:
-            oldSet = Set(oldSelected)
-            newSet = Set(newSelected)
+            oldSet = set(oldSelected)
+            newSet = set(newSelected)
             if oldSet.issuperset(newSet):
                 return oldSet.difference(newSet), []
             else:
@@ -506,8 +505,8 @@ class TreeSelectionEvent(StateChangeEvent):
         if len(currStateDesc) > len(prevStateDesc):
             return currStateDesc.startswith(prevStateDesc)
         elif len(currStateDesc) > 0:
-            oldSet = Set(self.parseIterNames(prevStateDesc))
-            newSet = Set(self.parseIterNames(currStateDesc))
+            oldSet = set(self.parseIterNames(prevStateDesc))
+            newSet = set(self.parseIterNames(currStateDesc))
             return oldSet.issuperset(newSet)
         else:
             return False # always assume deselecting everything marks the beginning of a new conceptual action
