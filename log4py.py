@@ -111,12 +111,6 @@ import locale
 if (os.name == "posix"):
     import syslog
 
-try:
-    import MySQLdb
-    mysql_available = TRUE
-except:
-    mysql_available = FALSE
-
 # This is the main class for the logging module
 
 class Logger:
@@ -212,17 +206,17 @@ class Logger:
         """ Add a target to the logger targets. """
         if (not target in self.__Logger_targets):
             if (target == TARGET_MYSQL):
-                if (mysql_available == TRUE):
-                    # Required parameters: dbhost, dbname, dbuser, dbpass, dbtable
-                    try:
-                        self.__Logger_mysql_connection = MySQLdb.connect(host=args[0], db=args[1], user=args[2], passwd=args[3])
-                        self.__Logger_mysql_cursor = self.__Logger_mysql_connection.cursor()
-                        self.__Logger_mysql_tablename = args[4]
-                        self.__Logger_targets.append(target)
-                    except MySQLdb.OperationalError, detail:
-                        self.error("MySQL connection failed: %s" % detail)
-                else:
+                # Required parameters: dbhost, dbname, dbuser, dbpass, dbtable
+                try:
+                    import MySQLdb
+                    self.__Logger_mysql_connection = MySQLdb.connect(host=args[0], db=args[1], user=args[2], passwd=args[3])
+                    self.__Logger_mysql_cursor = self.__Logger_mysql_connection.cursor()
+                    self.__Logger_mysql_tablename = args[4]
+                    self.__Logger_targets.append(target)
+                except ImportError:
                     self.error("MySQL target not added - Python-mysql not available")
+                except MySQLdb.OperationalError, detail:
+                    self.error("MySQL connection failed: %s" % detail)
             else:
                 if (type(target) == StringType):
                     if (target not in SPECIAL_TARGETS):
