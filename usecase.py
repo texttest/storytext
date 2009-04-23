@@ -133,7 +133,7 @@ class ScriptEngine:
     def recorderActive(self):
         return self.enableShortcuts or len(self.recorder.scripts) > 0
     def replayerActive(self):
-        return self.enableShortcuts or len(self.replayer.scripts) > 0
+        return self.enableShortcuts or self.replayer.isActive()
     def active(self):
         return self.replayerActive() or self.recorderActive()
     def createReplayer(self, logger):
@@ -229,6 +229,8 @@ class UseCaseReplayer:
             replayDir, local = os.path.split(replayScript)
             self.fileEditDir = os.path.join(replayDir, "file_edits")
             self.addScript(ReplayScript(replayScript))
+    def isActive(self):
+        return len(self.scripts) > 0
     def addEvent(self, event):
         self.events[event.name] = event
     def addScript(self, script):
