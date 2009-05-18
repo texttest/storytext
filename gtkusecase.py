@@ -99,7 +99,7 @@ class GtkEvent(usecase.UserEvent):
         pass
     def getProgrammaticChangeMethods(self):
         return []
-    def setProgrammaticChange(self, val):
+    def setProgrammaticChange(self, val, *args, **kwargs):
         self.programmaticChange = val
     def getRecordSignal(self):
         pass
@@ -156,7 +156,7 @@ class MethodIntercept:
         # Allow for possibly nested programmatic changes, observation can have knock-on effects
         eventsToBlock = filter(lambda event: not event.programmaticChange, self.events)
         for event in eventsToBlock:
-            event.setProgrammaticChange(True)
+            event.setProgrammaticChange(True, *args, **kwds)
         retVal = apply(self.method, args, kwds)
         for event in eventsToBlock:
             event.setProgrammaticChange(False)
@@ -192,7 +192,7 @@ class PaneDragEvent(StateChangeEvent):
         widget.connect("notify::max-position", self.changeMaxMin)
         widget.connect("notify::min-position", self.changeMaxMin)
         self.prevState = ""
-    def setProgrammaticChange(self, val):
+    def setProgrammaticChange(self, val, *args, **kwargs):
         if val:
             self.programmaticChange = val
     def changeMaxMin(self, *args):
@@ -341,7 +341,7 @@ class FileChooserFolderChangeEvent(StateChangeEvent):
     def __init__(self, name, widget):
         self.currentFolder = widget.get_current_folder()
         StateChangeEvent.__init__(self, name, widget, readyForGenerate=False)
-    def setProgrammaticChange(self, val):
+    def setProgrammaticChange(self, val, filename=None):
         if val:
             self.programmaticChange = val
     def shouldRecord(self, *args):
@@ -352,6 +352,8 @@ class FileChooserFolderChangeEvent(StateChangeEvent):
         ret = StateChangeEvent.shouldRecord(self, *args)
         self.programmaticChange = False
         return ret
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.set_filename ]
     def getRecordSignal(self):
         return "current-folder-changed"
     def getChangeMethod(self):
@@ -393,6 +395,12 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
         return "selection-changed"
     def getChangeMethod(self):
         return self.fileChooser.select_filename
+    def getProgrammaticChangeMethods(self):
+        return [ self.fileChooser.set_filename ]
+    def setProgrammaticChange(self, val, filename=None):
+        FileChooserFileEvent.setProgrammaticChange(self, val)
+        if val and filename:
+            self.currentName = os.path.basename(filename)
     def shouldRecord(self, *args):
         if self.currentName: # once we've got a name, everything is permissible...
             return FileChooserFileEvent.shouldRecord(self, *args)
