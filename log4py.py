@@ -277,6 +277,8 @@ class Logger:
                 target.set_rotation(rotation)
 
     # Method to get properties
+    def is_enabled(self):
+        return self.__Logger_loglevel >= LOGLEVEL_NORMAL
 
     def get_loglevel(self):
         """ Returns the current loglevel. """
@@ -344,7 +346,7 @@ class Logger:
 
     def __Logger_collate_messages(self, messages):
         """ **(private)** Create a single string from a number of messages. """
-        return strip(reduce(lambda x, y: "%s%s" % (x, y), messages))
+        return reduce(lambda x, y: "%s%s" % (x, y), messages)
 
     def __Logger_tracestack(self):
         """ **(private)** Analyze traceback stack and set linenumber and functionname. """
