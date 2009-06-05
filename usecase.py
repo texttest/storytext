@@ -314,15 +314,13 @@ class UseCaseReplayer:
         return True
     
     def write(self, line):
-        if self.logger:
-            try:
-                self.logger.info(line)
-            except IOError:
-                # Can get interrupted system call here as it tries to close the file
-                # This isn't worth crashing over!
-                pass
-        else:
-            print line
+        try:
+            self.logger.info(line)
+        except IOError:
+            # Can get interrupted system call here as it tries to close the file
+            # This isn't worth crashing over!
+            pass
+
     def processCommand(self, commandName, argumentString):
         if self.delay:
             time.sleep(self.delay)
@@ -341,6 +339,7 @@ class UseCaseReplayer:
                 return True
             else:
                 return False
+
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
         if not commandName:
