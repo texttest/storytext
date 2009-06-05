@@ -68,7 +68,7 @@ These will then be capable of
     In replay mode this will cause the actual file to be overwritten with the contents of the one in file_edits.
 """
 
-import os, string, sys, signal, time, stat
+import os, string, sys, signal, time, stat, logging
 from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
@@ -117,12 +117,12 @@ class UserEvent:
 # Behaves as a singleton...
 class ScriptEngine:
     instance = None
-    def __init__(self, logger = None, enableShortcuts = 0):
+    def __init__(self, enableShortcuts = 0):
         if not os.environ.has_key("USECASE_HOME"):
             os.environ["USECASE_HOME"] = os.path.expanduser("~/usecases")
         else:
             os.environ["USECASE_HOME"] = os.path.abspath(os.environ["USECASE_HOME"])
-        self.replayer = self.createReplayer(logger)
+        self.replayer = self.createReplayer()
         self.recorder = UseCaseRecorder()
         self.enableShortcuts = enableShortcuts
         self.stdinScript = None
@@ -136,8 +136,8 @@ class ScriptEngine:
         return self.enableShortcuts or self.replayer.isActive()
     def active(self):
         return self.replayerActive() or self.recorderActive()
-    def createReplayer(self, logger):
-        return UseCaseReplayer(logger)
+    def createReplayer(self):
+        return UseCaseReplayer()
     def applicationEvent(self, name, category = None, timeDelay = 0):
         if self.recorderActive():
             self.recorder.registerApplicationEvent(name, category)
@@ -212,8 +212,8 @@ class ReplayScript:
         
     
 class UseCaseReplayer:
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self):
+        self.logger = logging.getLogger("usecase replay log")
         self.scripts = []
         self.events = {}
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))

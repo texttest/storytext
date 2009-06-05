@@ -731,8 +731,8 @@ class RadioGroupIndexer:
         self.buttons[index].set_active(True)
 
 class ScriptEngine(usecase.ScriptEngine):
-    def __init__(self, logger = None, enableShortcuts = 0):
-        usecase.ScriptEngine.__init__(self, logger, enableShortcuts)
+    def __init__(self, enableShortcuts = 0):
+        usecase.ScriptEngine.__init__(self, enableShortcuts)
         self.commandButtons = []
         self.fileChooserInfo = []
         self.treeViewIndexers = {}
@@ -975,8 +975,8 @@ class ScriptEngine(usecase.ScriptEngine):
         return os.path.join(usecaseDir, "new_shortcut")
     def getShortcutFileName(self, buttonName):
         return os.path.join(os.environ["USECASE_HOME"], buttonName.replace(" ", "_") + ".shortcut")
-    def createReplayer(self, logger):
-        return UseCaseReplayer(logger)
+    def createReplayer(self):
+        return UseCaseReplayer()
     def showShortcutButtons(self, event):
         for replayScript, button in self.commandButtons:
             if replayScript.commands[0].startswith(event.name):
