@@ -7,12 +7,13 @@
 #  (d) menus
 # Above each use of the PyUseCase script engine is the equivalent code without it, commented.
 
-import gtk, gobject, logging
+import gtk, gobject, logging, sys
 from gtkusecase import ScriptEngine
-
+import gtklogger
+        
 class VideoStore:
     def __init__(self):
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
         self.scriptEngine = ScriptEngine(enableShortcuts=1)
         self.model = gtk.ListStore(gobject.TYPE_STRING)
         self.nameEntry = gtk.Entry()
@@ -27,6 +28,7 @@ class VideoStore:
         win.add(vbox)
         win.show()
         win.resize(self.getWindowWidth(), self.getWindowHeight())
+        gtklogger.describe(win)
         return win
     def createWindowContents(self):
         vbox = gtk.VBox()

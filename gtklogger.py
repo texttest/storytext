@@ -232,10 +232,10 @@ class Describer:
         return message + self.getSubTreeDescription(view, model, modelIndices, model.get_iter_root(), 0)
 
     def getSubTreeDescription(self, view, model, columnIds, iter, indent):
-        if len(columnIds) == 0:
+        if iter is not None and len(columnIds) == 0:
             return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
         message = ""
-        while iter != None:
+        while iter is not None:
             data = " | ".join([ model.get_value(iter, col) for col in columnIds ]) 
             message += "-> " + " " * 2 * indent + data + "\n"
             if view.row_expanded(model.get_path(iter)):
