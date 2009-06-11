@@ -181,67 +181,10 @@ class Describer:
 
     def describeNotebookPage(self, notebook, ptr, pageNum, *args):
         self.logger.info(self.getCurrentNotebookPageDescription(notebook, pageNum))
-
-    def getMatchingIndex(self, model, iter, text):
-        # May have markup involved, in which case "text" will have it stripped out
-        textMarkupStr = ">" + text + "<"
-        for index in range(model.get_n_columns()):
-            givenText = model.get_value(iter, index)
-            if givenText == text or (type(givenText) == types.StringType and textMarkupStr in givenText):
-                return index
-        
-    def getTextInRenderers(self, columns):
-        texts = []
-        for column in columns:
-            for renderer in column.get_cell_renderers():
-                texts.append(renderer.get_property("text"))
-        return texts
-
-    def addIndicesFromIter(self, model, path, iter, userdata):
-        texts, indices = userdata
-        currIndices = []
-        for text in texts:
-            index = self.getMatchingIndex(model, iter, text)
-            if index is None:
-                return False
-            elif index not in currIndices:
-                currIndices.append(index)
-
-        indices += currIndices
-        return True # Causes foreach to exit
-
-    def getTreeModelIndices(self, model, columns):
-        # There is no good way to do this unfortunately. It seems deliberately
-        # made that way out of some perverse desire to separate "view" from "model".
-        # The following detective work has been shown to work so far but is
-        # far from foolproof...
-
-        # The renderers will be on some row or other... (seems hard to assume where)
-        # so we compare their values. Text values should differ.
-        texts = self.getTextInRenderers(columns)
-        indices = []
-        model.foreach(self.addIndicesFromIter, (texts, indices))
-        return indices
         
     def getTreeViewDescription(self, view):
-        columns = view.get_columns()
-        titles = " , ".join([ column.get_title() for column in columns ])
-        message = "Showing Tree View with columns: " + titles + "\n"
-        model = view.get_model()
-        modelIndices = self.getTreeModelIndices(model, columns)
-        return message + self.getSubTreeDescription(view, model, modelIndices, model.get_iter_root(), 0)
-
-    def getSubTreeDescription(self, view, model, columnIds, iter, indent):
-        if iter is not None and len(columnIds) == 0:
-            return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
-        message = ""
-        while iter is not None:
-            data = " | ".join([ model.get_value(iter, col) for col in columnIds ]) 
-            message += "-> " + " " * 2 * indent + data + "\n"
-            if view.row_expanded(model.get_path(iter)):
-                message += self.getSubTreeDescription(view, model, columnIds, model.iter_children(iter), indent + 1)
-            iter = model.iter_next(iter)
-        return message
+        describer = TreeViewDescriber(view)
+        return describer.getDescription()
                     
     def getCheckButtonDescription(self, button):
         group = "Check"
@@ -284,3 +227,90 @@ class Describer:
         # One blank line at the end
         self.logger.info(self.getContainerDescription(window))
         self.logger.info("-" * len(message))
+
+# Complicated enough to need its own class...
+class TreeViewDescriber:
+    def __init__(self, view):
+        self.view = view
+        self.model = view.get_model()
+        self.modelIndices = []
+        self.model.connect_after("row-changed", self.describeChange)
+        self.renderHandler = None
+
+    def getDescription(self, context="Showing"):
+        columns = self.view.get_columns()
+        titles = " , ".join([ column.get_title() for column in columns ])
+        message = context + " Tree View with columns: " + titles + "\n"
+        if len(self.modelIndices) == 0:
+            self.modelIndices = self.getModelIndices()
+        return message + self.getSubTreeDescription(self.model.get_iter_root(), 0)
+    
+    def getSubTreeDescription(self, iter, indent):
+        if iter is not None and len(self.modelIndices) == 0:
+            return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
+        message = ""
+        while iter is not None:
+            data = " | ".join([ self.model.get_value(iter, col) for col in self.modelIndices ]) 
+            message += "-> " + " " * 2 * indent + data + "\n"
+            if self.view.row_expanded(self.model.get_path(iter)):
+                message += self.getSubTreeDescription(self.model.iter_children(iter), indent + 1)
+            iter = self.model.iter_next(iter)
+        return message
+
+    def getModelIndices(self):
+        # There is no good way to do this unfortunately. It seems deliberately
+        # made that way out of some perverse desire to separate "view" from "model".
+        # The following detective work has been shown to work so far but is
+        # far from foolproof...
+
+        # The renderers will be on some row or other... (seems hard to assume where)
+        # so we compare their values. Text values should differ.
+        texts = self.getTextInRenderers()
+        indices = []
+        if len(texts) > 0:
+            self.model.foreach(self.addIndicesFromIter, (texts, indices))
+        return indices
+
+    def getTextInRenderers(self):
+        texts = []
+        for column in self.view.get_columns():
+            for renderer in column.get_cell_renderers():
+                text = renderer.get_property("text")
+                if text:
+                    texts.append(text)
+        return texts
+
+    def addIndicesFromIter(self, model, path, iter, userdata):
+        texts, indices = userdata
+        currIndices = []
+        for text in texts:
+            index = self.getMatchingIndex(model, iter, text)
+            if index is None:
+                return False
+            elif index not in currIndices:
+                currIndices.append(index)
+
+        indices += currIndices
+        return True # Causes foreach to exit
+
+    def getMatchingIndex(self, model, iter, text):
+        # May have markup involved, in which case "text" will have it stripped out
+        textMarkupStr = ">" + text + "<"
+        for index in range(model.get_n_columns()):
+            givenText = model.get_value(iter, index)
+            if givenText == text or (type(givenText) == types.StringType and textMarkupStr in givenText):
+                return index        
+
+    def describeChange(self, *args):
+        if len(self.modelIndices) > 0:
+            Describer.logger.info(self.getDescription("After update :"))
+        else:
+            # If we didn't have them before, we still won't have them, because the view isn't updated yet
+            renderer = self.view.get_columns()[-1].get_cell_renderers()[-1]
+            self.renderHandler = renderer.connect("notify::text", self.describeRendererChange)
+
+    def describeRendererChange(self, renderer, *args):
+        self.modelIndices = self.getModelIndices()
+        renderer.disconnect(self.renderHandler)
+        self.describeChange()
+

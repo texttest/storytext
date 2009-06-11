@@ -173,7 +173,6 @@ class VideoStore:
         movieName = entry.get_text()
         if not movieName in self.getMovieNames():
             self.model.append([ movieName ])
-            print "Adding movie '" + movieName + "'. There are now", self.model.iter_n_children(None), "movies."
         else:
             self.showError("Movie '" + movieName + "' has already been added")
     def deleteMovie(self, button, entry, *args):
@@ -196,7 +195,6 @@ class VideoStore:
         self.model.clear()
         for movie in movieNames:
             self.model.append([ movie ])
-        print "Sorted movies, now in order:", self.getMovieNames()
     def getMovieNames(self):
         movies = []
         iter = self.model.get_iter_root()
