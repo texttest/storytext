@@ -186,11 +186,11 @@ class ReplayScript:
 
     def getCommand(self, name=""):
         if self.pointer >= len(self.commands):
-            for observer in self.exitObservers:
-                observer.notifyExit()
             if len(name) == 0:
-                # reset the script only if we weren't trying for a specific command
+                # reset the script and notify exit only if we weren't trying for a specific command
                 self.pointer = 0
+                for observer in self.exitObservers:
+                    observer.notifyExit()
         else:
             nextCommand = self.commands[self.pointer]
             if len(name) == 0 or nextCommand.startswith(name):
@@ -451,6 +451,7 @@ class RecordScript:
 class UseCaseRecorder:
     def __init__(self):
         self.events = []
+        self.logger = logging.getLogger("usecase record")
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
         self.scripts = []
@@ -572,9 +573,12 @@ class UseCaseRecorder:
         self.events.append(event)
     def writeEvent(self, *args):
         if len(self.scripts) == 0 or self.suspended == 1:
+            self.logger.debug("Received event, but recording is disabled or suspended")
             return
         event = self.findEvent(*args)
+        self.logger.debug("Event of type " + event.__class__.__name__ + " for recording")
         if not event.shouldRecord(*args):
+            self.logger.debug("Told we should not record it")
             return
 
         if self.stateChangeEventInfo:
