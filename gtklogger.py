@@ -14,6 +14,7 @@ class Describer:
     logger = None
     supportedWidgets = [ gtk.Label, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, gtk.Expander, gtk.Notebook,
                          gtk.TreeView, gtk.ComboBoxEntry, gtk.Entry, gtk.TextView, gtk.Container, gtk.Separator, gtk.Image ]
+    treeViewDescribers = {}    
     def __init__(self, customDescribers):
         if not Describer.logger:
             Describer.logger = logging.getLogger("gui log")
@@ -183,7 +184,7 @@ class Describer:
         self.logger.info(self.getCurrentNotebookPageDescription(notebook, pageNum))
         
     def getTreeViewDescription(self, view):
-        describer = TreeViewDescriber(view)
+        describer = self.treeViewDescribers.setdefault(view, TreeViewDescriber(view))
         return describer.getDescription()
                     
     def getCheckButtonDescription(self, button):
@@ -234,16 +235,26 @@ class TreeViewDescriber:
         self.view = view
         self.model = view.get_model()
         self.modelIndices = []
-        self.model.connect_after("row-changed", self.describeChange)
+        baseModel = self.getBaseModel()
+        baseModel.connect_after("row-inserted", self.describeInsertion)
+        baseModel.connect_after("row-deleted", self.describeDeletion)
         self.renderHandler = None
+        self.changeHandler = None
+
+    def getBaseModel(self):
+        # Don't react to visibility changes with TreeModelFilter
+        try:
+            return self.model.get_model()
+        except AttributeError:
+            return self.model
 
     def getDescription(self, context="Showing"):
         columns = self.view.get_columns()
         titles = " , ".join([ column.get_title() for column in columns ])
-        message = context + " Tree View with columns: " + titles + "\n"
+        message = "\n" + context + " Tree View with columns: " + titles + "\n"
         if len(self.modelIndices) == 0:
             self.modelIndices = self.getModelIndices()
-        return message + self.getSubTreeDescription(self.model.get_iter_root(), 0)
+        return message + self.getSubTreeDescription(self.model.get_iter_root(), 0).rstrip()
     
     def getSubTreeDescription(self, iter, indent):
         if iter is not None and len(self.modelIndices) == 0:
@@ -301,16 +312,27 @@ class TreeViewDescriber:
             if givenText == text or (type(givenText) == types.StringType and textMarkupStr in givenText):
                 return index        
 
-    def describeChange(self, *args):
+    def describeInsertion(self, model, *args):
+        # Row is blank when inserted, describe it after the next change
+        self.changeHandler = model.connect_after("row-changed", self.describeChange)
+
+    def describeChange(self, model, *args):
+        self.describeUpdate("After insertion :")
+        model.disconnect(self.changeHandler)
+
+    def describeDeletion(self, *args):
+        self.describeUpdate("After deletion :")
+        
+    def describeUpdate(self, context):
         if len(self.modelIndices) > 0:
-            Describer.logger.info(self.getDescription("After update :"))
+            Describer.logger.info(self.getDescription(context))
         else:
             # If we didn't have them before, we still won't have them, because the view isn't updated yet
             renderer = self.view.get_columns()[-1].get_cell_renderers()[-1]
-            self.renderHandler = renderer.connect("notify::text", self.describeRendererChange)
+            self.renderHandler = renderer.connect("notify::text", self.describeRendererChange, context)        
 
-    def describeRendererChange(self, renderer, *args):
+    def describeRendererChange(self, renderer, paramSpec, context):
         self.modelIndices = self.getModelIndices()
         renderer.disconnect(self.renderHandler)
-        self.describeChange()
+        self.describeUpdate(context)
 
