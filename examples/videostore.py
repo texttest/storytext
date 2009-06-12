@@ -130,6 +130,7 @@ class VideoStore:
         return notebook
     def getVideoView(self):
         view = gtk.TreeView(self.model)
+        view.set_name("Movie Tree")
         renderer = gtk.CellRendererText()
         column = gtk.TreeViewColumn("Movie Name", renderer, text=0)
         view.append_column(column)

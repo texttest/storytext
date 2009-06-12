@@ -14,7 +14,7 @@ class Describer:
     logger = None
     supportedWidgets = [ gtk.Label, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, gtk.Expander, gtk.Notebook,
                          gtk.TreeView, gtk.ComboBoxEntry, gtk.Entry, gtk.TextView, gtk.Container, gtk.Separator, gtk.Image ]
-    treeViewDescribers = {}    
+    cachedDescribers = {}    
     def __init__(self, customDescribers):
         if not Describer.logger:
             Describer.logger = logging.getLogger("gui log")
@@ -54,13 +54,18 @@ class Describer:
                 panedSeparator += " (horizontal pane separator)"
             else:
                 panedSeparator += " (vertical pane separator)"
-            return "\n" + panedSeparator + "\n\n"
+            return "\n\n" + panedSeparator + "\n"
         else:
             return "\n"
         
     def getContainerDescription(self, container):
         messages = [ self.getDescription(widget) for widget in container.get_children() ]
-        return self.getSeparator(container).join(messages)
+        sep = self.getSeparator(container)
+        if "\n" in sep:
+            return sep.join(messages)
+        else:
+            # Horizontal, don't allow for extra new lines...
+            return sep.join([ m.strip() for m in messages ])
 
     def getBasicDescription(self, widget):
         for widgetClass, describer in self.customDescribers.items():
@@ -138,23 +143,9 @@ class Describer:
         dropDownDescription = " (drop-down list containing " + repr(allEntries) + ")"
         return entryDescription + dropDownDescription
 
-    def getTextViewDescription(self, textview):
-        header = "=" * 10 + " Text View " + "=" * 10
-        return header + "\n" + self.getTextViewContents(textview).strip() + "\n" + "=" * len(header)
-
-    def getTextViewContents(self, view):
-        buffer = view.get_buffer()
-        unicodeInfo = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
-        localeEncoding = locale.getdefaultlocale()[1]
-        warning = ""
-        if localeEncoding:
-            try:
-                return unicodeInfo.encode(localeEncoding, 'strict')
-            except:
-                warning = "WARNING: Failed to encode Unicode string '" + unicodeInfo + \
-                          "' using strict '" + localeEncoding + "' encoding.\nReverting to non-strict UTF-8 " + \
-                          "encoding but replacing problematic\ncharacters with the Unicode replacement character, U+FFFD.\n"
-        return warning + unicodeInfo.encode('utf-8', 'replace')
+    def getTextViewDescription(self, view):
+        describer = self.cachedDescribers.setdefault(view, TextViewDescriber(view))
+        return describer.getDescription()
 
     def getEntryDescription(self, entry):
         text = entry.get_text()
@@ -184,7 +175,7 @@ class Describer:
         self.logger.info(self.getCurrentNotebookPageDescription(notebook, pageNum))
         
     def getTreeViewDescription(self, view):
-        describer = self.treeViewDescribers.setdefault(view, TreeViewDescriber(view))
+        describer = self.cachedDescribers.setdefault(view, TreeViewDescriber(view))
         return describer.getDescription()
                     
     def getCheckButtonDescription(self, button):
@@ -229,6 +220,34 @@ class Describer:
         self.logger.info(self.getContainerDescription(window))
         self.logger.info("-" * len(message))
 
+
+class TextViewDescriber:
+    def __init__(self, view):
+        self.buffer = view.get_buffer()
+        self.buffer.connect_after("insert-text", self.describeChange)
+        self.name = view.get_name()
+
+    def getDescription(self):
+        header = "=" * 10 + " " + self.name + " " + "=" * 10        
+        return "\n" + header + "\n" + self.getContents().strip() + "\n" + "=" * len(header)
+
+    def describeChange(self, *args):
+        Describer.logger.info(self.getDescription())
+
+    def getContents(self):
+        unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter())
+        localeEncoding = locale.getdefaultlocale()[1]
+        warning = ""
+        if localeEncoding:
+            try:
+                return unicodeInfo.encode(localeEncoding, 'strict')
+            except:
+                warning = "WARNING: Failed to encode Unicode string '" + unicodeInfo + \
+                          "' using strict '" + localeEncoding + "' encoding.\nReverting to non-strict UTF-8 " + \
+                          "encoding but replacing problematic\ncharacters with the Unicode replacement character, U+FFFD.\n"
+        return warning + unicodeInfo.encode('utf-8', 'replace')
+
+
 # Complicated enough to need its own class...
 class TreeViewDescriber:
     def __init__(self, view):
@@ -251,7 +270,7 @@ class TreeViewDescriber:
     def getDescription(self, context="Showing"):
         columns = self.view.get_columns()
         titles = " , ".join([ column.get_title() for column in columns ])
-        message = "\n" + context + " Tree View with columns: " + titles + "\n"
+        message = "\n" + context + " " + self.view.get_name() + " with columns: " + titles + "\n"
         if len(self.modelIndices) == 0:
             self.modelIndices = self.getModelIndices()
         return message + self.getSubTreeDescription(self.model.get_iter_root(), 0).rstrip()
