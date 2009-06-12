@@ -104,10 +104,14 @@ class Describer:
         return text
 
     def getLabelText(self, container):
-        try:
-            return container.get_label_widget().get_text()
-        except AttributeError:
-            return container.get_label_widget().get_child().get_text()
+        labelWidget = container.get_label_widget()
+        if labelWidget:
+            try:
+                return labelWidget.get_text()
+            except AttributeError:
+                return labelWidget.get_child().get_text()
+        else:
+            return ""
 
     def getExpanderDescription(self, expander):
         label = self.getLabelText(expander)
@@ -120,8 +124,12 @@ class Describer:
     def getFrameDescription(self, frame):
         label = self.getLabelText(frame)
         frameText = "....." + label + "......\n"
-        # Frame's last child is the label :)
-        for child in frame.get_children()[:-1]:
+        if label:
+            # Frame's last child is the label :)
+            children = frame.get_children()[:-1]
+        else:
+            children = frame.get_children()
+        for child in children:
             frameText += self.getDescription(child) + "\n"
         return frameText.rstrip()
 
@@ -247,6 +255,38 @@ class TextViewDescriber:
                           "encoding but replacing problematic\ncharacters with the Unicode replacement character, U+FFFD.\n"
         return warning + unicodeInfo.encode('utf-8', 'replace')
 
+class ColumnTextIndexStore:
+    def __init__(self, model, textIndex, colourIndex, fontIndex):
+        self.textIndex = textIndex
+        self.model = model
+        self.colourIndex = colourIndex
+        self.fontIndex = fontIndex
+
+    def description(self, iter):
+        textDesc = str(self.model.get_value(iter, self.textIndex))
+        extraInfo = []
+        if self.colourIndex is not None:
+            extraInfo.append(str(self.model.get_value(iter, self.colourIndex)))
+        if self.fontIndex is not None:
+            font = self.model.get_value(iter, self.fontIndex)
+            if font:
+                extraInfo.append(font)
+        if len(extraInfo):
+            textDesc += " (" + ",".join(extraInfo) + ")"
+        return textDesc
+
+class ColumnToggleIndexStore:
+    def __init__(self, model, index):
+        self.index = index
+        self.model = model
+
+    def description(self, iter):
+        textDesc = "Check box"
+        active = self.model.get_value(iter, self.index)
+        if active:
+            textDesc += " (checked)"
+        return textDesc
+
 
 # Complicated enough to need its own class...
 class TreeViewDescriber:
@@ -280,7 +320,7 @@ class TreeViewDescriber:
             return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
         message = ""
         while iter is not None:
-            data = " | ".join([ self.model.get_value(iter, col) for col in self.modelIndices ]) 
+            data = " | ".join([ col.description(iter) for col in self.modelIndices ]) 
             message += "-> " + " " * 2 * indent + data + "\n"
             if self.view.row_expanded(self.model.get_path(iter)):
                 message += self.getSubTreeDescription(self.model.iter_children(iter), indent + 1)
@@ -295,42 +335,110 @@ class TreeViewDescriber:
 
         # The renderers will be on some row or other... (seems hard to assume where)
         # so we compare their values. Text values should differ.
-        texts = self.getTextInRenderers()
+        texts, renderers = self.getTextInRenderers()
         indices = []
         if len(texts) > 0:
-            self.model.foreach(self.addIndicesFromIter, (texts, indices))
+            self.model.foreach(self.addIndicesFromIter, (texts, renderers, indices))
         return indices
 
     def getTextInRenderers(self):
-        texts = []
+        texts, renderers = [], []
         for column in self.view.get_columns():
             for renderer in column.get_cell_renderers():
-                text = renderer.get_property("text")
-                if text:
-                    texts.append(text)
-        return texts
+                renderers.append(renderer)
+                if isinstance(renderer, gtk.CellRendererText):
+                    text = renderer.get_property("text")
+                    if text:
+                        texts.append(text)
+        return texts, renderers
 
     def addIndicesFromIter(self, model, path, iter, userdata):
-        texts, indices = userdata
-        currIndices = []
+        texts, renderers, indices = userdata
+        currIndices = {}
         for text in texts:
-            index = self.getMatchingIndex(model, iter, text)
+            index = self.getTextIndex(model, iter, text)
             if index is None:
                 return False
             elif index not in currIndices:
-                currIndices.append(index)
+                currIndices[text] = index
 
-        indices += currIndices
+        # We've found matching texts, try to match the colours and fonts as best we can
+        colourIndices = set()
+        fontIndices = set()
+        toggleIndices = set()
+        knownIndices = set(currIndices.values())
+        for renderer in renderers:
+            if isinstance(renderer, gtk.CellRendererText):
+                text = renderer.get_property("text")
+                if text is None:
+                    continue
+                textIndex = currIndices.get(text)
+                if textIndex is None:
+                    continue
+                
+                colour = renderer.get_property("background-gdk")
+                colourIndex = self.findMatchingIndex(model, iter, colour, 
+                                                     knownIndices, colourIndices, self.colourMatches)
+                if colourIndex is not None:
+                    colourIndices.add(colourIndex)
+                    knownIndices.add(colourIndex)
+                    
+                font = renderer.get_property("font")
+                fontIndex = self.findMatchingIndex(model, iter, font, 
+                                                       knownIndices, fontIndices, self.textMatches)
+                if fontIndex is not None:
+                    fontIndices.add(fontIndex)
+                    knownIndices.add(fontIndex)
+                indices.append(ColumnTextIndexStore(model, textIndex, colourIndex, fontIndex))
+            elif isinstance(renderer, gtk.CellRendererToggle):
+                active = renderer.get_active()
+                activeIndex = self.findMatchingIndex(model, iter, active, 
+                                                     knownIndices, toggleIndices, self.boolMatches)
+                if activeIndex is not None:
+                    toggleIndices.add(activeIndex)
+                    knownIndices.add(activeIndex)
+                indices.append(ColumnToggleIndexStore(model, activeIndex))
         return True # Causes foreach to exit
 
-    def getMatchingIndex(self, model, iter, text):
+    def getTextIndex(self, model, iter, text):
         # May have markup involved, in which case "text" will have it stripped out
         textMarkupStr = ">" + text + "<"
         for index in range(model.get_n_columns()):
-            givenText = model.get_value(iter, index)
+            givenText = str(model.get_value(iter, index))
             if givenText == text or (type(givenText) == types.StringType and textMarkupStr in givenText):
                 return index        
 
+    def findMatchingIndex(self, model, iter, info, knownIndices, prevIndices, matchMethod):
+        for index in range(model.get_n_columns()):
+            if index not in knownIndices and matchMethod(model, iter, index, info):
+                return index
+
+        # If we can't find a unique column, assume we're tied to a previous one
+        for index in prevIndices:
+            if matchMethod(model, iter, index, info):
+                return index
+
+    def textMatches(self, model, iter, index, text):
+        givenText = model.get_value(iter, index)
+        return type(givenText) == types.StringType and givenText.lower() == text.lower()
+
+    def boolMatches(self, model, iter, index, value):
+        givenValue = model.get_value(iter, index)
+        return type(givenValue) == types.BooleanType and givenValue == value
+
+    def colourMatches(self, model, iter, index, colour):
+        givenText = model.get_value(iter, index)
+        if type(givenText) != types.StringType:
+            return False
+        try:
+            givenColour = gtk.gdk.color_parse(givenText)
+            return self.coloursIdentical(colour, givenColour)
+        except ValueError:
+            return False
+
+    def coloursIdentical(self, col1, col2):
+        return col1.red == col2.red and col1.green == col2.green and col1.blue == col2.blue
+ 
     def describeInsertion(self, model, *args):
         # Row is blank when inserted, describe it after the next change
         self.changeHandler = model.connect_after("row-changed", self.describeChange)
