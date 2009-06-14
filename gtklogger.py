@@ -12,8 +12,9 @@ def describe(widget, customDescribers={}):
 
 class Describer:
     logger = None
-    supportedWidgets = [ gtk.Label, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, gtk.Expander, gtk.Notebook,
-                         gtk.TreeView, gtk.ComboBoxEntry, gtk.Entry, gtk.TextView, gtk.Container, gtk.Separator, gtk.Image ]
+    supportedWidgets = [ gtk.Label, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, 
+                         gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry, gtk.MenuItem,
+                         gtk.Entry, gtk.TextView, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}    
     def __init__(self, customDescribers):
         if not Describer.logger:
@@ -80,6 +81,34 @@ class Describer:
 
     def getLabelDescription(self, widget):
         return "'" + widget.get_text() + "'"
+    
+    def getMenuItemText(self, menuitem):
+        text = self.getLabelDescription(menuitem.get_child())
+        if menuitem.get_submenu():
+            return text + " Menu"
+        else:
+            return text
+
+    def getMenuItemDescription(self, menuitem):
+        return "\n".join(self.getMenuItemLines(menuitem, indent=0))
+
+    def getMenuItemLines(self, menuitem, indent):
+        headerLine = " " * indent + self.getMenuItemText(menuitem) + " :"
+        submenu = menuitem.get_submenu()
+        if submenu:
+            return [ headerLine ] + self.getMenuLines(submenu, indent+2)
+        else:
+            return [ headerLine ]
+
+    def getMenuLines(self, menu, indent):
+        items = menu.get_children()
+        texts = map(self.getMenuItemText, items)
+        lines = [ " " * indent + ", ".join(texts) ]
+        for item in items:
+            submenu = item.get_submenu()
+            if submenu:
+                lines += self.getMenuItemLines(item, indent)
+        return lines
 
     def getTableRowDescription(self, columnMap, columnCount):
         cellWidgets = [ columnMap.get(column, []) for column in range(columnCount) ]
