@@ -183,7 +183,6 @@ class VideoStore:
             while iter:
                 if self.model.get_value(iter, 0) == movieName:
                     self.model.remove(iter)
-                    print "Deleting movie '" + movieName + "'. There are now", self.model.iter_n_children(None), "movies."
                     break
                 iter = self.model.iter_next(iter)
         else:
@@ -204,7 +203,6 @@ class VideoStore:
             iter = self.model.iter_next(iter)
         return movies
     def showError(self, message):
-        print "ERROR :", message
         dialog = gtk.Dialog("VideoStore Error!", buttons=(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
         label = gtk.Label(message)
         dialog.vbox.pack_start(label, expand=True, fill=True)
@@ -212,10 +210,10 @@ class VideoStore:
         # dialog.connect("response", self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
         self.scriptEngine.connect("accept error saying \"" + message + "\"", "response", dialog, self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
         dialog.show()
+        gtklogger.describe(dialog)
     def destroyErrorDialogue(self, dialog, *args):
         dialog.destroy()
     def quit(self, *args):
-        print "Exiting the video store!"
         gtk.main_quit()
         
 if __name__ == "__main__":
