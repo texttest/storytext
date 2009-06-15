@@ -4,7 +4,7 @@ The basic mission of this module is to provide a standard textual output of GTK 
 to aid in text-based UI testing for GTK
 """
 
-import logging, gtk, locale, operator, types
+import logging, gtk, gobject, locale, operator, types
 
 def describe(widget, customDescribers={}):
     describer = Describer(customDescribers)
@@ -323,18 +323,10 @@ class TreeViewDescriber:
         self.view = view
         self.model = view.get_model()
         self.modelIndices = []
-        baseModel = self.getBaseModel()
-        baseModel.connect_after("row-inserted", self.describeInsertion)
-        baseModel.connect_after("row-deleted", self.describeDeletion)
-        self.renderHandler = None
-        self.changeHandler = None
-
-    def getBaseModel(self):
-        # Don't react to visibility changes with TreeModelFilter
-        try:
-            return self.model.get_model()
-        except AttributeError:
-            return self.model
+        self.model.connect_after("row-inserted", self.scheduleDescribe)
+        self.model.connect_after("row-deleted", self.scheduleDescribe)
+        self.model.connect_after("row-changed", self.scheduleDescribe)
+        self.idleHandler = None
 
     def getDescription(self, context="Showing"):
         columns = self.view.get_columns()
@@ -467,28 +459,13 @@ class TreeViewDescriber:
 
     def coloursIdentical(self, col1, col2):
         return col1.red == col2.red and col1.green == col2.green and col1.blue == col2.blue
- 
-    def describeInsertion(self, model, *args):
-        # Row is blank when inserted, describe it after the next change
-        self.changeHandler = model.connect_after("row-changed", self.describeChange)
 
-    def describeChange(self, model, *args):
-        self.describeUpdate("After insertion :")
-        model.disconnect(self.changeHandler)
-
-    def describeDeletion(self, *args):
-        self.describeUpdate("After deletion :")
+    def scheduleDescribe(self, *args):
+        if self.idleHandler is None:
+            # Want it to have higher priority than e.g. PyUseCase replaying
+            self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE - 1)
         
-    def describeUpdate(self, context):
-        if len(self.modelIndices) > 0:
-            Describer.logger.info(self.getDescription(context))
-        else:
-            # If we didn't have them before, we still won't have them, because the view isn't updated yet
-            renderer = self.view.get_columns()[-1].get_cell_renderers()[-1]
-            self.renderHandler = renderer.connect("notify::text", self.describeRendererChange, context)        
-
-    def describeRendererChange(self, renderer, paramSpec, context):
-        self.modelIndices = self.getModelIndices()
-        renderer.disconnect(self.renderHandler)
-        self.describeUpdate(context)
-
+    def describeUpdate(self):
+        Describer.logger.info(self.getDescription("Updated :"))
+        self.idleHandler = None
+        return False
