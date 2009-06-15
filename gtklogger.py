@@ -136,14 +136,14 @@ class Describer:
         labelWidget = container.get_label_widget()
         if labelWidget:
             try:
-                return labelWidget.get_text()
+                return True, labelWidget.get_text()
             except AttributeError:
-                return labelWidget.get_child().get_text()
+                return True, labelWidget.get_child().get_text()
         else:
-            return ""
+            return False, ""
 
     def getExpanderDescription(self, expander):
-        label = self.getLabelText(expander)
+        labelExisted, label = self.getLabelText(expander)
         text = "Expander '" + label + "':\n"
         # Last child is the label :)
         for child in expander.get_children()[:-1]:
@@ -151,9 +151,9 @@ class Describer:
         return text.rstrip()
     
     def getFrameDescription(self, frame):
-        label = self.getLabelText(frame)
+        labelExisted, label = self.getLabelText(frame)
         frameText = "....." + label + "......\n"
-        if label:
+        if labelExisted:
             # Frame's last child is the label :)
             children = frame.get_children()[:-1]
         else:
