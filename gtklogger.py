@@ -51,14 +51,22 @@ class Describer:
         if isinstance(container, gtk.HBox):
             return " , "
         elif isinstance(container, gtk.Paned):
-            panedSeparator = "-" * 30
-            if isinstance(container, gtk.VPaned):
-                panedSeparator += " (horizontal pane separator)"
-            else:
-                panedSeparator += " (vertical pane separator)"
-            return "\n\n" + panedSeparator + "\n"
+            return self.getPanedSeparator(container)
         else:
             return "\n"
+
+    def getPanedSeparator(self, paned):
+        panedSeparator = "-" * 30
+        proportion = float(paned.get_position()) / paned.get_property("max-position")
+        roundedProportion = str(int(round(100 * proportion, 0)))
+        name = paned.get_name()
+        if name.startswith("Gtk"):
+            name = "pane separator"
+        if isinstance(paned, gtk.VPaned):
+            panedSeparator += " (horizontal " + name + ", " + roundedProportion + "% from the top)"
+        else:
+            panedSeparator += " (vertical " + name + ", " + roundedProportion + "% from the left edge)"
+        return "\n\n" + panedSeparator + "\n"
         
     def getContainerDescription(self, container):
         messages = [ self.getDescription(widget) for widget in container.get_children() ]
@@ -201,8 +209,10 @@ class Describer:
                 name = notebook.get_tab_label_text(child)
                 tabNames.append(name)
                               
-        return "\n" + self.prefix + "Notebook with tabs: " + " , ".join(tabNames) + "\n" + \
-               self.getCurrentNotebookPageDescription(notebook)
+        desc = "\n" + self.prefix + "Notebook with tabs: " + " , ".join(tabNames) + "\n"
+        self.prefix = "Showing " # In case of tree views further down
+        desc += self.getCurrentNotebookPageDescription(notebook)
+        return desc
 
     def getCurrentNotebookPageDescription(self, notebook):
         index = notebook.get_current_page()
@@ -290,11 +300,20 @@ class ColumnTextIndexStore:
         self.colourIndex = colourIndex
         self.fontIndex = fontIndex
 
+    def getCellText(self, iter, index):
+        val = self.model.get_value(iter, index)
+        if val is None:
+            return ""
+        else:
+            return str(val)
+
     def description(self, iter):
-        textDesc = str(self.model.get_value(iter, self.textIndex))
+        textDesc = self.getCellText(iter, self.textIndex)
         extraInfo = []
         if self.colourIndex is not None:
-            extraInfo.append(str(self.model.get_value(iter, self.colourIndex)))
+            colourDesc = self.getCellText(iter, self.colourIndex)
+            if colourDesc:
+                extraInfo.append(colourDesc)
         if self.fontIndex is not None:
             font = self.model.get_value(iter, self.fontIndex)
             if font:
@@ -366,7 +385,7 @@ class TreeViewDescriber:
                 renderers.append(renderer)
                 if isinstance(renderer, gtk.CellRendererText):
                     text = renderer.get_property("text")
-                    if text:
+                    if text is not None:
                         texts.append(text)
         return texts, renderers
 
