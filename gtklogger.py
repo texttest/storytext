@@ -6,8 +6,8 @@ to aid in text-based UI testing for GTK
 
 import logging, gtk, gobject, locale, operator, types
 
-def describe(widget, customDescribers={}):
-    describer = Describer(customDescribers)
+def describe(widget, customDescribers={}, prefix="Showing "):
+    describer = Describer(customDescribers, prefix)
     describer(widget)
 
 class Describer:
@@ -16,10 +16,11 @@ class Describer:
                          gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry, gtk.MenuItem,
                          gtk.Entry, gtk.TextView, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}    
-    def __init__(self, customDescribers):
+    def __init__(self, customDescribers, prefix):
         if not Describer.logger:
             Describer.logger = logging.getLogger("gui log")
         self.customDescribers = customDescribers
+        self.prefix = prefix
         
     def __call__(self, widget):
         if self.logger.isEnabledFor(logging.INFO):
@@ -193,27 +194,25 @@ class Describer:
 
     def getNotebookDescription(self, notebook):
         tabNames = []
-        notebook.connect("switch-page", self.describeNotebookPage)
+        idleScheduler.monitor(notebook, [ "switch-page" ], "Current page changed in ")
         message = ""
         for child in notebook.get_children():
             if child.get_property("visible"):
                 name = notebook.get_tab_label_text(child)
                 tabNames.append(name)
                               
-        index = notebook.get_current_page()
-        return "Tabs showing : " + ", ".join(tabNames) + "\n" + self.getCurrentNotebookPageDescription(notebook, index)
+        return "\n" + self.prefix + "Notebook with tabs: " + " , ".join(tabNames) + "\n" + \
+               self.getCurrentNotebookPageDescription(notebook)
 
-    def getCurrentNotebookPageDescription(self, notebook, index):
+    def getCurrentNotebookPageDescription(self, notebook):
+        index = notebook.get_current_page()
         page = notebook.get_nth_page(index)
         tabName = notebook.get_tab_label_text(page)
-        return "\nViewing notebook page for '" + tabName + "'\n" + self.getDescription(page)
-
-    def describeNotebookPage(self, notebook, ptr, pageNum, *args):
-        self.logger.info(self.getCurrentNotebookPageDescription(notebook, pageNum))
-        
+        return "Viewing page '" + tabName + "'\n" + self.getDescription(page)
+    
     def getTreeViewDescription(self, view):
         describer = self.cachedDescribers.setdefault(view, TreeViewDescriber(view))
-        return describer.getDescription()
+        return describer.getDescription(self.prefix)
                     
     def getCheckButtonDescription(self, button):
         group = "Check"
@@ -323,15 +322,12 @@ class TreeViewDescriber:
         self.view = view
         self.model = view.get_model()
         self.modelIndices = []
-        self.model.connect_after("row-inserted", self.scheduleDescribe)
-        self.model.connect_after("row-deleted", self.scheduleDescribe)
-        self.model.connect_after("row-changed", self.scheduleDescribe)
-        self.idleHandler = None
-
-    def getDescription(self, context="Showing"):
+        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed" ], "Updated : ", self.view) 
+        
+    def getDescription(self, prefix):
         columns = self.view.get_columns()
         titles = " , ".join([ column.get_title() for column in columns ])
-        message = "\n" + context + " " + self.view.get_name() + " with columns: " + titles + "\n"
+        message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
         if len(self.modelIndices) == 0:
             self.modelIndices = self.getModelIndices()
         return message + self.getSubTreeDescription(self.model.get_iter_root(), 0).rstrip()
@@ -460,12 +456,34 @@ class TreeViewDescriber:
     def coloursIdentical(self, col1, col2):
         return col1.red == col2.red and col1.green == col2.green and col1.blue == col2.blue
 
-    def scheduleDescribe(self, *args):
+
+class IdleScheduler:
+    def __init__(self):
+        self.idleHandler = None
+        self.widgetMapping = {}
+        self.widgetsForDescribe = []
+
+    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None):
+        if not monitorWidget in self.widgetMapping:
+            if describeWidget is None:
+                describeWidget = monitorWidget
+            self.widgetMapping[monitorWidget] = describeWidget, prefix
+            for signal in signals:
+                monitorWidget.connect(signal, self.scheduleDescribe)
+    
+    def scheduleDescribe(self, widget, *args):
+        if not widget in self.widgetsForDescribe:
+            self.widgetsForDescribe.append(widget)
         if self.idleHandler is None:
             # Want it to have higher priority than e.g. PyUseCase replaying
             self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE - 1)
         
     def describeUpdate(self):
-        Describer.logger.info(self.getDescription("Updated :"))
+        for widget in self.widgetsForDescribe:
+            describeWidget, prefix = self.widgetMapping.get(widget)
+            describe(describeWidget, prefix=prefix)
         self.idleHandler = None
+        self.widgetsForDescribe = []
         return False
+
+idleScheduler = IdleScheduler()
