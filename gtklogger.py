@@ -5,6 +5,7 @@ to aid in text-based UI testing for GTK
 """
 
 import logging, gtk, gobject, locale, operator, types
+from ndict import seqdict
 
 def describe(widget, customDescribers={}, prefix="Showing "):
     describer = Describer(customDescribers, prefix)
@@ -202,16 +203,19 @@ class Describer:
 
     def getNotebookDescription(self, notebook):
         tabNames = []
-        idleScheduler.monitor(notebook, [ "switch-page" ], "Current page changed in ")
+        idleScheduler.monitor(notebook, [ "switch-page", "page-added" ], "Current page changed in ")
         message = ""
         for child in notebook.get_children():
+            idleScheduler.monitor(child, [ "hide", "show" ], "Child visibility changed in ", notebook, priority=2)
             if child.get_property("visible"):
                 name = notebook.get_tab_label_text(child)
                 tabNames.append(name)
                               
-        desc = "\n" + self.prefix + "Notebook with tabs: " + " , ".join(tabNames) + "\n"
-        self.prefix = "Showing " # In case of tree views further down
-        desc += self.getCurrentNotebookPageDescription(notebook)
+        desc = "\n" + self.prefix + "Notebook with tabs: " + " , ".join(tabNames)
+        tabsOnly = "visibility" in self.prefix
+        self.prefix = "Showing " # In case of tree views etc. further down
+        if not tabsOnly:
+            desc += "\n" + self.getCurrentNotebookPageDescription(notebook)
         return desc
 
     def getCurrentNotebookPageDescription(self, notebook):
@@ -270,15 +274,12 @@ class Describer:
 class TextViewDescriber:
     def __init__(self, view):
         self.buffer = view.get_buffer()
-        self.buffer.connect_after("insert-text", self.describeChange)
+        idleScheduler.monitor(self.buffer, [ "insert-text" ], "", view)
         self.name = view.get_name()
 
     def getDescription(self):
         header = "=" * 10 + " " + self.name + " " + "=" * 10        
         return "\n" + header + "\n" + self.getContents().strip() + "\n" + "=" * len(header)
-
-    def describeChange(self, *args):
-        Describer.logger.info(self.getDescription())
 
     def getContents(self):
         unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter())
@@ -319,8 +320,11 @@ class ColumnTextIndexStore:
             if font:
                 extraInfo.append(font)
         if len(extraInfo):
-            textDesc += " (" + ",".join(extraInfo) + ")"
+            if textDesc:
+                textDesc += " "
+            textDesc += "(" + ",".join(extraInfo) + ")"
         return textDesc
+
 
 class ColumnToggleIndexStore:
     def __init__(self, model, index):
@@ -334,6 +338,17 @@ class ColumnToggleIndexStore:
             textDesc += " (checked)"
         return textDesc
 
+class ColumnPixbufIndexStore:
+    def __init__(self, model, index):
+        self.index = index
+        self.model = model
+
+    def description(self, iter):
+        stockId = self.model.get_value(iter, self.index)
+        if stockId:
+            return "Stock image '" + stockId + "'"
+        else:
+            return ""
 
 # Complicated enough to need its own class...
 class TreeViewDescriber:
@@ -341,13 +356,14 @@ class TreeViewDescriber:
         self.view = view
         self.model = view.get_model()
         self.modelIndices = []
+        self.indicesOK = False
         idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed" ], "Updated : ", self.view) 
         
     def getDescription(self, prefix):
         columns = self.view.get_columns()
         titles = " , ".join([ column.get_title() for column in columns ])
         message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
-        if len(self.modelIndices) == 0:
+        if not self.indicesOK:
             self.modelIndices = self.getModelIndices()
         message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
         return message.rstrip()
@@ -357,7 +373,10 @@ class TreeViewDescriber:
             return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
         message = ""
         while iter is not None:
-            data = " | ".join([ col.description(iter) for col in self.modelIndices ]) 
+            colDescriptions = [ col.description(iter) for col in self.modelIndices ]
+            while not colDescriptions[-1]:
+                colDescriptions.pop()
+            data = " | ".join(colDescriptions) 
             message += "-> " + " " * 2 * indent + data + "\n"
             if self.view.row_expanded(self.model.get_path(iter)):
                 message += self.getSubTreeDescription(self.model.iter_children(iter), indent + 1)
@@ -376,6 +395,8 @@ class TreeViewDescriber:
         indices = []
         if len(texts) > 0:
             self.model.foreach(self.addIndicesFromIter, (texts, renderers, indices))
+        # Should find an index for every renderer
+        self.indicesOK = len(indices) == len(renderers)
         return indices
 
     def getTextInRenderers(self):
@@ -403,6 +424,7 @@ class TreeViewDescriber:
         colourIndices = set()
         fontIndices = set()
         toggleIndices = set()
+        pixbufIndices = set()
         knownIndices = set(currIndices.values())
         for renderer in renderers:
             if isinstance(renderer, gtk.CellRendererText):
@@ -434,7 +456,16 @@ class TreeViewDescriber:
                 if activeIndex is not None:
                     toggleIndices.add(activeIndex)
                     knownIndices.add(activeIndex)
-                indices.append(ColumnToggleIndexStore(model, activeIndex))
+                    indices.append(ColumnToggleIndexStore(model, activeIndex))
+            elif isinstance(renderer, gtk.CellRendererPixbuf):
+                stockId = renderer.get_property("stock-id")
+                stockIndex = self.findMatchingIndex(model, iter, stockId, knownIndices, 
+                                                    pixbufIndices, self.textMatches)
+                if stockIndex is not None:
+                    pixbufIndices.add(stockIndex)
+                    knownIndices.add(stockIndex)
+                    indices.append(ColumnPixbufIndexStore(model, stockIndex))
+
         return True # Causes foreach to exit
 
     def getTextIndex(self, model, iter, text):
@@ -481,24 +512,32 @@ class IdleScheduler:
     def __init__(self):
         self.idleHandler = None
         self.widgetMapping = {}
-        self.widgetsForDescribe = []
+        self.widgetsForDescribe = seqdict()
 
-    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None):
-        if not monitorWidget in self.widgetMapping:
-            if describeWidget is None:
-                describeWidget = monitorWidget
-            self.widgetMapping[monitorWidget] = describeWidget, prefix
-            for signal in signals:
-                monitorWidget.connect(signal, self.scheduleDescribe)
+    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, priority=1):
+        if describeWidget is None:
+            describeWidget = monitorWidget
+        for signal in signals:
+            self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, priority
+            monitorWidget.connect(signal, self.scheduleDescribe, signal)
     
+    def lookupWidget(self, widget, *args):
+        signalMapping = self.widgetMapping.get(widget)
+        for arg in args:
+            if arg in signalMapping:
+                return signalMapping.get(arg)
+
     def scheduleDescribe(self, widget, *args):
-        if not widget in self.widgetsForDescribe:
-            self.widgetsForDescribe.append(widget)
+        describeWidget, prefix, priority = self.lookupWidget(widget, *args)
+        otherPrefix, otherPriority = self.widgetsForDescribe.get(describeWidget, (None, None))
+        if otherPriority is None or priority < otherPriority:
+            self.widgetsForDescribe[describeWidget] = prefix, priority
+ 
         if self.idleHandler is None:
             # Want it to have higher priority than e.g. PyUseCase replaying
             self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE - 1)
 
-    def isVisible(self, widget):
+    def shouldDescribe(self, widget):
         if not widget.get_property("visible"):
             return False
 
@@ -506,19 +545,21 @@ class IdleScheduler:
         if not parent:
             return True
         
+        if parent in self.widgetsForDescribe:
+            return False # don't duplicate information
+
         if isinstance(parent, gtk.Notebook):
             currPage = parent.get_nth_page(parent.get_current_page())
             return currPage is widget
         else:
-            return self.isVisible(parent)
+            return self.shouldDescribe(parent)
         
     def describeUpdate(self):
-        for widget in self.widgetsForDescribe:
-            describeWidget, prefix = self.widgetMapping.get(widget)
-            if self.isVisible(describeWidget):
-                describe(describeWidget, prefix=prefix)
+        for widget, (prefix, priority) in self.widgetsForDescribe.items():
+            if self.shouldDescribe(widget):
+                describe(widget, prefix=prefix)
         self.idleHandler = None
-        self.widgetsForDescribe = []
+        self.widgetsForDescribe = seqdict()
         return False
 
 idleScheduler = IdleScheduler()
