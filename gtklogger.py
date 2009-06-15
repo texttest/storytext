@@ -330,7 +330,8 @@ class TreeViewDescriber:
         message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
         if len(self.modelIndices) == 0:
             self.modelIndices = self.getModelIndices()
-        return message + self.getSubTreeDescription(self.model.get_iter_root(), 0).rstrip()
+        message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
+        return message.rstrip()
     
     def getSubTreeDescription(self, iter, indent):
         if iter is not None and len(self.modelIndices) == 0:
@@ -477,11 +478,26 @@ class IdleScheduler:
         if self.idleHandler is None:
             # Want it to have higher priority than e.g. PyUseCase replaying
             self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE - 1)
+
+    def isVisible(self, widget):
+        if not widget.get_property("visible"):
+            return False
+
+        parent = widget.get_parent()
+        if not parent:
+            return True
+        
+        if isinstance(parent, gtk.Notebook):
+            currPage = parent.get_nth_page(parent.get_current_page())
+            return currPage is widget
+        else:
+            return self.isVisible(parent)
         
     def describeUpdate(self):
         for widget in self.widgetsForDescribe:
             describeWidget, prefix = self.widgetMapping.get(widget)
-            describe(describeWidget, prefix=prefix)
+            if self.isVisible(describeWidget):
+                describe(describeWidget, prefix=prefix)
         self.idleHandler = None
         self.widgetsForDescribe = []
         return False
