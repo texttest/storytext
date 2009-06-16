@@ -195,18 +195,22 @@ class Describer:
         return describer.getDescription()
 
     def getEntryDescription(self, entry):
-        text = entry.get_text()
-        if text:
-            return "Text entry (set to '" + text + "')"
-        else:
-            return "Text entry"
+        idleScheduler.monitor(entry, [ "changed" ], "Edited ")
+        text = ""
+        if self.prefix != "Showing ":
+            text += self.prefix + "'" + entry.get_name() + "' "
+        text += "Text entry"
+        entryText = entry.get_text()
+        if entryText:
+            text += " (set to '" + entryText + "')"
+        return text
 
     def getNotebookDescription(self, notebook):
         tabNames = []
         idleScheduler.monitor(notebook, [ "switch-page", "page-added" ], "Current page changed in ")
         message = ""
         for child in notebook.get_children():
-            idleScheduler.monitor(child, [ "hide", "show" ], "Child visibility changed in ", notebook, priority=2)
+            idleScheduler.monitor(child, [ "hide", "show" ], "Child visibility changed in ", notebook, titleOnly=True)
             if child.get_property("visible"):
                 name = notebook.get_tab_label_text(child)
                 tabNames.append(name)
@@ -229,10 +233,15 @@ class Describer:
         return describer.getDescription(self.prefix)
                     
     def getCheckButtonDescription(self, button):
-        group = "Check"
+        idleScheduler.monitor(button, [ "toggled" ], "Toggled ")
+        text = ""
+        if self.prefix != "Showing ":
+            text += self.prefix
         if isinstance(button, gtk.RadioButton):
-            group = "Radio"
-        text = group + " button '" + button.get_label() + "'"
+            text += "Radio"
+        else:
+            text += "Check"
+        text += " button '" + button.get_label() + "'"
         if button.get_active():
             text += " (checked)"
         return text
@@ -357,15 +366,18 @@ class TreeViewDescriber:
         self.model = view.get_model()
         self.modelIndices = []
         self.indicesOK = False
-        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed" ], "Updated : ", self.view) 
+        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed" ], "Updated : ", self.view)
+        for column in self.view.get_columns():
+            idleScheduler.monitor(column, [ "notify::title" ], "Column titles changed in ", self.view, titleOnly=True)
         
     def getDescription(self, prefix):
         columns = self.view.get_columns()
         titles = " , ".join([ column.get_title() for column in columns ])
         message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
-        if not self.indicesOK:
-            self.modelIndices = self.getModelIndices()
-        message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
+        if "Column titles" not in prefix:
+            if not self.indicesOK:
+                self.modelIndices = self.getModelIndices()
+            message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
         return message.rstrip()
     
     def getSubTreeDescription(self, iter, indent):
@@ -514,11 +526,11 @@ class IdleScheduler:
         self.widgetMapping = {}
         self.widgetsForDescribe = seqdict()
 
-    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, priority=1):
+    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, titleOnly=False):
         if describeWidget is None:
             describeWidget = monitorWidget
         for signal in signals:
-            self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, priority
+            self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, titleOnly
             monitorWidget.connect(signal, self.scheduleDescribe, signal)
     
     def lookupWidget(self, widget, *args):
@@ -528,10 +540,10 @@ class IdleScheduler:
                 return signalMapping.get(arg)
 
     def scheduleDescribe(self, widget, *args):
-        describeWidget, prefix, priority = self.lookupWidget(widget, *args)
-        otherPrefix, otherPriority = self.widgetsForDescribe.get(describeWidget, (None, None))
-        if otherPriority is None or priority < otherPriority:
-            self.widgetsForDescribe[describeWidget] = prefix, priority
+        describeWidget, prefix, titleOnly = self.lookupWidget(widget, *args)
+        otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(describeWidget, (None, None))
+        if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
+            self.widgetsForDescribe[describeWidget] = prefix, titleOnly
  
         if self.idleHandler is None:
             # Want it to have higher priority than e.g. PyUseCase replaying
@@ -546,7 +558,10 @@ class IdleScheduler:
             return True
         
         if parent in self.widgetsForDescribe:
-            return False # don't duplicate information
+            prefix, titleOnly = self.widgetsForDescribe.get(parent)
+            # If we're describing the parent in full, and not just its title, we shouldn't redescribe the children
+            if not titleOnly:
+                return False
 
         if isinstance(parent, gtk.Notebook):
             currPage = parent.get_nth_page(parent.get_current_page())
@@ -555,7 +570,7 @@ class IdleScheduler:
             return self.shouldDescribe(parent)
         
     def describeUpdate(self):
-        for widget, (prefix, priority) in self.widgetsForDescribe.items():
+        for widget, (prefix, titleOnly) in self.widgetsForDescribe.items():
             if self.shouldDescribe(widget):
                 describe(widget, prefix=prefix)
         self.idleHandler = None
