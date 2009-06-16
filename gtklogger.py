@@ -5,7 +5,6 @@ to aid in text-based UI testing for GTK
 """
 
 import logging, gtk, gobject, locale, operator, types
-from ndict import seqdict
 
 def describe(widget, customDescribers={}, prefix="Showing "):
     describer = Describer(customDescribers, prefix)
@@ -31,6 +30,7 @@ class Describer:
                 self.logger.info(self.getDescription(widget))
 
     def getDescription(self, widget):
+        idleScheduler.register(widget)
         baseDescription = self.getBasicDescription(widget)
         if not widget.get_property("sensitive"):
             baseDescription += " (greyed out)"
@@ -366,7 +366,8 @@ class TreeViewDescriber:
         self.model = view.get_model()
         self.modelIndices = []
         self.indicesOK = False
-        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed" ], "Updated : ", self.view)
+        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ], "Updated : ", self.view)
+        idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ")
         for column in self.view.get_columns():
             idleScheduler.monitor(column, [ "notify::title" ], "Column titles changed in ", self.view, titleOnly=True)
         
@@ -524,14 +525,20 @@ class IdleScheduler:
     def __init__(self):
         self.idleHandler = None
         self.widgetMapping = {}
-        self.widgetsForDescribe = seqdict()
+        self.widgetsForDescribe = {}
+        self.allWidgets = []
+        
+    def register(self, widget):
+        # So that we can order things correctly
+        if not widget in self.allWidgets:
+            self.allWidgets.append(widget)
 
     def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, titleOnly=False):
         if describeWidget is None:
             describeWidget = monitorWidget
         for signal in signals:
             self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, titleOnly
-            monitorWidget.connect(signal, self.scheduleDescribe, signal)
+            monitorWidget.connect(signal, self.scheduleDescribeCallback, signal)
     
     def lookupWidget(self, widget, *args):
         signalMapping = self.widgetMapping.get(widget)
@@ -539,8 +546,11 @@ class IdleScheduler:
             if arg in signalMapping:
                 return signalMapping.get(arg)
 
-    def scheduleDescribe(self, widget, *args):
+    def scheduleDescribeCallback(self, widget, *args):
         describeWidget, prefix, titleOnly = self.lookupWidget(widget, *args)
+        self.scheduleDescribe(describeWidget, prefix, titleOnly)
+
+    def scheduleDescribe(self, describeWidget, prefix="Showing ", titleOnly=False):
         otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(describeWidget, (None, None))
         if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
             self.widgetsForDescribe[describeWidget] = prefix, titleOnly
@@ -570,11 +580,12 @@ class IdleScheduler:
             return self.shouldDescribe(parent)
         
     def describeUpdate(self):
-        for widget, (prefix, titleOnly) in self.widgetsForDescribe.items():
+        for widget in sorted(self.widgetsForDescribe.keys(), lambda x,y: cmp(self.allWidgets.index(x), self.allWidgets.index(y))):
+            prefix, titleOnly = self.widgetsForDescribe.get(widget)
             if self.shouldDescribe(widget):
                 describe(widget, prefix=prefix)
         self.idleHandler = None
-        self.widgetsForDescribe = seqdict()
+        self.widgetsForDescribe = {}
         return False
 
 idleScheduler = IdleScheduler()
