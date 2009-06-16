@@ -1007,5 +1007,5 @@ class ScriptEngine(usecase.ScriptEngine):
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
-     def executeCommandsInBackground(self):
+     def enableReading(self):
          idle_add(self.runNextCommand)

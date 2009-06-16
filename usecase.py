@@ -240,25 +240,23 @@ class UseCaseReplayer:
             self.processWait(self.getArgument(waitCommand, waitCommandName))
         else:
             self.enableReading()
+
     def registerEditableFile(self, fullPath):
         self.fileFullPaths[os.path.basename(fullPath)] = fullPath
+        
     def enableReading(self):
-        # If events fail, we store them and wait for the relevant handler
-        self.waitingForEvents = []
-        self.executeCommandsInBackground()
-    def executeCommandsInBackground(self):
         # By default, we create a separate thread for background execution
         # GUIs will want to do this as idle handlers
         self.replayThread = Thread(target=self.runCommands)
         self.replayThread.start()
         #gtk.idle_add(method)
+
     def registerApplicationEvent(self, eventName, timeDelay = 0):
         self.applicationEventNames.append(eventName)
         if self.waitingCompleted():
             if self.replayThread:
                 self.replayThread.join()
             for eventName in self.waitingForEvents:
-                self.write("Expected application event '" + eventName + "' occurred, proceeding.")
                 self.applicationEventNames.remove(eventName)
             self.timeDelayNextCommand = timeDelay
             self.enableReading()
@@ -292,6 +290,11 @@ class UseCaseReplayer:
             return []
         
     def runNextCommand(self):
+        if len(self.waitingForEvents):
+            self.write("")
+        for eventName in self.waitingForEvents:
+            self.write("Expected application event '" + eventName + "' occurred, proceeding.")
+        self.waitingForEvents = []
         if self.timeDelayNextCommand:
             time.sleep(self.timeDelayNextCommand)
             self.timeDelayNextCommand = 0
