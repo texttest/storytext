@@ -17,6 +17,7 @@ class VideoStore:
         self.scriptEngine = ScriptEngine(enableShortcuts=1)
         self.model = gtk.ListStore(gobject.TYPE_STRING)
         self.nameEntry = gtk.Entry()
+        self.nameEntry.set_name("Movie Name")
         self.buttons = []
     def createTopWindow(self):
         # Create toplevel window to show it all.

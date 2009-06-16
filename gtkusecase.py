@@ -934,6 +934,7 @@ class ScriptEngine(usecase.ScriptEngine):
         label = gtk.Label("Recording shortcut named:")
         buttonbox.pack_start(label, expand=False, fill=False)
         entry = gtk.Entry()
+        entry.set_name("Shortcut Name")
         self.registerEntry(entry, "set shortcut name to")
         buttonbox.pack_start(entry, expand=False, fill=False)
         stopButton = gtk.Button()
