@@ -12,34 +12,76 @@ def describe(widget, customDescribers={}, prefix="Showing "):
 
 class Describer:
     logger = None
-    supportedWidgets = [ gtk.Label, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, 
-                         gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry, gtk.MenuItem,
-                         gtk.Entry, gtk.TextView, gtk.Container, gtk.Separator, gtk.Image ]
+    supportedWidgets = [ gtk.Label, gtk.ToggleToolButton, gtk.ToolButton, gtk.SeparatorToolItem,
+                         gtk.ToolItem, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame,
+                         gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry,
+                         gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
+                         gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}    
     def __init__(self, customDescribers, prefix):
         if not Describer.logger:
             Describer.logger = logging.getLogger("gui log")
         self.customDescribers = customDescribers
         self.prefix = prefix
+        self.indent = 0
         
     def __call__(self, widget):
         if self.logger.isEnabledFor(logging.INFO):
+            idleScheduler.monitorBasics(widget)
             if isinstance(widget, gtk.Window):
                 self.describeWindow(widget)
             else:
                 self.logger.info(self.getDescription(widget))
 
     def getDescription(self, widget):
-        idleScheduler.register(widget)
-        baseDescription = self.getBasicDescription(widget)
+        return self.getBasicDescription(widget) + self.getPropertyDescription(widget)
+
+    def getPropertyDescription(self, widget):
+        properties = []
+        imageDesc = self.getInbuiltImageDescription(widget)
+        if imageDesc:
+            properties.append(imageDesc)
         if not widget.get_property("sensitive"):
-            baseDescription += " (greyed out)"
+            properties.append("greyed out")
+
+        accelerator = self.getAccelerator(widget)
+        if accelerator:
+            properties.append("accelerator '" + accelerator + "'")
         tooltip = self.getTooltipText(widget)
         if tooltip:
-            baseDescription += " (tooltip '" + tooltip + "')"
-        return baseDescription
+            properties.append("tooltip '" + tooltip + "'")
+        if len(properties):
+            return " (" + ", ".join(properties) + ")"
+        else:
+            return ""
+
+    def getInbuiltImageDescription(self, widget):
+        if hasattr(widget, "get_stock_id"):
+            stockId = widget.get_stock_id()
+            if stockId:
+                return self.getStockDescription(stockId)
+        if hasattr(widget, "get_image"):
+            try:
+                image = widget.get_image()
+                if image and image.get_property("visible"):
+                    return self.getImageDescription(image)
+            except ValueError:
+                return ""
+        return ""
+
+    def getAccelerator(self, widget):
+        action = widget.get_action()
+        if action:
+            accelPath = action.get_accel_path()
+            if accelPath:
+                keyVal, modifier = gtk.accel_map_lookup_entry(accelPath)
+                if keyVal:
+                    return gtk.accelerator_get_label(keyVal, modifier)
+        return ""
 
     def getTooltipText(self, widget):
+        if isinstance(widget, gtk.ToolButton):
+            return self.getTooltipText(widget.get_child())
         try:
             # New 3.12 method...
             return widget.get_tooltip_text()
@@ -68,9 +110,13 @@ class Describer:
         else:
             panedSeparator += " (vertical " + name + ", " + roundedProportion + "% from the left edge)"
         return "\n\n" + panedSeparator + "\n"
+
+    def getVisibleChildren(self, container):
+        return filter(lambda c: c.get_property("visible"), container.get_children())
         
     def getContainerDescription(self, container):
-        messages = [ self.getDescription(widget) for widget in container.get_children() ]
+        idleScheduler.monitor(container, [ "add", "remove" ], "Updated : ")
+        messages = [ self.getDescription(widget) for widget in self.getVisibleChildren(container) ]
         sep = self.getSeparator(container)
         if "\n" in sep:
             return sep.join(messages)
@@ -90,35 +136,34 @@ class Describer:
         return "A widget of type '" + widget.__class__.__name__ + "'"
 
     def getLabelDescription(self, widget):
-        return "'" + widget.get_text() + "'"
-    
-    def getMenuItemText(self, menuitem):
-        text = self.getLabelDescription(menuitem.get_child())
-        if menuitem.get_submenu():
-            return text + " Menu"
+        idleScheduler.monitor(widget, [ "notify::label" ], "\nChanging " + widget.get_name() + " to: ")
+        text = "'" + widget.get_text() + "'"
+        if "Changing" in self.prefix:
+            return self.prefix + text
         else:
             return text
 
+    def getCheckMenuItemDescription(self, menuitem):
+        return self.getMenuItemDescription(menuitem) + self.getActivePostfix(menuitem)
+
+    def getToggleToolButtonDescription(self, toolitem):
+        return self.getToolButtonDescription(toolitem) + self.getActivePostfix(toolitem)
+        
     def getMenuItemDescription(self, menuitem):
-        return "\n".join(self.getMenuItemLines(menuitem, indent=0))
+        text = " " * self.indent + self.getLabelDescription(menuitem.get_child())
+        if menuitem.get_submenu():
+            self.indent += 2
+            text += " Menu :\n" + self.getDescription(menuitem.get_submenu())
+            self.indent -= 2
+        return text
 
-    def getMenuItemLines(self, menuitem, indent):
-        headerLine = " " * indent + self.getMenuItemText(menuitem) + " :"
-        submenu = menuitem.get_submenu()
-        if submenu:
-            return [ headerLine ] + self.getMenuLines(submenu, indent+2)
+    def getProgressBarDescription(self, progressBar):
+        idleScheduler.monitor(progressBar, [ "notify::text", "notify::fraction" ])
+        message = "Progress bar set to fraction " + str(progressBar.get_fraction()) + ", text '" + progressBar.get_text() + "'"
+        if self.prefix == "Showing ": # initial
+            return message
         else:
-            return [ headerLine ]
-
-    def getMenuLines(self, menu, indent):
-        items = menu.get_children()
-        texts = map(self.getMenuItemText, items)
-        lines = [ " " * indent + ", ".join(texts) ]
-        for item in items:
-            submenu = item.get_submenu()
-            if submenu:
-                lines += self.getMenuItemLines(item, indent)
-        return lines
+            return "\n" + message
 
     def getTableRowDescription(self, columnMap, columnCount):
         cellWidgets = [ columnMap.get(column, []) for column in range(columnCount) ]
@@ -171,6 +216,12 @@ class Describer:
         for child in children:
             frameText += self.getDescription(child) + "\n"
         return frameText.rstrip()
+
+    def getSeparatorMenuItemDescription(self, separator):
+        return " " * (self.indent + 2) + "-" * 4
+
+    def getSeparatorToolItemDescription(self, separator):
+        return self.getSeparatorMenuItemDescription(separator)
 
     def getSeparatorDescription(self, separator):
         basic = "-" * 15
@@ -241,41 +292,78 @@ class Describer:
             text += "Radio"
         else:
             text += "Check"
-        text += " button '" + button.get_label() + "'"
-        if button.get_active():
-            text += " (checked)"
+        text += " button '" + button.get_label() + "'" + self.getActivePostfix(button)
         return text
+
+    def getActivePostfix(self, widget):
+        if widget.get_active():
+            return " (checked)"
+        else:
+            return ""
+
+    @staticmethod
+    def getStockDescription(stock):
+        return "Stock image '" + stock + "'"
 
     def getImageDescription(self, image):
         try:
             stock, size = image.get_stock()
             if stock:
-                return "Stock image '" + stock + "'"
+                return self.getStockDescription(stock)
+
+            if image.get_storage_type() == gtk.IMAGE_EMPTY:
+                return ""
         except ValueError:
             pass
         return "Non-stock image"
-        
+
+    def getMenuBarDescription(self, menubar):
+        return self.getBarDescription(menubar, "Menu")
+
+    def getToolbarDescription(self, toolbar):
+        return self.getBarDescription(toolbar, "Tool")
+
+    def getBarDescription(self, bar, name):
+        text = "\n" + name + " Bar :\n"
+        self.indent += 2
+        text += self.getContainerDescription(bar)
+        self.indent -= 2
+        return text
+
+    def getToolButtonDescription(self, toolButton):
+        return " " * self.indent + toolButton.get_label()
+
+    def getToolItemDescription(self, item):
+        return " " * self.indent + self.getDescription(item.get_child())
+
     def getButtonDescription(self, button):
         labelText = button.get_label()
         if labelText:
             text = "Button '" + labelText + "'"
         else:
             text = "Button"
-        if button.get_image():
-            text += ", " + self.getImageDescription(button.get_image()).lower()
         return text
+
+    @classmethod
+    def getBriefDescription(cls, widget):
+        try:
+            label = widget.get_property("label")
+            if label:
+                return label
+        except TypeError:
+            pass
+        
+        return widget.get_name()
         
     def describeWindow(self, window):
         widgetType = window.__class__.__name__.capitalize()
         message = "-" * 10 + " " + widgetType + " '" + window.get_title() + "' " + "-" * 10
         self.logger.info(message)
-        defaultWidget = window.default_widget
-        if defaultWidget:
-            try:
-                self.logger.info("Default action is labelled '" + defaultWidget.get_label() + "'")
-            except AttributeError: #pragma : no cover, should probably never happen...
-                self.logger.info("Default widget unlabelled, type " + str(defaultWidget.__class__))
-        # One blank line at the end
+        if window.default_widget:
+            self.logger.info("Default widget is '" + self.getBriefDescription(window.default_widget) + "'")
+        else:
+            self.logger.info("Focus widget is '" + self.getBriefDescription(window.focus_widget) + "'")
+        
         self.logger.info(self.getContainerDescription(window))
         self.logger.info("-" * len(message))
 
@@ -355,7 +443,7 @@ class ColumnPixbufIndexStore:
     def description(self, iter):
         stockId = self.model.get_value(iter, self.index)
         if stockId:
-            return "Stock image '" + stockId + "'"
+            return Describer.getStockDescription(stockId)
         else:
             return ""
 
@@ -523,22 +611,72 @@ class TreeViewDescriber:
 
 class IdleScheduler:
     def __init__(self):
-        self.idleHandler = None
         self.widgetMapping = {}
-        self.widgetsForDescribe = {}
         self.allWidgets = []
-        
-    def register(self, widget):
-        # So that we can order things correctly
-        if not widget in self.allWidgets:
-            self.allWidgets.append(widget)
+        self.reset()
 
+    def reset(self):
+        self.idleHandler = None
+        self.widgetsForDescribe = {}
+        self.disabledWidgets = []
+        self.enabledWidgets = []
+        
     def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, titleOnly=False):
         if describeWidget is None:
             describeWidget = monitorWidget
+        # So that we can order things correctly
+        if not describeWidget in self.allWidgets:
+            self.allWidgets.append(describeWidget)
         for signal in signals:
             self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, titleOnly
             monitorWidget.connect(signal, self.scheduleDescribeCallback, signal)
+
+    def getChildWidgets(self, widget):
+        if isinstance(widget, gtk.FileChooser):
+            # Don't worry about internals of file chooser, which aren't really relevant
+            return []
+
+        if isinstance(widget, gtk.MenuItem):
+            submenu = widget.get_submenu()
+            if submenu:
+                return [ submenu ]
+            else:
+                return []
+        elif isinstance(widget, gtk.Container):
+            return widget.get_children()
+        else:
+            return []
+           
+    def monitorBasics(self, widget):
+        if not isinstance(widget, gtk.Window):
+            # Don't handle windows this way
+            self._monitorBasics(widget)
+
+        for child in self.getChildWidgets(widget):
+            self.monitorBasics(child)
+            
+    def _monitorBasics(self, widget):
+        self.monitor(widget, [ "hide" ], prefix="Hiding")
+        self.monitor(widget, [ "show" ], prefix="Showing ")
+        
+        action = widget.get_action()
+        if not action:
+            action = widget
+        action.connect("notify::sensitive", self.storeSensitivityChange)
+
+    def storeSensitivityChange(self, actionOrWidget, *args):
+        desc = Describer.getBriefDescription(actionOrWidget)
+        if actionOrWidget.get_property("sensitive"):
+            if desc in self.disabledWidgets:
+                self.disabledWidgets.remove(desc)
+            else:
+                self.enabledWidgets.append(desc)
+        else:
+            if desc in self.enabledWidgets:
+                self.enabledWidgets.remove(desc)
+            else:
+                self.disabledWidgets.append(desc)
+        self.tryEnableIdleHandler()
     
     def lookupWidget(self, widget, *args):
         signalMapping = self.widgetMapping.get(widget)
@@ -554,7 +692,10 @@ class IdleScheduler:
         otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(describeWidget, (None, None))
         if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
             self.widgetsForDescribe[describeWidget] = prefix, titleOnly
- 
+
+        self.tryEnableIdleHandler()
+
+    def tryEnableIdleHandler(self):
         if self.idleHandler is None:
             # Want it to have higher priority than e.g. PyUseCase replaying
             self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE - 1)
@@ -578,14 +719,33 @@ class IdleScheduler:
             return currPage is widget
         else:
             return self.shouldDescribe(parent)
+
+    def sorted(self, widgets):
+        return sorted(widgets, lambda x,y: cmp(self.allWidgets.index(x), self.allWidgets.index(y)))        
+
+    def removeDuplicates(self, items):
+        newItems = []
+        for item in items:
+            if item not in newItems:
+                newItems.append(item)
+        return newItems
         
     def describeUpdate(self):
-        for widget in sorted(self.widgetsForDescribe.keys(), lambda x,y: cmp(self.allWidgets.index(x), self.allWidgets.index(y))):
+        if len(self.enabledWidgets) or len(self.disabledWidgets):
+            Describer.logger.info("")
+        if len(self.disabledWidgets):
+            Describer.logger.info("Greyed out : " + ", ".join(self.removeDuplicates(self.disabledWidgets)))
+        if len(self.enabledWidgets):
+            Describer.logger.info("No longer greyed out : " + ", ".join(self.removeDuplicates(self.enabledWidgets)))
+
+        for widget in self.sorted(self.widgetsForDescribe.keys()):
             prefix, titleOnly = self.widgetsForDescribe.get(widget)
-            if self.shouldDescribe(widget):
+            if prefix == "Hiding":
+                Describer.logger.info("Hiding the '" + Describer.getBriefDescription(widget) + "' widget")
+            elif self.shouldDescribe(widget):
                 describe(widget, prefix=prefix)
-        self.idleHandler = None
-        self.widgetsForDescribe = {}
+
+        self.reset()
         return False
 
 idleScheduler = IdleScheduler()

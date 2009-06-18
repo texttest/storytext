@@ -929,7 +929,7 @@ class ScriptEngine(usecase.ScriptEngine):
             button.show()
             self.recorder.registerShortcut(replayScript)
         self.commandButtons.append((replayScript, button))
-        buttonbox.pack_start(button, expand=False, fill=False)
+        buttonbox.add(button)
     def addStopControls(self, buttonbox, existingbox):
         label = gtk.Label("Recording shortcut named:")
         buttonbox.pack_start(label, expand=False, fill=False)
