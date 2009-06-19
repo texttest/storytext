@@ -262,10 +262,14 @@ class Describer:
         return text
 
     def getFileChooserDescription(self, fileChooser):
-        text = "\n" + fileChooser.get_name().replace("Gtk", "")
+        if fileChooser.get_property("action") != gtk.FILE_CHOOSER_ACTION_SAVE:
+            idleScheduler.monitor(fileChooser, [ "selection-changed" ], "Updated : ")
+        text = "\n" + self.prefix + fileChooser.get_name().replace("Gtk", "")
         currFile = fileChooser.get_filename()
         if currFile:
             text += " (selected '" + currFile + "')"
+        if self.prefix.startswith("Updated"):
+            return text
         if gtk_has_filechooser_bug():
             # See http://bugzilla.gnome.org/show_bug.cgi?id=586315, list_shortcut_folders just dumps core in GTK 2.14
             text += "\nShortcut folders unknown due to bug in GTK 2.14, fixed in 2.16.3"
