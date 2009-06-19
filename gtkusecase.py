@@ -64,16 +64,14 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import usecase, gtk, os, re
-from gobject import idle_add
+import usecase, gtklogger, gtk, gobject, os, re
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
-    def __init__(self, name, widget, readyForGenerate = True):
+    def __init__(self, name, widget):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
         self.programmaticChange = False
-        self.readyForGenerate = readyForGenerate
         self.changeMethod = self.getRealMethod(self.getChangeMethod())
         if self.changeMethod:
             allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
@@ -117,8 +115,6 @@ class GtkEvent(usecase.UserEvent):
         except TypeError:
             # Some widgets don't support this in PyGTK 2.4. Should remove this when we have at least 2.6
             return True
-    def readyForGeneration(self):
-        return self.readyForGenerate
     def generate(self, argumentString):        
         if not self.getProperty("visible"):
             raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + \
@@ -128,7 +124,6 @@ class GtkEvent(usecase.UserEvent):
             raise usecase.UseCaseScriptError, "widget " + repr(self.widget) + \
                   " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
 
-        ScriptEngine.instance.notifyGenerate(self)
         args = self.getGenerationArguments(argumentString)
         self.changeMethod(*args)
         
@@ -340,7 +335,7 @@ class CellToggleEvent(TreeViewEvent):
 class FileChooserFolderChangeEvent(StateChangeEvent):
     def __init__(self, name, widget):
         self.currentFolder = widget.get_current_folder()
-        StateChangeEvent.__init__(self, name, widget, readyForGenerate=False)
+        StateChangeEvent.__init__(self, name, widget)
     def setProgrammaticChange(self, val, filename=None):
         if val:
             self.programmaticChange = val
@@ -361,6 +356,8 @@ class FileChooserFolderChangeEvent(StateChangeEvent):
     def getStateDescription(self, *args):
         return os.path.basename(self.widget.get_current_folder())
     def getStateChangeArgument(self, argumentString):
+        if gtklogger.gtk_has_filechooser_bug():
+            raise usecase.UseCaseScriptError, "Cannot replay changes of folder in file choosers due to bug in GTK 2.14, fixed in GTK 2.16.3"
         for folder in self.widget.list_shortcut_folders():
             if os.path.basename(folder) == argumentString:
                 return folder
@@ -372,7 +369,7 @@ class FileChooserFileEvent(StateChangeEvent):
         self.fileChooser = fileChooser
         if not fileChooser:
             self.fileChooser = widget
-        StateChangeEvent.__init__(self, name, widget, readyForGenerate=False)
+        StateChangeEvent.__init__(self, name, widget)
         self.currentName = self.getStateDescription()
     def eventIsRelevant(self):
         if self.fileChooser.get_filename() is None:
@@ -798,22 +795,24 @@ class ScriptEngine(usecase.ScriptEngine):
             stdName = self.standardName(fileDesc)
             event = FileChooserEntryEvent(stdName, saveButton, fileChooser)
             self._addEventToScripts(event)
-            folderEvent = self.registerFolderChange(fileChooser, folderChangeDesc)
-            saveEvent = self.createOKEvent(fileChooser, saveDesc, respondMethod, saveButton, respondMethodArg)
-            cancelEvent = self.createCancelEvent(fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg)
-            if self.replayerActive():
-                self.handleSaveFileChooserTiming(fileChooser, [ event, folderEvent ])
+            self.registerFolderChange(fileChooser, folderChangeDesc)
+            self.createOKEvent(fileChooser, saveDesc, respondMethod, saveButton, respondMethodArg)
+            self.createCancelEvent(fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg)
+
     def registerOpenFileChooser(self, fileChooser, fileSelectDesc, folderChangeDesc, openDesc, cancelDesc, 
                                 respondMethod, openButton=None, cancelButton=None, respondMethodArg=None):
         if self.active():
             stdName = self.standardName(fileSelectDesc)
-            event = FileChooserFileSelectEvent(stdName, fileChooser)
-            self._addEventToScripts(event)
-            folderEvent = self.registerFolderChange(fileChooser, folderChangeDesc)
-            openEvent = self.createOKEvent(fileChooser, openDesc, respondMethod, openButton, respondMethodArg)
-            cancelEvent = self.createCancelEvent(fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg)
-            if self.replayerActive():
-                self.handleOpenFileChooserTiming(fileChooser, [ event, folderEvent, openEvent, cancelEvent ])
+            if fileChooser.get_property("action") == gtk.FILE_CHOOSER_ACTION_OPEN:
+                event = FileChooserFileSelectEvent(stdName, fileChooser)
+                self._addEventToScripts(event)
+                self.registerFolderChange(fileChooser, folderChangeDesc)
+            else:
+                # Selecting folders, do everything with the folder change...
+                self.registerFolderChange(fileChooser, stdName)
+            self.createOKEvent(fileChooser, openDesc, respondMethod, openButton, respondMethodArg)
+            self.createCancelEvent(fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg)
+ 
     def createOKEvent(self, fileChooser, OKDesc, respondMethod, OKButton, respondMethodArg):
         if OKButton:
             # The OK button is what we monitor in the scriptEngine, so simulate that it is pressed ...
@@ -843,29 +842,7 @@ class ScriptEngine(usecase.ScriptEngine):
             return TreeModelIndexer(model, keyColumn)
         else:
             return NonUniqueTreeModelIndexer(model, keyColumn)
-        
-    def notifyGenerate(self, event):
-        for eventList in self.fileChooserInfo:
-            if event in eventList:
-                for currEvent in eventList:
-                    currEvent.readyForGenerate = False
-    def handleOpenFileChooserTiming(self, fileChooser, events):
-        self.fileChooserInfo.append(events)
-        for event in events:
-            event.readyForGenerate = False
-        fileChooser.connect_after("selection-changed", self.enableOpenGeneration, events)
-    def enableOpenGeneration(self, fileChooser, events):
-        if fileChooser.get_filename():
-            for event in events:
-                event.readyForGenerate = True
-    def handleSaveFileChooserTiming(self, fileChooser, events):
-        self.fileChooserInfo.append(events)
-        fileChooser.connect_after("current-folder-changed", self.enableSaveGeneration, events)
-    def enableSaveGeneration(self, fileChooser, events):
-        for event in events:
-            event.readyForGenerate = True
-        return False
-    
+            
     def registerFolderChange(self, fileChooser, description):
         stdName = self.standardName(description)
         event = FileChooserFolderChangeEvent(stdName, fileChooser)
@@ -1009,4 +986,6 @@ class ScriptEngine(usecase.ScriptEngine):
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
      def enableReading(self):
-         idle_add(self.runNextCommand)
+         # Set a lower than default priority (=high number!), as filechoosers use idle handlers
+         # with default priorities
+         gobject.idle_add(self.runNextCommand, priority=gobject.PRIORITY_DEFAULT_IDLE + 20)

@@ -104,9 +104,6 @@ class UserEvent:
         return self.name
     def generate(self, argumentString):
         pass
-    def readyForGeneration(self):
-        # If this is false, recorder will wait and then try again
-        return True
     def isStateChange(self):
         # If this is true, recorder will wait before recording and only record if a different event comes in
         return False
@@ -335,14 +332,11 @@ class UseCaseReplayer:
             return self.processSignalCommand(argumentString)
         else:
             event = self.events[commandName]
-            if event.readyForGeneration():
-                self.write("")
-                self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
-                event.generate(argumentString)
-                return True
-            else:
-                return False
-
+            self.write("")
+            self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
+            event.generate(argumentString)
+            return True
+            
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
         if not commandName:
