@@ -6,22 +6,24 @@ to aid in text-based UI testing for GTK
 
 import logging, gtk, gobject, locale, operator, types
 
-def describe(widget, customDescribers={}, prefix="Showing "):
-    describer = Describer(customDescribers, prefix)
+def gtk_has_filechooser_bug():
+    return gtk.gtk_version >= (2, 14, 0) and gtk.gtk_version < (2, 16, 3)
+
+def describe(widget, prefix="Showing "):
+    describer = Describer(prefix)
     describer(widget)
 
 class Describer:
     logger = None
     supportedWidgets = [ gtk.Label, gtk.ToggleToolButton, gtk.ToolButton, gtk.SeparatorToolItem,
-                         gtk.ToolItem, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame,
+                         gtk.ToolItem, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, gtk.FileChooser,
                          gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry,
                          gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
                          gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}    
-    def __init__(self, customDescribers, prefix):
+    def __init__(self, prefix):
         if not Describer.logger:
             Describer.logger = logging.getLogger("gui log")
-        self.customDescribers = customDescribers
         self.prefix = prefix
         self.indent = 0
         
@@ -34,7 +36,13 @@ class Describer:
                 self.logger.info(self.getDescription(widget))
 
     def getDescription(self, widget):
-        return self.getBasicDescription(widget) + self.getPropertyDescription(widget)
+        baseDesc = self.getBasicDescription(widget)
+        propDesc = self.getPropertyDescription(widget)
+        if propDesc == "" or not baseDesc.startswith("\n"): # single line
+            return baseDesc + propDesc
+        else:
+            firstEndline = baseDesc.find("\n", 1) # ignore leading newline
+            return baseDesc[:firstEndline] + propDesc + baseDesc[firstEndline:]
 
     def getPropertyDescription(self, widget):
         properties = []
@@ -125,9 +133,6 @@ class Describer:
             return sep.join([ m.strip() for m in messages ])
 
     def getBasicDescription(self, widget):
-        for widgetClass, describer in self.customDescribers.items():
-            if isinstance(widget, widgetClass):
-                return describer.getBasicDescription(widget)
         for widgetClass in self.supportedWidgets:
             if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "Description"
@@ -256,6 +261,22 @@ class Describer:
             text += " (set to '" + entryText + "')"
         return text
 
+    def getFileChooserDescription(self, fileChooser):
+        text = "\n" + fileChooser.get_name().replace("Gtk", "")
+        currFile = fileChooser.get_filename()
+        if currFile:
+            text += " (selected '" + currFile + "')"
+        if gtk_has_filechooser_bug():
+            # See http://bugzilla.gnome.org/show_bug.cgi?id=586315, list_shortcut_folders just dumps core in GTK 2.14
+            text += "\nShortcut folders unknown due to bug in GTK 2.14, fixed in 2.16.3"
+        else:
+            folders = fileChooser.list_shortcut_folders()
+            if len(folders):
+                text += "\nShortcut folders (" + repr(len(folders)) + ") :"
+                for folder in folders:
+                    text += "\n- " + folder
+        return text    
+    
     def getNotebookDescription(self, notebook):
         tabNames = []
         idleScheduler.monitor(notebook, [ "switch-page", "page-added" ], "Current page changed in ")
@@ -365,7 +386,8 @@ class Describer:
             self.logger.info("Focus widget is '" + self.getBriefDescription(window.focus_widget) + "'")
         
         self.logger.info(self.getContainerDescription(window))
-        self.logger.info("-" * len(message))
+        footerLength = min(len(message), 150) # Don't let footers become too huge, they become ugly...
+        self.logger.info("-" * footerLength)
 
 
 class TextViewDescriber:
@@ -648,8 +670,10 @@ class IdleScheduler:
             return []
            
     def monitorBasics(self, widget):
-        if not isinstance(widget, gtk.Window):
-            # Don't handle windows this way
+        if isinstance(widget, gtk.Window):
+            self.allWidgets.append(widget)
+        else:
+            # Don't handle windows this way, showing and hiding them is a bit different
             self._monitorBasics(widget)
 
         for child in self.getChildWidgets(widget):
@@ -686,19 +710,24 @@ class IdleScheduler:
 
     def scheduleDescribeCallback(self, widget, *args):
         describeWidget, prefix, titleOnly = self.lookupWidget(widget, *args)
-        self.scheduleDescribe(describeWidget, prefix, titleOnly)
+        self._scheduleDescribe(describeWidget, prefix, titleOnly)
 
-    def scheduleDescribe(self, describeWidget, prefix="Showing ", titleOnly=False):
-        otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(describeWidget, (None, None))
+    def scheduleDescribe(self, widget): # Called externally
+        if widget not in self.allWidgets:
+            self.allWidgets.append(widget) # Sort in order they appear
+        self._scheduleDescribe(widget, prefix="Showing ", titleOnly=False)
+
+    def _scheduleDescribe(self, widget, prefix, titleOnly):
+        otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(widget, (None, None))
         if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
-            self.widgetsForDescribe[describeWidget] = prefix, titleOnly
+            self.widgetsForDescribe[widget] = prefix, titleOnly
 
         self.tryEnableIdleHandler()
 
     def tryEnableIdleHandler(self):
         if self.idleHandler is None:
             # Want it to have higher priority than e.g. PyUseCase replaying
-            self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE - 1)
+            self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE + 10)
 
     def shouldDescribe(self, widget):
         if not widget.get_property("visible"):
