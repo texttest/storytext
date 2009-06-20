@@ -65,6 +65,7 @@ To see this in action, try out the video store example.
 """
 
 import usecase, gtklogger, gtk, gobject, os, re
+PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
@@ -728,11 +729,12 @@ class RadioGroupIndexer:
         self.buttons[index].set_active(True)
 
 class ScriptEngine(usecase.ScriptEngine):
-    def __init__(self, enableShortcuts = 0):
+    def __init__(self, enableShortcuts=False, universalLogging=True):
         usecase.ScriptEngine.__init__(self, enableShortcuts)
         self.commandButtons = []
         self.fileChooserInfo = []
         self.treeViewIndexers = {}
+        gtklogger.setMonitoring(universalLogging, self.replayerActive())
     def connect(self, eventName, signalName, widget, method=None, argumentParseData=None, *data):
         signalEvent = None
         if self.active():
@@ -985,7 +987,16 @@ class ScriptEngine(usecase.ScriptEngine):
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
-     def enableReading(self):
-         # Set a lower than default priority (=high number!), as filechoosers use idle handlers
-         # with default priorities
-         gobject.idle_add(self.runNextCommand, priority=gobject.PRIORITY_DEFAULT_IDLE + 20)
+    def __init__(self):
+        self.readingEnabled = False
+        usecase.UseCaseReplayer.__init__(self)
+        # Set a lower than default priority (=high number!), as filechoosers use idle handlers
+        # with default priorities
+        gobject.idle_add(self.describeAndRun, priority=PRIORITY_PYUSECASE_IDLE)
+    def enableReading(self):
+        self.readingEnabled = True
+    def describeAndRun(self):
+        gtklogger.idleScheduler.describeNewWindows()
+        if self.readingEnabled:
+            self.readingEnabled = self.runNextCommand()
+        return True # Keep calling, whatever happens...

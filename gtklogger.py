@@ -6,12 +6,28 @@ to aid in text-based UI testing for GTK
 
 import logging, gtk, gobject, locale, operator, types
 
+# Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
+PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
+PRIORITY_PYUSECASE_LOG_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 10
+
+idleScheduler = None
+
 def gtk_has_filechooser_bug():
     return gtk.gtk_version >= (2, 14, 0) and gtk.gtk_version < (2, 16, 3)
 
 def describe(widget, prefix="Showing "):
+    setMonitoring()
     describer = Describer(prefix)
     describer(widget)
+
+def scheduleDescribe(widget):
+    setMonitoring()
+    idleScheduler.scheduleDescribe(widget)
+
+def setMonitoring(*args):
+    global idleScheduler
+    if not idleScheduler:
+        idleScheduler = IdleScheduler(*args)
 
 class Describer:
     logger = None
@@ -382,11 +398,11 @@ class Describer:
         
     def describeWindow(self, window):
         widgetType = window.__class__.__name__.capitalize()
-        message = "-" * 10 + " " + widgetType + " '" + window.get_title() + "' " + "-" * 10
-        self.logger.info(message)
+        message = "-" * 10 + " " + widgetType + " '" + str(window.get_title()) + "' " + "-" * 10
+        self.logger.info("\n" + message)
         if window.default_widget:
             self.logger.info("Default widget is '" + self.getBriefDescription(window.default_widget) + "'")
-        else:
+        elif window.focus_widget:
             self.logger.info("Focus widget is '" + self.getBriefDescription(window.focus_widget) + "'")
         
         self.logger.info(self.getContainerDescription(window))
@@ -636,11 +652,15 @@ class TreeViewDescriber:
 
 
 class IdleScheduler:
-    def __init__(self):
+    def __init__(self, universalLogging=False, externalIdleHandler=False):
         self.widgetMapping = {}
         self.allWidgets = []
+        self.universalLogging = universalLogging
+        if not externalIdleHandler:
+            gobject.idle_add(self.describeNewWindows, priority=PRIORITY_PYUSECASE_IDLE)
+        self.externalIdleHandler = externalIdleHandler
         self.reset()
-
+        
     def reset(self):
         self.idleHandler = None
         self.widgetsForDescribe = {}
@@ -730,8 +750,8 @@ class IdleScheduler:
 
     def tryEnableIdleHandler(self):
         if self.idleHandler is None:
-            # Want it to have higher priority than e.g. PyUseCase replaying
-            self.idleHandler = gobject.idle_add(self.describeUpdate, priority=gobject.PRIORITY_DEFAULT_IDLE + 10)
+            # Low priority, to not get in the way of filechooser updates
+            self.idleHandler = gobject.idle_add(self.describeUpdates, priority=PRIORITY_PYUSECASE_LOG_IDLE)
 
     def shouldDescribe(self, widget):
         if not widget.get_property("visible"):
@@ -762,8 +782,16 @@ class IdleScheduler:
             if item not in newItems:
                 newItems.append(item)
         return newItems
+
+    def describeNewWindows(self):
+        if self.universalLogging:
+            for window in filter(lambda w: w.get_property("visible"), gtk.window_list_toplevels()):
+                if window not in self.allWidgets:
+                    self.allWidgets.append(window)
+                    describe(window)
+        return True
         
-    def describeUpdate(self):
+    def describeUpdates(self):
         if len(self.enabledWidgets) or len(self.disabledWidgets):
             Describer.logger.info("")
         if len(self.disabledWidgets):
@@ -780,5 +808,3 @@ class IdleScheduler:
 
         self.reset()
         return False
-
-idleScheduler = IdleScheduler()

@@ -9,7 +9,6 @@
 
 import gtk, gobject, logging, sys
 from gtkusecase import ScriptEngine
-import gtklogger
         
 class VideoStore:
     def __init__(self):
@@ -29,7 +28,6 @@ class VideoStore:
         win.add(vbox)
         win.show()
         win.resize(self.getWindowWidth(), self.getWindowHeight())
-        gtklogger.describe(win)
         return win
     def createWindowContents(self):
         vbox = gtk.VBox()
@@ -211,7 +209,6 @@ class VideoStore:
         # dialog.connect("response", self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
         self.scriptEngine.connect("accept error saying \"" + message + "\"", "response", dialog, self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
         dialog.show()
-        gtklogger.describe(dialog)
     def destroyErrorDialogue(self, dialog, *args):
         dialog.destroy()
     def quit(self, *args):
