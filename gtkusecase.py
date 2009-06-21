@@ -989,14 +989,28 @@ class ScriptEngine(usecase.ScriptEngine):
 class UseCaseReplayer(usecase.UseCaseReplayer):
     def __init__(self):
         self.readingEnabled = False
+        self.idleHandler = None
+        self.loggerActive = gtklogger.isEnabled()
+        if self.loggerActive:
+            self.enableIdleHandler()
         usecase.UseCaseReplayer.__init__(self)
-        # Set a lower than default priority (=high number!), as filechoosers use idle handlers
-        # with default priorities
-        gobject.idle_add(self.describeAndRun, priority=PRIORITY_PYUSECASE_IDLE)
     def enableReading(self):
         self.readingEnabled = True
+        self.enableIdleHandler()
+            
+    def enableIdleHandler(self):
+        if not self.idleHandler:
+            # Set a lower than default priority (=high number!), as filechoosers use idle handlers
+            # with default priorities
+            self.idleHandler = gobject.idle_add(self.describeAndRun, priority=PRIORITY_PYUSECASE_IDLE)
+
     def describeAndRun(self):
-        gtklogger.idleScheduler.describeNewWindows()
+        if self.loggerActive:
+            gtklogger.idleScheduler.describeNewWindows()
         if self.readingEnabled:
             self.readingEnabled = self.runNextCommand()
-        return True # Keep calling, whatever happens...
+        # Keep calling, whatever happens, if we're trying to pick up new windows...
+        callAgain = self.loggerActive or self.readingEnabled 
+        if not callAgain:
+            self.idleHandler = None
+        return callAgain

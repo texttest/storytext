@@ -15,19 +15,25 @@ idleScheduler = None
 def gtk_has_filechooser_bug():
     return gtk.gtk_version >= (2, 14, 0) and gtk.gtk_version < (2, 16, 3)
 
+def isEnabled():
+    return Describer.isEnabled()
+
 def describe(widget, prefix="Showing "):
-    setMonitoring()
-    describer = Describer(prefix)
-    describer(widget)
+    if isEnabled():
+        setMonitoring()
+        describer = Describer(prefix)
+        describer(widget)
 
 def scheduleDescribe(widget):
-    setMonitoring()
-    idleScheduler.scheduleDescribe(widget)
+    if isEnabled():
+        setMonitoring()
+        idleScheduler.scheduleDescribe(widget)
 
 def setMonitoring(*args):
-    global idleScheduler
-    if not idleScheduler:
-        idleScheduler = IdleScheduler(*args)
+    if isEnabled():
+        global idleScheduler
+        if not idleScheduler:
+            idleScheduler = IdleScheduler(*args)
 
 class Describer:
     logger = None
@@ -36,15 +42,23 @@ class Describer:
                          gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry,
                          gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
                          gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
-    cachedDescribers = {}    
+    cachedDescribers = {}
+    @classmethod
+    def createLogger(cls):
+        if not cls.logger:
+            cls.logger = logging.getLogger("gui log")
+
+    @classmethod
+    def isEnabled(cls):
+        cls.createLogger()
+        return cls.logger.isEnabledFor(logging.INFO)
+    
     def __init__(self, prefix):
-        if not Describer.logger:
-            Describer.logger = logging.getLogger("gui log")
         self.prefix = prefix
         self.indent = 0
         
     def __call__(self, widget):
-        if self.logger.isEnabledFor(logging.INFO):
+        if self.isEnabled():
             idleScheduler.monitorBasics(widget)
             if isinstance(widget, gtk.Window):
                 self.describeWindow(widget)
@@ -656,7 +670,7 @@ class IdleScheduler:
         self.widgetMapping = {}
         self.allWidgets = []
         self.universalLogging = universalLogging
-        if not externalIdleHandler:
+        if self.universalLogging and not externalIdleHandler:
             gobject.idle_add(self.describeNewWindows, priority=PRIORITY_PYUSECASE_IDLE)
         self.externalIdleHandler = externalIdleHandler
         self.reset()
