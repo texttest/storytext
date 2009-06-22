@@ -295,7 +295,7 @@ class Describer:
         if fileChooser.get_property("action") != gtk.FILE_CHOOSER_ACTION_SAVE:
             idleScheduler.monitor(fileChooser, [ "selection-changed" ], "Updated : ")
         text = "\n" + self.prefix + fileChooser.get_name().replace("Gtk", "")
-        currFile = fileChooser.get_filename()
+        currFile = fileChooser.get_filename().replace("\\", "/")
         if currFile:
             text += " (selected '" + currFile + "')"
         if self.prefix.startswith("Updated"):
@@ -308,7 +308,7 @@ class Describer:
             if len(folders):
                 text += "\nShortcut folders (" + repr(len(folders)) + ") :"
                 for folder in folders:
-                    text += "\n- " + folder
+                    text += "\n- " + folder.replace("\\", "/")
         return text    
     
     def getNotebookDescription(self, notebook):
