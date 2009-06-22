@@ -295,9 +295,9 @@ class Describer:
         if fileChooser.get_property("action") != gtk.FILE_CHOOSER_ACTION_SAVE:
             idleScheduler.monitor(fileChooser, [ "selection-changed" ], "Updated : ")
         text = "\n" + self.prefix + fileChooser.get_name().replace("Gtk", "")
-        currFile = fileChooser.get_filename().replace("\\", "/")
+        currFile = fileChooser.get_filename()
         if currFile:
-            text += " (selected '" + currFile + "')"
+            text += " (selected '" + currFile.replace("\\", "/") + "')"
         if self.prefix.startswith("Updated"):
             return text
         if gtk_has_filechooser_bug():
