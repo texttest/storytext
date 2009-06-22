@@ -989,28 +989,34 @@ class ScriptEngine(usecase.ScriptEngine):
 class UseCaseReplayer(usecase.UseCaseReplayer):
     def __init__(self):
         self.readingEnabled = False
-        self.idleHandler = None
         self.loggerActive = gtklogger.isEnabled()
-        if self.loggerActive:
-            self.enableIdleHandler()
+        self.tryAddDescribeHandler()
         usecase.UseCaseReplayer.__init__(self)
+
+    def tryAddDescribeHandler(self):
+        if self.loggerActive:
+            self.idleHandler = gobject.idle_add(gtklogger.describeNewWindows, 
+                                                priority=gtklogger.PRIORITY_PYUSECASE_IDLE)
+        else:
+            self.idleHandler = None
+
     def enableReading(self):
         self.readingEnabled = True
         self.enableIdleHandler()
             
     def enableIdleHandler(self):
-        if not self.idleHandler:
-            # Set a lower than default priority (=high number!), as filechoosers use idle handlers
-            # with default priorities
-            self.idleHandler = gobject.idle_add(self.describeAndRun, priority=PRIORITY_PYUSECASE_IDLE)
+        if self.idleHandler is not None:
+            gobject.source_remove(self.idleHandler)
+        # Set a lower than default priority (=high number!), as filechoosers use idle handlers
+        # with default priorities. Higher priority than when we're just logging, however, try to block
+        # out the application
+        self.idleHandler = gobject.idle_add(self.describeAndRun, priority=gtklogger.PRIORITY_PYUSECASE_REPLAY_IDLE)
 
     def describeAndRun(self):
         if self.loggerActive:
-            gtklogger.idleScheduler.describeNewWindows()
+            gtklogger.describeNewWindows()
         if self.readingEnabled:
             self.readingEnabled = self.runNextCommand()
-        # Keep calling, whatever happens, if we're trying to pick up new windows...
-        callAgain = self.loggerActive or self.readingEnabled 
-        if not callAgain:
-            self.idleHandler = None
-        return callAgain
+            if not self.readingEnabled:
+                self.tryAddDescribeHandler()
+        return self.readingEnabled

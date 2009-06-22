@@ -8,6 +8,7 @@ import logging, gtk, gobject, locale, operator, types
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
 PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
+PRIORITY_PYUSECASE_REPLAY_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 15
 PRIORITY_PYUSECASE_LOG_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 10
 
 idleScheduler = None
@@ -34,6 +35,9 @@ def setMonitoring(*args):
         global idleScheduler
         if not idleScheduler:
             idleScheduler = IdleScheduler(*args)
+
+def describeNewWindows(*args):
+    return idleScheduler.describeNewWindows(*args)
 
 class Describer:
     logger = None
@@ -512,6 +516,7 @@ class TreeViewDescriber:
         self.indicesOK = False
         idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ], "Updated : ", self.view)
         idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ")
+        idleScheduler.monitor(self.view, [ "row-collapsed" ], "Collapsed row in ")
         for column in self.view.get_columns():
             idleScheduler.monitor(column, [ "notify::title" ], "Column titles changed in ", self.view, titleOnly=True)
         
