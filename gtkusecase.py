@@ -1000,13 +1000,29 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         else:
             self.idleHandler = None
 
-    def enableReading(self):
-        self.readingEnabled = True
-        self.enableIdleHandler()
-            
-    def enableIdleHandler(self):
+    def disableIdleHandlers(self):
+        # If we aren't replaying, we need to accept user input. So we have to block the idle handlers here
+        if not self.isActive():
+            self._disableIdleHandlers()
+
+    def _disableIdleHandlers(self):
         if self.idleHandler is not None:
             gobject.source_remove(self.idleHandler)
+            self.idleHandler = None
+
+    def reenableIdleHandlers(self):
+        if self.idleHandler is None and not self.isActive():
+            if self.readingEnabled:
+                self.enableReplayHandler()
+            else:
+                self.tryAddDescribeHandler()
+
+    def enableReading(self):
+        self.readingEnabled = True
+        self._disableIdleHandlers()
+        self.enableReplayHandler()
+            
+    def enableReplayHandler(self):
         # Set a lower than default priority (=high number!), as filechoosers use idle handlers
         # with default priorities. Higher priority than when we're just logging, however, try to block
         # out the application
