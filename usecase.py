@@ -135,9 +135,9 @@ class ScriptEngine:
         return self.replayerActive() or self.recorderActive()
     def createReplayer(self):
         return UseCaseReplayer()
-    def applicationEvent(self, name, category = None, timeDelay = 0):
+    def applicationEvent(self, name, category=None, supercedeCategory=None, timeDelay=0):
         if self.recorderActive():
-            self.recorder.registerApplicationEvent(name, category)
+            self.recorder.registerApplicationEvent(name, category, supercedeCategory)
         if self.replayerActive():
             self.replayer.registerApplicationEvent(name, timeDelay)
     def applicationEventRename(self, *args):
@@ -454,6 +454,7 @@ class UseCaseRecorder:
         self.scripts = []
         self.processId = os.getpid()
         self.applicationEvents = seqdict()
+        self.supercededAppEventCategories = {}
         self.translationParser = self.readTranslationFile()
         self.suspended = 0
         self.realSignalHandlers = {}
@@ -603,12 +604,18 @@ class UseCaseRecorder:
         for arg in args:
             if isinstance(arg, UserEvent):
                 return arg
-    def registerApplicationEvent(self, eventName, category):
+    def registerApplicationEvent(self, eventName, category, supercedeCategory):
         if category:
             self.applicationEvents[category] = eventName
+            for supercededCategory in self.supercededAppEventCategories.get(category, []):
+                if supercededCategory in self.applicationEvents:
+                    del self.applicationEvents[supercededCategory]
+            if supercedeCategory:
+                self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
         else:
             # Non-categorised event makes all previous ones irrelevant
             self.applicationEvents = seqdict()
+            self.supercededAppEventCategories = {}
             self.applicationEvents["gtkscript_DEFAULT"] = eventName
     def writeApplicationEventDetails(self):
         if len(self.applicationEvents) > 0:
