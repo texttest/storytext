@@ -617,11 +617,13 @@ class UseCaseRecorder:
             self.applicationEvents = seqdict()
             self.supercededAppEventCategories = {}
             self.applicationEvents["gtkscript_DEFAULT"] = eventName
+
     def writeApplicationEventDetails(self):
         if len(self.applicationEvents) > 0:
-            eventString = string.join(self.applicationEvents.values(), ", ")
+            eventString = ", ".join(sorted(self.applicationEvents.values()))
             self.record(waitCommandName + " " + eventString)
             self.applicationEvents = seqdict()
+
     def registerShortcut(self, replayScript):
         for script in self.scripts:
             script.registerShortcut(replayScript)
