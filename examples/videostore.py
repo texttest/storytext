@@ -5,11 +5,25 @@
 #  (b) text entries and
 #  (c) the shortcut bar
 #  (d) menus
-# Above each use of the PyUseCase script engine is the equivalent code without it, commented.
+#  (e) notebooks
+
+# Has universal logging enabled, via the first line, printed on standard output
+
+# Also illustrates an idiom for making sure nothing happens if PyUseCase isn't available.
 
 import gtk, gobject, logging, sys
-from gtkusecase import ScriptEngine
-        
+try:
+    from gtkusecase import ScriptEngine
+except ImportError:
+    class ScriptEngine:
+        # Calling anything has no effect...
+        def __init__(*args, **kwargs):
+            pass
+        def __getattr__(self, name):
+            return self
+        def __call__(*args, **kwargs):
+            pass
+
 class VideoStore:
     def __init__(self):
         logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
@@ -22,8 +36,8 @@ class VideoStore:
         # Create toplevel window to show it all.
         win = gtk.Window(gtk.WINDOW_TOPLEVEL)
         win.set_title("The Video Store")
-        #win.connect("delete_event", self.quit)
-        self.scriptEngine.connect("close", "delete_event", win, self.quit)
+        win.connect("delete_event", self.quit)
+        self.scriptEngine.monitorSignal("close", "delete_event", win, method=self.quit)
         vbox = self.createWindowContents()
         win.add(vbox)
         win.show()
@@ -35,8 +49,9 @@ class VideoStore:
         vbox.pack_start(self.getTaskBar(), expand=False, fill=False)
         vbox.pack_start(self.getNotebook(), expand=True, fill=True)
         shortcutBar = self.scriptEngine.createShortcutBar()
-        vbox.pack_start(shortcutBar, expand=False, fill=False)
-        shortcutBar.show()
+        if shortcutBar:
+            vbox.pack_start(shortcutBar, expand=False, fill=False)
+            shortcutBar.show()
         vbox.show()
         return vbox
     def getMenuBar(self):
@@ -67,15 +82,24 @@ class VideoStore:
         fileItem = gtk.MenuItem("File")
         fileItem.set_submenu(fileMenu)        
         
-        self.scriptEngine.connect("select menu 'File'", "activate", fileItem)
-        self.scriptEngine.connect("select menu item 'Actions'", "activate", actionsItem)
-        self.scriptEngine.connect("select menu item 'Add'", "activate", addItem, self.addMovie, None, self.nameEntry)
-        self.scriptEngine.connect("select menu item 'Delete'", "activate", deleteItem, self.deleteMovie, None, self.nameEntry)
-        self.scriptEngine.connect("select menu item 'Sort'", "activate", sortItem, self.sortMovies)
-        self.scriptEngine.connect("select menu item 'Clear'", "activate", clearItem, self.clearMovies)
-        self.scriptEngine.connect("select menu item 'Show buttons'", "activate", buttonsItem, self.hideButtons)
-        self.scriptEngine.connect("select menu item 'Enable buttons'", "activate", buttons2Item, self.enableButtons)
-        self.scriptEngine.connect("select menu item 'Quit'", "activate", quitItem, self.quit)
+        self.scriptEngine.monitorSignal("select menu 'File'", "activate", fileItem)
+        self.scriptEngine.monitorSignal("select menu item 'Actions'", "activate", actionsItem)
+        
+        addItem.connect("activate", self.addMovie, self.nameEntry)
+        deleteItem.connect("activate", self.deleteMovie, self.nameEntry)
+        sortItem.connect("activate", self.sortMovies)
+        clearItem.connect("activate", self.clearMovies)
+        buttonsItem.connect("activate", self.hideButtons)
+        buttons2Item.connect("activate", self.enableButtons)
+        quitItem.connect("activate", self.quit)
+
+        self.scriptEngine.monitorSignal("select menu item 'Add'", "activate", addItem)
+        self.scriptEngine.monitorSignal("select menu item 'Delete'", "activate", deleteItem)
+        self.scriptEngine.monitorSignal("select menu item 'Sort'", "activate", sortItem)
+        self.scriptEngine.monitorSignal("select menu item 'Clear'", "activate", clearItem)
+        self.scriptEngine.monitorSignal("select menu item 'Show buttons'", "activate", buttonsItem)
+        self.scriptEngine.monitorSignal("select menu item 'Enable buttons'", "activate", buttons2Item)
+        self.scriptEngine.monitorSignal("select menu item 'Quit'", "activate", quitItem)
         
         menuBar = gtk.MenuBar()
         menuBar.append(fileItem)
@@ -85,23 +109,24 @@ class VideoStore:
         taskBar = gtk.HBox()
         label = gtk.Label("New Movie Name  ")
         self.scriptEngine.registerEntry(self.nameEntry, "set new movie name to")
-        self.scriptEngine.connect("add movie by pressing <enter>", "activate", self.nameEntry, self.addMovie, None, self.nameEntry)
+        self.nameEntry.connect("activate", self.addMovie, self.nameEntry)
+        self.scriptEngine.monitorSignal("add movie by pressing <enter>", "activate", self.nameEntry)
         button = gtk.Button()
         button.set_label("Add")
-        # button.connect("clicked", self.addMovie, self.nameEntry)
-        self.scriptEngine.connect("add movie", "clicked", button, self.addMovie, None, self.nameEntry)
+        button.connect("clicked", self.addMovie, self.nameEntry)
+        self.scriptEngine.monitorSignal("add movie", "clicked", button)
         deleteButton = gtk.Button()
         deleteButton.set_label("Delete")
-        # button.connect("clicked", self.deleteMovie, self.nameEntry)
-        self.scriptEngine.connect("delete movie", "clicked", deleteButton, self.deleteMovie, None, self.nameEntry)
+        deleteButton.connect("clicked", self.deleteMovie, self.nameEntry)
+        self.scriptEngine.monitorSignal("delete movie", "clicked", deleteButton)
         sortButton = gtk.Button()
         sortButton.set_label("Sort")
-        # sortButton.connect("clicked", self.sortMovies)
-        self.scriptEngine.connect("sort movies", "clicked", sortButton, self.sortMovies)
+        sortButton.connect("clicked", self.sortMovies)
+        self.scriptEngine.monitorSignal("sort movies", "clicked", sortButton)
         clearButton = gtk.Button()
         clearButton.set_label("Clear")
-        # clearButton.connect("clicked", self.sortMovies)
-        self.scriptEngine.connect("clear list", "clicked", clearButton, self.clearMovies)
+        clearButton.connect("clicked", self.clearMovies)
+        self.scriptEngine.monitorSignal("clear list", "clicked", clearButton)
 
         # Place buttons
         taskBar.pack_start(label, expand=False, fill=True)
@@ -206,8 +231,8 @@ class VideoStore:
         label = gtk.Label(message)
         dialog.vbox.pack_start(label, expand=True, fill=True)
         label.show()
-        # dialog.connect("response", self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
-        self.scriptEngine.connect("accept error saying \"" + message + "\"", "response", dialog, self.destroyErrorDialogue, gtk.RESPONSE_ACCEPT)
+        self.scriptEngine.monitorSignal("accept error saying \"" + message + "\"", "response", dialog, gtk.RESPONSE_ACCEPT)
+        dialog.connect("response", self.destroyErrorDialogue)
         dialog.show()
     def destroyErrorDialogue(self, dialog, *args):
         dialog.destroy()

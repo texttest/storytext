@@ -66,6 +66,7 @@ To see this in action, try out the video store example.
 
 import usecase, gtklogger, gtk, gobject, os, re
 PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
+version = usecase.version
 
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
@@ -735,21 +736,27 @@ class ScriptEngine(usecase.ScriptEngine):
         self.fileChooserInfo = []
         self.treeViewIndexers = {}
         gtklogger.setMonitoring(universalLogging, self.replayerActive())
+    
     def connect(self, eventName, signalName, widget, method=None, argumentParseData=None, *data):
-        signalEvent = None
+        signalEvent = self.monitorSignal(eventName, signalName, widget, argumentParseData, method)
+        if method:
+            widget.connect(signalName, method, *data)
+        return signalEvent
+    
+    def monitorSignal(self, eventName, signalName, widget, argumentParseData=None, method=None):
         if self.active():
             stdName = self.standardName(eventName)
             signalEvent = self._createSignalEvent(stdName, signalName, widget, method, argumentParseData)
             self._addEventToScripts(signalEvent)
-        if method:
-            widget.connect(signalName, method, *data)
-        return signalEvent
+            return signalEvent
+
     def monitor(self, eventName, selection, keyColumn=0, guaranteeUnique=False):
         if self.active():
             stdName = self.standardName(eventName)
             indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn, guaranteeUnique)
             stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer)
             self._addEventToScripts(stateChangeEvent)
+    
     def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0, guaranteeUnique=False):
         if self.active():
             expandName = self.standardName(expandDescription)
@@ -970,6 +977,7 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.recorderActive():
             self.recorder.addEvent(event)
             event.connectRecord(self.recorder.writeEvent)
+
     def _createSignalEvent(self, eventName, signalName, widget, method, argumentParseData):
         if signalName == "delete_event":
             return DeletionEvent(eventName, widget, method)
@@ -979,6 +987,7 @@ class ScriptEngine(usecase.ScriptEngine):
             return RowActivationEvent(eventName, widget, self.getIndexerFromParseData(widget, argumentParseData))
         else:
             return SignalEvent(eventName, widget, signalName)
+
     def getIndexerFromParseData(self, widget, argumentParseData):
         if argumentParseData is not None:
             return self.getTreeViewIndexer(widget, *argumentParseData)

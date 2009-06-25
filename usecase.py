@@ -75,6 +75,8 @@ from ndict import seqdict
 from shutil import copyfile
 from jobprocess import JobProcess, killSubProcessAndChildren
 
+version = "trunk"
+
 # Hard coded commands
 waitCommandName = "wait for"
 signalCommandName = "receive signal"
