@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from distutils.core import setup
+from usecase import version
 
 setup(name='PyUseCase',
-      version='2.0',
+      version=version,
       py_modules=["usecase", "gtkusecase", "gtklogger", "ndict", "jobprocess"],
       )
