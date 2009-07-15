@@ -65,6 +65,7 @@ To see this in action, try out the video store example.
 """
 
 import usecase, gtklogger, gtk, gobject, os, re
+from ConfigParser import ConfigParser
 PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
 version = usecase.version
 
@@ -729,12 +730,67 @@ class RadioGroupIndexer:
     def setActiveIndex(self, index):
         self.buttons[index].set_active(True)
 
+class UIMap:
+    def __init__(self):
+        usecaseDir = os.getenv("USECASE_HOME")
+        if not os.path.isdir(usecaseDir):
+            os.makedirs(usecaseDir)
+        self.file = os.path.join(usecaseDir, "ui_map.conf")
+        self.parser = ConfigParser()
+        self.parser.read([ self.file ])
+        self.changed = False
+
+    def write(self, *args):
+        if self.changed:
+            self.parser.write(open(self.file, "w"))
+
+    def getLabel(self, widget):
+        try:
+            return widget.get_label()
+        except AttributeError:
+            if isinstance(widget, gtk.MenuItem):
+                return widget.get_child().get_text()
+            
+    def getSectionName(self, widget):
+        widgetName = widget.get_name()
+        if not widgetName.startswith("Gtk"): # auto-generated
+            return "Name=" + widgetName
+
+        try:
+            return "Title=" + widget.get_title()
+        except AttributeError:
+            pass
+        label = self.getLabel(widget)
+        if label:
+            return "Label=" + label
+        return "Type=" + widgetName.replace("Gtk", "")
+
+    def storeEvent(self, event):
+        sectionName = self.getSectionName(event.widget)
+        if not sectionName:
+            return
+        if not self.parser.has_section(sectionName):
+            self.parser.add_section(sectionName)
+            self.changed = True
+        eventName = event.name
+        signalName = event.getRecordSignal()
+        if not self.parser.has_option(sectionName, signalName):
+            self.parser.set(sectionName, signalName, eventName)
+            self.changed = True
+        if isinstance(event, DeletionEvent):
+            event.widget.connect("destroy", self.write)
+
+
+
 class ScriptEngine(usecase.ScriptEngine):
-    def __init__(self, enableShortcuts=False, universalLogging=True):
+    def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
         usecase.ScriptEngine.__init__(self, enableShortcuts)
         self.commandButtons = []
         self.fileChooserInfo = []
         self.treeViewIndexers = {}
+        self.uiMap = None
+        if useUiMap:
+            self.uiMap = UIMap()
         gtklogger.setMonitoring(universalLogging, self.replayerActive())
     
     def connect(self, eventName, signalName, widget, method=None, argumentParseData=None, *data):
@@ -969,9 +1025,12 @@ class ScriptEngine(usecase.ScriptEngine):
             if replayScript.commands[0].startswith(event.name):
                 button.show()
                 self.recorder.registerShortcut(replayScript)
+                
     def _addEventToScripts(self, event):
         if self.enableShortcuts:
             self.showShortcutButtons(event)
+        if self.uiMap:
+            self.uiMap.storeEvent(event)
         if self.replayerActive():
             self.replayer.addEvent(event)
         if self.recorderActive():
