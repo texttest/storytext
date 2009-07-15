@@ -27,7 +27,7 @@ except ImportError:
 class VideoStore:
     def __init__(self):
         logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-        self.scriptEngine = ScriptEngine(enableShortcuts=1)
+        self.scriptEngine = ScriptEngine(enableShortcuts=True, useUiMap=True)
         self.model = gtk.ListStore(gobject.TYPE_STRING)
         self.nameEntry = gtk.Entry()
         self.nameEntry.set_name("Movie Name")
@@ -231,7 +231,7 @@ class VideoStore:
         label = gtk.Label(message)
         dialog.vbox.pack_start(label, expand=True, fill=True)
         label.show()
-        self.scriptEngine.monitorSignal("accept error saying \"" + message + "\"", "response", dialog, gtk.RESPONSE_ACCEPT)
+        self.scriptEngine.monitorSignal("accept videostore error", "response", dialog, gtk.RESPONSE_ACCEPT)
         dialog.connect("response", self.destroyErrorDialogue)
         dialog.show()
     def destroyErrorDialogue(self, dialog, *args):
