@@ -115,7 +115,6 @@ class UserEvent:
 
 # Behaves as a singleton...
 class ScriptEngine:
-    instance = None
     def __init__(self, enableShortcuts = 0):
         if not os.environ.has_key("USECASE_HOME"):
             os.environ["USECASE_HOME"] = os.path.expanduser("~/usecases")
@@ -128,7 +127,6 @@ class ScriptEngine:
         stdinScriptName = os.getenv("USECASE_RECORD_STDIN")
         if stdinScriptName:
             self.stdinScript = RecordScript(stdinScriptName)
-        ScriptEngine.instance = self
     def recorderActive(self):
         return self.enableShortcuts or len(self.recorder.scripts) > 0
     def replayerActive(self):
