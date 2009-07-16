@@ -269,6 +269,8 @@ class TreeViewEvent(GtkEvent):
         self.indexer = indexer
     def _outputForScript(self, iter, *args):
         return self.name + " " + self.indexer.iter2string(iter)
+    def _outputForScriptFromPath(self, path, *args):
+        return self.name + " " + self.indexer.path2string(path)
     def getGenerationArguments(self, argumentString):
         return [ self.indexer.string2path(argumentString) ] + self.getTreeViewArgs()
     def getTreeViewArgs(self):
@@ -297,7 +299,7 @@ class RowActivationEvent(TreeViewEvent):
     def getRecordSignal(self):
         return "row-activated"
     def _outputForScript(self, path, *args):
-        return self.name + " " + self.indexer.path2string(path)
+        return self._outputForScriptFromPath(path)
     def generate(self, argumentString):
         # clear the selection before generating as that's what the real event does
         self.widget.get_selection().unselect_all()
@@ -310,6 +312,25 @@ class RowActivationEvent(TreeViewEvent):
             return False
         return self.widget.get_selection() is prevEvent.widget
 
+class RowRightClickEvent(TreeViewEvent):
+    def getRecordSignal(self):
+        return "button_press_event"
+    def shouldRecord(self, widget, event, *args):
+        return TreeViewEvent.shouldRecord(self, widget, event, *args) and event.button == 3
+    def getChangeMethod(self):
+        return self.widget.emit
+    def _outputForScript(self, event, *args):
+        pathInfo = self.widget.get_path_at_pos(int(event.x), int(event.y))
+        return self._outputForScriptFromPath(pathInfo[0])
+    def getGenerationArguments(self, argumentString):
+        path = self.indexer.string2path(argumentString)
+        cell_area = self.widget.get_cell_area(path, self.widget.get_column(0))
+        event = gtk.gdk.Event(gtk.gdk.BUTTON_PRESS)
+        event.x = float(cell_area.x) + float(cell_area.width) / 2
+        event.y = float(cell_area.y) + float(cell_area.height) / 2
+        event.button = 3
+        return [ self.getRecordSignal(), event ]
+        
 # Remember: self.widget is not really a widget here,
 # since gtk.CellRenderer is not a gtk.Widget.
 class CellToggleEvent(TreeViewEvent):
@@ -434,8 +455,9 @@ class TreeSelectionEvent(StateChangeEvent):
         modelFilter, realModel = self.getModels()
         methods = [ self.widget.unselect_all, self.widget.select_all, \
                     self.widget.select_iter, self.widget.unselect_iter, \
-                    self.widget.unselect_path, self.widget.get_tree_view().row_activated, \
-                    self.widget.get_tree_view().collapse_row, realModel.remove, realModel.clear ]
+                    self.widget.select_path, self.widget.unselect_path,
+                    self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row,
+                    realModel.remove, realModel.clear ]
         if modelFilter:
             methods.append(realModel.set_value) # changing visibility column can change selection
         return methods
@@ -812,6 +834,13 @@ class ScriptEngine(usecase.ScriptEngine):
             indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn, guaranteeUnique)
             stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer)
             self._addEventToScripts(stateChangeEvent)
+
+    def monitorRightClicks(self, eventName, treeView, keyColumn=0, guaranteeUnique=False):
+        if self.active():
+            stdName = self.standardName(eventName)
+            indexer = self.getTreeViewIndexer(treeView, keyColumn, guaranteeUnique)
+            rightClickEvent = RowRightClickEvent(stdName, treeView, indexer)
+            self._addEventToScripts(rightClickEvent)
     
     def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0, guaranteeUnique=False):
         if self.active():
@@ -822,7 +851,8 @@ class ScriptEngine(usecase.ScriptEngine):
             if collapseDescription:
                 collapseName = self.standardName(collapseDescription)
                 collapseEvent = RowCollapseEvent(collapseName, treeView, indexer)
-                self._addEventToScripts(collapseEvent)
+                self._addEventToScripts(collapseEvent)        
+
     def registerEntry(self, entry, description):
         if self.active():
             stateChangeName = self.standardName(description)
@@ -830,11 +860,13 @@ class ScriptEngine(usecase.ScriptEngine):
             if self.recorderActive():
                 entryEvent.widget.connect("activate", self.recorder.writeEvent, entryEvent)
             self._addEventToScripts(entryEvent)
+
     def registerPaned(self, paned, description):
         if self.active():
             stateChangeName = self.standardName(description)
             event = PaneDragEvent(stateChangeName, paned)
             self._addEventToScripts(event)
+
     def registerToggleButton(self, button, checkDescription, uncheckDescription = ""):
         if self.active():
             checkChangeName = self.standardName(checkDescription)
@@ -844,6 +876,7 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckChangeName = self.standardName(uncheckDescription)
                 uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
+
     def registerCellToggleButton(self, button, description, parentTreeView, *args, **kwargs):
         if self.active():
             eventName = self.standardName(description)
