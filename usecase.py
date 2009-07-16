@@ -250,19 +250,21 @@ class UseCaseReplayer:
 
     def registerApplicationEvent(self, eventName, timeDelay = 0):
         self.applicationEventNames.append(eventName)
+        self.timeDelayNextCommand = timeDelay
         if self.waitingCompleted():
             if self.replayThread:
                 self.replayThread.join()
             for eventName in self.waitingForEvents:
                 self.applicationEventNames.remove(eventName)
-            self.timeDelayNextCommand = timeDelay
             self.enableReading()
+            
     def applicationEventRename(self, oldName, newName):
         toRename = filter(lambda eventName: eventName.find(oldName) != -1 and eventName.find(newName) == -1,
                           self.applicationEventNames)
         for eventName in toRename:
             newEventName = eventName.replace(oldName, newName)
             self.registerApplicationEvent(newEventName)
+
     def waitingCompleted(self):
         if len(self.waitingForEvents) == 0:
             return False
@@ -270,6 +272,7 @@ class UseCaseReplayer:
             if not eventName in self.applicationEventNames:
                 return False
         return True
+
     def monitorProcess(self, name, process):
         self.processes[name] = process
     def runCommands(self):
