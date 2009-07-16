@@ -43,7 +43,7 @@ class Describer:
     logger = None
     supportedWidgets = [ gtk.Label, gtk.ToggleToolButton, gtk.ToolButton, gtk.SeparatorToolItem,
                          gtk.ToolItem, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, gtk.FileChooser,
-                         gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.ComboBoxEntry,
+                         gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.CellView, gtk.ComboBoxEntry,
                          gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
                          gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}
@@ -182,6 +182,13 @@ class Describer:
         else:
             return text
 
+    def getCellViewDescription(self, cellview):
+        texts = []
+        for renderer in cellview.get_cell_renderers():
+            if isinstance(renderer, gtk.CellRendererText):
+                texts.append("'" + renderer.get_property("text") + "'")
+        return " , ".join(texts)
+
     def getCheckMenuItemDescription(self, menuitem):
         return self.getMenuItemDescription(menuitem) + self.getActivePostfix(menuitem)
 
@@ -189,7 +196,7 @@ class Describer:
         return self.getToolButtonDescription(toolitem) + self.getActivePostfix(toolitem)
         
     def getMenuItemDescription(self, menuitem):
-        text = " " * self.indent + self.getLabelDescription(menuitem.get_child())
+        text = " " * self.indent + self.getBasicDescription(menuitem.get_child())
         if menuitem.get_submenu():
             self.indent += 2
             text += " Menu :\n" + self.getDescription(menuitem.get_submenu())
@@ -413,10 +420,16 @@ class Describer:
             pass
         
         return widget.get_name()
+
+    def getWindowTitle(self, widgetType, window):
+        if window.get_property("type") == gtk.WINDOW_TOPLEVEL:
+            return widgetType + " '" + str(window.get_title()) + "'"
+        else:
+            return "Popup Window"
         
     def describeWindow(self, window):
         widgetType = window.__class__.__name__.capitalize()
-        message = "-" * 10 + " " + widgetType + " '" + str(window.get_title()) + "' " + "-" * 10
+        message = "-" * 10 + " " + self.getWindowTitle(widgetType, window) + " " + "-" * 10
         self.logger.info("\n" + message)
         if window.default_widget:
             self.logger.info("Default widget is '" + self.getBriefDescription(window.default_widget) + "'")
@@ -715,6 +728,8 @@ class IdleScheduler:
     def monitorBasics(self, widget):
         if isinstance(widget, gtk.Window):
             self.allWidgets.append(widget)
+            if widget.get_property("type") == gtk.WINDOW_POPUP:
+                return # Popup windows can't change visibility or sensitivity, don't monitor them
         else:
             # Don't handle windows this way, showing and hiding them is a bit different
             self._monitorBasics(widget)
@@ -808,6 +823,8 @@ class IdleScheduler:
                 if window not in self.allWidgets:
                     self.allWidgets.append(window)
                     describe(window)
+                elif window.get_property("type") == gtk.WINDOW_POPUP:
+                    describe(window) # Always describe popups if they're visible
         return True
         
     def describeUpdates(self):
