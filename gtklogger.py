@@ -567,6 +567,7 @@ class TreeViewDescriber:
         # The renderers will be on some row or other... (seems hard to assume where)
         # so we compare their values. Text values should differ.
         texts, renderers = self.getTextInRenderers()
+        Describer.logger.debug("Trying to establish model indices, found texts " + repr(texts))
         indices = []
         if len(texts) > 0:
             self.model.foreach(self.addIndicesFromIter, (texts, renderers, indices))
