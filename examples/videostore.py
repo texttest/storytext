@@ -81,10 +81,7 @@ class VideoStore:
         fileMenu.append(quitItem)        
         fileItem = gtk.MenuItem("File")
         fileItem.set_submenu(fileMenu)        
-        
-        self.scriptEngine.monitorSignal("select menu 'File'", "activate", fileItem)
-        self.scriptEngine.monitorSignal("select menu item 'Actions'", "activate", actionsItem)
-        
+                
         addItem.connect("activate", self.addMovie, self.nameEntry)
         deleteItem.connect("activate", self.deleteMovie, self.nameEntry)
         sortItem.connect("activate", self.sortMovies)
@@ -93,14 +90,6 @@ class VideoStore:
         buttons2Item.connect("activate", self.enableButtons)
         quitItem.connect("activate", self.quit)
 
-        self.scriptEngine.monitorSignal("select menu item 'Add'", "activate", addItem)
-        self.scriptEngine.monitorSignal("select menu item 'Delete'", "activate", deleteItem)
-        self.scriptEngine.monitorSignal("select menu item 'Sort'", "activate", sortItem)
-        self.scriptEngine.monitorSignal("select menu item 'Clear'", "activate", clearItem)
-        self.scriptEngine.monitorSignal("select menu item 'Show buttons'", "activate", buttonsItem)
-        self.scriptEngine.monitorSignal("select menu item 'Enable buttons'", "activate", buttons2Item)
-        self.scriptEngine.monitorSignal("select menu item 'Quit'", "activate", quitItem)
-        
         menuBar = gtk.MenuBar()
         menuBar.append(fileItem)
         menuBar.show_all()
@@ -108,26 +97,20 @@ class VideoStore:
     def getTaskBar(self):
         taskBar = gtk.HBox()
         label = gtk.Label("New Movie Name  ")
-        self.scriptEngine.registerEntry(self.nameEntry, "set new movie name to")
         self.nameEntry.connect("activate", self.addMovie, self.nameEntry)
-        self.scriptEngine.monitorSignal("add movie by pressing <enter>", "activate", self.nameEntry)
         button = gtk.Button()
         button.set_label("Add")
         button.connect("clicked", self.addMovie, self.nameEntry)
-        self.scriptEngine.monitorSignal("add movie", "clicked", button)
         deleteButton = gtk.Button()
         deleteButton.set_label("Delete")
         deleteButton.connect("clicked", self.deleteMovie, self.nameEntry)
-        self.scriptEngine.monitorSignal("delete movie", "clicked", deleteButton)
         sortButton = gtk.Button()
         sortButton.set_label("Sort")
         sortButton.connect("clicked", self.sortMovies)
-        self.scriptEngine.monitorSignal("sort movies", "clicked", sortButton)
         clearButton = gtk.Button()
         clearButton.set_label("Clear")
         clearButton.connect("clicked", self.clearMovies)
-        self.scriptEngine.monitorSignal("clear list", "clicked", clearButton)
-
+        
         # Place buttons
         taskBar.pack_start(label, expand=False, fill=True)
         taskBar.pack_start(self.nameEntry, expand=True, fill=True)

@@ -450,7 +450,6 @@ class RecordScript:
 
 class UseCaseRecorder:
     def __init__(self):
-        self.events = []
         self.logger = logging.getLogger("usecase record")
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
@@ -570,8 +569,6 @@ class UseCaseRecorder:
             return line.replace(eventName, newName)
         except (NoSectionError, NoOptionError):
             return line
-    def addEvent(self, event):
-        self.events.append(event)
     def writeEvent(self, *args):
         if len(self.scripts) == 0 or self.suspended == 1:
             self.logger.debug("Received event, but recording is disabled or suspended")
