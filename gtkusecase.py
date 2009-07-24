@@ -312,24 +312,36 @@ class RowActivationEvent(TreeViewEvent):
             return False
         return self.widget.get_selection() is prevEvent.widget
 
-class RowRightClickEvent(TreeViewEvent):
-    def getRecordSignal(self):
-        return "button_press_event"
+class RightClickEvent(SignalEvent):
+    def __init__(self, name, widget):
+        SignalEvent.__init__(self, name, widget, "button_press_event")
+
     def shouldRecord(self, widget, event, *args):
-        return TreeViewEvent.shouldRecord(self, widget, event, *args) and event.button == 3
-    def getChangeMethod(self):
-        return self.widget.emit
+        return SignalEvent.shouldRecord(self, widget, event, *args) and event.button == 3
+
+    def getEmissionArgs(self, argumentString):
+        area = self.getAreaToClick(argumentString)
+        event = gtk.gdk.Event(gtk.gdk.BUTTON_PRESS)
+        event.x = float(area.x) + float(area.width) / 2
+        event.y = float(area.y) + float(area.height) / 2
+        event.button = 3
+        return [ event ]
+
+    def getAreaToClick(self, *args):
+        return self.widget.get_allocation()
+
+class RowRightClickEvent(RightClickEvent):
+    def __init__(self, name, widget, indexer):
+        RightClickEvent.__init__(self, name, widget)
+        self.indexer = indexer
+        
     def _outputForScript(self, event, *args):
         pathInfo = self.widget.get_path_at_pos(int(event.x), int(event.y))
-        return self._outputForScriptFromPath(pathInfo[0])
-    def getGenerationArguments(self, argumentString):
+        return self.name + " " + self.indexer.path2string(pathInfo[0])
+
+    def getAreaToClick(self, argumentString):
         path = self.indexer.string2path(argumentString)
-        cell_area = self.widget.get_cell_area(path, self.widget.get_column(0))
-        event = gtk.gdk.Event(gtk.gdk.BUTTON_PRESS)
-        event.x = float(cell_area.x) + float(cell_area.width) / 2
-        event.y = float(cell_area.y) + float(cell_area.height) / 2
-        event.button = 3
-        return [ self.getRecordSignal(), event ]
+        return self.widget.get_cell_area(path, self.widget.get_column(0))
         
 # Remember: self.widget is not really a widget here,
 # since gtk.CellRenderer is not a gtk.Widget.
@@ -887,11 +899,14 @@ class ScriptEngine(usecase.ScriptEngine):
             stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer)
             self._addEventToScripts(stateChangeEvent)
 
-    def monitorRightClicks(self, eventName, treeView, keyColumn=0, guaranteeUnique=False):
+    def monitorRightClicks(self, eventName, widget, **kwargs):
         if self.active():
             stdName = self.standardName(eventName)
-            indexer = self.getTreeViewIndexer(treeView, keyColumn, guaranteeUnique)
-            rightClickEvent = RowRightClickEvent(stdName, treeView, indexer)
+            if isinstance(widget, gtk.TreeView):
+                indexer = self.getTreeViewIndexer(widget, **kwargs)
+                rightClickEvent = RowRightClickEvent(stdName, widget, indexer)
+            else:
+                rightClickEvent = RightClickEvent(stdName, widget)
             self._addEventToScripts(rightClickEvent)
     
     def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0, guaranteeUnique=False):
