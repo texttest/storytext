@@ -189,11 +189,36 @@ class Describer:
                 texts.append("'" + renderer.get_property("text") + "'")
         return " , ".join(texts)
 
+    def getCheckButtonDescription(self, button):
+        idleScheduler.monitor(button, [ "toggled" ], "Toggled ")
+        text = ""
+        if self.prefix != "Showing ":
+            text += self.prefix
+        if isinstance(button, gtk.RadioButton):
+            text += "Radio"
+        else:
+            text += "Check"
+        text += " button '" + button.get_label() + "'" + self.getActivePostfix(button)
+        return text
+
+    def getActivePostfix(self, widget):
+        if widget.get_active():
+            return " (checked)"
+        else:
+            return ""
+
+    def getCheckDescription(self, checkWidget, basicDesc, toggleDesc):
+        text = ""
+        if self.prefix != "Showing ":
+            text += "\n" + self.prefix + " "
+        idleScheduler.monitor(checkWidget, [ "toggled" ], toggleDesc)
+        return text + basicDesc + self.getActivePostfix(checkWidget)
+
     def getCheckMenuItemDescription(self, menuitem):
-        return self.getMenuItemDescription(menuitem) + self.getActivePostfix(menuitem)
+        return self.getCheckDescription(menuitem, self.getMenuItemDescription(menuitem), "Toggled Menu Item")
 
     def getToggleToolButtonDescription(self, toolitem):
-        return self.getToolButtonDescription(toolitem) + self.getActivePostfix(toolitem)
+        return self.getCheckDescription(toolitem, self.getToolButtonDescription(toolitem), "Toggled Toolbar Item")
         
     def getMenuItemDescription(self, menuitem):
         text = " " * self.indent + self.getBasicDescription(menuitem.get_child())
@@ -349,24 +374,6 @@ class Describer:
         describer = self.cachedDescribers.setdefault(view, TreeViewDescriber(view))
         return describer.getDescription(self.prefix)
                     
-    def getCheckButtonDescription(self, button):
-        idleScheduler.monitor(button, [ "toggled" ], "Toggled ")
-        text = ""
-        if self.prefix != "Showing ":
-            text += self.prefix
-        if isinstance(button, gtk.RadioButton):
-            text += "Radio"
-        else:
-            text += "Check"
-        text += " button '" + button.get_label() + "'" + self.getActivePostfix(button)
-        return text
-
-    def getActivePostfix(self, widget):
-        if widget.get_active():
-            return " (checked)"
-        else:
-            return ""
-
     @staticmethod
     def getStockDescription(stock):
         return "Stock image '" + stock + "'"
@@ -421,7 +428,8 @@ class Describer:
         
         return widget.get_name()
 
-    def getWindowTitle(self, widgetType, window):
+    @classmethod
+    def getWindowTitle(cls, widgetType, window):
         if window.get_property("type") == gtk.WINDOW_TOPLEVEL:
             return widgetType + " '" + str(window.get_title()) + "'"
         else:
@@ -688,6 +696,7 @@ class IdleScheduler:
     def __init__(self, universalLogging=False, externalIdleHandler=False):
         self.widgetMapping = {}
         self.allWidgets = []
+        self.visibleWindows = []
         self.universalLogging = universalLogging
         if self.universalLogging and not externalIdleHandler:
             gobject.idle_add(self.describeNewWindows, priority=PRIORITY_PYUSECASE_IDLE)
@@ -725,10 +734,16 @@ class IdleScheduler:
             return widget.get_children()
         else:
             return []
+
+    def windowHidden(self, window, *args):
+        if window in self.visibleWindows:
+            self.visibleWindows.remove(window)
            
     def monitorBasics(self, widget):
         if isinstance(widget, gtk.Window):
             self.allWidgets.append(widget)
+            # When a window is hidden, start again with monitoring
+            widget.connect("hide", self.windowHidden)
             if widget.get_property("type") == gtk.WINDOW_POPUP:
                 return # Popup windows can't change visibility or sensitivity, don't monitor them
         else:
@@ -821,11 +836,9 @@ class IdleScheduler:
     def describeNewWindows(self):
         if self.universalLogging:
             for window in filter(lambda w: w.get_property("visible"), gtk.window_list_toplevels()):
-                if window not in self.allWidgets:
-                    self.allWidgets.append(window)
+                if window not in self.visibleWindows:
+                    self.visibleWindows.append(window)
                     describe(window)
-                elif window.get_property("type") == gtk.WINDOW_POPUP:
-                    describe(window) # Always describe popups if they're visible
         return True
         
     def describeUpdates(self):
