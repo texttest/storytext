@@ -1141,7 +1141,9 @@ class ScriptEngine(usecase.ScriptEngine):
             return DeletionEvent(eventName, widget, method)
         elif signalName == "changed" and isinstance(widget, gtk.Entry):
             return EntryEvent(eventName, widget)
-        if signalName == "response":
+        elif signalName == "switch-page":
+            return NotebookPageChangeEvent(eventName, widget)
+        elif signalName == "response":
             return ResponseEvent(eventName, widget, argumentParseData)
         elif signalName == "row_activated":
             return RowActivationEvent(eventName, widget, self.getIndexerFromParseData(widget, argumentParseData))

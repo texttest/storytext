@@ -131,7 +131,6 @@ class VideoStore:
         notebook = gtk.Notebook()
         notebook.append_page(self.getTextView(), gtk.Label("text info"))
         notebook.append_page(self.getVideoView(), gtk.Label("video view"))
-        self.scriptEngine.monitorNotebook(notebook, "show")
         notebook.show()
         notebook.set_current_page(1)
         return notebook
