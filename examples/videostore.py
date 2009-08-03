@@ -213,7 +213,6 @@ class VideoStore:
         label = gtk.Label(message)
         dialog.vbox.pack_start(label, expand=True, fill=True)
         label.show()
-        self.scriptEngine.monitorSignal("accept videostore error", "response", dialog, gtk.RESPONSE_ACCEPT)
         dialog.connect("response", self.destroyErrorDialogue)
         dialog.show()
     def destroyErrorDialogue(self, dialog, *args):
