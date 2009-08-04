@@ -706,8 +706,8 @@ class IdleScheduler:
     def reset(self):
         self.idleHandler = None
         self.widgetsForDescribe = {}
-        self.disabledWidgets = []
-        self.enabledWidgets = []
+        self.disabledWidgets = set()
+        self.enabledWidgets = set()
         
     def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, titleOnly=False):
         if describeWidget is None:
@@ -768,12 +768,12 @@ class IdleScheduler:
             if desc in self.disabledWidgets:
                 self.disabledWidgets.remove(desc)
             else:
-                self.enabledWidgets.append(desc)
+                self.enabledWidgets.add(desc)
         else:
             if desc in self.enabledWidgets:
                 self.enabledWidgets.remove(desc)
             else:
-                self.disabledWidgets.append(desc)
+                self.disabledWidgets.add(desc)
         self.tryEnableIdleHandler()
     
     def lookupWidget(self, widget, *args):
@@ -826,13 +826,6 @@ class IdleScheduler:
     def sorted(self, widgets):
         return sorted(widgets, lambda x,y: cmp(self.allWidgets.index(x), self.allWidgets.index(y)))        
 
-    def removeDuplicates(self, items):
-        newItems = []
-        for item in items:
-            if item not in newItems:
-                newItems.append(item)
-        return newItems
-
     def describeNewWindows(self):
         if self.universalLogging:
             for window in filter(lambda w: w.get_property("visible"), gtk.window_list_toplevels()):
@@ -845,9 +838,9 @@ class IdleScheduler:
         if len(self.enabledWidgets) or len(self.disabledWidgets):
             Describer.logger.info("")
         if len(self.disabledWidgets):
-            Describer.logger.info("Greyed out : " + ", ".join(self.removeDuplicates(self.disabledWidgets)))
+            Describer.logger.info("Greyed out : " + ", ".join(sorted(self.disabledWidgets)))
         if len(self.enabledWidgets):
-            Describer.logger.info("No longer greyed out : " + ", ".join(self.removeDuplicates(self.enabledWidgets)))
+            Describer.logger.info("No longer greyed out : " + ", ".join(sorted(self.enabledWidgets)))
 
         for widget in self.sorted(self.widgetsForDescribe.keys()):
             prefix, titleOnly = self.widgetsForDescribe.get(widget)
