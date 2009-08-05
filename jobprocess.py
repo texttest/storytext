@@ -71,14 +71,14 @@ class JobProcess:
         return False
 
     def findProcessName(self):
-        pslines = os.popen("ps -l -p " + str(self.pid) + " 2> /dev/null").readlines()
+        pslines = self.getPsLines([ "-l", "-p", str(self.pid) ])
         if len(pslines) > 1:
             return pslines[-1].split()[-1]
         else:
             return "" # process couldn't be found
 
     def findChildProcessIDs(self, pid):
-        outLines = os.popen("ps -efl").readlines()
+        outLines = self.getPsLines([ "-efl" ])
         return self.findChildProcessesInLines(pid, outLines)
 
     def findChildProcessesInLines(self, pid, outLines):
@@ -90,12 +90,15 @@ class JobProcess:
                 processes.append(childPid)
                 processes += self.findChildProcessesInLines(childPid, outLines)
         return processes
-        
+
+    def getPsLines(self, psArgs):
+        proc = subprocess.Popen([ "ps" ] + psArgs, stdout=subprocess.PIPE,
+                                stderr=open(os.devnull, "w"), stdin=open(os.devnull))
+        return proc.communicate()[0].splitlines()
+
     def poll(self):
         try:
-            proc = subprocess.Popen([ "ps", "-p", str(self.pid) ], stdout=subprocess.PIPE,
-                                    stderr=open(os.devnull, "w"), stdin=open(os.devnull))
-            lines = proc.communicate()[0].splitlines()
+            lines = self.getPsLines([ "-p", str(self.pid) ])
             if len(lines) < 2 or lines[-1].strip().endswith("<defunct>"):
                 return "returncode" # should return return code but can't be bothered, don't use it currently
         except (OSError, select.error), detail:
