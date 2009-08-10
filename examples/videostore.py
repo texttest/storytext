@@ -12,22 +12,10 @@
 # Also illustrates an idiom for making sure nothing happens if PyUseCase isn't available.
 
 import gtk, gobject, logging, sys
-try:
-    from gtkusecase import ScriptEngine
-except ImportError:
-    class ScriptEngine:
-        # Calling anything has no effect...
-        def __init__(*args, **kwargs):
-            pass
-        def __getattr__(self, name):
-            return self
-        def __call__(*args, **kwargs):
-            pass
 
 class VideoStore:
     def __init__(self):
         logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-        self.scriptEngine = ScriptEngine(enableShortcuts=True, useUiMap=True)
         self.model = gtk.ListStore(gobject.TYPE_STRING)
         self.nameEntry = gtk.Entry()
         self.nameEntry.set_name("Movie Name")
@@ -47,10 +35,14 @@ class VideoStore:
         vbox.pack_start(self.getMenuBar(), expand=False, fill=False)
         vbox.pack_start(self.getTaskBar(), expand=False, fill=False)
         vbox.pack_start(self.getNotebook(), expand=True, fill=True)
-        shortcutBar = self.scriptEngine.createShortcutBar()
-        if shortcutBar:
-            vbox.pack_start(shortcutBar, expand=False, fill=False)
-            shortcutBar.show()
+        try:
+            from gtkusecase import createShortcutBar
+            shortcutBar = createShortcutBar()
+            if shortcutBar:
+                vbox.pack_start(shortcutBar, expand=False, fill=False)
+                shortcutBar.show()
+        except ImportError:
+            pass
         vbox.show()
         return vbox
     def getMenuBar(self):

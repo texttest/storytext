@@ -69,6 +69,11 @@ from ConfigParser import ConfigParser
 PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
 version = usecase.version
 
+# Useful to have at module level as can't really be done externally
+def createShortcutBar():
+    if usecase.scriptEngine:
+        return usecase.scriptEngine.createShortcutBar()
+
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
     def __init__(self, name, widget):
@@ -898,7 +903,7 @@ class ScriptEngine(usecase.ScriptEngine):
         self.uiMap = None
         if useUiMap:
             self.uiMap = UIMap(self)
-        usecase.ScriptEngine.__init__(self, enableShortcuts)
+        usecase.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
         self.commandButtons = []
         self.fileChooserInfo = []
         self.dialogsBlocked = []
@@ -1147,8 +1152,8 @@ class ScriptEngine(usecase.ScriptEngine):
         return os.path.join(usecaseDir, "new_shortcut")
     def getShortcutFileName(self, buttonName):
         return os.path.join(os.environ["USECASE_HOME"], buttonName.replace(" ", "_") + ".shortcut")
-    def createReplayer(self):
-        return UseCaseReplayer(self.uiMap)
+    def createReplayer(self, universalLogging=False):
+        return UseCaseReplayer(self.uiMap, universalLogging)
     def showShortcutButtons(self, event):
         for replayScript, button in self.commandButtons:
             if replayScript.commands[0].startswith(event.name):
@@ -1187,10 +1192,10 @@ class ScriptEngine(usecase.ScriptEngine):
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
-    def __init__(self, uiMap):
+    def __init__(self, uiMap, universalLogging):
         self.readingEnabled = False
         self.uiMap = uiMap
-        self.loggerActive = gtklogger.isEnabled()
+        self.loggerActive = universalLogging
         self.tryAddDescribeHandler()
         usecase.UseCaseReplayer.__init__(self)
 

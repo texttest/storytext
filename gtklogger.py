@@ -31,10 +31,9 @@ def scheduleDescribe(widget):
         idleScheduler.scheduleDescribe(widget)
 
 def setMonitoring(*args):
-    if isEnabled():
-        global idleScheduler
-        if not idleScheduler:
-            idleScheduler = IdleScheduler(*args)
+    global idleScheduler
+    if not idleScheduler:
+        idleScheduler = IdleScheduler(*args)
 
 def describeNewWindows(*args):
     return idleScheduler.describeNewWindows(*args)
@@ -832,7 +831,7 @@ class IdleScheduler:
                 if window not in self.visibleWindows:
                     self.visibleWindows.append(window)
                     describe(window)
-        return True
+        return Describer.isEnabled()
         
     def describeUpdates(self):
         if len(self.enabledWidgets) or len(self.disabledWidgets):

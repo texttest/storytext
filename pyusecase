@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+
+### Command-line version of PyUseCase
+# Now the instrumentation is less necessary this can
+# just be used to run programs directly
+
+# Usage pyusecase [ -r <record_file> ] [ -p <playback_file> ] <program>
+from optparse import OptionParser
+import usecase, os, imp, sys
+
+try:
+    # In Py 2.x, the builtins were in __builtin__
+    BUILTINS = sys.modules['__builtin__']
+except KeyError:
+    # In Py 3.x, they're in builtins
+    BUILTINS = sys.modules['builtins']
+
+
+def run_python_file(filename, args):
+    """Run a python file as if it were the main program on the command line.
+    
+    `filename` is the path to the file to execute, it need not be a .py file.
+    `args` is the argument array to present as sys.argv, including the first
+    element representing the file being executed.
+
+    Lifted straight from coverage.py by Ned Batchelder
+    
+    """
+    # Create a module to serve as __main__
+    old_main_mod = sys.modules['__main__']
+    main_mod = imp.new_module('__main__')
+    sys.modules['__main__'] = main_mod
+    main_mod.__file__ = filename
+    main_mod.__builtins__ = BUILTINS
+
+    # Set sys.argv and the first path element properly.
+    old_argv = sys.argv
+    old_path0 = sys.path[0]
+    sys.argv = args
+    sys.path[0] = os.path.dirname(filename)
+
+    try:
+        source = open(filename, 'rU').read()
+        exec compile(source, filename, "exec") in main_mod.__dict__
+    finally:
+        # Restore the old __main__
+        sys.modules['__main__'] = old_main_mod
+        
+        # Restore the old argv and path
+        sys.argv = old_argv
+        sys.path[0] = old_path0
+
+
+if __name__ == "__main__":
+    usage = "usage: %prog [options] <program> <program_args> ..."
+    parser = OptionParser(usage, version="%prog " + usecase.version)
+    parser.disable_interspersed_args() # don't try to parse the application's args
+    parser.add_option("-r", "--record", 
+                      help="record script to FILE", metavar="FILE")
+    parser.add_option("-p", "--replay", 
+                      help="replay script from FILE", metavar="FILE")
+    parser.add_option("-i", "--interface", metavar="INTERFACE",
+                      help="type of interface used by application, should be 'console' or 'gtk' ('gtk' is default)", 
+                      default="gtk")
+    parser.add_option("-d", "--delay", metavar="SECONDS", 
+                      help="amount of time to wait between each action when replaying")
+
+    options, args = parser.parse_args()
+    if options.record:
+        os.environ["USECASE_RECORD_SCRIPT"] = options.record
+    if options.replay:
+        os.environ["USECASE_REPLAY_SCRIPT"] = options.replay
+    if options.delay:
+        os.environ["USECASE_REPLAY_DELAY"] = options.delay
+
+    if options.interface == "gtk":
+        import gtkusecase
+        usecase.scriptEngine = gtkusecase.ScriptEngine(enableShortcuts=True, useUiMap=True)
+    else:
+        usecase.scriptEngine = usecase.ScriptEngine(enableShortcuts=True)
+
+    run_python_file(args[0], args)

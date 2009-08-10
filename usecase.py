@@ -83,6 +83,9 @@ signalCommandName = "receive signal"
 terminateCommandName = "terminate process that"
 fileEditCommandName = "make changes to file"
 
+# Used by the command-line interface to store the instance it creates
+scriptEngine = None
+
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
     pass
@@ -115,12 +118,12 @@ class UserEvent:
 
 # Behaves as a singleton...
 class ScriptEngine:
-    def __init__(self, enableShortcuts = 0):
+    def __init__(self, enableShortcuts=False, **kwargs):
         if not os.environ.has_key("USECASE_HOME"):
             os.environ["USECASE_HOME"] = os.path.expanduser("~/usecases")
         else:
             os.environ["USECASE_HOME"] = os.path.abspath(os.environ["USECASE_HOME"])
-        self.replayer = self.createReplayer()
+        self.replayer = self.createReplayer(**kwargs)
         self.recorder = UseCaseRecorder()
         self.enableShortcuts = enableShortcuts
         self.stdinScript = None
@@ -133,7 +136,7 @@ class ScriptEngine:
         return self.enableShortcuts or self.replayer.isActive()
     def active(self):
         return self.replayerActive() or self.recorderActive()
-    def createReplayer(self):
+    def createReplayer(self, **kwargs):
         return UseCaseReplayer()
     def applicationEvent(self, name, category=None, supercedeCategory=None, timeDelay=0):
         if self.recorderActive():
