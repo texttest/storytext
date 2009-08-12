@@ -74,9 +74,10 @@ def createShortcutBar():
     if usecase.scriptEngine:
         return usecase.scriptEngine.createShortcutBar()
 
+
 # Abstract Base class for all GTK events
 class GtkEvent(usecase.UserEvent):
-    def __init__(self, name, widget):
+    def __init__(self, name, widget, *args):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
         self.programmaticChange = False
@@ -107,8 +108,11 @@ class GtkEvent(usecase.UserEvent):
         return []
     def setProgrammaticChange(self, val, *args, **kwargs):
         self.programmaticChange = val
+    @classmethod
+    def getAssociatedSignal(cls):
+        return cls.signalName
     def getRecordSignal(self):
-        pass
+        return self.signalName
     def getUiMapSignature(self):
         return self.getRecordSignal()
     def connectRecord(self, method):
@@ -139,9 +143,17 @@ class GtkEvent(usecase.UserEvent):
         
 # Generic class for all GTK events due to widget signals. Many won't be able to use this, however
 class SignalEvent(GtkEvent):
-    def __init__(self, name, widget, signalName):
+    def __init__(self, name, widget, signalName=None):
         GtkEvent.__init__(self, name, widget)
-        self.signalName = signalName
+        if signalName:
+            self.signalName = signalName
+        # else we assume it's defined at the class level
+    @classmethod
+    def getAssociatedSignal(cls):
+        if hasattr(cls, "signalName"):
+            return cls.signalName
+        else:
+            return "<any signal>"
     def getRecordSignal(self):
         return self.signalName
     def getChangeMethod(self):
@@ -150,6 +162,7 @@ class SignalEvent(GtkEvent):
         return [ self.signalName ] + self.getEmissionArgs(argumentString)
     def getEmissionArgs(self, argumentString):
         return []
+
 
 class MethodIntercept:
     def __init__(self, method, event):
@@ -170,8 +183,7 @@ class MethodIntercept:
 # Some widgets have state. We note every change but allow consecutive changes to
 # overwrite each other. 
 class StateChangeEvent(GtkEvent):
-    def getRecordSignal(self):
-        return "changed"
+    signalName = "changed"
     def isStateChange(self):
         return True
     def shouldRecord(self, *args):
@@ -192,8 +204,9 @@ class EntryEvent(StateChangeEvent):
         return self.widget.set_text
 
 class PaneDragEvent(StateChangeEvent):
-    def __init__(self, name, widget):
-        StateChangeEvent.__init__(self, name, widget)
+    signalName = "notify::position"
+    def __init__(self, name, widget, *args):
+        StateChangeEvent.__init__(self, name, widget, *args)
         widget.connect("notify::max-position", self.changeMaxMin)
         widget.connect("notify::min-position", self.changeMaxMin)
         self.prevState = ""
@@ -219,8 +232,6 @@ class PaneDragEvent(StateChangeEvent):
             return True
         else:
             return False
-    def getRecordSignal(self):
-        return "notify::position"
     def totalSpace(self):
         return self.widget.get_property("max-position") - self.widget.get_property("min-position")
     def getStatePercentage(self):
@@ -236,11 +247,10 @@ class PaneDragEvent(StateChangeEvent):
         return self.widget.set_position
     
 class ActivateEvent(StateChangeEvent):
+    signalName = "toggled"
     def __init__(self, name, widget, relevantState):
         StateChangeEvent.__init__(self, name, widget)
         self.relevantState = relevantState
-    def getRecordSignal(self):
-        return "toggled"
     def eventIsRelevant(self):
         return self.widget.get_active() == self.relevantState
     def _outputForScript(self, *args):
@@ -253,10 +263,9 @@ class ActivateEvent(StateChangeEvent):
         return [ self.widget.toggled ]
 
 class NotebookPageChangeEvent(StateChangeEvent):
+    signalName = "switch-page"
     def getChangeMethod(self):
         return self.widget.set_current_page
-    def getRecordSignal(self):
-        return "switch-page"
     def eventIsRelevant(self):
         # Don't record if there aren't any pages
         return self.widget.get_current_page() != -1
@@ -284,27 +293,24 @@ class TreeViewEvent(GtkEvent):
         return []
    
 class RowExpandEvent(TreeViewEvent):
+    signalName = "row-expanded"
     def getChangeMethod(self):
         return self.widget.expand_row
     def getProgrammaticChangeMethods(self):
         return [ self.widget.expand_to_path, self.widget.expand_all ]
-    def getRecordSignal(self):
-        return "row-expanded"
     def getTreeViewArgs(self):
         # don't open all subtree parts
         return [ False ]
 
 class RowCollapseEvent(TreeViewEvent):
+    signalName = "row-collapsed"
     def getChangeMethod(self):
         return self.widget.collapse_row
-    def getRecordSignal(self):
-        return "row-collapsed"
 
 class RowActivationEvent(TreeViewEvent):
+    signalName = "row-activated"
     def getChangeMethod(self):
         return self.widget.row_activated
-    def getRecordSignal(self):
-        return "row-activated"
     def _outputForScript(self, path, *args):
         return self._outputForScriptFromPath(path)
     def generate(self, argumentString):
@@ -320,9 +326,7 @@ class RowActivationEvent(TreeViewEvent):
         return self.widget.get_selection() is prevEvent.widget
 
 class RightClickEvent(SignalEvent):
-    def __init__(self, name, widget):
-        SignalEvent.__init__(self, name, widget, "button_press_event")
-
+    signalName = "button_press_event"
     def shouldRecord(self, widget, event, *args):
         return SignalEvent.shouldRecord(self, widget, event, *args) and event.button == 3
 
@@ -353,10 +357,9 @@ class RowRightClickEvent(RightClickEvent):
 # Remember: self.widget is not really a widget here,
 # since gtk.CellRenderer is not a gtk.Widget.
 class CellToggleEvent(TreeViewEvent):
+    signalName = "toggled"
     def getChangeMethod(self):
         return self.widget.emit
-    def getRecordSignal(self):
-        return "toggled"
     def _outputForScript(self, path, *args):
         return self.name + " " + self.indexer.path2string(path)
     def getGenerationArguments(self, argumentString):
@@ -376,6 +379,7 @@ class CellToggleEvent(TreeViewEvent):
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
 # Seems quite capable of generating too many of them also
 class FileChooserFolderChangeEvent(StateChangeEvent):
+    signalName = "current-folder-changed"
     def __init__(self, name, widget):
         self.currentFolder = widget.get_current_folder()
         StateChangeEvent.__init__(self, name, widget)
@@ -392,8 +396,6 @@ class FileChooserFolderChangeEvent(StateChangeEvent):
         return ret
     def getProgrammaticChangeMethods(self):
         return [ self.widget.set_filename ]
-    def getRecordSignal(self):
-        return "current-folder-changed"
     def getChangeMethod(self):
         return self.widget.set_current_folder
     def getStateDescription(self, *args):
@@ -431,8 +433,7 @@ class FileChooserFileEvent(StateChangeEvent):
         return os.path.join(self.fileChooser.get_current_folder(), argumentString)
     
 class FileChooserFileSelectEvent(FileChooserFileEvent):
-    def getRecordSignal(self):
-        return "selection-changed"
+    signalName = "selection-changed"
     def getChangeMethod(self):
         return self.fileChooser.select_filename
     def getProgrammaticChangeMethods(self):
@@ -449,8 +450,7 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
             return False
 
 class FileChooserEntryEvent(FileChooserFileEvent):
-    def getRecordSignal(self):
-        return "clicked"
+    signalName = "clicked"
     def getChangeMethod(self):
         return self.fileChooser.set_current_name                                    
                                     
@@ -562,8 +562,9 @@ class TreeSelectionEvent(StateChangeEvent):
                          
     
 class ResponseEvent(SignalEvent):
+    signalName = "response"
     def __init__(self, name, widget, responseId):
-        SignalEvent.__init__(self, name, widget, "response")
+        SignalEvent.__init__(self, name, widget)
         self.responseId = self.parseId(responseId)
     def shouldRecord(self, widget, responseId, *args):
         return self.responseId == responseId
@@ -581,8 +582,7 @@ class ResponseEvent(SignalEvent):
             return responseId
 
 class DeletionEvent(SignalEvent):
-    def __init__(self, name, widget):
-        SignalEvent.__init__(self, name, widget, "delete-event")
+    signalName = "delete-event"
     def getEmissionArgs(self, argumentString):
         return [ gtk.gdk.Event(gtk.gdk.DELETE) ]
             
@@ -899,6 +899,16 @@ class UIMap:
 
 
 class ScriptEngine(usecase.ScriptEngine):
+    eventTypes = {
+        gtk.Button   : [ SignalEvent ],
+        gtk.MenuItem : [ SignalEvent ],
+        gtk.Entry    : [ EntryEvent ],
+        gtk.Dialog   : [ ResponseEvent ],
+        gtk.Window   : [ DeletionEvent ],
+        gtk.Notebook : [ NotebookPageChangeEvent ],
+        gtk.TreeView : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
+                         RowCollapseEvent, RowRightClickEvent ]
+}
     def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
         self.uiMap = None
         if useUiMap:
@@ -1170,19 +1180,22 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.recorderActive():
             event.connectRecord(self.recorder.writeEvent)
 
+    def findEventClassesFor(self, widget):
+        eventClasses = []
+        for widgetClass, currEventClasses in self.eventTypes.items():
+            if isinstance(widget, widgetClass):
+                eventClasses += currEventClasses
+        return eventClasses
+
     def _createSignalEvent(self, eventName, signalName, widget, argumentParseData):
-        if signalName.startswith("delete"):
-            return DeletionEvent(eventName, widget)
-        elif signalName == "changed" and isinstance(widget, gtk.Entry):
-            return EntryEvent(eventName, widget)
-        elif signalName == "switch-page":
-            return NotebookPageChangeEvent(eventName, widget)
-        elif signalName == "response":
-            return ResponseEvent(eventName, widget, argumentParseData)
-        elif signalName == "row_activated":
+        stdSignalName = signalName.replace("_", "-")
+        if stdSignalName == "row-activated":
             return RowActivationEvent(eventName, widget, self.getIndexerFromParseData(widget, argumentParseData))
-        else:
-            return SignalEvent(eventName, widget, signalName)
+        for eventClass in self.findEventClassesFor(widget):
+            if eventClass.getAssociatedSignal() == stdSignalName:
+                return eventClass(eventName, widget, argumentParseData)
+        
+        return SignalEvent(eventName, widget, signalName)
 
     def getIndexerFromParseData(self, widget, argumentParseData):
         if argumentParseData is not None:
