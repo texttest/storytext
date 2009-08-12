@@ -92,9 +92,15 @@ class JobProcess:
         return processes
 
     def getPsLines(self, psArgs):
-        proc = subprocess.Popen([ "ps" ] + psArgs, stdout=subprocess.PIPE,
-                                stderr=open(os.devnull, "w"), stdin=open(os.devnull))
-        return proc.communicate()[0].splitlines()
+        try:
+            proc = subprocess.Popen([ "ps" ] + psArgs, stdout=subprocess.PIPE,
+                                    stderr=open(os.devnull, "w"), stdin=open(os.devnull))
+            return proc.communicate()[0].splitlines()
+        except (IOError, OSError), detail:
+            if "Interrupted system call" in str(detail):
+                return self.getPsLines(psArgs)
+            else:
+                raise
 
     def poll(self):
         try:
