@@ -928,9 +928,10 @@ class ScriptEngine(usecase.ScriptEngine):
         gtk.Entry    : [ EntryEvent ],
         gtk.Dialog   : [ ResponseEvent ],
         gtk.Window   : [ DeletionEvent ],
-        gtk.Notebook : [ NotebookPageChangeEvent ],
-        gtk.TreeView : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
-                         RowCollapseEvent, RowRightClickEvent ]
+        gtk.Notebook : [ NotebookPageChangeEvent ]
+# Causes trouble, leave this out for now...
+#        gtk.TreeView : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
+#                         RowCollapseEvent, RowRightClickEvent ]
 }
     def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
         self.uiMap = None
