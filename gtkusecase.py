@@ -66,6 +66,7 @@ To see this in action, try out the video store example.
 
 import usecase, gtklogger, gtk, gobject, os, re, logging, types
 from ConfigParser import ConfigParser
+from ndict import seqdict
 PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
 version = usecase.version
 
@@ -780,7 +781,14 @@ class UIMap:
         if not os.path.isdir(usecaseDir):
             os.makedirs(usecaseDir)
         self.file = os.path.join(usecaseDir, "ui_map.conf")
-        self.parser = ConfigParser()
+        try:
+            # works in Python 2.6
+            self.parser = ConfigParser(dict_type=seqdict)
+        except TypeError:
+            # hacks for older versions
+            self.parser = ConfigParser()
+            self.parser._sections = seqdict()
+
         self.parser.read([ self.file ])
         self.changed = False
         self.scriptEngine = scriptEngine
