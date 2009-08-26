@@ -909,7 +909,7 @@ class UIMap:
         if self.scriptEngine.recorderActive():
             signalsSupported = self.findSupportedSignals(widget)
             for signalName in signalsSupported.difference(signalsInstrumented):
-                autoEventName = "Auto." + signalName + "." + self.getSectionName(widget)
+                autoEventName = "Auto." + signalName + ".'" + self.getSectionName(widget) + "'"
                 self.autoInstrument(autoEventName, signalName, widget, widget.__class__.__name__)
 
         if hasattr(widget, "get_children"):
