@@ -16,16 +16,16 @@ except KeyError:
     BUILTINS = sys.modules['builtins']
 
 
-def run_python_file(filename, args):
+def run_python_file(args):
     """Run a python file as if it were the main program on the command line.
     
-    `filename` is the path to the file to execute, it need not be a .py file.
     `args` is the argument array to present as sys.argv, including the first
     element representing the file being executed.
 
     Lifted straight from coverage.py by Ned Batchelder
     
     """
+    filename = args[0]
     # Create a module to serve as __main__
     old_main_mod = sys.modules['__main__']
     main_mod = imp.new_module('__main__')
@@ -79,4 +79,4 @@ if __name__ == "__main__":
     else:
         usecase.scriptEngine = usecase.ScriptEngine(enableShortcuts=True)
 
-    run_python_file(args[0], args)
+    run_python_file(args)
