@@ -159,8 +159,7 @@ class ScriptEngine:
         if self.stdinScript:
             self.stdinScript.record(line)
         return line
-    def standardName(self, name):
-        return name.strip().lower()
+    
 
 class ReplayScript:
     def __init__(self, scriptName):
