@@ -432,23 +432,32 @@ class RecordScript:
         self.scriptName = scriptName
         self.fileForAppend = None
         self.shortcutTrackers = []
+    
     def record(self, line):
         self._record(line)
         for tracker in self.shortcutTrackers:
             if tracker.updateCompletes(line):
                 self.rerecord(tracker.getNewCommands())
+    
     def _record(self, line):
         if not self.fileForAppend:
             self.fileForAppend = open(self.scriptName, "w")
         self.fileForAppend.write(line + "\n")
+    
     def registerShortcut(self, shortcut):
         self.shortcutTrackers.append(ShortcutTracker(shortcut))
+    
     def rerecord(self, newCommands):
         self.fileForAppend.close()
         os.remove(self.scriptName)
         self.fileForAppend = None
         for command in newCommands:
             self._record(command)
+    
+    def getRecordedCommands(self):
+        self.fileForAppend.close()
+        return map(string.strip, open(self.scriptName).readlines())
+
 
 class UseCaseRecorder:
     def __init__(self):
@@ -629,4 +638,3 @@ class UseCaseRecorder:
     def registerShortcut(self, replayScript):
         for script in self.scripts:
             script.registerShortcut(replayScript)
-    
