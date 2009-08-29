@@ -66,6 +66,9 @@ if __name__ == "__main__":
                       help="amount of time to wait between each action when replaying")
     parser.add_option("-t", "--test", action="store_true", 
                       help="Used for internal testing: instruments also the interface for entering widget names")
+    parser.add_option("-x", "--disable_usecase_names", action="store_true", 
+                      help="Disable the entering of usecase names when unrecognised actions are recorded")
+
 
     options, args = parser.parse_args()
     if options.record:
@@ -82,5 +85,5 @@ if __name__ == "__main__":
         usecase.scriptEngine = usecase.ScriptEngine(enableShortcuts=True)
 
     run_python_file(args)
-    if options.interface == "gtk":
+    if options.interface == "gtk" and not options.disable_usecase_names:
         usecase.scriptEngine.replaceAutoRecording(options.test)
