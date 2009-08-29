@@ -447,17 +447,26 @@ class RecordScript:
     def registerShortcut(self, shortcut):
         self.shortcutTrackers.append(ShortcutTracker(shortcut))
     
+    def close(self):
+        if self.fileForAppend:
+            self.fileForAppend.close()
+            self.fileForAppend = None
+
     def rerecord(self, newCommands):
-        self.fileForAppend.close()
+        self.close()
         os.remove(self.scriptName)
-        self.fileForAppend = None
         for command in newCommands:
             self._record(command)
     
     def getRecordedCommands(self):
-        self.fileForAppend.close()
+        self.close()
         return map(string.strip, open(self.scriptName).readlines())
 
+    def rename(self, newName):
+        self.close()
+        os.rename(self.scriptName, newName)
+        self.scriptName = newName
+        
 
 class UseCaseRecorder:
     def __init__(self):
@@ -465,6 +474,7 @@ class UseCaseRecorder:
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
         self.scripts = []
+        self.terminatedScripts = []
         self.processId = os.getpid()
         self.applicationEvents = seqdict()
         self.supercededAppEventCategories = {}
@@ -512,12 +522,22 @@ class UseCaseRecorder:
         for signum, handler in self.realSignalHandlers.items():
             self.origSignal(signum, handler)
         self.realSignalHandlers = {}
+
     def blockTopLevel(self, eventName):
         self.eventsBlockedTopLevel.append(eventName)
+
+    def allKnownScripts(self):
+        return self.scripts + self.terminatedScripts
+
     def terminateScript(self):
-        del self.scripts[-1]
+        script = self.scripts.pop()
+        if script.fileForAppend: # No point remembering empty scripts
+            self.terminatedScripts.append(script)
         if len(self.scripts) == 0:
             self.removeSignalHandlers()
+        if script.fileForAppend:
+            return script
+
     def readTranslationFile(self):
         fileName = os.path.join(os.environ["USECASE_HOME"], "usecase_translation")
         configParser = ConfigParser()
