@@ -456,7 +456,7 @@ class TextViewDescriber:
 
     def getDescription(self):
         header = "=" * 10 + " " + self.name + " " + "=" * 10        
-        return "\n" + header + "\n" + self.getContents().strip() + "\n" + "=" * len(header)
+        return "\n" + header + "\n" + self.getContents().rstrip() + "\n" + "=" * len(header)
 
     def getContents(self):
         unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter())
