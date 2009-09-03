@@ -435,8 +435,14 @@ class Describer:
             return "Popup Window"
         
     def describeWindow(self, window):
+        updateDesc = "Changing title for"
         widgetType = window.__class__.__name__.capitalize()
-        message = "-" * 10 + " " + self.getWindowTitle(widgetType, window) + " " + "-" * 10
+        title = self.getWindowTitle(widgetType, window)
+        if self.prefix == updateDesc:
+            return self.logger.info("\n" + self.prefix + " " + title)
+
+        idleScheduler.monitor(window, [ "notify::title" ], updateDesc, titleOnly=True)
+        message = "-" * 10 + " " + title + " " + "-" * 10
         self.logger.info("\n" + message)
         if window.default_widget:
             self.logger.info("Default widget is '" + self.getBriefDescription(window.default_widget) + "'")
