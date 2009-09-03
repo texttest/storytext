@@ -86,4 +86,4 @@ if __name__ == "__main__":
 
     run_python_file(args)
     if options.interface == "gtk" and not options.disable_usecase_names:
-        usecase.scriptEngine.replaceAutoRecording(options.test)
+        usecase.scriptEngine.replaceAutoRecordingForUseCase(options.test)

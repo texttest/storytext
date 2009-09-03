@@ -474,7 +474,6 @@ class UseCaseRecorder:
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
         self.scripts = []
-        self.terminatedScripts = []
         self.processId = os.getpid()
         self.applicationEvents = seqdict()
         self.supercededAppEventCategories = {}
@@ -526,13 +525,8 @@ class UseCaseRecorder:
     def blockTopLevel(self, eventName):
         self.eventsBlockedTopLevel.append(eventName)
 
-    def allKnownScripts(self):
-        return self.scripts + self.terminatedScripts
-
     def terminateScript(self):
         script = self.scripts.pop()
-        if script.fileForAppend: # No point remembering empty scripts
-            self.terminatedScripts.append(script)
         if len(self.scripts) == 0:
             self.removeSignalHandlers()
         if script.fileForAppend:
