@@ -1190,7 +1190,7 @@ class ScriptEngine(usecase.ScriptEngine):
             recordScriptName = self.addPrefix(os.getenv("USECASE_RECORD_SCRIPT"))
             if recordScriptName:
                 self.recorder.addScript(recordScriptName)
-        else:
+        else: # pragma: no cover - results in a non-replaying UI and hence cannot be tested
             guiLogger = logging.getLogger("gui log")
             # This basically disables it
             guiLogger.setLevel(logging.WARNING)
