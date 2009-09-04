@@ -138,15 +138,19 @@ class ScriptEngine:
         return self.replayerActive() or self.recorderActive()
     def createReplayer(self, **kwargs):
         return UseCaseReplayer()
-    def applicationEvent(self, name, category=None, supercedeCategory=None, timeDelay=0):
+    def applicationEvent(self, name, category=None, supercedeCategories=[], timeDelay=0):
         if self.recorderActive():
-            self.recorder.registerApplicationEvent(name, category, supercedeCategory)
+            self.recorder.registerApplicationEvent(name, category, supercedeCategories)
         if self.replayerActive():
             self.replayer.registerApplicationEvent(name, timeDelay)
-    def applicationEventRename(self, *args):
-        # We don't care in the recorder, the name we recorded is still valid
+            
+    def applicationEventRename(self, oldName, newName, oldCategory=None, newCategory=None):
+        # May need to recategorise in the recorder
+        if self.recorderActive() and oldCategory != newCategory:
+            self.recorder.applicationEventRename(oldName, newName, oldCategory, newCategory)
         if self.replayerActive():
-            self.replayer.applicationEventRename(*args)
+            self.replayer.applicationEventRename(oldName, newName)
+
     def monitorProcess(self, name, process, filesEditing = []):
         if self.recorderActive():
             self.recorder.monitorProcess(name, process, filesEditing)
@@ -252,6 +256,7 @@ class UseCaseReplayer:
 
     def registerApplicationEvent(self, eventName, timeDelay = 0):
         self.applicationEventNames.append(eventName)
+        self.logger.debug("Replayer got application event " + repr(eventName))
         self.timeDelayNextCommand = timeDelay
         if self.waitingCompleted():
             if self.replayThread:
@@ -261,11 +266,14 @@ class UseCaseReplayer:
             self.enableReading()
             
     def applicationEventRename(self, oldName, newName):
-        toRename = filter(lambda eventName: eventName.find(oldName) != -1 and eventName.find(newName) == -1,
+        toRename = filter(lambda eventName: oldName in eventName and newName not in eventName,
                           self.applicationEventNames)
+        self.logger.debug("Renaming events " + repr(oldName) + " to " + repr(newName))
         for eventName in toRename:
+            self.applicationEventNames.remove(eventName)
             newEventName = eventName.replace(oldName, newName)
             self.registerApplicationEvent(newEventName)
+        self.logger.debug("Finished renaming")
 
     def waitingCompleted(self):
         if len(self.waitingForEvents) == 0:
@@ -629,13 +637,16 @@ class UseCaseRecorder:
         for arg in args:
             if isinstance(arg, UserEvent):
                 return arg
-    def registerApplicationEvent(self, eventName, category, supercedeCategory):
+            
+    def registerApplicationEvent(self, eventName, category, supercedeCategories=[]):
         if category:
             self.applicationEvents[category] = eventName
+            self.logger.debug("Got application event '" + eventName + "' in category " + repr(category))
             for supercededCategory in self.supercededAppEventCategories.get(category, []):
                 if supercededCategory in self.applicationEvents:
+                    self.logger.debug("Superceded and discarded application event " + self.applicationEvents[supercededCategory])
                     del self.applicationEvents[supercededCategory]
-            if supercedeCategory:
+            for supercedeCategory in supercedeCategories:
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
         else:
             # Non-categorised event makes all previous ones irrelevant
@@ -643,6 +654,20 @@ class UseCaseRecorder:
             self.supercededAppEventCategories = {}
             self.applicationEvents["gtkscript_DEFAULT"] = eventName
 
+    def applicationEventRename(self, oldName, newName, oldCategory, newCategory):
+        for categoryName, oldEventName in self.applicationEvents.items():
+            if oldCategory in categoryName:
+                newCategoryName = categoryName.replace(oldCategory, newCategory)
+                del self.applicationEvents[categoryName]
+                newEventName = oldEventName.replace(oldName, newName)
+                self.registerApplicationEvent(newEventName, newCategory)
+        
+        for supercedeCategory, categories in self.supercededAppEventCategories.items():
+            if oldCategory in categories:
+                categories.remove(oldCategory)
+                categories.add(newCategory)
+                self.logger.debug("Swapping for " + repr(supercedeCategory) + ": " + repr(oldCategory) + " -> " + repr(newCategory))
+            
     def writeApplicationEventDetails(self):
         if len(self.applicationEvents) > 0:
             eventString = ", ".join(sorted(self.applicationEvents.values()))
