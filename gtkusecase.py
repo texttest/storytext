@@ -103,8 +103,6 @@ class GtkEvent(usecase.UserEvent):
             return method.method
         else:
             return method
-    def getChangeMethod(self):
-        pass
     def getProgrammaticChangeMethods(self):
         return []
     def setProgrammaticChange(self, val, *args, **kwargs):
@@ -124,21 +122,15 @@ class GtkEvent(usecase.UserEvent):
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
     def shouldRecord(self, *args):
-        return not self.programmaticChange and self.getProperty("visible")
+        return not self.programmaticChange and self.widget.get_property("visible")
     def _outputForScript(self, *args):
         return self.name
-    def getProperty(self, property):
-        try:
-            return self.widget.get_property(property)
-        except TypeError:
-            # Some widgets don't support this in PyGTK 2.4. Should remove this when we have at least 2.6
-            return True
     def generate(self, argumentString):        
-        if not self.getProperty("visible"):
+        if not self.widget.get_property("visible"):
             raise usecase.UseCaseScriptError, "widget '" + self.widget.get_name() + \
                   "' is not visible at the moment, cannot simulate event " + repr(self.name)
 
-        if not self.getProperty("sensitive"):
+        if not self.widget.get_property("sensitive"):
             raise usecase.UseCaseScriptError, "widget '" + self.widget.get_name() + \
                   "' is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
 

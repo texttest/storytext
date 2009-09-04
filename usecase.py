@@ -103,11 +103,11 @@ class UseCaseScriptError(RuntimeError):
 class UserEvent:
     def __init__(self, name):
         self.name = name
-    def shouldRecord(self, *args):
+    def shouldRecord(self, *args): # pragma: no cover - just documenting interface
         return True
-    def outputForScript(self, *args):
+    def outputForScript(self, *args): # pragma: no cover - just documenting interface
         return self.name
-    def generate(self, argumentString):
+    def generate(self, argumentString): # pragma: no cover - just documenting interface
         pass
     def isStateChange(self):
         # If this is true, recorder will wait before recording and only record if a different event comes in
