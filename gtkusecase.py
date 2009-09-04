@@ -569,23 +569,39 @@ class TreeSelectionEvent(StateChangeEvent):
     
 class ResponseEvent(SignalEvent):
     signalName = "response"
+    dialogsWithUsecaseNames = set()
     def __init__(self, name, widget, responseId):
         SignalEvent.__init__(self, name, widget)
         self.responseId = self.parseId(responseId)
+        if self.hasUsecaseName():
+            # Dialogs get handled in a special way which leaves them open to duplication...
+            self.dialogsWithUsecaseNames.add(widget)
+    
+    def hasUsecaseName(self):
+        return not self.name.startswith("Auto.")
+
     def shouldRecord(self, widget, responseId, *args):
-        return self.responseId == responseId and SignalEvent.shouldRecord(self, widget, responseId, *args)
+        return self.responseId == responseId and \
+            SignalEvent.shouldRecord(self, widget, responseId, *args) and \
+            (self.hasUsecaseName() or self.widget not in self.dialogsWithUsecaseNames)
+
     @classmethod
     def getAssociatedSignatures(cls, widget):
         names = filter(lambda x: x.startswith("RESPONSE_"), dir(gtk))
         return set((name.lower().replace("_", ".", 1) for name in names))
+
     def getProgrammaticChangeMethods(self):
         return [ self.widget.response ]
+
     def getUiMapSignature(self):
         return self.getRecordSignal() + "." + self.getResponseIdSignature()
+
     def getResponseIdSignature(self):
         return repr(self.responseId).split()[1].split("_")[-1]
+
     def getEmissionArgs(self, argumentString):
         return [ self.responseId ]
+
     def parseId(self, responseId):
         # May have to reverse the procedure in getResponseIdSignature
         if type(responseId) == types.StringType:
@@ -810,6 +826,8 @@ class UIMap:
     def createDialog(self, *args, **kwargs):
         dialog = self.realDialog(*args, **kwargs)
         if self.monitorWindow(dialog):
+            self.logger.debug("Picked up file-monitoring for dialog '" + self.getSectionName(dialog) + 
+                              "', blocking instrumentation")
             self.scriptEngine.blockInstrumentation(dialog)
         return dialog
         
