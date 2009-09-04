@@ -283,7 +283,8 @@ class NotebookPageChangeEvent(StateChangeEvent):
             page = self.widget.get_nth_page(i)
             if self.widget.get_tab_label_text(page) == argumentString:
                 return i
-        raise usecase.UseCaseScriptError, "Could not find page " + argumentString + " in '" + self.name + "'"
+        raise usecase.UseCaseScriptError, "'" + self.name + "' failed : Could not find page '" + \
+            argumentString + "' in the " + self.widget.get_name().replace("Gtk", "") + "." 
 
 class TreeViewEvent(GtkEvent):
     def __init__(self, name, widget, indexer):
