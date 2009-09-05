@@ -12,19 +12,14 @@ The module reads the following environment variables, all of which are set appro
 USECASE_RECORD_SCRIPT
 USECASE_REPLAY_SCRIPT
 USECASE_REPLAY_DELAY
-USECASE_RECORD_STDIN
 
 These will then be capable of
-
-(1) Recording standard input for later replay.
-    - This is acheived by calling scriptEngine.readStdin() instead of sys.stdin.readline()
-    directly. The results are recorded to the script indicated by USECASE_RECORD_STDIN
     
-(2) Record and replaying external signals received by the process
+(1) Record and replaying external signals received by the process
     - If USECASE_RECORD_SCRIPT is defined, they will be recorded there. If USECASE_REPLAY_SCRIPT
     is defined and a signal command read from it, they will be generated.
     
-(3) Recording specified 'application events'
+(2) Recording specified 'application events'
     - These are events that are not caused by the user doing something, generally the
     application enters a certain state. 
 
@@ -41,31 +36,13 @@ These will then be capable of
     only events in the same category will overwrite each other. Events with no category will
     overwrite all events in all categories.
 
-(4) Being extended to be able to deal with GUI events and shortcuts.
+(3) Being extended to be able to deal with GUI events and shortcuts.
     - This is necessarily specific to particular GUI libraries. One such extension is currently
     available for PyGTK (gtkusecase.py)
 
-(5) Being able to pause between replaying replay script events.
+(4) Being able to pause between replaying replay script events.
     - This allows you to see what is happening more easily and is controlled by the environment
     variable USECASE_REPLAY_DELAY.
-
-(6) Monitoring and killing external processes started by the system under test
-    - This is achieved by calling scriptEngine.monitorProcess, passing the process and a name to refer
-    to it. The process should be an object with the methods hasTerminated and killAll provided. An example
-    class for child processes on UNIX is provided below (UnixChildProcess). Note that the code does not
-    actually use this class but only the interface it fulfils.
-
-    In record mode, PyUseCase will then check before recording anything else whether the process is still
-    running (according to hasTerminated), if it is not, it will record "terminate process that" followed
-    by the description passed to monitorProcess. On reading such a command in replay mode, naturally,
-    it will call the killAll() method.
-
-(7) Simulating file edits made by such external programs as monitored in (6)
-    - By providing a list of files that may be edited by the program in the third argument of monitorProcess,
-    you can ensure a check is made to see if they are updated when the program is closed. If they are and you
-    are in record mode, a "make changes to file" statement is recorded along with the file name. The new contents
-    of the file are then stored in a directory called 'file_edits' relative to where the script is being recorded.
-    In replay mode this will cause the actual file to be overwritten with the contents of the one in file_edits.
 """
 
 import os, string, sys, signal, time, stat, logging
@@ -73,15 +50,13 @@ from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
-from jobprocess import JobProcess, killSubProcessAndChildren
+from jobprocess import JobProcess
 
 version = "trunk"
 
 # Hard coded commands
 waitCommandName = "wait for"
 signalCommandName = "receive signal"
-terminateCommandName = "terminate process that"
-fileEditCommandName = "make changes to file"
 
 # Used by the command-line interface to store the instance it creates
 scriptEngine = None
@@ -123,21 +98,22 @@ class ScriptEngine:
             os.environ["USECASE_HOME"] = os.path.expanduser("~/usecases")
         else:
             os.environ["USECASE_HOME"] = os.path.abspath(os.environ["USECASE_HOME"])
-        self.replayer = self.createReplayer(**kwargs)
         self.recorder = UseCaseRecorder()
+        self.replayer = self.createReplayer(**kwargs)
         self.enableShortcuts = enableShortcuts
-        self.stdinScript = None
-        stdinScriptName = os.getenv("USECASE_RECORD_STDIN")
-        if stdinScriptName:
-            self.stdinScript = RecordScript(stdinScriptName)
+
     def recorderActive(self):
         return self.enableShortcuts or len(self.recorder.scripts) > 0
+
     def replayerActive(self):
         return self.enableShortcuts or self.replayer.isActive()
+
     def active(self):
         return self.replayerActive() or self.recorderActive()
+
     def createReplayer(self, **kwargs):
         return UseCaseReplayer()
+
     def applicationEvent(self, name, category=None, supercedeCategories=[], timeDelay=0):
         if self.recorderActive():
             self.recorder.registerApplicationEvent(name, category, supercedeCategories)
@@ -150,19 +126,6 @@ class ScriptEngine:
             self.recorder.applicationEventRename(oldName, newName, oldCategory, newCategory)
         if self.replayerActive():
             self.replayer.applicationEventRename(oldName, newName)
-
-    def monitorProcess(self, name, process, filesEditing = []):
-        if self.recorderActive():
-            self.recorder.monitorProcess(name, process, filesEditing)
-        if self.replayerActive():
-            for file in filesEditing:
-                self.replayer.registerEditableFile(file)
-            self.replayer.monitorProcess(name, process)
-    def readStdin(self):
-        line = sys.stdin.readline().strip()
-        if self.stdinScript:
-            self.stdinScript.record(line)
-        return line
     
 
 class ReplayScript:
@@ -222,20 +185,18 @@ class UseCaseReplayer:
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
         self.waitingForEvents = []
         self.applicationEventNames = []
-        self.processes = {}
-        self.fileFullPaths = {}
-        self.fileEditDir = None
         self.replayThread = None
         self.timeDelayNextCommand = 0
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if replayScript:
-            replayDir, local = os.path.split(replayScript)
-            self.fileEditDir = os.path.join(replayDir, "file_edits")
             self.addScript(ReplayScript(replayScript))
+    
     def isActive(self):
         return len(self.scripts) > 0
+    
     def addEvent(self, event):
         self.events[event.name] = event
+    
     def addScript(self, script):
         self.scripts.append(script)
         waitCommand = script.getCommand(waitCommandName)
@@ -243,9 +204,6 @@ class UseCaseReplayer:
             self.processWait(self.getArgument(waitCommand, waitCommandName))
         else:
             self.enableReading()
-
-    def registerEditableFile(self, fullPath):
-        self.fileFullPaths[os.path.basename(fullPath)] = fullPath
         
     def enableReading(self):
         # By default, we create a separate thread for background execution
@@ -283,11 +241,10 @@ class UseCaseReplayer:
                 return False
         return True
 
-    def monitorProcess(self, name, process):
-        self.processes[name] = process
     def runCommands(self):
         while self.runNextCommand():
             pass
+
     def getCommands(self):
         nextCommands = self.scripts[-1].getCommands()
         if len(nextCommands) > 0:
@@ -337,11 +294,8 @@ class UseCaseReplayer:
     def processCommand(self, commandName, argumentString):
         if self.delay:
             time.sleep(self.delay)
-        if commandName == fileEditCommandName:
-            return self.processFileEditCommand(argumentString)
-        if commandName == terminateCommandName:
-            return self.processTerminateCommand(argumentString)
-        elif commandName == signalCommandName:
+        
+        if commandName == signalCommandName:
             return self.processSignalCommand(argumentString)
         else:
             event = self.events[commandName]
@@ -356,17 +310,16 @@ class UseCaseReplayer:
             raise UseCaseScriptError, "Could not parse script command '" + scriptCommand + "'"
         argumentString = self.getArgument(scriptCommand, commandName)
         return commandName, argumentString
+
     def getArgument(self, scriptCommand, commandName):
         return scriptCommand.replace(commandName, "").strip()
+
     def findCommandName(self, command):
         if command.startswith(waitCommandName):
             return waitCommandName
         if command.startswith(signalCommandName):
             return signalCommandName
-        if command.startswith(fileEditCommandName):
-            return fileEditCommandName
-        if command.startswith(terminateCommandName):
-            return terminateCommandName
+
         longestEventName = ""
         for eventName in self.events.keys():
             if command.startswith(eventName) and len(eventName) > len(longestEventName):
@@ -385,35 +338,14 @@ class UseCaseReplayer:
                 self.waitingForEvents.append(applicationEventName)
                 allHappened = False
         return allHappened
+
     def processSignalCommand(self, signalArg):
         exec "signalNum = signal." + signalArg
         self.write("")
         self.write("Generating signal " + signalArg)
         JobProcess(os.getpid()).killAll(signalNum) # So we can generate signals for ourselves...
         return True
-    def processFileEditCommand(self, fileName):
-        self.write("")
-        self.write("Making changes to file " + fileName + "...")
-        sourceFile = os.path.join(self.fileEditDir, fileName)
-        if os.path.isfile(sourceFile):
-            if self.fileFullPaths.has_key(fileName):
-                targetFile = self.fileFullPaths[fileName]
-                copyfile(sourceFile, targetFile)
-            else:
-                self.write("ERROR: No file named '" + fileName + "' is being edited, cannot update!")
-        else:
-            self.write("ERROR: Could not find updated version of file " + fileName)
-        return True
-    def processTerminateCommand(self, procName):
-        self.write("")
-        self.write("Terminating process that " + procName + "...")
-        if self.processes.has_key(procName):
-            process = self.processes[procName]
-            killSubProcessAndChildren(process)
-            del self.processes[procName]
-        else:
-            self.write("ERROR: Could not find process that '" + procName + "' to terminate!!")
-        return True
+
 
 class ShortcutTracker:
     def __init__(self, replayScript):
@@ -485,28 +417,28 @@ class UseCaseRecorder:
         self.processId = os.getpid()
         self.applicationEvents = seqdict()
         self.supercededAppEventCategories = {}
-        self.translationParser = self.readTranslationFile()
         self.suspended = 0
         self.realSignalHandlers = {}
         self.origSignal = signal.signal
         self.signalNames = {}
-        self.processes = []
-        self.recordDir = None
         self.stateChangeEventInfo = None
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
-            self.recordDir, local = os.path.split(recordScript)
+
         for entry in dir(signal):
             if entry.startswith("SIG") and not entry.startswith("SIG_"):
                 exec "number = signal." + entry
                 self.signalNames[number] = entry
+
     def notifyExit(self):
         self.suspended = 0
+
     def addScript(self, scriptName):
         self.scripts.append(RecordScript(scriptName))
         if len(self.scripts) == 1:
             self.addSignalHandlers()
+    
     def addSignalHandlers(self):
         signal.signal = self.appRegistersSignal
         for signum in range(signal.NSIG):
@@ -518,6 +450,7 @@ class UseCaseRecorder:
             except:
                 # Various signals aren't really valid here...
                 pass
+    
     def appRegistersSignal(self, signum, handler):
         # Don't want to interfere after a fork, leave child processes to the application to manage...
         if os.getpid() == self.processId:
@@ -540,49 +473,8 @@ class UseCaseRecorder:
         if script.fileForAppend:
             return script
 
-    def readTranslationFile(self):
-        fileName = os.path.join(os.environ["USECASE_HOME"], "usecase_translation")
-        configParser = ConfigParser()
-        if os.path.isfile(fileName):
-            try:
-                configParser.read(fileName)
-            except:
-                # If we can't read it, press on...
-                pass
-        return configParser
-    def modifiedTime(self, file):
-        if os.path.isfile(file):
-            return os.stat(file)[stat.ST_MTIME]
-        else:
-            return 0
-    def monitorProcess(self, name, process, filesEdited):
-        filesWithDates = []
-        for file in filesEdited:
-            filesWithDates.append((file, self.modifiedTime(file)))
-        self.processes.append((name, process, filesWithDates))
-    def recordTermination(self, name, filesWithDates):
-        for file, oldModTime in filesWithDates:
-            if self.modifiedTime(file) != oldModTime:
-                self.recordFileUpdate(file)
-        self.record(terminateCommandName + " " + name)
-    def recordFileUpdate(self, file):
-        localName = os.path.basename(file)
-        editDir = os.path.join(self.recordDir, "file_edits")
-        if not os.path.isdir(editDir):
-            os.makedirs(editDir)
-        copyfile(file, os.path.join(editDir, localName))
-        self.record(fileEditCommandName + " " + localName)
-    def checkProcesses(self):
-        newProcesses = []
-        for name, process, filesWithDates in self.processes:
-            if process.poll() is not None:
-                self.recordTermination(name, filesWithDates)
-            else:
-                newProcesses.append((name, process, filesWithDates))
-        self.processes = newProcesses
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
-        self.checkProcesses()
         self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
@@ -596,12 +488,7 @@ class UseCaseRecorder:
         else:
             # If there was a handler, just call it
             realHandler(signum, stackFrame)
-    def translate(self, line, eventName):
-        try:
-            newName = self.translationParser.get("use case actions", eventName)
-            return line.replace(eventName, newName)
-        except (NoSectionError, NoOptionError):
-            return line
+
     def writeEvent(self, *args):
         if len(self.scripts) == 0 or self.suspended == 1:
             self.logger.debug("Received event, but recording is disabled or suspended")
@@ -617,22 +504,23 @@ class UseCaseRecorder:
                 self.record(*self.stateChangeEventInfo)
 
         scriptOutput = event.outputForScript(*args)
-        lineToRecord = self.translate(scriptOutput, event.name)
-        self.checkProcesses()
         self.writeApplicationEventDetails()
         if event.isStateChange():
-            self.stateChangeEventInfo = lineToRecord, event
+            self.stateChangeEventInfo = scriptOutput, event
         else:
             self.stateChangeEventInfo = None
-            self.record(lineToRecord, event)
+            self.record(scriptOutput, event)
+
     def record(self, line, event=None):
         for script in self.getScriptsToRecord(event):
             script.record(line)
+
     def getScriptsToRecord(self, event):   
         if event and (event.name in self.eventsBlockedTopLevel):
             return self.scripts[:-1]
         else:
             return self.scripts
+
     def findEvent(self, *args):
         for arg in args:
             if isinstance(arg, UserEvent):
