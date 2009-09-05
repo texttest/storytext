@@ -122,15 +122,25 @@ class GtkEvent(usecase.UserEvent):
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
     def shouldRecord(self, *args):
-        return not self.programmaticChange and self.widget.get_property("visible")
+        return not self.programmaticChange and self.getProperty("visible")
     def _outputForScript(self, *args):
         return self.name
+
+    def getProperty(self, name):
+        try:
+            return self.widget.get_property(name)
+        except (AttributeError, TypeError):
+            try:
+                return self.widget.get_tree_view().get_property(name)
+            except (AttributeError, TypeError):
+                return True # Can happen with TreeViewColumns in PyGTK 2.10. Remove when we have 2.12 everywhere
+
     def generate(self, argumentString):        
-        if not self.widget.get_property("visible"):
+        if not self.getProperty("visible"):
             raise usecase.UseCaseScriptError, "widget '" + self.widget.get_name() + \
                   "' is not visible at the moment, cannot simulate event " + repr(self.name)
 
-        if not self.widget.get_property("sensitive"):
+        if not self.getProperty("sensitive"):
             raise usecase.UseCaseScriptError, "widget '" + self.widget.get_name() + \
                   "' is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
 
