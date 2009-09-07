@@ -115,7 +115,8 @@ class ScriptEngine:
     def createReplayer(self, **kwargs):
         return UseCaseReplayer()
 
-    def applicationEvent(self, name, category=None, supercedeCategories=[], timeDelay=0):
+    def applicationEvent(self, name, category=None, supercedeCategories=[], timeDelay=0.001):
+        # Small time delay to avoid race conditions: see replayer
         if self.recorderActive():
             self.recorder.registerApplicationEvent(name, category, supercedeCategories)
         if self.replayerActive():
@@ -220,7 +221,7 @@ class UseCaseReplayer:
         self.replayThread.start()
         #gtk.idle_add(method)
 
-    def registerApplicationEvent(self, eventName, timeDelay = 0):
+    def registerApplicationEvent(self, eventName, timeDelay):
         self.applicationEventNames.append(eventName)
         self.logger.debug("Replayer got application event " + repr(eventName))
         self.timeDelayNextCommand = timeDelay
@@ -238,7 +239,7 @@ class UseCaseReplayer:
         for eventName in toRename:
             self.applicationEventNames.remove(eventName)
             newEventName = eventName.replace(oldName, newName)
-            self.registerApplicationEvent(newEventName)
+            self.registerApplicationEvent(newEventName, timeDelay=0)
         self.logger.debug("Finished renaming")
 
     def waitingCompleted(self):
@@ -274,6 +275,7 @@ class UseCaseReplayer:
             self.write("Expected application event '" + eventName + "' occurred, proceeding.")
         self.waitingForEvents = []
         if self.timeDelayNextCommand:
+            self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
             time.sleep(self.timeDelayNextCommand)
             self.timeDelayNextCommand = 0
         commands = self.getCommands()
@@ -528,9 +530,12 @@ class UseCaseRecorder:
             os.kill(self.processId, signum)
             # If we're still alive, set the signal handler back again to record future signals
             self.origSignal(signum, self.recordSignal)
-        else:
+        elif realHandler is not None:
             # If there was a handler, just call it
             realHandler(signum, stackFrame)
+        elif signum == signal.SIGINT:
+            # Fake Python's default handler for SIGINT
+            raise KeyboardInterrupt()
 
     def writeEvent(self, *args):
         if len(self.scripts) == 0 or self.suspended == 1:
