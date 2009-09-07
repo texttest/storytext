@@ -288,7 +288,11 @@ class ActivateEvent(StateChangeEvent):
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        return [ cls.signalName + ".true", cls.signalName + ".false" ]
+        # Radio buttons can't be unchecked directly
+        if isinstance(widget, gtk.RadioButton):
+            return [ cls.signalName + ".true" ]
+        else:
+            return [ cls.signalName + ".true", cls.signalName + ".false" ]
 
 
 class NotebookPageChangeEvent(StateChangeEvent):
@@ -812,16 +816,6 @@ class NonUniqueTreeModelIndexer(TreeModelIndexer):
         else:
             return " at top level"
   
-# A utility class to set and get the indices of options in radio button groups.
-class RadioGroupIndexer:
-    def __init__(self, listOfButtons):
-        self.buttons = listOfButtons
-    def getActiveIndex(self):
-        for i in xrange(0, len(self.buttons)):
-            if self.buttons[i].get_active():
-                return i
-    def setActiveIndex(self, index):
-        self.buttons[index].set_active(True)
 
 class UIMap:
     ignoreWidgetTypes = [ "Label" ]
