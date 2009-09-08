@@ -284,6 +284,7 @@ class UseCaseReplayer:
         for command in commands:
             try:
                 commandName, argumentString = self.parseCommand(command)
+                self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
                 if commandName == waitCommandName:
                     if not self.processWait(argumentString):
                         return False
@@ -361,6 +362,7 @@ class UseCaseReplayer:
         self.write("")
         self.write("Generating signal " + signalArg)
         JobProcess(os.getpid()).killAll(signalNum) # So we can generate signals for ourselves...
+        self.logger.debug("Signal " + signalArg + " has been sent")
         return True
 
     def processTerminateCommand(self, procName):
