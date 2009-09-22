@@ -1364,7 +1364,7 @@ class ScriptEngine(usecase.ScriptEngine):
         usecaseDir = os.environ["USECASE_HOME"]
         if not os.path.isdir(usecaseDir):
             os.makedirs(usecaseDir)
-        return os.path.join(usecaseDir, "new_shortcut")
+        return os.path.join(usecaseDir, "new_shortcut." + str(os.getpid()))
 
     def getShortcutFileName(self, buttonName):
         return os.path.join(os.environ["USECASE_HOME"], buttonName.replace(" ", "_") + ".shortcut")
