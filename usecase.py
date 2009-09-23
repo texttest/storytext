@@ -50,14 +50,13 @@ from threading import Thread
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
-from jobprocess import JobProcess, killSubProcessAndChildren
+from jobprocess import JobProcess
 
 version = "trunk"
 
 # Hard coded commands
 waitCommandName = "wait for"
 signalCommandName = "receive signal"
-terminateCommandName = "terminate process that"
 
 # Used by the command-line interface to store the instance it creates
 scriptEngine = None
@@ -128,12 +127,6 @@ class ScriptEngine:
             self.recorder.applicationEventRename(oldName, newName, oldCategory, newCategory)
         if self.replayerActive():
             self.replayer.applicationEventRename(oldName, newName)
-
-    def monitorProcess(self, name, process):
-        if self.recorderActive():
-            self.recorder.monitorProcess(name, process)
-        if self.replayerActive():
-            self.replayer.monitorProcess(name, process)
     
 
 class ReplayScript:
@@ -193,7 +186,6 @@ class UseCaseReplayer:
         self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
         self.waitingForEvents = []
         self.applicationEventNames = []
-        self.processes = {}
         self.replayThread = None
         self.timeDelayNextCommand = 0
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
@@ -249,9 +241,6 @@ class UseCaseReplayer:
             if not eventName in self.applicationEventNames:
                 return False
         return True
-
-    def monitorProcess(self, name, process):
-        self.processes[name] = process
 
     def runCommands(self):
         while self.runNextCommand():
@@ -311,8 +300,6 @@ class UseCaseReplayer:
         
         if commandName == signalCommandName:
             return self.processSignalCommand(argumentString)
-        elif commandName == terminateCommandName:
-            return self.processTerminateCommand(argumentString)
         else:
             event = self.events[commandName]
             self.write("")
@@ -335,8 +322,6 @@ class UseCaseReplayer:
             return waitCommandName
         if command.startswith(signalCommandName):
             return signalCommandName
-        if command.startswith(terminateCommandName):
-            return terminateCommandName
 
         longestEventName = ""
         for eventName in self.events.keys():
@@ -363,17 +348,6 @@ class UseCaseReplayer:
         self.write("Generating signal " + signalArg)
         JobProcess(os.getpid()).killAll(signalNum) # So we can generate signals for ourselves...
         self.logger.debug("Signal " + signalArg + " has been sent")
-        return True
-
-    def processTerminateCommand(self, procName):
-        self.write("")
-        self.write("Terminating process that " + procName + "...")
-        if self.processes.has_key(procName):
-            process = self.processes[procName]
-            killSubProcessAndChildren(process)
-            del self.processes[procName]
-        else:
-            self.write("ERROR: Could not find process that '" + procName + "' to terminate!!")
         return True
 
 
@@ -447,7 +421,6 @@ class UseCaseRecorder:
         self.processId = os.getpid()
         self.applicationEvents = seqdict()
         self.supercededAppEventCategories = {}
-        self.processes = []
         self.suspended = 0
         self.realSignalHandlers = {}
         self.origSignal = signal.signal
@@ -504,24 +477,8 @@ class UseCaseRecorder:
         if script.fileForAppend:
             return script
 
-    def monitorProcess(self, name, process):
-        self.processes.append((name, process))
-
-    def recordTermination(self, name):
-        self.record(terminateCommandName + " " + name)
-
-    def checkProcesses(self):
-        newProcesses = []
-        for name, process in self.processes:
-            if process.poll() is not None:
-                self.recordTermination(name)
-            else:
-                newProcesses.append((name, process))
-        self.processes = newProcesses
-
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
-        self.checkProcesses()
         self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
@@ -554,7 +511,6 @@ class UseCaseRecorder:
                 self.record(*self.stateChangeEventInfo)
 
         scriptOutput = event.outputForScript(*args)
-        self.checkProcesses()
         self.writeApplicationEventDetails()
         if event.isStateChange():
             self.stateChangeEventInfo = scriptOutput, event
