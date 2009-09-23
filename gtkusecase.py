@@ -359,21 +359,32 @@ class RowActivationEvent(TreeViewEvent):
             return False
         return self.widget.get_selection() is prevEvent.widget
 
-class RightClickEvent(SignalEvent):
-    signalName = "button_press_event"
+class ClickEvent(SignalEvent):
     def shouldRecord(self, widget, event, *args):
-        return SignalEvent.shouldRecord(self, widget, event, *args) and event.button == 3
+        return SignalEvent.shouldRecord(self, widget, event, *args) and event.button == self.buttonNumber
 
     def getEmissionArgs(self, argumentString):
         area = self.getAreaToClick(argumentString)
-        event = gtk.gdk.Event(gtk.gdk.BUTTON_PRESS)
+        event = gtk.gdk.Event(self.eventType)
         event.x = float(area.x) + float(area.width) / 2
         event.y = float(area.y) + float(area.height) / 2
-        event.button = 3
+        event.button = self.buttonNumber
         return [ event ]
 
     def getAreaToClick(self, *args):
         return self.widget.get_allocation()
+
+
+class LeftClickEvent(ClickEvent):
+    signalName = "button-release-event" # Usually when left-clicking things (like buttons) what matters is releasing
+    buttonNumber = 1
+    eventType = gtk.gdk.BUTTON_RELEASE
+
+class RightClickEvent(ClickEvent):
+    signalName = "button-press-event"
+    buttonNumber = 3
+    eventType = gtk.gdk.BUTTON_PRESS
+
 
 class RowRightClickEvent(RightClickEvent):
     def __init__(self, name, widget, indexer):
@@ -1018,7 +1029,8 @@ class ScriptEngine(usecase.ScriptEngine):
         gtk.Entry        : [ EntryEvent, SignalEvent ],
         gtk.Dialog       : [ ResponseEvent, DeletionEvent ],
         gtk.Window       : [ DeletionEvent ],
-        gtk.Notebook     : [ NotebookPageChangeEvent ]
+        gtk.Notebook     : [ NotebookPageChangeEvent ],
+        gtk.Label        : [ LeftClickEvent ]
 # Causes trouble, leave this out for now...
 #        gtk.TreeView : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
 #                         RowCollapseEvent, RowRightClickEvent ]
