@@ -61,6 +61,9 @@ signalCommandName = "receive signal"
 # Used by the command-line interface to store the instance it creates
 scriptEngine = None
 
+def applicationEvent(*args, **kwargs):
+    scriptEngine.applicationEvent(*args, **kwargs)
+
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
     pass

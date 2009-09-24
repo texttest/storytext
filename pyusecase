@@ -6,7 +6,7 @@
 
 # Usage pyusecase [ -r <record_file> ] [ -p <playback_file> ] <program>
 from optparse import OptionParser
-import usecase, os, imp, sys
+import usecase, os, imp, sys, logging
 
 try:
     # In Py 2.x, the builtins were in __builtin__
@@ -64,6 +64,8 @@ if __name__ == "__main__":
                       default="gtk")
     parser.add_option("-d", "--delay", metavar="SECONDS", 
                       help="amount of time to wait between each action when replaying")
+    parser.add_option("-l", "--loglevel", default="INFO", 
+                      help="produce logging at level LEVEL, should be 'info', 'debug' or 'off'", metavar="LEVEL")
     parser.add_option("-t", "--test", action="store_true", 
                       help="Used for internal testing: instruments also the interface for entering widget names")
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
@@ -77,10 +79,14 @@ if __name__ == "__main__":
         os.environ["USECASE_REPLAY_SCRIPT"] = options.replay
     if options.delay:
         os.environ["USECASE_REPLAY_DELAY"] = options.delay
+    if options.loglevel != "off":
+        level = eval("logging." + options.loglevel.upper())
+        logging.basicConfig(level=level, stream=sys.stdout, format="%(message)s")
 
     if options.interface == "gtk":
         import gtkusecase
-        usecase.scriptEngine = gtkusecase.ScriptEngine(enableShortcuts=True, useUiMap=True)
+        logEnabled = options.loglevel != "off"
+        usecase.scriptEngine = gtkusecase.ScriptEngine(enableShortcuts=True, useUiMap=True, universalLogging=logEnabled)
     else:
         usecase.scriptEngine = usecase.ScriptEngine(enableShortcuts=True)
 
