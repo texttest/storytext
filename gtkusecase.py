@@ -218,9 +218,11 @@ class PaneDragEvent(StateChangeEvent):
         widget.connect("notify::max-position", self.changeMaxMin)
         widget.connect("notify::min-position", self.changeMaxMin)
         self.prevState = ""
+
     def setProgrammaticChange(self, val, *args, **kwargs):
         if val:
             self.programmaticChange = val
+
     def changeMaxMin(self, *args):
         if self.totalSpace() > 0:
             self.prevState = self.getStateDescription()
@@ -240,17 +242,23 @@ class PaneDragEvent(StateChangeEvent):
             return True
         else:
             return False
+
     def totalSpace(self):
         return self.widget.get_property("max-position") - self.widget.get_property("min-position")
+
     def getStatePercentage(self):
         return float(100 * (self.widget.get_position() - self.widget.get_property("min-position"))) / self.totalSpace()
+
     def getStateDescription(self, *args):
         return str(int(self.getStatePercentage() + 0.5)) + "% of the space"
+
     def getStateChangeArgument(self, argumentString):
         percentage = int(argumentString.split()[0][:-1])
         return int(float(self.totalSpace() * percentage) / 100 + 0.5) + self.widget.get_property("min-position")
+
     def getProgrammaticChangeMethods(self):
         return [ self.widget.check_resize ]
+
     def getChangeMethod(self):
         return self.widget.set_position
 
@@ -653,6 +661,9 @@ class DeletionEvent(SignalEvent):
     def getEmissionArgs(self, argumentString):
         return [ gtk.gdk.Event(gtk.gdk.DELETE) ]
             
+    def generate(self, argumentString):
+        SignalEvent.generate(self, argumentString)
+        self.widget.destroy() # just in case...
             
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 # Application needs to guarantee unique values for get_value(iter, self.valueId) for all iter
@@ -908,10 +919,16 @@ class UIMap:
             self.changed = True
         eventName = event.name
         self.storedEvents.add(eventName)
-        signalName = event.getUiMapSignature()
-        if not self.parser.has_option(sectionName, signalName):
-            self.parser.set(sectionName, signalName, eventName)
+        if self.storeInfo(sectionName, event.getUiMapSignature(), eventName):
             self.changed = True
+
+    def storeInfo(self, sectionName, signature, eventName):
+        signature = signature.replace("::", "-") # Can't store :: in ConfigParser unfortunately
+        if not self.parser.has_option(sectionName, signature):
+            self.parser.set(sectionName, signature, eventName)
+            return True
+        else:
+            return False
  
     def findSection(self, widget, widgetType):
         sectionNames = [ "Name=" + widget.get_name(), "Title=" + str(self.getTitle(widget)), 
@@ -951,6 +968,7 @@ class UIMap:
         section = self.findSection(widget, widgetType)
         if section:
             for signature, eventName in self.parser.items(section):
+                signature = signature.replace("notify-", "notify::")
                 if eventName in self.storedEvents:
                     signaturesInstrumented.add(signature)
                 else:
@@ -1005,8 +1023,7 @@ class UIMap:
         for ((widgetType, widgetDescription, signalName), eventName) in toStore:
             if not self.parser.has_section(widgetDescription):
                 self.parser.add_section(widgetDescription)
-            if not self.parser.has_option(widgetDescription, signalName):
-                self.parser.set(widgetDescription, signalName, eventName)
+            self.storeInfo(widgetDescription, signalName, eventName)
         self.write()
 
     def monitorNewWindows(self):
@@ -1030,7 +1047,8 @@ class ScriptEngine(usecase.ScriptEngine):
         gtk.Dialog       : [ ResponseEvent, DeletionEvent ],
         gtk.Window       : [ DeletionEvent ],
         gtk.Notebook     : [ NotebookPageChangeEvent ],
-        gtk.Label        : [ LeftClickEvent ]
+        gtk.Label        : [ LeftClickEvent ],
+        gtk.Paned        : [ PaneDragEvent ]
 # Causes trouble, leave this out for now...
 #        gtk.TreeView : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
 #                         RowCollapseEvent, RowRightClickEvent ]
