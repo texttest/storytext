@@ -482,8 +482,6 @@ class FileChooserFileEvent(StateChangeEvent):
             return os.path.basename(fileName)
         else:
             return ""
-    def getStateChangeArgument(self, argumentString):
-        return os.path.join(self.fileChooser.get_current_folder(), argumentString)
     
 class FileChooserFileSelectEvent(FileChooserFileEvent):
     signalName = "selection-changed"
@@ -501,6 +499,9 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
         else:
             self.currentName = self._getStateDescription()
             return False
+    def getStateChangeArgument(self, argumentString):
+        return os.path.join(self.fileChooser.get_current_folder(), argumentString)
+    
 
 class FileChooserEntryEvent(FileChooserFileEvent):
     signalName = "clicked"
