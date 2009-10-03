@@ -667,175 +667,144 @@ class DeletionEvent(SignalEvent):
         self.widget.destroy() # just in case...
             
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
-# Application needs to guarantee unique values for get_value(iter, self.valueId) for all iter
+# Can't store rows on TreeModelFilters, store the underlying rows and convert them at the last minute
 class TreeModelIndexer:
-    def __init__(self, model, column):
-        self.model = model
-        self.column = column
-    def iter2string(self, iter):
-        return self.getValue(iter)
-    def path2string(self, path):
-        return self.iter2string(self.model.get_iter(path))
-    def string2path(self, iterString):
-        return self.model.get_path(self.string2iter(iterString))
-    def getValue(self, iter):
-        fromModel = self.model.get_value(iter, self.column)
-        if fromModel is not None:
-            return re.sub("<[^>]*>", "", fromModel)
-    def string2iter(self, iterString):
-        iter = self._findTreeIter(self.model.get_iter_root(), iterString)
-        if not iter:
-            raise usecase.UseCaseScriptError, "Could not find row '" + iterString + "' in Tree View"
-        return iter
-    def _findTreeIter(self, iter, argumentText):
-        if self._pathHasText(iter, argumentText):
-            return iter
-        childIter = self.model.iter_children(iter)
-        if childIter:
-            foundIter = self._findTreeIter(childIter, argumentText)
-            if foundIter:
-                return foundIter
-        nextIter = self.model.iter_next(iter)
-        if nextIter:
-            return self._findTreeIter(nextIter, argumentText)
-
-    def _pathHasText(self, iter, argumentText):
-        return self.getValue(iter) == argumentText
-
-# Where names aren't guaranteed to be unique, this more complex version will create and store such names for itself...
-# Can't store iterators on TreeModelFilters, store the underlying iterators and convert them at the last minute
-class NonUniqueTreeModelIndexer(TreeModelIndexer):
-    def __init__(self, model, valueId):
+    def __init__(self, model, column=0):
         self.givenModel = model
-        modelToUse = self.findModelToUse()
-        TreeModelIndexer.__init__(self, modelToUse, valueId)
-        self.iter2name = {}
-        self.name2iter = {}
+        self.model = self.findModelToUse()
+        self.column = column
+        self.logger = logging.getLogger("TreeModelIndexer")
+        self.name2row = {}
+        self.uniqueNames = {}
         self.model.foreach(self.rowInserted)
-        self.model.connect("row-changed", self.rowChanged)
         self.model.connect("row-inserted", self.rowInserted)
-        self.model.connect("row-deleted", self.rowDeleted)
-    def string2path(self, iterString):
-        return self.givenModel.get_path(self.string2iter(iterString))
+        self.model.connect("row-changed", self.rowInserted)
+
+    def iter2string(self, iter):
+        currentName = self.getValue(self.givenModel, iter)
+        if not self.uniqueNames.has_key(currentName):
+            return currentName
+
+        path = self.convertFrom(self.givenModel.get_path(iter))
+        for uniqueName in self.uniqueNames.get(currentName):
+            for row in self.findAllRows(uniqueName):
+                if row.get_path() == path:
+                    return uniqueName
+    
     def path2string(self, path):
         return self.iter2string(self.givenModel.get_iter(path))
+    
+    def getValue(self, model, iter):
+        fromModel = model.get_value(iter, self.column)
+        if fromModel is not None:
+            return re.sub("<[^>]*>", "", fromModel)
+            
+    def string2iter(self, iterString):
+        return self.givenModel.get_iter(self.string2path(iterString))
+
+    def string2path(self, name):
+        rows = self.findAllRows(name)
+        if len(rows) == 1:
+            return self.convertTo(rows[0].get_path(), name)
+        elif len(rows) == 0:
+            raise usecase.UseCaseScriptError, "Could not find row '" + name + "' in Tree View\nKnown names are " + repr(self.name2row.keys())
+        else:
+            raise usecase.UseCaseScriptError, "'" + name + "' in Tree View is ambiguous, could refer to " \
+                  + str(len(rows)) + " different paths"
+    
     def usesFilter(self):
         return isinstance(self.givenModel, gtk.TreeModelFilter)
+
     def findModelToUse(self):
         if self.usesFilter():
             return self.givenModel.get_model()
         else:
             return self.givenModel
-    def convertFrom(self, iter):
+
+    def convertFrom(self, path):
         if self.usesFilter():
-            return self.givenModel.convert_iter_to_child_iter(iter)
+            return self.givenModel.convert_path_to_child_path(path)
         else:
-            return iter
-    def convertTo(self, iter, name):
+            return path
+
+    def convertTo(self, path, name):
         if self.usesFilter():
-            try:
-                return self.givenModel.convert_child_iter_to_iter(iter)
-            except RuntimeError:
+            pathToUse = self.givenModel.convert_child_path_to_path(path)
+            if pathToUse is not None:
+                return pathToUse
+            else:
                 raise usecase.UseCaseScriptError, "Row '" + name + "' is currently hidden and cannot be accessed"
         else:
-            return iter
-    def findStoredIter(self, iter):
-        name = self.getValue(iter)
-        path = self.model.get_path(iter)
-        return self._findStoredIter(path, self.name2iter.get(name, []))
-    def _findStoredIter(self, path, list):
-        for storedIter in list:
-            if self.model.get_path(storedIter) == path:
-                return storedIter
-        
-    def iter2string(self, iter):
-        actualIter = self.findStoredIter(self.convertFrom(iter))
-        names = self.iter2name.get(actualIter)
-        if len(names) > 0:
-            return names[-1]
-        else:
-            raise usecase.UseCaseScriptError, "Could not find name for path " + repr(self.givenModel.get_path(iter)) +\
-                  "\nKnown paths are " + repr(map(self.model.get_path, self.iter2name.keys()))
-    def string2iter(self, name):
-        iters = self.name2iter.get(name, [])
-        if len(iters) == 1:
-            return self.convertTo(iters[0], name)
-        elif len(iters) == 0:
-            raise usecase.UseCaseScriptError, "Could not find row '" + name + "' in Tree View\nKnown names are " + repr(self.name2iter.keys())
-        else:
-            raise usecase.UseCaseScriptError, "'" + name + "' in Tree View is ambiguous, could refer to " \
-                  + str(len(iters)) + " different paths"    
+            return path
+
     def rowInserted(self, model, path, iter):
-        givenName = self.getValue(iter)
+        givenName = self.getValue(model, iter)
         if givenName is None:
             return
-        iterCopy = iter.copy()
-        self.store(iterCopy, givenName)
-        allIterators = self.name2iter.get(givenName, [])
-        if len(allIterators) > 1:
-            newNames = self.getNewNames(allIterators, givenName)
-            for currIter in allIterators:
-                self.store(currIter, newNames[currIter])
-        
-    def rowDeleted(self, *args):
-        # The problem here is that we don't have a clue what's been removed, as the path is not valid any more!
-        # So we do a blanket check of all iterators and remove anything that isn't valid
-        for iter in self.iter2name.keys():
-            if not self.model.iter_is_valid(iter):
-                self.removeIter(iter)
-        
-    def removeIter(self, iter):
-        for storedName in self.iter2name.get(iter):
-            self.name2iter[storedName].remove(iter)
-            if len(self.name2iter[storedName]) == 0:
-                del self.name2iter[storedName]
-        del self.iter2name[iter]
+        row = gtk.TreeRowReference(model, path)
+        if self.store(row, givenName):
+            allRows = self.findAllRows(givenName)
+            if len(allRows) > 1:
+                newNames = self.getNewNames(allRows, givenName)
+                self.uniqueNames[givenName] = newNames
+                for row, newName in zip(allRows, newNames):
+                    self.store(row, newName)
 
-    def rowChanged(self, model, path, iter):
-        # Basically to pick up name changes
-        givenName = self.getValue(iter)
-        if givenName is not None:
-            storedIterMatchingName = self.findStoredIter(iter)
-            if storedIterMatchingName is None:
-                storedIter = self._findStoredIter(path, self.iter2name.keys())
-                if storedIter:
-                    self.removeIter(storedIter)
-                self.rowInserted(model, path, iter)
-        
-    def store(self, iter, name):
-        namelist = self.iter2name.setdefault(iter, [])
-        if not name in namelist:
-            namelist.append(name)
-        iterlist = self.name2iter.setdefault(name, [])
-        if not iter in iterlist:
-            iterlist.append(iter)
+    def findAllRows(self, name):
+        storedRows = self.name2row.get(name, [])
+        validRows = filter(lambda r: r.get_path() is not None, storedRows)
+        self.name2row[name] = validRows
+        return validRows
+            
+    def store(self, row, name):
+        rows = self.name2row.setdefault(name, [])
+        if not row.get_path() in [ r.get_path() for r in rows ]:
+            self.logger.debug("Storing row named " + repr(name) + " with path " + repr(row.get_path()))
+            rows.append(row)
+            return True
+        else:
+            return False
 
-    def getNewNames(self, iters, oldName):
+    def getNewNames(self, rows, oldName):
+        self.logger.debug(repr(oldName) + " can be applied to " + repr(len(rows)) + 
+                          " rows, setting unique names")
         parentSuffices = {}
-        for iter in iters:
-            if iter is None:
+        for index, row in enumerate(rows):
+            if row is None:
                 raise usecase.UseCaseScriptError, "Cannot index tree model, there exist non-unique paths for " + oldName
+            if row.get_path() is None:
+                self.logger.debug("Dead row, WTF!!!")
+            iter = self.model.get_iter(row.get_path())
             parent = self.model.iter_parent(iter)
             parentSuffix = self.getParentSuffix(parent)
-            parentSuffices.setdefault(parentSuffix, []).append(iter)
+            parentSuffices.setdefault(parentSuffix, []).append(index)
         
-        newNames = {}
-        for parentSuffix, iters in parentSuffices.items():
+        newNames = [ oldName ] * len(rows) 
+        for parentSuffix, indices in parentSuffices.items():
             newName = oldName
             if len(parentSuffices) > 1:
                 newName += parentSuffix
-            if len(iters) == 1:
-                newNames[iters[0]] = newName
+            if len(indices) == 1:
+                self.logger.debug("Name now unique, setting row " + repr(indices[0]) + " name to " + repr(newName))
+                newNames[indices[0]] = newName
             else:
-                parents = map(self.model.iter_parent, iters)
-                parents2names = self.getNewNames(parents, newName)
-                for index, parent in enumerate(parents):
-                    newNames[iters[index]] = parents2names[parent]
+                matchingRows = [ rows[ix] for ix in indices ]
+                parents = map(self.getParentRow, matchingRows)
+                parentNames = self.getNewNames(parents, newName)
+                for index, parentName in enumerate(parentNames):
+                    self.logger.debug("Name from parents, setting row " + repr(indices[index]) + 
+                                      " name to " + repr(parentName))
+                    newNames[indices[index]] = parentName
         return newNames
+
+    def getParentRow(self, row):
+        parentIter = self.model.iter_parent(self.model.get_iter(row.get_path()))
+        if parentIter:
+            return gtk.TreeRowReference(self.model, self.model.get_path(parentIter))
 
     def getParentSuffix(self, parent):
         if parent:
-            return " under " + self.getValue(parent)
+            return " under " + self.getValue(self.model, parent)
         else:
             return " at top level"
   
@@ -1049,10 +1018,9 @@ class ScriptEngine(usecase.ScriptEngine):
         gtk.Window       : [ DeletionEvent ],
         gtk.Notebook     : [ NotebookPageChangeEvent ],
         gtk.Label        : [ LeftClickEvent ],
-        gtk.Paned        : [ PaneDragEvent ]
-# Causes trouble, leave this out for now...
-#        gtk.TreeView : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
-#                         RowCollapseEvent, RowRightClickEvent ]
+        gtk.Paned        : [ PaneDragEvent ],
+        gtk.TreeView     : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
+                             RowCollapseEvent, RowRightClickEvent ]
 }
     def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
         self.uiMap = None
@@ -1087,10 +1055,10 @@ class ScriptEngine(usecase.ScriptEngine):
             self._addEventToScripts(signalEvent, autoGenerated)
             return signalEvent
 
-    def monitor(self, eventName, selection, keyColumn=0, guaranteeUnique=False):
+    def monitor(self, eventName, selection, keyColumn=0):
         if self.active():
             stdName = self.standardName(eventName)
-            indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn, guaranteeUnique)
+            indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn)
             stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer)
             self._addEventToScripts(stateChangeEvent)
 
@@ -1104,10 +1072,10 @@ class ScriptEngine(usecase.ScriptEngine):
                 rightClickEvent = RightClickEvent(stdName, widget)
             self._addEventToScripts(rightClickEvent)
     
-    def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0, guaranteeUnique=False):
+    def monitorExpansion(self, treeView, expandDescription, collapseDescription="", keyColumn=0):
         if self.active():
             expandName = self.standardName(expandDescription)
-            indexer = self.getTreeViewIndexer(treeView, keyColumn, guaranteeUnique)
+            indexer = self.getTreeViewIndexer(treeView, keyColumn)
             expandEvent = RowExpandEvent(expandName, treeView, indexer)
             self._addEventToScripts(expandEvent)
             if collapseDescription:
@@ -1195,16 +1163,9 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.treeViewIndexers.has_key(treeView):
             return self.treeViewIndexers[treeView]
 
-        newIndexer = self.createTreeViewIndexer(treeView, *args, **kwargs)
+        newIndexer = TreeModelIndexer(treeView.get_model(), *args, **kwargs)
         self.treeViewIndexers[treeView] = newIndexer
         return newIndexer
-
-    def createTreeViewIndexer(self, treeView, keyColumn=0, guaranteeUnique=False):
-        model = treeView.get_model()
-        if guaranteeUnique:
-            return TreeModelIndexer(model, keyColumn)
-        else:
-            return NonUniqueTreeModelIndexer(model, keyColumn)
             
     def registerFolderChange(self, fileChooser, description):
         stdName = self.standardName(description)

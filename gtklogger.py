@@ -605,8 +605,10 @@ class TreeViewDescriber:
         for text in texts:
             index = self.getTextIndex(model, iter, text)
             if index is None:
+                Describer.logger.debug("Could not find index for '" + text + "' using path " + repr(path))
                 return False
             elif index not in currIndices:
+                Describer.logger.debug("Index for '" + text + "' found as " + repr(index) + " using path " + repr(path))
                 currIndices[text] = index
 
         # We've found matching texts, try to match the colours and fonts as best we can
