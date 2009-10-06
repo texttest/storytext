@@ -409,11 +409,13 @@ class Describer:
         return " " * self.indent + self.getDescription(item.get_child())
 
     def getButtonDescription(self, button):
-        labelText = button.get_label()
-        if labelText:
-            text = "Button '" + labelText + "'"
+        if isinstance(button, gtk.LinkButton):
+            text = "Link button"
         else:
             text = "Button"
+        labelText = button.get_label()
+        if labelText:
+            text += " '" + labelText + "'"
         return text
 
     @classmethod
