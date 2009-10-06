@@ -4,7 +4,8 @@ The basic mission of this module is to provide a standard textual output of GTK 
 to aid in text-based UI testing for GTK
 """
 
-import logging, gtk, gobject, locale, operator, types
+import gtkloggertreeview, logging, gtk, gobject, locale, operator
+from gtkloggertreeview import getStockDescription
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
 PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
@@ -100,7 +101,7 @@ class Describer:
         if hasattr(widget, "get_stock_id"):
             stockId = widget.get_stock_id()
             if stockId:
-                return self.getStockDescription(stockId)
+                return getStockDescription(stockId)
         if hasattr(widget, "get_image"):
             try:
                 image = widget.get_image()
@@ -370,18 +371,14 @@ class Describer:
         return "Viewing page '" + tabName + "'\n" + self.getDescription(page)
     
     def getTreeViewDescription(self, view):
-        describer = self.cachedDescribers.setdefault(view, TreeViewDescriber(view))
+        describer = self.cachedDescribers.setdefault(view, gtkloggertreeview.TreeViewDescriber(view, idleScheduler))
         return describer.getDescription(self.prefix)
-                    
-    @staticmethod
-    def getStockDescription(stock):
-        return "Stock image '" + stock + "'"
 
     def getImageDescription(self, image):
         try:
             stock, size = image.get_stock()
             if stock:
-                return self.getStockDescription(stock)
+                return getStockDescription(stock)
 
             if image.get_storage_type() == gtk.IMAGE_EMPTY:
                 return ""
@@ -452,7 +449,7 @@ class Describer:
             self.logger.info("Focus widget is '" + self.getBriefDescription(window.focus_widget) + "'")
         
         self.logger.info(self.getContainerDescription(window))
-        footerLength = min(len(message), 150) # Don't let footers become too huge, they become ugly...
+        footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
 
 
@@ -478,227 +475,6 @@ class TextViewDescriber:
                           "' using strict '" + localeEncoding + "' encoding.\nReverting to non-strict UTF-8 " + \
                           "encoding but replacing problematic\ncharacters with the Unicode replacement character, U+FFFD.\n"
         return warning + unicodeInfo.encode('utf-8', 'replace')
-
-class ColumnTextIndexStore:
-    def __init__(self, model, textIndex, colourIndex, fontIndex):
-        self.textIndex = textIndex
-        self.model = model
-        self.colourIndex = colourIndex
-        self.fontIndex = fontIndex
-
-    def getCellText(self, iter, index):
-        val = self.model.get_value(iter, index)
-        if val is None:
-            return ""
-        else:
-            return str(val)
-
-    def description(self, iter):
-        textDesc = self.getCellText(iter, self.textIndex)
-        extraInfo = []
-        if self.colourIndex is not None:
-            colourDesc = self.getCellText(iter, self.colourIndex)
-            if colourDesc:
-                extraInfo.append(colourDesc)
-        if self.fontIndex is not None:
-            font = self.model.get_value(iter, self.fontIndex)
-            if font:
-                extraInfo.append(font)
-        if len(extraInfo):
-            if textDesc:
-                textDesc += " "
-            textDesc += "(" + ",".join(extraInfo) + ")"
-        return textDesc
-
-
-class ColumnToggleIndexStore:
-    def __init__(self, model, index):
-        self.index = index
-        self.model = model
-
-    def description(self, iter):
-        textDesc = "Check box"
-        active = self.model.get_value(iter, self.index)
-        if active:
-            textDesc += " (checked)"
-        return textDesc
-
-class ColumnPixbufIndexStore:
-    def __init__(self, model, index):
-        self.index = index
-        self.model = model
-
-    def description(self, iter):
-        stockId = self.model.get_value(iter, self.index)
-        if stockId:
-            return Describer.getStockDescription(stockId)
-        else:
-            return ""
-
-# Complicated enough to need its own class...
-class TreeViewDescriber:
-    def __init__(self, view):
-        self.view = view
-        self.model = view.get_model()
-        self.modelIndices = []
-        self.indicesOK = False
-        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ], "Updated : ", self.view)
-        idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ")
-        idleScheduler.monitor(self.view, [ "row-collapsed" ], "Collapsed row in ")
-        for column in self.view.get_columns():
-            idleScheduler.monitor(column, [ "notify::title" ], "Column titles changed in ", self.view, titleOnly=True)
-        
-    def getDescription(self, prefix):
-        columns = self.view.get_columns()
-        titles = " , ".join([ column.get_title() for column in columns ])
-        message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
-        if "Column titles" not in prefix:
-            if not self.indicesOK:
-                self.modelIndices = self.getModelIndices()
-            message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
-        return message.rstrip()
-    
-    def getSubTreeDescription(self, iter, indent):
-        if iter is not None and len(self.modelIndices) == 0:
-            return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
-        message = ""
-        while iter is not None:
-            colDescriptions = [ col.description(iter) for col in self.modelIndices ]
-            while not colDescriptions[-1]:
-                colDescriptions.pop()
-            data = " | ".join(colDescriptions) 
-            message += "-> " + " " * 2 * indent + data + "\n"
-            if self.view.row_expanded(self.model.get_path(iter)):
-                message += self.getSubTreeDescription(self.model.iter_children(iter), indent + 1)
-            iter = self.model.iter_next(iter)
-        return message
-
-    def getModelIndices(self):
-        # There is no good way to do this unfortunately. It seems deliberately
-        # made that way out of some perverse desire to separate "view" from "model".
-        # The following detective work has been shown to work so far but is
-        # far from foolproof...
-
-        # The renderers will be on some row or other... (seems hard to assume where)
-        # so we compare their values. Text values should differ.
-        texts, renderers = self.getTextInRenderers()
-        Describer.logger.debug("Trying to establish model indices, found texts " + repr(texts))
-        indices = []
-        if len(texts) > 0:
-            self.model.foreach(self.addIndicesFromIter, (texts, renderers, indices))
-        # Should find an index for every renderer
-        self.indicesOK = len(indices) == len(renderers)
-        return indices
-
-    def getTextInRenderers(self):
-        texts, renderers = [], []
-        for column in self.view.get_columns():
-            for renderer in column.get_cell_renderers():
-                renderers.append(renderer)
-                if isinstance(renderer, gtk.CellRendererText):
-                    text = renderer.get_property("text")
-                    if text is not None:
-                        texts.append(text)
-        return texts, renderers
-
-    def addIndicesFromIter(self, model, path, iter, userdata):
-        texts, renderers, indices = userdata
-        currIndices = {}
-        for text in texts:
-            index = self.getTextIndex(model, iter, text)
-            if index is None:
-                Describer.logger.debug("Could not find index for '" + text + "' using path " + repr(path))
-                return False
-            elif index not in currIndices:
-                Describer.logger.debug("Index for '" + text + "' found as " + repr(index) + " using path " + repr(path))
-                currIndices[text] = index
-
-        # We've found matching texts, try to match the colours and fonts as best we can
-        colourIndices = set()
-        fontIndices = set()
-        toggleIndices = set()
-        pixbufIndices = set()
-        knownIndices = set(currIndices.values())
-        for renderer in renderers:
-            if isinstance(renderer, gtk.CellRendererText):
-                text = renderer.get_property("text")
-                if text is None:
-                    continue
-                textIndex = currIndices.get(text)
-                if textIndex is None:
-                    continue
-                
-                colour = renderer.get_property("background-gdk")
-                colourIndex = self.findMatchingIndex(model, iter, colour, 
-                                                     knownIndices, colourIndices, self.colourMatches)
-                if colourIndex is not None:
-                    colourIndices.add(colourIndex)
-                    knownIndices.add(colourIndex)
-                    
-                font = renderer.get_property("font")
-                fontIndex = self.findMatchingIndex(model, iter, font, 
-                                                       knownIndices, fontIndices, self.textMatches)
-                if fontIndex is not None:
-                    fontIndices.add(fontIndex)
-                    knownIndices.add(fontIndex)
-                indices.append(ColumnTextIndexStore(model, textIndex, colourIndex, fontIndex))
-            elif isinstance(renderer, gtk.CellRendererToggle):
-                active = renderer.get_active()
-                activeIndex = self.findMatchingIndex(model, iter, active, 
-                                                     knownIndices, toggleIndices, self.boolMatches)
-                if activeIndex is not None:
-                    toggleIndices.add(activeIndex)
-                    knownIndices.add(activeIndex)
-                    indices.append(ColumnToggleIndexStore(model, activeIndex))
-            elif isinstance(renderer, gtk.CellRendererPixbuf):
-                stockId = renderer.get_property("stock-id")
-                stockIndex = self.findMatchingIndex(model, iter, stockId, knownIndices, 
-                                                    pixbufIndices, self.textMatches)
-                if stockIndex is not None:
-                    pixbufIndices.add(stockIndex)
-                    knownIndices.add(stockIndex)
-                    indices.append(ColumnPixbufIndexStore(model, stockIndex))
-
-        return True # Causes foreach to exit
-
-    def getTextIndex(self, model, iter, text):
-        # May have markup involved, in which case "text" will have it stripped out
-        textMarkupStr = ">" + text + "<"
-        for index in range(model.get_n_columns()):
-            givenText = str(model.get_value(iter, index))
-            if givenText == text or (type(givenText) == types.StringType and textMarkupStr in givenText):
-                return index        
-
-    def findMatchingIndex(self, model, iter, info, knownIndices, prevIndices, matchMethod):
-        for index in range(model.get_n_columns()):
-            if index not in knownIndices and matchMethod(model, iter, index, info):
-                return index
-
-        # If we can't find a unique column, assume we're tied to a previous one
-        for index in prevIndices:
-            if matchMethod(model, iter, index, info):
-                return index
-
-    def textMatches(self, model, iter, index, text):
-        givenText = model.get_value(iter, index)
-        return type(givenText) == types.StringType and givenText.lower() == text.lower()
-
-    def boolMatches(self, model, iter, index, value):
-        givenValue = model.get_value(iter, index)
-        return type(givenValue) == types.BooleanType and givenValue == value
-
-    def colourMatches(self, model, iter, index, colour):
-        givenText = model.get_value(iter, index)
-        if type(givenText) != types.StringType:
-            return False
-        try:
-            givenColour = gtk.gdk.color_parse(givenText)
-            return self.coloursIdentical(colour, givenColour)
-        except ValueError:
-            return False
-
-    def coloursIdentical(self, col1, col2):
-        return col1.red == col2.red and col1.green == col2.green and col1.blue == col2.blue
 
 
 class IdleScheduler:
