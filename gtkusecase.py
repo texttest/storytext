@@ -575,6 +575,8 @@ class TreeSelectionEvent(StateChangeEvent):
             delattr(self.widget, "unseen_changes")
         for iterName in newSelected:
             self.select_iter(self.indexer.string2iter(iterName))
+            # In real life there is no way to do this without being in focus, force the focus over
+            self.widget.get_tree_view().grab_focus()
             
     def findChanges(self, oldSelected, newSelected):
         if oldSelected == newSelected: # re-selecting should be recorded as clear-and-reselect, not do nothing
