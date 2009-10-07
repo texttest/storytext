@@ -35,6 +35,8 @@ def setMonitoring(*args):
     global idleScheduler
     if not idleScheduler:
         idleScheduler = IdleScheduler(*args)
+        if isEnabled():
+            gtk.TreeViewColumn = gtkloggertreeview.InterceptTreeViewColumn
 
 def describeNewWindows(*args):
     return idleScheduler.describeNewWindows(*args)

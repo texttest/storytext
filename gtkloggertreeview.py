@@ -12,6 +12,7 @@ def getStockDescription(stock):
 
 origTreeViewColumn = gtk.TreeViewColumn
 
+# Will overwrite gtk.TreeViewColumn when/if the logging is enabled.
 class InterceptTreeViewColumn(origTreeViewColumn):
     def set_cell_data_func(self, cell_renderer, func, func_data=None):
         origTreeViewColumn.set_cell_data_func(self, cell_renderer, self.collect_cell_data, (func, func_data))
@@ -28,7 +29,6 @@ class InterceptTreeViewColumn(origTreeViewColumn):
             orig_func(column, cell, model, iter)
         cell.set_property = orig_set_property
 
-gtk.TreeViewColumn = InterceptTreeViewColumn
 cellRendererHistory = {}
 
 class PropertySetter:
