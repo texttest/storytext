@@ -1394,11 +1394,12 @@ class ScriptEngine(usecase.ScriptEngine):
 
     def _createSignalEvent(self, eventName, signalName, widget, argumentParseData):
         stdSignalName = signalName.replace("_", "-")
-        if stdSignalName == "row-activated":
-            return RowActivationEvent(eventName, widget, self.getIndexerFromParseData(widget, argumentParseData))
+        parseData = argumentParseData
+        if isinstance(widget, gtk.TreeView):
+            parseData = self.getIndexerFromParseData(widget, argumentParseData)
         for eventClass in self.findEventClassesFor(widget):
             if eventClass is not SignalEvent and eventClass.getAssociatedSignal(widget) == stdSignalName:
-                return eventClass(eventName, widget, argumentParseData)
+                return eventClass(eventName, widget, parseData)
         
         return SignalEvent(eventName, widget, signalName)
 
