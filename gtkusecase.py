@@ -351,23 +351,30 @@ class RowCollapseEvent(TreeViewEvent):
     def getChangeMethod(self):
         return self.widget.collapse_row
 
+
 class RowActivationEvent(TreeViewEvent):
     signalName = "row-activated"
     def getChangeMethod(self):
         return self.widget.row_activated
+
     def _outputForScript(self, path, *args):
         return self._outputForScriptFromPath(path)
+
     def generate(self, argumentString):
         # clear the selection before generating as that's what the real event does
         self.widget.get_selection().unselect_all()
         TreeViewEvent.generate(self, argumentString)
+        
     def getTreeViewArgs(self):
         # We don't care which column right now
         return [ self.widget.get_column(0) ]
+
     def implies(self, prevLine, prevEvent):
         if not isinstance(prevEvent, TreeSelectionEvent):
             return False
-        return self.widget.get_selection() is prevEvent.widget
+
+        return self.widget is prevEvent.widget
+
 
 class ClickEvent(SignalEvent):
     def shouldRecord(self, widget, event, *args):
@@ -536,33 +543,49 @@ class FileChooserEntryEvent(FileChooserFileEvent):
         return self.fileChooser.set_current_name                                    
                                     
 class TreeSelectionEvent(StateChangeEvent):
-    def __init__(self, name, widget, indexer):
+    def __init__(self, name, widget, indexer, selection):
         self.indexer = indexer
+        self.selection = selection
         # cache these before calling base class constructor, or they get intercepted...
-        self.unselect_iter = widget.unselect_iter
-        self.select_iter = widget.select_iter
+        self.unselect_iter = selection.unselect_iter
+        self.select_iter = selection.select_iter
         self.prevSelected = []
         StateChangeEvent.__init__(self, name, widget)
+
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "changed.selection" ]
+
+    def getUiMapSignature(self):
+        return "changed.selection"
+
+    def connectRecord(self, method):
+        self._connectRecord(self.selection, method)
+
     def getChangeMethod(self):
-        return self.widget.select_iter
+        return self.select_iter
+
     def getModels(self):
-        model = self.widget.get_tree_view().get_model()
+        model = self.widget.get_model()
         if isinstance(model, gtk.TreeModelFilter):
             return model, model.get_model()
         else:
             return None, model
+
     def getProgrammaticChangeMethods(self):
         modelFilter, realModel = self.getModels()
-        methods = [ self.widget.unselect_all, self.widget.select_all, \
-                    self.widget.select_iter, self.widget.unselect_iter, \
-                    self.widget.select_path, self.widget.unselect_path,
-                    self.widget.get_tree_view().row_activated, self.widget.get_tree_view().collapse_row,
+        methods = [ self.selection.unselect_all, self.selection.select_all, \
+                    self.selection.select_iter, self.selection.unselect_iter, \
+                    self.selection.select_path, self.selection.unselect_path,
+                    self.widget.set_model, self.widget.row_activated, self.widget.collapse_row,
                     realModel.remove, realModel.clear ]
         if modelFilter:
             methods.append(realModel.set_value) # changing visibility column can change selection
         return methods
+
     def getStateDescription(self, *args):
         return self._getStateDescription(storeSelected=True)
+
     def selectedPreviously(self, iter1, iter2):
         selPrev1 = iter1 in self.prevSelected
         selPrev2 = iter2 in self.prevSelected
@@ -576,34 +599,39 @@ class TreeSelectionEvent(StateChangeEvent):
             return cmp(index1, index2)
         else:
             return 0
+
     def _getStateDescription(self, storeSelected=False):
         newSelected = self.findSelectedIters()
         newSelected.sort(self.selectedPreviously)
         if storeSelected:
             self.prevSelected = newSelected
         return ",".join(newSelected)
+
     def findSelectedIters(self):
         iters = []
-        self.widget.selected_foreach(self.addSelIter, iters)
+        self.selection.selected_foreach(self.addSelIter, iters)
         return iters
+
     def addSelIter(self, model, path, iter, iters):
         iters.append(self.indexer.iter2string(iter))
+    
     def getStateChangeArgument(self, argumentString):
         return map(self.indexer.string2iter, argumentString.split(","))
+    
     def generate(self, argumentString):
         oldSelected = self.findSelectedIters()
         newSelected = self.parseIterNames(argumentString)
         toUnselect, toSelect = self.findChanges(oldSelected, newSelected)
         if len(toSelect) > 0:
-            self.widget.unseen_changes = True
+            self.selection.unseen_changes = True
         for iterName in toUnselect:
             self.unselect_iter(self.indexer.string2iter(iterName))
         if len(toSelect) > 0:
-            delattr(self.widget, "unseen_changes")
+            delattr(self.selection, "unseen_changes")
         for iterName in newSelected:
             self.select_iter(self.indexer.string2iter(iterName))
             # In real life there is no way to do this without being in focus, force the focus over
-            self.widget.get_tree_view().grab_focus()
+            self.widget.grab_focus()
             
     def findChanges(self, oldSelected, newSelected):
         if oldSelected == newSelected: # re-selecting should be recorded as clear-and-reselect, not do nothing
@@ -616,6 +644,7 @@ class TreeSelectionEvent(StateChangeEvent):
             else:
                 index = self.findFirstDifferent(oldSelected, newSelected)
                 return oldSelected[index:], newSelected[index:]
+
     def findFirstDifferent(self, oldSelected, newSelected):
         for index in range(len(oldSelected)):
             if index >= len(newSelected):
@@ -623,11 +652,13 @@ class TreeSelectionEvent(StateChangeEvent):
             if oldSelected[index] != newSelected[index]:
                 return index
         return len(oldSelected)
+
     def parseIterNames(self, argumentString):
         if len(argumentString) == 0:
             return []
         else:
             return argumentString.split(",")
+
     def implies(self, prevLine, prevEvent):
         if not isinstance(prevEvent, TreeSelectionEvent) or \
                not prevLine.startswith(self.name):
@@ -966,6 +997,8 @@ class UIMap:
 
     def findSubComponent(self, widget, widgetType, componentTitle):
         if widgetType == "TreeView":
+            if componentTitle == "selection":
+                return widget.get_selection()
             for column in widget.get_columns():
                 if column.get_title().lower() == componentTitle:
                     for renderer in column.get_cell_renderers():
@@ -1065,6 +1098,7 @@ class ScriptEngine(usecase.ScriptEngine):
         gtk.Paned        : [ PaneDragEvent ],
         gtk.TreeView     : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
                              RowCollapseEvent, RowRightClickEvent, CellToggleEvent ],
+        gtk.TreeSelection : [ TreeSelectionEvent ],
         gtk.CellRendererToggle : [ CellToggleEvent ]
 }
     def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
@@ -1103,8 +1137,9 @@ class ScriptEngine(usecase.ScriptEngine):
     def monitor(self, eventName, selection, keyColumn=0):
         if self.active():
             stdName = self.standardName(eventName)
-            indexer = self.getTreeViewIndexer(selection.get_tree_view(), keyColumn)
-            stateChangeEvent = TreeSelectionEvent(stdName, selection, indexer)
+            tree_view = selection.get_tree_view()
+            indexer = self.getTreeViewIndexer(tree_view, keyColumn)
+            stateChangeEvent = TreeSelectionEvent(stdName, tree_view, indexer, selection)
             self._addEventToScripts(stateChangeEvent)
 
     def monitorRightClicks(self, eventName, widget, **kwargs):
