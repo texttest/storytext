@@ -351,6 +351,19 @@ class RowCollapseEvent(TreeViewEvent):
     def getChangeMethod(self):
         return self.widget.collapse_row
 
+    def implies(self, prevLine, prevEvent, view, iter, path, *args):
+        if not isinstance(prevEvent, TreeSelectionEvent):
+            return False
+
+        if self.widget is not prevEvent.widget:
+            return False
+
+        for deselectName in prevEvent.prevDeselections:
+            deselectPath = self.indexer.string2path(deselectName)
+            if len(deselectPath) > len(path) and deselectPath[:len(path)] == path:
+                return True
+        return False
+
 
 class RowActivationEvent(TreeViewEvent):
     signalName = "row-activated"
@@ -369,7 +382,7 @@ class RowActivationEvent(TreeViewEvent):
         # We don't care which column right now
         return [ self.widget.get_column(0) ]
 
-    def implies(self, prevLine, prevEvent):
+    def implies(self, prevLine, prevEvent, *args):
         if not isinstance(prevEvent, TreeSelectionEvent):
             return False
 
@@ -550,6 +563,7 @@ class TreeSelectionEvent(StateChangeEvent):
         self.unselect_iter = selection.unselect_iter
         self.select_iter = selection.select_iter
         self.prevSelected = []
+        self.prevDeselections = []
         StateChangeEvent.__init__(self, name, widget)
 
     @classmethod
@@ -571,6 +585,12 @@ class TreeSelectionEvent(StateChangeEvent):
             return model, model.get_model()
         else:
             return None, model
+
+    def shouldRecord(self, *args):
+        ret = StateChangeEvent.shouldRecord(self, *args)
+        if not ret:
+            self.getStateDescription() # update internal stores for programmatic changes
+        return ret
 
     def getProgrammaticChangeMethods(self):
         modelFilter, realModel = self.getModels()
@@ -604,6 +624,7 @@ class TreeSelectionEvent(StateChangeEvent):
         newSelected = self.findSelectedIters()
         newSelected.sort(self.selectedPreviously)
         if storeSelected:
+            self.prevDeselections = filter(lambda i: i not in newSelected, self.prevSelected)
             self.prevSelected = newSelected
         return ",".join(newSelected)
 
@@ -659,7 +680,7 @@ class TreeSelectionEvent(StateChangeEvent):
         else:
             return argumentString.split(",")
 
-    def implies(self, prevLine, prevEvent):
+    def implies(self, prevLine, prevEvent, *args):
         if not isinstance(prevEvent, TreeSelectionEvent) or \
                not prevLine.startswith(self.name):
             return False
