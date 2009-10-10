@@ -635,10 +635,7 @@ class TreeSelectionEvent(StateChangeEvent):
 
     def addSelIter(self, model, path, iter, iters):
         iters.append(self.indexer.iter2string(iter))
-    
-    def getStateChangeArgument(self, argumentString):
-        return map(self.indexer.string2iter, argumentString.split(","))
-    
+        
     def generate(self, argumentString):
         oldSelected = self.findSelectedIters()
         newSelected = self.parseIterNames(argumentString)
