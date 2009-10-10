@@ -4,8 +4,7 @@ The basic mission of this module is to provide a standard textual output of GTK 
 to aid in text-based UI testing for GTK
 """
 
-import gtkloggertreeview, logging, gtk, gobject, locale, operator
-from gtkloggertreeview import getStockDescription
+import gtkloggertreeview, gtkloggerimage, logging, gtk, gobject, locale, operator
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
 PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
@@ -82,7 +81,8 @@ class Describer:
 
     def getPropertyDescription(self, widget):
         properties = []
-        imageDesc = self.getInbuiltImageDescription(widget)
+        imageDescriber = gtkloggerimage.ImageDescriber()
+        imageDesc = imageDescriber.getInbuiltImageDescription(widget)
         if imageDesc:
             properties.append(imageDesc)
         if not widget.get_property("sensitive"):
@@ -98,20 +98,6 @@ class Describer:
             return " (" + ", ".join(properties) + ")"
         else:
             return ""
-
-    def getInbuiltImageDescription(self, widget):
-        if hasattr(widget, "get_stock_id"):
-            stockId = widget.get_stock_id()
-            if stockId:
-                return getStockDescription(stockId)
-        if hasattr(widget, "get_image"):
-            try:
-                image = widget.get_image()
-                if image and image.get_property("visible"):
-                    return self.getImageDescription(image)
-            except ValueError:
-                return ""
-        return ""
 
     def getAccelerator(self, widget):
         action = widget.get_action()
@@ -377,16 +363,8 @@ class Describer:
         return describer.getDescription(self.prefix)
 
     def getImageDescription(self, image):
-        try:
-            stock, size = image.get_stock()
-            if stock:
-                return getStockDescription(stock)
-
-            if image.get_storage_type() == gtk.IMAGE_EMPTY:
-                return ""
-        except ValueError:
-            pass
-        return "Non-stock image"
+        describer = gtkloggerimage.ImageDescriber()
+        return describer.getDescription(image)
 
     def getMenuBarDescription(self, menubar):
         return self.getBarDescription(menubar, "Menu")

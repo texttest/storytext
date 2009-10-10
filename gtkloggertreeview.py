@@ -4,11 +4,7 @@ Logging TreeViews is complicated because there are several ways to set them up
 and little direct support for extracting information from them. So they get their own module.
 """
 
-import gtk, logging, types, operator
-
-# Really a utility, but not worth its own module
-def getStockDescription(stock):
-    return "Stock image '" + stock + "'"
+import gtkloggerimage, gtk, logging, types, operator
 
 origTreeViewColumn = gtk.TreeViewColumn
 origCellRendererText = gtk.CellRendererText
@@ -218,40 +214,15 @@ class CellRendererToggleDescriber(CellRendererDescriber):
 class CellRendererPixbufDescriber(CellRendererDescriber):
     def __init__(self, extractors):
         CellRendererDescriber.__init__(self, extractors)
-        self.numberForNew = 1
-        self.pixbufs = {}
+        self.imageDescriber = gtkloggerimage.ImageDescriber()
 
     def getBasicDescription(self, *args):
         stockId = self.getValue("stock-id", *args)
         if stockId:
-            return getStockDescription(stockId)
+            return self.imageDescriber.getStockDescription(stockId)
         else:
-            return self.getPixbufDescription(*args)
-
-    def getPixbufName(self, pixbuf):
-        fromData = pixbuf.get_data("name")
-        if fromData:
-            return fromData
-        else:
-            number = self.getPixbufNumber(pixbuf)
-            return "Number " + str(number)
-
-    def getPixbufNumber(self, pixbuf):
-        storedNum = self.pixbufs.get(pixbuf)
-        if storedNum:
-            return storedNum
-
-        self.pixbufs[pixbuf] = self.numberForNew
-        self.numberForNew += 1
-        return self.pixbufs.get(pixbuf)
-
-    def getPixbufDescription(self, *args):
-        pixbuf = self.getValue("pixbuf", *args)
-        if pixbuf:
-            name = self.getPixbufName(pixbuf)
-            return "Image '" + name + "'"
-        else:
-            return ""
+            pixbuf = self.getValue("pixbuf", *args)
+            return self.imageDescriber.getPixbufDescription(pixbuf)
 
 
 # Complicated enough to need its own class...

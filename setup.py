@@ -4,6 +4,6 @@ from usecase import version
 
 setup(name='PyUseCase',
       version=version,
-      py_modules=["usecase", "gtkusecase", "gtklogger", "gtkloggertreeview", "ndict", "jobprocess"],
+      py_modules=["usecase", "gtkusecase", "gtklogger", "gtkloggertreeview", "gtkloggerimage", "ndict", "jobprocess"],
       scripts=["pyusecase"]
       )
