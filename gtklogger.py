@@ -36,6 +36,7 @@ def setMonitoring(*args):
         idleScheduler = IdleScheduler(*args)
         if isEnabled():
             gtkloggertreeview.performInterceptions()
+            gtkloggerimage.performInterceptions()
 
 def describeNewWindows(*args):
     return idleScheduler.describeNewWindows(*args)

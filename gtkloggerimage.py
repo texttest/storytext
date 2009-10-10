@@ -3,12 +3,33 @@
 Module for handling image logging
 """
 
-import gtk
+import gtk, os
+
+orig_pixbuf_new_from_file = gtk.gdk.pixbuf_new_from_file
+orig_pixbuf_new_from_xpm_data = gtk.gdk.pixbuf_new_from_xpm_data
+
+def pixbuf_new_from_file(filename):
+    pixbuf = orig_pixbuf_new_from_file(filename)
+    ImageDescriber.pixbufs[pixbuf] = os.path.basename(filename)
+    return pixbuf
+
+def pixbuf_new_from_xpm_data(data):
+    pixbuf = orig_pixbuf_new_from_xpm_data(data)
+    ImageDescriber.add_xpm(pixbuf, data)
+    return pixbuf
+
+def performInterceptions():
+    gtk.gdk.pixbuf_new_from_file = pixbuf_new_from_file
+    gtk.gdk.pixbuf_new_from_xpm_data = pixbuf_new_from_xpm_data
 
 class ImageDescriber:
-    def __init__(self):
-        self.numberForNew = 1
-        self.pixbufs = {}
+    xpmNumber = 1
+    pixbufs = {}
+
+    @classmethod
+    def add_xpm(cls, pixbuf, data):
+        cls.pixbufs[pixbuf] = "XPM " + str(cls.xpmNumber)
+        cls.xpmNumber += 1
 
     def getDescription(self, image):
         try:
@@ -20,7 +41,9 @@ class ImageDescriber:
                 return ""
         except ValueError:
             pass
-        return "Non-stock image"
+
+        pixbuf = image.get_property("pixbuf")
+        return self.getPixbufDescription(pixbuf)
 
     def getStockDescription(self, stock):
         return "Stock image '" + stock + "'"
@@ -51,16 +74,5 @@ class ImageDescriber:
         if fromData:
             return fromData
         else:
-            number = self.getPixbufNumber(pixbuf)
-            return "Number " + str(number)
-
-    def getPixbufNumber(self, pixbuf):
-        storedNum = self.pixbufs.get(pixbuf)
-        if storedNum:
-            return storedNum
-
-        self.pixbufs[pixbuf] = self.numberForNew
-        self.numberForNew += 1
-        return self.pixbufs.get(pixbuf)
-
+            return self.pixbufs.get(pixbuf, "Unknown")
     
