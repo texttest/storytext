@@ -44,7 +44,7 @@ def describeNewWindows(*args):
 class Describer:
     logger = None
     supportedWidgets = [ gtk.Label, gtk.ToggleToolButton, gtk.ToolButton, gtk.SeparatorToolItem,
-                         gtk.ToolItem, gtk.CheckButton, gtk.Button, gtk.Table, gtk.Frame, gtk.FileChooser,
+                         gtk.ToolItem, gtk.ToggleButton, gtk.Button, gtk.Table, gtk.Frame, gtk.FileChooser,
                          gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.CellView, gtk.ComboBoxEntry,
                          gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
                          gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
@@ -122,7 +122,7 @@ class Describer:
                 return data[2]
 
     def getSeparator(self, container):
-        if isinstance(container, gtk.HBox):
+        if isinstance(container, gtk.HBox) or isinstance(container, gtk.HButtonBox):
             return " , "
         elif isinstance(container, gtk.Paned):
             return self.getPanedSeparator(container)
@@ -178,21 +178,26 @@ class Describer:
                 texts.append("'" + renderer.get_property("text") + "'")
         return " , ".join(texts)
 
-    def getCheckButtonDescription(self, button):
+    def getToggleButtonDescription(self, button):
         idleScheduler.monitor(button, [ "toggled" ], "Toggled ")
         text = ""
         if self.prefix != "Showing ":
             text += self.prefix
         if isinstance(button, gtk.RadioButton):
             text += "Radio"
-        else:
+        elif isinstance(button, gtk.CheckButton):
             text += "Check"
+        else:
+            text += "Toggle"
         text += " button '" + button.get_label() + "'" + self.getActivePostfix(button)
         return text
 
     def getActivePostfix(self, widget):
         if widget.get_active():
-            return " (checked)"
+            if isinstance(widget, gtk.CheckButton) or isinstance(widget, gtk.CheckMenuItem):
+                return " (checked)"
+            else:
+                return " (depressed)"
         else:
             return ""
 
