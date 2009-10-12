@@ -12,6 +12,10 @@ cellRendererExtractors = {}
 def getAllExtractors(renderer):
     return cellRendererExtractors.get(renderer, {})
 
+def getExtractor(renderer, property):
+    return getAllExtractors(renderer).get(property)
+
+
 origTreeViewColumn = gtk.TreeViewColumn
 origCellRendererText = gtk.CellRendererText
 origCellRendererPixbuf = gtk.CellRendererPixbuf
