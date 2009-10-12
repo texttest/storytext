@@ -64,7 +64,7 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import usecase, gtklogger, gtk, gobject, os, re, logging, types
+import usecase, gtklogger, gtktreeviewextract, gtk, gobject, os, re, logging, types
 from ConfigParser import ConfigParser
 from ndict import seqdict
 PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
@@ -1148,6 +1148,8 @@ class ScriptEngine(usecase.ScriptEngine):
         self.dialogsBlocked = []
         self.treeViewIndexers = {}
         gtklogger.setMonitoring(universalLogging, self.replayerActive())
+        if useUiMap or gtklogger.isEnabled():
+            gtktreeviewextract.performInterceptions()
         
     def blockInstrumentation(self, dialog):
         self.dialogsBlocked.append(dialog)
