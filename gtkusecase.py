@@ -448,14 +448,8 @@ class CellToggleEvent(TreeViewEvent):
     def __init__(self, name, widget, cellRenderer, indexer, relevantState):
         self.cellRenderer = cellRenderer
         self.extractor = gtktreeviewextract.getExtractor(cellRenderer, "active")
-        self.relevantState = self.parseState(relevantState)
+        self.relevantState = relevantState
         TreeViewEvent.__init__(self, name, widget, indexer)
-
-    def parseState(self, relevantState):
-        if type(relevantState) == types.StringType:
-            return relevantState == "true"
-        else:
-            return relevantState
 
     def shouldRecord(self, renderer, path, *args):
         model = self.widget.get_model()
@@ -1550,11 +1544,6 @@ class ScriptEngine(usecase.ScriptEngine):
         
         return SignalEvent(eventName, widget, signalName)
 
-    def getIndexerFromParseData(self, widget, argumentParseData):
-        if argumentParseData is not None:
-            return self.getTreeViewIndexer(widget, *argumentParseData)
-        else:
-            return self.getTreeViewIndexer(widget)
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(usecase.UseCaseReplayer):
