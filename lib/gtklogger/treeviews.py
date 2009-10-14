@@ -4,7 +4,8 @@ Logging TreeViews is complicated because there are several ways to set them up
 and little direct support for extracting information from them. So they get their own module.
 """
 
-import gtktreeviewextract, gtkloggerimage, gtk, logging
+import gtktreeviewextract, gtk, logging
+from images import ImageDescriber
 
 class CellRendererDescriber:
     def __init__(self, extractors):
@@ -87,7 +88,7 @@ class CellRendererToggleDescriber(CellRendererDescriber):
 class CellRendererPixbufDescriber(CellRendererDescriber):
     def __init__(self, extractors):
         CellRendererDescriber.__init__(self, extractors)
-        self.imageDescriber = gtkloggerimage.ImageDescriber()
+        self.imageDescriber = ImageDescriber()
 
     def getBasicDescription(self, *args):
         stockId = self.getValue("stock-id", *args)

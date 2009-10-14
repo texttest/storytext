@@ -4,7 +4,10 @@ The basic mission of this module is to provide a standard textual output of GTK 
 to aid in text-based UI testing for GTK
 """
 
-import gtkloggertreeview, gtkloggerimage, logging, gtk, gobject, locale, operator
+import logging, gtk, gobject, locale, operator
+
+from treeviews import TreeViewDescriber
+from images import performInterceptions, ImageDescriber
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
 PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
@@ -35,7 +38,7 @@ def setMonitoring(*args):
     if not idleScheduler:
         idleScheduler = IdleScheduler(*args)
         if isEnabled():
-            gtkloggerimage.performInterceptions()
+            performInterceptions()
 
 def describeNewWindows(*args):
     return idleScheduler.describeNewWindows(*args)
@@ -81,7 +84,7 @@ class Describer:
 
     def getPropertyDescription(self, widget):
         properties = []
-        imageDescriber = gtkloggerimage.ImageDescriber()
+        imageDescriber = ImageDescriber()
         imageDesc = imageDescriber.getInbuiltImageDescription(widget)
         if imageDesc:
             properties.append(imageDesc)
@@ -364,11 +367,11 @@ class Describer:
         return "Viewing page '" + tabName + "'\n" + self.getDescription(page)
     
     def getTreeViewDescription(self, view):
-        describer = self.cachedDescribers.setdefault(view, gtkloggertreeview.TreeViewDescriber(view, idleScheduler))
+        describer = self.cachedDescribers.setdefault(view, TreeViewDescriber(view, idleScheduler))
         return describer.getDescription(self.prefix)
 
     def getImageDescription(self, image):
-        describer = gtkloggerimage.ImageDescriber()
+        describer = ImageDescriber()
         return describer.getDescription(image)
 
     def getMenuBarDescription(self, menubar):
