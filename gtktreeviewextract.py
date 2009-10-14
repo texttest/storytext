@@ -4,7 +4,7 @@ Module that makes it possible to extract information from a treeview
 without having information about the treemodel, as we may not from inside PyUsecase
 """
 
-import gtk
+import gtk, re
 
 # This is the important information, used by other classes
 cellRendererExtractors = {}
@@ -14,6 +14,15 @@ def getAllExtractors(renderer):
 
 def getExtractor(renderer, property):
     return getAllExtractors(renderer).get(property)
+
+def getTextExtractor(renderer):
+    extractor = getExtractor(renderer, "text")
+    if extractor:
+        return extractor
+    else:
+        markupExtractor = getExtractor(renderer, "markup")
+        if markupExtractor:
+            return MarkupRemover(markupExtractor)
 
 
 origTreeViewColumn = gtk.TreeViewColumn
@@ -140,3 +149,11 @@ class HistoryExtractor:
         for entry in toRemove:
             self.history.remove(entry)
         return retVal
+
+class MarkupRemover:
+    def __init__(self, extractor):
+        self.extractor = extractor
+
+    def getValue(self, *args):
+        value = self.extractor.getValue(*args)
+        return re.sub("<[^>]*>", "", str(value))
