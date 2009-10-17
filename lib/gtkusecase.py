@@ -894,9 +894,12 @@ class TreeViewIndexer:
 
     def findAllRows(self, name):
         storedRows = self.name2row.get(name, [])
-        validRows = filter(lambda r: r.get_path() is not None, storedRows)
-        self.name2row[name] = validRows
-        return validRows
+        if len(storedRows) > 0:
+            validRows = filter(lambda r: r.get_path() is not None, storedRows)
+            self.name2row[name] = validRows
+            return validRows
+        else:
+            return storedRows
             
     def store(self, row, name):
         rows = self.name2row.setdefault(name, [])
