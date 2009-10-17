@@ -81,50 +81,69 @@ class GtkEvent(usecase.UserEvent):
     def __init__(self, name, widget, *args):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
+        self.interceptMethod(self.widget.stop_emission, EmissionStopIntercept)
         self.programmaticChange = False
+        self.stopEmissionOnRecord = False
         self.changeMethod = self.getRealMethod(self.getChangeMethod())
         if self.changeMethod:
             allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
             for method in allChangeMethods:
-                self.interceptMethod(method)
-    def interceptMethod(self, method):
+                self.interceptMethod(method, ProgrammaticChangeIntercept)
+
+    def interceptMethod(self, method, interceptClass):
         if isinstance(method, MethodIntercept):
             method.addEvent(self)
         else:
-            setattr(self.getSelf(method), method.__name__, MethodIntercept(method, self))
+            setattr(self.getSelf(method), method.__name__, interceptClass(method, self))
+
     def getSelf(self, method):
         # seems to be different for built-in and bound methods
         try:
             return method.im_self
         except AttributeError:
             return method.__self__
+
     def getRealMethod(self, method):
         if isinstance(method, MethodIntercept):
             return method.method
         else:
             return method
+
     def getProgrammaticChangeMethods(self):
         return []
+
     def setProgrammaticChange(self, val, *args, **kwargs):
         self.programmaticChange = val
+
     @classmethod
     def getAssociatedSignatures(cls, widget):
         return set([ cls.getAssociatedSignal(widget) ])
     @classmethod
     def getAssociatedSignal(cls, widget):
         return cls.signalName
+
     def getRecordSignal(self):
         return self.signalName
+
     def getUiMapSignature(self):
         return self.getRecordSignal()
+
     def connectRecord(self, method):
         self._connectRecord(self.widget, method)
+
     def _connectRecord(self, gobj, method):
         gobj.connect(self.getRecordSignal(), method, self)
+
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
+
     def shouldRecord(self, *args):
+        if self.stopEmissionOnRecord:
+            method = self.getRealMethod(self.widget.stop_emission)
+            method(self.getRecordSignal())
+            self.stopEmissionOnRecord = False
         return not self.programmaticChange and self.widget.get_property("visible")
+
     def _outputForScript(self, *args):
         return self.name
 
@@ -171,6 +190,8 @@ class MethodIntercept:
         self.events = [ event ]
     def addEvent(self, event):
         self.events.append(event)
+
+class ProgrammaticChangeIntercept(MethodIntercept):
     def __call__(self, *args, **kwds):
         # Allow for possibly nested programmatic changes, observation can have knock-on effects
         eventsToBlock = filter(lambda event: not event.programmaticChange, self.events)
@@ -180,6 +201,13 @@ class MethodIntercept:
         for event in eventsToBlock:
             event.setProgrammaticChange(False)
         return retVal
+
+class EmissionStopIntercept(MethodIntercept):
+    def __call__(self, sigName):
+        stdSigName = sigName.replace("_", "-")
+        for event in self.events:
+            if stdSigName == event.getRecordSignal():
+                event.stopEmissionOnRecord = True
 
 # Some widgets have state. We note every change but allow consecutive changes to
 # overwrite each other. 
@@ -886,8 +914,6 @@ class TreeViewIndexer:
         for index, row in enumerate(rows):
             if row is None:
                 raise usecase.UseCaseScriptError, "Cannot index tree model, there exist non-unique paths for " + oldName
-            if row.get_path() is None:
-                self.logger.debug("Dead row, WTF!!!")
             iter = self.model.get_iter(row.get_path())
             parent = self.model.iter_parent(iter)
             parentSuffix = self.getParentSuffix(parent)
