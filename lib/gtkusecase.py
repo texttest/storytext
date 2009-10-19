@@ -82,8 +82,9 @@ class GtkEvent(usecase.UserEvent):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
         self.interceptMethod(self.widget.stop_emission, EmissionStopIntercept)
+        self.interceptMethod(self.widget.emit_stop_by_name, EmissionStopIntercept)
         self.programmaticChange = False
-        self.stopEmissionOnRecord = False
+        self.stopEmissionMethod = None
         self.changeMethod = self.getRealMethod(self.getChangeMethod())
         if self.changeMethod:
             allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
@@ -138,10 +139,9 @@ class GtkEvent(usecase.UserEvent):
         return self._outputForScript(*args)
 
     def shouldRecord(self, *args):
-        if self.stopEmissionOnRecord:
-            method = self.getRealMethod(self.widget.stop_emission)
-            method(self.getRecordSignal())
-            self.stopEmissionOnRecord = False
+        if self.stopEmissionMethod:
+            self.stopEmissionMethod(self.getRecordSignal())
+            self.stopEmissionMethod = False
         return not self.programmaticChange and self.widget.get_property("visible")
 
     def _outputForScript(self, *args):
@@ -207,7 +207,7 @@ class EmissionStopIntercept(MethodIntercept):
         stdSigName = sigName.replace("_", "-")
         for event in self.events:
             if stdSigName == event.getRecordSignal():
-                event.stopEmissionOnRecord = True
+                event.stopEmissionMethod = self.method
 
 # Some widgets have state. We note every change but allow consecutive changes to
 # overwrite each other. 
