@@ -531,7 +531,7 @@ class CellToggleEvent(TreeViewEvent):
 # Seems quite capable of generating too many of them also
 class FileChooserFolderChangeEvent(StateChangeEvent):
     signalName = "current-folder-changed"
-    def __init__(self, name, widget):
+    def __init__(self, name, widget, *args):
         self.currentFolder = widget.get_current_folder()
         StateChangeEvent.__init__(self, name, widget)
     def setProgrammaticChange(self, val, filename=None):
@@ -557,7 +557,11 @@ class FileChooserFolderChangeEvent(StateChangeEvent):
         for folder in self.widget.list_shortcut_folders():
             if os.path.basename(folder) == argumentString:
                 return folder
-        return os.path.join(self.widget.get_current_folder(), argumentString)
+        folder = os.path.join(self.widget.get_current_folder(), argumentString)
+        if os.path.isdir(folder):
+            return folder
+        else: 
+            raise usecase.UseCaseScriptError, "Cannot find folder '" + argumentString + "' to change to!"
 
 # Base class for selecting a file or typing a file name
 class FileChooserFileEvent(StateChangeEvent):
@@ -598,7 +602,11 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
             self.currentName = self._getStateDescription()
             return False
     def getStateChangeArgument(self, argumentString):
-        return os.path.join(self.fileChooser.get_current_folder(), argumentString)
+        path = os.path.join(self.fileChooser.get_current_folder(), argumentString)
+        if os.path.exists(path):
+            return path
+        else:
+            raise usecase.UseCaseScriptError, "Cannot select file '" + argumentString + "', no such file in current folder"
     
 
 class FileChooserEntryEvent(FileChooserFileEvent):
@@ -1136,7 +1144,7 @@ class UIMap:
                 autoEventName = "Auto." + widgetType + "." + signature + ".'" + self.getSectionName(widget) + "'"
                 self.autoInstrument(autoEventName, signature, widget, widgetType)
 
-        if hasattr(widget, "get_children"):
+        if hasattr(widget, "get_children") and not isinstance(widget, gtk.FileChooser):
             for child in widget.get_children():
                 if child.get_name() != "Shortcut bar":
                     self.monitor(child)
@@ -1197,6 +1205,7 @@ class ScriptEngine(usecase.ScriptEngine):
         gtk.TreeView     : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
                              RowCollapseEvent, RowRightClickEvent, CellToggleEvent,
                              TreeColumnClickEvent ],
+        gtk.FileChooser  : [ FileChooserFileSelectEvent, FileChooserFolderChangeEvent ]
 }
     def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
         self.uiMap = None
@@ -1567,6 +1576,8 @@ class ScriptEngine(usecase.ScriptEngine):
                 if not currClass or issubclass(widgetClass, currClass):
                     eventClasses = currEventClasses
                     currClass = widgetClass
+                elif not issubclass(currClass, widgetClass):
+                    eventClasses += currEventClasses
         return eventClasses
         
     def _createSignalEvent(self, eventName, signalName, widget, argumentParseData):
