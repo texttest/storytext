@@ -134,14 +134,17 @@ class GtkEvent(usecase.UserEvent):
 
     def _connectRecord(self, gobj, method):
         gobj.connect(self.getRecordSignal(), method, self)
+        gobj.connect(self.getRecordSignal(), self.stopEmissions)
 
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
 
-    def shouldRecord(self, *args):
+    def stopEmissions(self, *args):
         if self.stopEmissionMethod:
             self.stopEmissionMethod(self.getRecordSignal())
-            self.stopEmissionMethod = False
+            self.stopEmissionMethod = None
+
+    def shouldRecord(self, *args):
         return not self.programmaticChange and self.widget.get_property("visible")
 
     def _outputForScript(self, *args):
