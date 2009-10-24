@@ -64,9 +64,15 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import usecase, gtklogger, gtktreeviewextract, gtk, gobject, os, re, logging, types
-from ConfigParser import ConfigParser
+import usecase, gtklogger, gtktreeviewextract, gtk, gobject, os, re, logging, types, sys
 from ndict import seqdict
+
+# We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
+if sys.version[:2] >= (2, 6):
+    from ConfigParser import ConfigParser
+else:
+    from ConfigParser26 import ConfigParser
+
 PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
 version = usecase.version
 
@@ -613,9 +619,27 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
     
 
 class FileChooserEntryEvent(FileChooserFileEvent):
-    signalName = "clicked"
+    signalName = "response"
+    fakeSignalName = "current-name-changed" # There is no such signal on FileChooser, but we can pretend...
+    def __init__(self, name, fileChooser, *args):
+        FileChooserFileEvent.__init__(self, name, fileChooser.get_toplevel(), fileChooser)
+
     def getChangeMethod(self):
         return self.fileChooser.set_current_name
+    
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        if widget.get_property("action") == gtk.FILE_CHOOSER_ACTION_SAVE:
+            return [ cls.fakeSignalName ]
+        else:
+            return []
+
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return cls.fakeSignalName
+
+    def getUiMapSignature(self):
+        return self.fakeSignalName
 
 
 class TreeSelectionEvent(StateChangeEvent):
@@ -631,7 +655,10 @@ class TreeSelectionEvent(StateChangeEvent):
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        return [ "changed.selection" ]
+        if widget.get_model():
+            return [ "changed.selection" ]
+        else:
+            return []
 
     def getUiMapSignature(self):
         return "changed.selection"
@@ -961,7 +988,7 @@ class TreeViewIndexer:
             return " under " + self.getValue(self.model, parent)
         else:
             return " at top level"
-  
+
 
 class UIMap:
     ignoreWidgetTypes = [ "Label" ]
@@ -970,14 +997,9 @@ class UIMap:
         if not os.path.isdir(usecaseDir):
             os.makedirs(usecaseDir)
         self.file = os.path.join(usecaseDir, "ui_map.conf")
-        try:
-            # works in Python 2.6
-            self.parser = ConfigParser(dict_type=seqdict)
-        except TypeError:
-            # hacks for older versions
-            self.parser = ConfigParser()
-            self.parser._sections = seqdict()
-
+        # See top of file: uses the version from 2.6
+        self.parser = ConfigParser(dict_type=seqdict)
+        
         self.parser.read([ self.file ])
         self.changed = False
         self.scriptEngine = scriptEngine
@@ -1016,7 +1038,10 @@ class UIMap:
             return widget.get_label()
         except AttributeError:
             if isinstance(widget, gtk.MenuItem):
-                return widget.get_child().get_text()
+                child = widget.get_child()
+                # "child" is normally a gtk.AccelLabel, but in theory it could be anything
+                if isinstance(child, gtk.Label): 
+                    return child.get_text()
             
     def getSectionName(self, widget):
         widgetName = widget.get_name()
@@ -1062,6 +1087,9 @@ class UIMap:
                 return sectionName
 
     def widgetHasSignal(self, widget, signalName):
+        if signalName == "current-name-changed" and isinstance(widget, gtk.FileChooser):
+            return True # Our favourite fake signal...
+
         # We tried using gobject.type_name and gobject.signal_list_names but couldn't make it work
         # We go for the brute force approach : actually do it and remove it again and see if we succeed...
         try:
@@ -1133,17 +1161,19 @@ class UIMap:
                         autoInstrumented = True
         return signaturesInstrumented, autoInstrumented
 
-    def findSupportedSignatures(self, widget):
-        eventClasses = self.scriptEngine.findEventClassesFor(widget)
-        return reduce(set.union, (eventClass.getAssociatedSignatures(widget) for eventClass in eventClasses), set())
+    def findAutoInstrumentSignatures(self, widget, preInstrumented):
+        signatures = []
+        for eventClass in self.scriptEngine.findEventClassesFor(widget):
+            for signature in eventClass.getAssociatedSignatures(widget):
+                if signature not in signatures and signature not in preInstrumented:
+                    signatures.append(signature)
+        return signatures
 
     def monitor(self, widget):
         signaturesInstrumented, autoInstrumented = self.instrumentFromMapFile(widget)
         if self.scriptEngine.recorderActive():
-            signaturesSupported = self.findSupportedSignatures(widget)
-            self.logger.debug("Found widget with supported signatures " + repr(signaturesSupported))
-            for signature in signaturesSupported.difference(signaturesInstrumented):
-                widgetType = widget.__class__.__name__
+            widgetType = widget.__class__.__name__
+            for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
                 autoEventName = "Auto." + widgetType + "." + signature + ".'" + self.getSectionName(widget) + "'"
                 self.autoInstrument(autoEventName, signature, widget, widgetType)
 
@@ -1195,21 +1225,22 @@ class UIMap:
 
 
 class ScriptEngine(usecase.ScriptEngine):
-    eventTypes = {
-        gtk.Button       : [ SignalEvent ],
-        gtk.MenuItem     : [ SignalEvent ],
-        gtk.ToggleButton : [ ActivateEvent ],
-        gtk.Entry        : [ EntryEvent, SignalEvent ],
-        gtk.Dialog       : [ ResponseEvent, DeletionEvent ],
-        gtk.Window       : [ DeletionEvent ],
-        gtk.Notebook     : [ NotebookPageChangeEvent ],
-        gtk.Label        : [ LeftClickEvent ],
-        gtk.Paned        : [ PaneDragEvent ],
-        gtk.TreeView     : [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
-                             RowCollapseEvent, RowRightClickEvent, CellToggleEvent,
-                             TreeColumnClickEvent ],
-        gtk.FileChooser  : [ FileChooserFileSelectEvent, FileChooserFolderChangeEvent ]
-}
+    eventTypes = [
+        (gtk.Button       , [ SignalEvent ]),
+        (gtk.MenuItem     , [ SignalEvent ]),
+        (gtk.ToggleButton , [ ActivateEvent ]),
+        (gtk.Entry        , [ EntryEvent, SignalEvent ]),
+        (gtk.FileChooser  , [ FileChooserFileSelectEvent, FileChooserFolderChangeEvent, 
+                              FileChooserEntryEvent ]),
+        (gtk.Dialog       , [ ResponseEvent, DeletionEvent ]),
+        (gtk.Window       , [ DeletionEvent ]),
+        (gtk.Notebook     , [ NotebookPageChangeEvent ]),
+        (gtk.Label        , [ LeftClickEvent ]),
+        (gtk.Paned        , [ PaneDragEvent ]),
+        (gtk.TreeView     , [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
+                              RowCollapseEvent, RowRightClickEvent, CellToggleEvent,
+                              TreeColumnClickEvent ])
+]
     def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
         self.uiMap = None
         if useUiMap:
@@ -1318,7 +1349,7 @@ class ScriptEngine(usecase.ScriptEngine):
         # which worked fine on linux but crashes on Windows)
         if self.active():
             stdName = self.standardName(fileDesc)
-            event = FileChooserEntryEvent(stdName, saveButton, fileChooser)
+            event = FileChooserEntryEvent(stdName, fileChooser)
             self._addEventToScripts(event)
             self.registerFolderChange(fileChooser, folderChangeDesc)
             self.createOKEvent(fileChooser, saveDesc, respondMethod, saveButton, respondMethodArg)
@@ -1574,7 +1605,7 @@ class ScriptEngine(usecase.ScriptEngine):
     def findEventClassesFor(self, widget):
         eventClasses = []
         currClass = None
-        for widgetClass, currEventClasses in self.eventTypes.items():
+        for widgetClass, currEventClasses in self.eventTypes:
             if isinstance(widget, widgetClass):
                 if not currClass or issubclass(widgetClass, currClass):
                     eventClasses = currEventClasses
