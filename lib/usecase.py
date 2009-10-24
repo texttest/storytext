@@ -47,7 +47,6 @@ These will then be capable of
 
 import os, string, sys, signal, time, stat, logging
 from threading import Thread
-from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 from ndict import seqdict
 from shutil import copyfile
 from jobprocess import JobProcess
