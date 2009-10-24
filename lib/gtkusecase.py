@@ -360,7 +360,7 @@ class TreeColumnClickEvent(SignalEvent):
         self._connectRecord(self.column, method)
 
     def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + self.column.get_title().lower()
+        return self.getRecordSignal() + "." + getColumnName(self.column).lower()
 
     def getChangeMethod(self):
         return self.column.emit
@@ -370,7 +370,7 @@ class TreeColumnClickEvent(SignalEvent):
         signatures = []
         for column in widget.get_columns():
             if column.get_clickable():
-                signatures.append(cls.signalName + "." + column.get_title().lower())
+                signatures.append(cls.signalName + "." + getColumnName(column).lower())
         return signatures
 
 
@@ -512,7 +512,7 @@ class CellToggleEvent(TreeViewEvent):
         for column in widget.get_columns():
             for renderer in column.get_cell_renderers():
                 if isinstance(renderer, gtk.CellRendererToggle):
-                    rootName = cls.signalName + "." + column.get_title().lower()
+                    rootName = cls.signalName + "." + getColumnName(column).lower()
                     signatures.append(rootName + ".true")
                     signatures.append(rootName + ".false")
         return signatures
@@ -520,7 +520,7 @@ class CellToggleEvent(TreeViewEvent):
     def getColumnName(self):
         for column in self.widget.get_columns():
             if self.cellRenderer in column.get_cell_renderers():
-                return column.get_title()
+                return getColumnName(column)
 
     def getGenerationArguments(self, argumentString):
         path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]
@@ -834,6 +834,13 @@ class DeletionEvent(SignalEvent):
         SignalEvent.generate(self, argumentString)
         self.widget.destroy() # just in case...
             
+def getColumnName(column):
+    name = column.get_data("name")
+    if name:
+        return name
+    else:
+        return column.get_title()
+
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 # Can't store rows on TreeModelFilters, store the underlying rows and convert them at the last minute
 class TreeViewIndexer:
@@ -1134,7 +1141,7 @@ class UIMap:
 
     def findTreeViewColumn(self, widget, columnName):
         for column in widget.get_columns():
-            if column.get_title().lower() == columnName:
+            if getColumnName(column).lower() == columnName:
                 return column
 
     def findToggleRenderer(self, column):
