@@ -1041,6 +1041,13 @@ class UIMap:
             pass
 
     def getLabel(self, widget):
+        text = self.getLabelText(widget)
+        if text and "\n" in text:
+            return text.splitlines()[0] + "..."
+        else:
+            return text
+
+    def getLabelText(self, widget):
         try:
             return widget.get_label()
         except AttributeError:
