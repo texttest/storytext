@@ -1340,8 +1340,7 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckEvent = CellToggleEvent(uncheckChangeName, parentTreeView, renderer, indexer, False)
                 self._addEventToScripts(uncheckEvent)
 
-    def registerSaveFileChooser(self, fileChooser, fileDesc, folderChangeDesc, saveDesc, cancelDesc, 
-                                respondMethod, saveButton=None, cancelButton=None, respondMethodArg=None):
+    def registerFileChooser(self, fileChooser, fileDesc, folderChangeDesc):
         # Since we have not found and good way to connect to the gtk.Entry for giving filenames to save
         # we'll monitor pressing the (dialog OK) button given to us. When replaying,
         # we'll call the appropriate method to set the file name ...
@@ -1349,43 +1348,19 @@ class ScriptEngine(usecase.ScriptEngine):
         # which worked fine on linux but crashes on Windows)
         if self.active():
             stdName = self.standardName(fileDesc)
-            event = FileChooserEntryEvent(stdName, fileChooser)
-            self._addEventToScripts(event)
-            self.registerFolderChange(fileChooser, folderChangeDesc)
-            self.createOKEvent(fileChooser, saveDesc, respondMethod, saveButton, respondMethodArg)
-            self.createCancelEvent(fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg)
-
-    def registerOpenFileChooser(self, fileChooser, fileSelectDesc, folderChangeDesc, openDesc, cancelDesc, 
-                                respondMethod, openButton=None, cancelButton=None, respondMethodArg=None):
-        if self.active():
-            stdName = self.standardName(fileSelectDesc)
-            if fileChooser.get_property("action") == gtk.FILE_CHOOSER_ACTION_OPEN:
-                event = FileChooserFileSelectEvent(stdName, fileChooser)
-                self._addEventToScripts(event)
-                self.registerFolderChange(fileChooser, folderChangeDesc)
-            else:
+            action = fileChooser.get_property("action")
+            if action == gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER:
                 # Selecting folders, do everything with the folder change...
                 self.registerFolderChange(fileChooser, stdName)
-            self.createOKEvent(fileChooser, openDesc, respondMethod, openButton, respondMethodArg)
-            self.createCancelEvent(fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg)
+            else:
+                if action == gtk.FILE_CHOOSER_ACTION_OPEN:
+                    event = FileChooserFileSelectEvent(stdName, fileChooser)
+                else:
+                    event = FileChooserEntryEvent(stdName, fileChooser)
+                
+                self._addEventToScripts(event)
+                self.registerFolderChange(fileChooser, folderChangeDesc)
  
-    def createOKEvent(self, fileChooser, OKDesc, respondMethod, OKButton, respondMethodArg):
-        if OKButton:
-            # The OK button is what we monitor in the scriptEngine, so simulate that it is pressed ...
-            fileChooser.connect("file-activated", self.simulateOKClick, OKButton)
-            return self.connect(OKDesc, "clicked", OKButton, respondMethod, None, True, respondMethodArg)
-        else:
-            return self.connect(OKDesc, "response", fileChooser, respondMethod, gtk.RESPONSE_OK, respondMethodArg)
-        
-    def simulateOKClick(self, filechooser, button):
-        button.clicked()
-
-    def createCancelEvent(self, fileChooser, cancelDesc, respondMethod, cancelButton, respondMethodArg):
-        if cancelButton:
-            return self.connect(cancelDesc, "clicked", cancelButton, respondMethod, None, False, respondMethodArg)
-        else:
-            return self.connect(cancelDesc, "response", fileChooser, respondMethod, gtk.RESPONSE_CANCEL, respondMethodArg)
-
     def getTreeViewIndexer(self, treeView):
         return self.treeViewIndexers.setdefault(treeView, TreeViewIndexer(treeView))
             
