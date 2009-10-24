@@ -1235,7 +1235,6 @@ class ScriptEngine(usecase.ScriptEngine):
         (gtk.Dialog       , [ ResponseEvent, DeletionEvent ]),
         (gtk.Window       , [ DeletionEvent ]),
         (gtk.Notebook     , [ NotebookPageChangeEvent ]),
-        (gtk.Label        , [ LeftClickEvent ]),
         (gtk.Paned        , [ PaneDragEvent ]),
         (gtk.TreeView     , [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
                               RowCollapseEvent, RowRightClickEvent, CellToggleEvent,
@@ -1598,7 +1597,15 @@ class ScriptEngine(usecase.ScriptEngine):
             if eventClass is not SignalEvent and eventClass.getAssociatedSignal(widget) == stdSignalName:
                 return eventClass(eventName, widget, argumentParseData)
         
-        return SignalEvent(eventName, widget, signalName)
+        return self._createGenericSignalEvent(signalName, eventName, widget)
+
+    def _createGenericSignalEvent(self, signalName, *args):
+        for eventClass in [ LeftClickEvent, RightClickEvent ]:
+            if eventClass.signalName == signalName:
+                return eventClass(*args)
+
+        newArgs = args + (signalName,)
+        return SignalEvent(*newArgs)
 
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
