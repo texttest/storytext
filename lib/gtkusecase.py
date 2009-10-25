@@ -1193,7 +1193,10 @@ class UIMap:
     def makeTreeViewEvent(self, eventName, widget, argumentParseData, signalName):
         if signalName == "clicked":
             column = self.findTreeViewColumn(widget, argumentParseData)
-            return TreeColumnClickEvent(eventName, widget, column)
+            if column:
+                return TreeColumnClickEvent(eventName, widget, column)
+            else:
+                raise usecase.UseCaseScriptError, "Could not find column with name " + repr(argumentParseData)
         
         indexer = self.scriptEngine.getTreeViewIndexer(widget)
         if signalName == "changed" and argumentParseData == "selection":
