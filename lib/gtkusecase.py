@@ -656,6 +656,13 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
         else:
             raise usecase.UseCaseScriptError, "Cannot select file '" + argumentString + "', no such file in current folder"
     
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        if widget.get_property("action") == gtk.FILE_CHOOSER_ACTION_OPEN:
+            return [ cls.getAssociatedSignal(widget) ]
+        else:
+            return []
+
 
 class FileChooserEntryEvent(FileChooserFileEvent):
     # There is no such signal on FileChooser, but we can pretend...
