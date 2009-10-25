@@ -1313,6 +1313,7 @@ class ScriptEngine(usecase.ScriptEngine):
     eventTypes = [
         (gtk.Button       , [ SignalEvent ]),
         (gtk.MenuItem     , [ SignalEvent ]),
+        (gtk.CheckMenuItem, [ ActivateEvent ]),
         (gtk.ToggleButton , [ ActivateEvent ]),
         (gtk.Entry        , [ EntryEvent, SignalEvent ]),
         (gtk.FileChooser  , [ FileChooserFileSelectEvent, FileChooserFolderChangeEvent, 
