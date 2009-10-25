@@ -1039,6 +1039,21 @@ class TreeViewIndexer:
         else:
             return " at top level"
 
+origDialog = gtk.Dialog
+origFileChooserDialog = gtk.FileChooserDialog
+
+class Dialog(origDialog):
+    uiMap = None
+    def __init__(self, *args, **kw):
+        origDialog.__init__(self, *args, **kw)
+        self.uiMap.monitorDialog(self)
+
+class FileChooserDialog(origFileChooserDialog):
+    uiMap = None
+    def __init__(self, *args, **kw):
+        origFileChooserDialog.__init__(self, *args, **kw)
+        self.uiMap.monitorDialog(self)
+
 
 class UIMap:
     ignoreWidgetTypes = [ "Label" ]
@@ -1055,20 +1070,12 @@ class UIMap:
         self.windows = []
         self.storedEvents = set()
         self.logger = logging.getLogger("gui map")
-        self.realDialog = gtk.Dialog
-        gtk.Dialog = self.createDialog
-        self.realFileChooserDialog = gtk.FileChooserDialog
-        gtk.FileChooserDialog = self.createFileChooserDialog
+        gtk.Dialog = Dialog
+        Dialog.uiMap = self
+        gtk.FileChooserDialog = FileChooserDialog
+        FileChooserDialog.uiMap = self
         self.realQuit = gtk.main_quit
         gtk.main_quit = self.mainQuit
-
-    def createDialog(self, *args, **kwargs):
-        dialog = self.realDialog(*args, **kwargs)
-        return self.monitorDialog(dialog)
-
-    def createFileChooserDialog(self, *args, **kwargs):
-        dialog = self.realFileChooserDialog(*args, **kwargs)
-        return self.monitorDialog(dialog)
 
     def monitorDialog(self, dialog):
         if self.monitorWidget(dialog):
@@ -1292,7 +1299,7 @@ class UIMap:
     def monitorWindow(self, window):
         if window not in self.windows and window.get_title() != DomainNameGUI.title:
             self.windows.append(window)
-            if isinstance(window, self.realDialog):
+            if isinstance(window, origDialog):
                 # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
                 # which may have been added since then...
                 return self.monitorChildren(window, excludeWidget=window.action_area)
