@@ -1078,14 +1078,16 @@ class FileChooserDialog(origFileChooserDialog):
 
 class UIMap:
     ignoreWidgetTypes = [ "Label" ]
-    def __init__(self, scriptEngine):
-        self.file = os.getenv("USECASE_UI_MAP", os.path.join(os.getenv("USECASE_HOME"), "ui_map.conf"))
-        if not os.path.isdir(os.path.dirname(self.file)):
-            os.makedirs(os.path.dirname(self.file))
+    def __init__(self, scriptEngine, uiMapFiles):
+        self.file = uiMapFiles[-1]
         # See top of file: uses the version from 2.6
-        self.parser = ConfigParser(dict_type=seqdict)
-        
-        self.parser.read([ self.file ])
+        self.readParser = ConfigParser(dict_type=seqdict)
+        self.readParser.read(uiMapFiles)
+        if len(uiMapFiles) > 1:
+            self.writeParser = ConfigParser(dict_type=seqdict)
+            self.writeParser.read([ self.file ])
+        else:
+            self.writeParser = self.readParser
         self.changed = False
         self.scriptEngine = scriptEngine
         self.windows = []
@@ -1113,7 +1115,9 @@ class UIMap:
 
     def write(self, *args):
         if self.changed:
-            self.parser.write(open(self.file, "w"))
+            if not os.path.isdir(os.path.dirname(self.file)):
+                os.makedirs(os.path.dirname(self.file))
+            self.writeParser.write(open(self.file, "w"))
 
     def getTitle(self, widget):
         try:
@@ -1158,18 +1162,23 @@ class UIMap:
             return
         
         self.logger.debug("Storing instrumented event for section '" + sectionName + "'")
-        if not self.parser.has_section(sectionName):
-            self.parser.add_section(sectionName)
+        if not self.readParser.has_section(sectionName):
+            self.writeParser.add_section(sectionName)
+            if self.readParser is not self.writeParser:
+                self.readParser.add_section(sectionName)
+
             self.changed = True
         eventName = event.name
         self.storedEvents.add(eventName)
-        if self.storeInfo(sectionName, event.getUiMapSignature(), eventName):
+        if self.storeInfo(sectionName, event.getUiMapSignature(), eventName, addToReadParser=True):
             self.changed = True
 
-    def storeInfo(self, sectionName, signature, eventName):
+    def storeInfo(self, sectionName, signature, eventName, addToReadParser):
         signature = signature.replace("::", "-") # Can't store :: in ConfigParser unfortunately
-        if not self.parser.has_option(sectionName, signature):
-            self.parser.set(sectionName, signature, eventName)
+        if not self.readParser.has_option(sectionName, signature):
+            self.writeParser.set(sectionName, signature, eventName)
+            if addToReadParser and self.readParser is not self.writeParser:
+                self.readParser.set(sectionName, signature, eventName)
             return True
         else:
             return False
@@ -1178,7 +1187,7 @@ class UIMap:
         sectionNames = [ "Name=" + widget.get_name(), "Title=" + str(self.getTitle(widget)), 
                          "Label=" + str(self.getLabel(widget)), "Type=" + widgetType ]
         for sectionName in sectionNames:
-            if self.parser.has_section(sectionName):
+            if self.readParser.has_section(sectionName):
                 return sectionName
 
     def widgetHasSignal(self, widget, signalName):
@@ -1249,7 +1258,7 @@ class UIMap:
         section = self.findSection(widget, widgetType)
         if section:
             self.logger.debug("Reading map file section " + repr(section) + " for widget of type " + widgetType)
-            for signature, eventName in self.parser.items(section):
+            for signature, eventName in self.readParser.items(section):
                 signature = signature.replace("notify-", "notify::")
                 if eventName in self.storedEvents:
                     signaturesInstrumented.add(signature)
@@ -1268,26 +1277,26 @@ class UIMap:
                     signatures.append(signature)
         return signatures
 
-    def monitorWidget(self, widget):
+    def monitorWidget(self, widget, mapFileOnly=False):
         signaturesInstrumented, autoInstrumented = self.instrumentFromMapFile(widget)
-        if self.scriptEngine.recorderActive():
+        if not mapFileOnly and self.scriptEngine.recorderActive():
             widgetType = widget.__class__.__name__
             for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
                 autoEventName = "Auto." + widgetType + "." + signature + ".'" + self.getSectionName(widget) + "'"
                 self.autoInstrument(autoEventName, signature, widget, widgetType)
         return autoInstrumented
 
-    def monitorChildren(self, widget, excludeWidget=None):
+    def monitorChildren(self, widget, *args, **kw):
         if hasattr(widget, "get_children") and not isinstance(widget, gtk.FileChooser):
             for child in widget.get_children():
                 if child.get_name() != "Shortcut bar":
-                    self.monitor(child, excludeWidget)
+                    self.monitor(child, *args, **kw)
 
-    def monitor(self, widget, excludeWidget=None):
-        if widget is not excludeWidget: 
-            autoInstrumented = self.monitorWidget(widget)
-            self.monitorChildren(widget, excludeWidget)
-            return autoInstrumented
+    def monitor(self, widget, excludeWidget=None, mapFileOnly=False):
+        mapFileOnly |= widget is excludeWidget
+        autoInstrumented = self.monitorWidget(widget, mapFileOnly)
+        self.monitorChildren(widget, excludeWidget, mapFileOnly)
+        return autoInstrumented
 
     def getAutoGenerated(self, commands):
         # Find the auto-generated commands and strip them of their arguments
@@ -1313,9 +1322,9 @@ class UIMap:
     def storeNames(self, toStore):
         self.changed = True
         for ((widgetType, widgetDescription, signalName), eventName) in toStore:
-            if not self.parser.has_section(widgetDescription):
-                self.parser.add_section(widgetDescription)
-            self.storeInfo(widgetDescription, signalName, eventName)
+            if not self.readParser.has_section(widgetDescription):
+                self.writeParser.add_section(widgetDescription)
+            self.storeInfo(widgetDescription, signalName, eventName, addToReadParser=False)
         self.write()
 
     def monitorNewWindows(self):
@@ -1352,17 +1361,18 @@ class ScriptEngine(usecase.ScriptEngine):
                               RowCollapseEvent, RowRightClickEvent, CellToggleEvent,
                               TreeColumnClickEvent ])
 ]
-    def __init__(self, enableShortcuts=False, useUiMap=False, universalLogging=True):
+    defaultMapFile = os.path.join(os.getenv("USECASE_HOME"), "ui_map.conf")
+    def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ], universalLogging=True):
         self.uiMap = None
-        if useUiMap:
-            self.uiMap = UIMap(self)
+        if uiMapFiles:
+            self.uiMap = UIMap(self, uiMapFiles)
         usecase.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
         self.commandButtons = []
         self.fileChooserInfo = []
         self.dialogsBlocked = []
         self.treeViewIndexers = {}
         gtklogger.setMonitoring(universalLogging, self.replayerActive())
-        if useUiMap or gtklogger.isEnabled():
+        if uiMapFiles or gtklogger.isEnabled():
             gtktreeviewextract.performInterceptions()
         
     def blockInstrumentation(self, dialog):
