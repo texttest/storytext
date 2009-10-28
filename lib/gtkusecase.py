@@ -1287,10 +1287,10 @@ class UIMap:
         return autoInstrumented
 
     def monitorChildren(self, widget, *args, **kw):
-        if hasattr(widget, "get_children") and not isinstance(widget, gtk.FileChooser):
+        if hasattr(widget, "get_children") and \
+                not isinstance(widget, gtk.FileChooser) and widget.get_name() != "Shortcut bar":
             for child in widget.get_children():
-                if child.get_name() != "Shortcut bar":
-                    self.monitor(child, *args, **kw)
+                self.monitor(child, *args, **kw)
 
     def monitor(self, widget, excludeWidget=None, mapFileOnly=False):
         mapFileOnly |= widget is excludeWidget
