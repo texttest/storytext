@@ -5,8 +5,14 @@
 # just be used to run programs directly
 
 # Usage pyusecase [ -r <record_file> ] [ -p <playback_file> ] <program>
+import os, imp, sys, logging
 from optparse import OptionParser
-import usecase, os, imp, sys, logging
+
+install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.abspath(sys.argv[0]))))
+# Find our own "lib" directory
+sys.path.insert(0, os.path.join(install_root, "lib"))
+        
+import usecase
 
 try:
     # In Py 2.x, the builtins were in __builtin__
