@@ -505,7 +505,7 @@ class UseCaseRecorder:
         event = self.findEvent(*args)
         self.logger.debug("Event of type " + event.__class__.__name__ + " for recording")
         if not event.shouldRecord(*args):
-            self.logger.debug("Told we should not record it")
+            self.logger.debug("Told we should not record it : args were " + repr(args))
             return
 
         if self.stateChangeEventInfo:

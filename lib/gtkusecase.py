@@ -548,15 +548,19 @@ class DialogEventHandler:
         if self.hasUsecaseName():
             return False
         hasWidgetName = self.hasWidgetName() 
-        for event, handler in self.dialogInfo.get(self.widget):
-            if event.hasUsecaseName() or (not hasWidgetName and event.hasWidgetName()):
+        for event, handler, args in self.dialogInfo.get(self.widget):
+            if event and (event.hasUsecaseName() or (not hasWidgetName and event.hasWidgetName())):
                 return True
         return False
 
     def connectRecord(self, method):
         handler = self._connectRecord(self.widget, method)
+        self.storeHandler(self.widget, handler, self)
+
+    @classmethod
+    def storeHandler(cls, widget, handler, event=None, args=()):
         # Dialogs get handled in a special way which leaves them open to duplication...
-        self.dialogInfo.setdefault(self.widget, []).append((self, handler))
+        cls.dialogInfo.setdefault(widget, []).append((event, handler, args))
 
 
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
@@ -683,13 +687,16 @@ class FileChooserEntryEvent(FileChooserFileEvent):
         dialog = widget.get_toplevel()
         if dialog is not widget:
             otherHandlers = ResponseEvent.dialogInfo.get(dialog, [])
-            for event, handler in otherHandlers:
+            for event, handler, args in otherHandlers:
                 dialog.disconnect(handler)
         dialog.connect("response", method, self)
         if dialog is not self.widget:
             ResponseEvent.dialogInfo[dialog] = []
-            for event, handler in otherHandlers:
-                event.connectRecord(method)
+            for event, handler, args in otherHandlers:
+                if event:
+                    event.connectRecord(method)
+                else:
+                    dialog.connect("response", *args)
 
     def getChangeMethod(self):
         return self.fileChooser.set_current_name
@@ -1051,29 +1058,39 @@ class TreeViewIndexer:
             return " at top level"
 
 origDialog = gtk.Dialog
-origFileChooserDialog = gtk.FileChooserDialog
+origFileChooserDialog = gtk.FileChooserDialog    
 
-class Dialog(origDialog):
+class DialogHelper:
+    def tryMonitor(self):
+        self.doneMonitoring = self.uiMap.monitorDialog(self)
+        if self.doneMonitoring:
+            self.connect = self.connect_after_monitor
+
+    def set_name(self, *args):
+        origDialog.set_name(self, *args)
+        if not self.doneMonitoring:
+            self.uiMap.monitorDialog(self)
+            self.connect = self.connect_after_monitor
+            
+    def connect_after_monitor(self, signalName, *args):
+        handler = origDialog.connect(self, signalName, *args)
+        if signalName == "response":
+            ResponseEvent.storeHandler(self, handler, args=args)
+        return handler
+
+
+class Dialog(DialogHelper, origDialog):
     uiMap = None
     def __init__(self, *args, **kw):
         origDialog.__init__(self, *args, **kw)
-        self.doneMonitoring = self.uiMap.monitorDialog(self)
+        self.tryMonitor()
 
-    def set_name(self, *args):
-        origDialog.set_name(self, *args)
-        if not self.doneMonitoring:
-            self.uiMap.monitorDialog(self)
 
-class FileChooserDialog(origFileChooserDialog):
+class FileChooserDialog(DialogHelper, origFileChooserDialog):
     uiMap = None
     def __init__(self, *args, **kw):
         origFileChooserDialog.__init__(self, *args, **kw)
-        self.uiMap.monitorDialog(self)
-
-    def set_name(self, *args):
-        origDialog.set_name(self, *args)
-        if not self.doneMonitoring:
-            self.uiMap.monitorDialog(self)
+        self.tryMonitor()
 
 
 class UIMap:
