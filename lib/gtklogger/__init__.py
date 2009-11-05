@@ -388,7 +388,11 @@ class Describer:
         return text
 
     def getToolButtonDescription(self, toolButton):
-        return " " * self.indent + toolButton.get_label()
+        label = toolButton.get_label()
+        if label:
+            return " " * self.indent + label
+        else:
+            return " " * self.indent + "Tool button"
 
     def getToolItemDescription(self, item):
         return " " * self.indent + self.getDescription(item.get_child())

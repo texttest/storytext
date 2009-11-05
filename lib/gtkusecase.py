@@ -180,7 +180,7 @@ class SignalEvent(GtkEvent):
     def getAssociatedSignal(cls, widget):
         if hasattr(cls, "signalName"):
             return cls.signalName
-        elif isinstance(widget, gtk.Button):
+        elif isinstance(widget, gtk.Button) or isinstance(widget, gtk.ToolButton):
             return "clicked"
         elif isinstance(widget, gtk.Entry) or isinstance(widget, gtk.MenuItem):
             return "activate"
@@ -1128,13 +1128,20 @@ class UIMap:
         
     def mainQuit(self, *args):
         self.write()
-        self.realQuit(*args)
-
+        try:
+            self.realQuit(*args)
+        except RuntimeError, e:
+            # If the application connects to "destroy" this is pretty bound to happen
+            # (that we get called twice here)
+            if "called outside of a mainloop" not in str(e):
+                raise
+        
     def write(self, *args):
         if self.changed:
             if not os.path.isdir(os.path.dirname(self.file)):
                 os.makedirs(os.path.dirname(self.file))
             self.writeParser.write(open(self.file, "w"))
+            self.changed = False
 
     def getTitle(self, widget):
         try:
@@ -1313,8 +1320,8 @@ class UIMap:
         return autoInstrumented
 
     def monitorChildren(self, widget, *args, **kw):
-        if hasattr(widget, "get_children") and \
-                not isinstance(widget, gtk.FileChooser) and widget.get_name() != "Shortcut bar":
+        if hasattr(widget, "get_children") and widget.get_name() != "Shortcut bar" and \
+               not isinstance(widget, gtk.FileChooser) and not isinstance(widget, gtk.ToolItem):
             for child in widget.get_children():
                 self.monitor(child, *args, **kw)
 
@@ -1373,6 +1380,7 @@ class UIMap:
 class ScriptEngine(usecase.ScriptEngine):
     eventTypes = [
         (gtk.Button       , [ SignalEvent ]),
+        (gtk.ToolButton   , [ SignalEvent ]),
         (gtk.MenuItem     , [ SignalEvent ]),
         (gtk.CheckMenuItem, [ ActivateEvent ]),
         (gtk.ToggleButton , [ ActivateEvent ]),
