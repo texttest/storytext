@@ -1114,8 +1114,7 @@ class UIMap:
         Dialog.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
-        self.realQuit = gtk.main_quit
-        gtk.main_quit = self.mainQuit
+        gtk.quit_add(1, self.write) # Write changes to the GUI map when the application exits
 
     def monitorDialog(self, dialog):
         if self.monitorWidget(dialog):
@@ -1125,17 +1124,7 @@ class UIMap:
             return True
         else:
             return False
-        
-    def mainQuit(self, *args):
-        self.write()
-        try:
-            self.realQuit(*args)
-        except RuntimeError, e:
-            # If the application connects to "destroy" this is pretty bound to happen
-            # (that we get called twice here)
-            if "called outside of a mainloop" not in str(e):
-                raise
-        
+                
     def write(self, *args):
         if self.changed:
             if not os.path.isdir(os.path.dirname(self.file)):
@@ -1572,6 +1561,13 @@ class ScriptEngine(usecase.ScriptEngine):
         # Kill off any windows that are still around...
         for window in gtk.window_list_toplevels():
             if window.get_property("visible"):
+                # It's not unheard of for the application to connect the "destroy"
+                # signal to gtk.main_quit. In this case it will cause a double-quit
+                # which throws an exception. So we block that here.
+                try:
+                    window.handler_block_by_func(gtk.main_quit)
+                except TypeError:
+                    pass
                 window.destroy()
 
     def makeReplacement(self, command, replacements):
