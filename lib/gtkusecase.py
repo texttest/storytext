@@ -1771,6 +1771,10 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         self.uiMap = uiMap
         self.loggerActive = universalLogging
         self.tryAddDescribeHandler()
+        # Anyone calling events_pending doesn't mean to include our logging events
+        # so we intercept it and return the right answer for them...
+        self.orig_events_pending = gtk.events_pending
+        gtk.events_pending = self.events_pending
         usecase.UseCaseReplayer.__init__(self)
 
     def tryAddDescribeHandler(self):
@@ -1780,22 +1784,21 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         else:
             self.idleHandler = None
 
-    def disableIdleHandlers(self):
-        # If we aren't replaying, we need to accept user input. So we have to block the idle handlers here
+    def events_pending(self):
         if not self.isActive():
             self._disableIdleHandlers()
+        return_value = self.orig_events_pending()
+        if not self.isActive():
+            if self.readingEnabled:
+                self.enableReplayHandler()
+            else:
+                self.tryAddDescribeHandler()
+        return return_value
 
     def _disableIdleHandlers(self):
         if self.idleHandler is not None:
             gobject.source_remove(self.idleHandler)
             self.idleHandler = None
-
-    def reenableIdleHandlers(self):
-        if self.idleHandler is None and not self.isActive():
-            if self.readingEnabled:
-                self.enableReplayHandler()
-            else:
-                self.tryAddDescribeHandler()
 
     def enableReading(self):
         self.readingEnabled = True
