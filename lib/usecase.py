@@ -63,6 +63,9 @@ scriptEngine = None
 def applicationEvent(*args, **kwargs):
     scriptEngine.applicationEvent(*args, **kwargs)
 
+def applicationEventRename(*args, **kwargs):
+    scriptEngine.applicationEventRename(*args, **kwargs)
+
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
     pass
