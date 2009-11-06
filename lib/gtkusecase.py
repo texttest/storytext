@@ -1114,7 +1114,7 @@ class UIMap:
         Dialog.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
-        gtk.quit_add(1, self.write) # Write changes to the GUI map when the application exits
+        gtk.quit_add(1, self.write) # Write changes to the GUI map when the application exits        
 
     def monitorDialog(self, dialog):
         if self.monitorWidget(dialog):
@@ -1399,6 +1399,13 @@ class ScriptEngine(usecase.ScriptEngine):
         self.treeViewIndexers = {}
         gtklogger.setMonitoring(universalLogging, self.replayerActive())
         if uiMapFiles or gtklogger.isEnabled():
+            gtktreeviewextract.performInterceptions()
+
+    def addUiMapFiles(self, uiMapFiles):
+        self.uiMap = UIMap(self, uiMapFiles)
+        if self.replayer:
+            self.replayer.addUiMap(self.uiMap)
+        if not gtklogger.isEnabled():
             gtktreeviewextract.performInterceptions()
         
     def blockInstrumentation(self, dialog):
@@ -1775,6 +1782,11 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         self.orig_events_pending = gtk.events_pending
         gtk.events_pending = self.events_pending
         usecase.UseCaseReplayer.__init__(self)
+
+    def addUiMap(self, uiMap):
+        self.uiMap = uiMap
+        if not self.loggerActive:
+            self.tryAddDescribeHandler()
 
     def tryAddDescribeHandler(self):
         if self.loggerActive or self.uiMap:
