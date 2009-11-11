@@ -33,11 +33,11 @@ def scheduleDescribe(widget):
         setMonitoring()
         idleScheduler.scheduleDescribe(widget)
 
-def setMonitoring(*args):
+def setMonitoring(loggingEnabled=False, *args):
     global idleScheduler
     if not idleScheduler:
-        idleScheduler = IdleScheduler(*args)
-        if isEnabled():
+        idleScheduler = IdleScheduler(loggingEnabled, *args)
+        if loggingEnabled:
             performInterceptions()
 
 def describeNewWindows(*args):

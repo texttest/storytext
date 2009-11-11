@@ -98,17 +98,15 @@ class UserEvent:
 
 # Behaves as a singleton...
 class ScriptEngine:
+    usecaseHome = os.path.abspath(os.getenv("USECASE_HOME", os.path.expanduser("~/usecases")))
     def __init__(self, enableShortcuts=False, **kwargs):
-        if not os.environ.has_key("USECASE_HOME"):
-            os.environ["USECASE_HOME"] = os.path.expanduser("~/usecases")
-        else:
-            os.environ["USECASE_HOME"] = os.path.abspath(os.environ["USECASE_HOME"])
+        os.environ["USECASE_HOME"] = self.usecaseHome
+        self.enableShortcuts = enableShortcuts
         self.recorder = UseCaseRecorder()
         self.replayer = self.createReplayer(**kwargs)
-        self.enableShortcuts = enableShortcuts
 
     def recorderActive(self):
-        return self.enableShortcuts or len(self.recorder.scripts) > 0
+        return self.enableShortcuts or self.recorder.isActive()
 
     def replayerActive(self):
         return self.enableShortcuts or self.replayer.isActive()
@@ -409,7 +407,10 @@ class RecordScript:
     
     def getRecordedCommands(self):
         self.close()
-        return map(string.strip, open(self.scriptName).readlines())
+        if os.path.isfile(self.scriptName):
+            return map(string.strip, open(self.scriptName).readlines())
+        else:
+            return []
 
     def rename(self, newName):
         self.close()
@@ -442,6 +443,9 @@ class UseCaseRecorder:
 
     def notifyExit(self):
         self.suspended = 0
+
+    def isActive(self):
+        return len(self.scripts) > 0
 
     def addScript(self, scriptName):
         self.scripts.append(RecordScript(scriptName))
