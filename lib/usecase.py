@@ -61,10 +61,12 @@ signalCommandName = "receive signal"
 scriptEngine = None
 
 def applicationEvent(*args, **kwargs):
-    scriptEngine.applicationEvent(*args, **kwargs)
+    if scriptEngine:
+        scriptEngine.applicationEvent(*args, **kwargs)
 
 def applicationEventRename(*args, **kwargs):
-    scriptEngine.applicationEventRename(*args, **kwargs)
+    if scriptEngine:
+        scriptEngine.applicationEventRename(*args, **kwargs)
 
 # Exception to throw when scripts go wrong
 class UseCaseScriptError(RuntimeError):
