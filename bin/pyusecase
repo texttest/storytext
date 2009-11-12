@@ -8,7 +8,7 @@
 import os, imp, sys, logging
 from optparse import OptionParser
 
-install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.abspath(sys.argv[0]))))
+install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath(os.path.abspath(sys.argv[0])))))
 # Find our own "lib" directory
 sys.path.insert(0, os.path.join(install_root, "lib"))
         
