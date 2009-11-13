@@ -33,10 +33,10 @@ def scheduleDescribe(widget):
         setMonitoring()
         idleScheduler.scheduleDescribe(widget)
 
-def setMonitoring(loggingEnabled=False, *args):
+def setMonitoring(loggingEnabled=False):
     global idleScheduler
     if not idleScheduler:
-        idleScheduler = IdleScheduler(loggingEnabled, *args)
+        idleScheduler = IdleScheduler(loggingEnabled)
         if loggingEnabled:
             performInterceptions()
 
@@ -470,14 +470,11 @@ class TextViewDescriber:
 
 
 class IdleScheduler:
-    def __init__(self, universalLogging=False, externalIdleHandler=False):
+    def __init__(self, universalLogging=False):
         self.widgetMapping = {}
         self.allWidgets = []
         self.visibleWindows = []
         self.universalLogging = universalLogging
-        if self.universalLogging and not externalIdleHandler:
-            gobject.idle_add(self.describeNewWindows, priority=PRIORITY_PYUSECASE_IDLE)
-        self.externalIdleHandler = externalIdleHandler
         self.reset()
         
     def reset(self):

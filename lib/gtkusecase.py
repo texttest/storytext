@@ -1403,7 +1403,7 @@ class ScriptEngine(usecase.ScriptEngine):
         self.fileChooserInfo = []
         self.dialogsBlocked = []
         self.treeViewIndexers = {}
-        gtklogger.setMonitoring(universalLogging, self.replayerActive())
+        gtklogger.setMonitoring(universalLogging)
         if self.uiMap or gtklogger.isEnabled():
             gtktreeviewextract.performInterceptions()
 
