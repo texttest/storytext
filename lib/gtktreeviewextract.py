@@ -9,6 +9,9 @@ import gtk, re
 # This is the important information, used by other classes
 cellRendererExtractors = {}
 
+# For CellEditEvent to use
+cellRendererConnectInfo = {}
+
 def getAllExtractors(renderer):
     return cellRendererExtractors.get(renderer, {})
 
@@ -41,6 +44,11 @@ class CellRendererText(origCellRendererText):
     def set_property(self, property, value):
         self.orig_set_property(property, value)
         cellRendererExtractors.setdefault(self, {})[property] = ConstantExtractor(value)
+
+    def connect(self, *args):
+        handler = origCellRendererText.connect(self, *args)
+        cellRendererConnectInfo.setdefault(self, []).append((handler, args))
+        return handler
 
 class CellRendererToggle(origCellRendererToggle):
     orig_set_property = origCellRendererToggle.set_property

@@ -499,20 +499,18 @@ class RowRightClickEvent(RightClickEvent):
         path = self.indexer.string2path(argumentString)
         return self.widget.get_cell_area(path, self.widget.get_column(0))
         
-class CellToggleEvent(TreeViewEvent):
-    signalName = "toggled"
-    def __init__(self, name, widget, cellRenderer, indexer, relevantState):
+
+class CellEvent(TreeViewEvent):
+    def __init__(self, name, widget, cellRenderer, indexer, property):
         self.cellRenderer = cellRenderer
-        self.extractor = gtktreeviewextract.getExtractor(cellRenderer, "active")
-        self.relevantState = relevantState
+        self.extractor = gtktreeviewextract.getExtractor(cellRenderer, property)
         TreeViewEvent.__init__(self, name, widget, indexer)
 
-    def shouldRecord(self, renderer, path, *args):
+    def getValue(self, renderer, path, *args):
         model = self.widget.get_model()
         iter = model.get_iter(path)
-        value = self.extractor.getValue(model, iter)
-        return TreeViewEvent.shouldRecord(self, renderer, path, *args) and value == self.relevantState
-    
+        return self.extractor.getValue(model, iter)
+
     def getChangeMethod(self):
         return self.cellRenderer.emit
 
@@ -522,6 +520,33 @@ class CellToggleEvent(TreeViewEvent):
     def _outputForScript(self, path, *args):
         return self.name + " " + self.indexer.path2string(path)
 
+    def getColumnName(self):
+        for column in self.widget.get_columns():
+            if self.cellRenderer in column.get_cell_renderers():
+                return getColumnName(column)
+
+    def getPathAsString(self, path):
+        # For some reason, the treemodel access methods I use
+        # don't like the (3,0) list-type paths created by
+        # the above call, so we'll have to manually create a
+        # '3:0' string-type path instead ...
+        strPath = ""
+        for i in xrange(0, len(path)):
+            strPath += str(path[i])
+            if i < len(path) - 1:
+                strPath += ":"
+        return strPath
+
+
+class CellToggleEvent(CellEvent):
+    signalName = "toggled"
+    def __init__(self, name, widget, cellRenderer, indexer, relevantState):
+        self.relevantState = relevantState
+        CellEvent.__init__(self, name, widget, cellRenderer, indexer, "active")        
+
+    def shouldRecord(self, *args):
+        return TreeViewEvent.shouldRecord(self, *args) and self.getValue(*args) == self.relevantState
+    
     def getUiMapSignature(self):
         return self.getRecordSignal() + "." + self.getColumnName() + "." + repr(self.relevantState)
 
@@ -536,24 +561,51 @@ class CellToggleEvent(TreeViewEvent):
                     signatures.append(rootName + ".false")
         return signatures
 
-    def getColumnName(self):
-        for column in self.widget.get_columns():
-            if self.cellRenderer in column.get_cell_renderers():
-                return getColumnName(column)
-
     def getGenerationArguments(self, argumentString):
         path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]
-        # For some reason, the treemodel access methods I use
-        # don't like the (3,0) list-type paths created by
-        # the above call, so we'll have to manually create a
-        # '3:0' string-type path instead ...
-        strPath = ""
-        for i in xrange(0, len(path)):
-            strPath += str(path[i])
-            if i < len(path) - 1:
-                strPath += ":"
-        return [ "toggled", strPath ]
+        return [ self.signalName, self.getPathAsString(path) ]
 
+
+class CellEditEvent(CellEvent):
+    signalName = "edited"
+    def __init__(self, *args, **kw):
+        CellEvent.__init__(self, property="text", *args, **kw)
+
+    def shouldRecord(self, renderer, path, new_text, *args):
+        value = self.getValue(renderer, path)
+        return TreeViewEvent.shouldRecord(self, renderer, path, *args) and new_text != value
+    
+    def _connectRecord(self, widget, method):
+        # Push our way to the front of the queue
+        # We need to be able to tell when things have changed
+        connectInfo = gtktreeviewextract.cellRendererConnectInfo.get(widget, [])
+        allArgs = [ info[1] for info in connectInfo ]
+        for handler, args in connectInfo:
+            widget.disconnect(handler)
+        CellEvent._connectRecord(self, widget, method)
+        for args in allArgs:
+            widget.connect(*args)
+
+    def getUiMapSignature(self):
+        return self.getRecordSignal() + "." + self.getColumnName()
+
+    def _outputForScript(self, path, new_text, *args):
+        return CellEvent._outputForScript(self, path, new_text, *args) + " = " + new_text
+
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        signatures = []
+        for column in widget.get_columns():
+            for renderer in column.get_cell_renderers():
+                if isinstance(renderer, gtk.CellRendererText) and renderer.get_property("editable"):
+                    signatures.append(cls.signalName + "." + getColumnName(column).lower())
+        return signatures
+
+    def getGenerationArguments(self, argumentString):
+        oldName, newName = argumentString.split(" = ")
+        path = TreeViewEvent.getGenerationArguments(self, oldName)[0]
+        return [ self.signalName, self.getPathAsString(path), newName ]
+    
 
 class DialogEventHandler:      
     def hasUsecaseName(self):
@@ -1275,9 +1327,13 @@ class UIMap:
         if signalName == "clicked":
             return TreeColumnClickEvent(eventName, widget, column)
         elif signalName == "toggled":
-            renderer = self.findToggleRenderer(column)
+            renderer = self.findRenderer(column, gtk.CellRendererToggle)
             indexer = self.scriptEngine.getTreeViewIndexer(widget)
             return CellToggleEvent(eventName, widget, renderer, indexer, relevantState)
+        elif signalName == "edited":
+            renderer = self.findRenderer(column, gtk.CellRendererText)
+            indexer = self.scriptEngine.getTreeViewIndexer(widget)
+            return CellEditEvent(eventName, widget, renderer, indexer)
         else:
             # If we don't know, create a basic event on the column
             return self.scriptEngine._createSignalEvent(eventName, signalName, column, widget)
@@ -1287,9 +1343,9 @@ class UIMap:
             if getColumnName(column).lower() == columnName:
                 return column
 
-    def findToggleRenderer(self, column):
+    def findRenderer(self, column, cls):
         for renderer in column.get_cell_renderers():
-            if isinstance(renderer, gtk.CellRendererToggle):
+            if isinstance(renderer, cls):
                 return renderer
 
     def instrumentFromMapFile(self, widget):
@@ -1371,7 +1427,6 @@ class UIMap:
         self.write()
 
     def monitorNewWindows(self):
-        self.logger.debug("Looking for new windows...")
         for window in gtk.window_list_toplevels():
             self.monitorWindow(window)
     
@@ -1406,7 +1461,7 @@ class ScriptEngine(usecase.ScriptEngine):
         (gtk.Paned        , [ PaneDragEvent ]),
         (gtk.TreeView     , [ RowActivationEvent, TreeSelectionEvent, RowExpandEvent, 
                               RowCollapseEvent, RowRightClickEvent, CellToggleEvent,
-                              TreeColumnClickEvent ])
+                              CellEditEvent, TreeColumnClickEvent ])
 ]
     defaultMapFile = os.path.join(usecase.ScriptEngine.usecaseHome, "ui_map.conf")
     def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ], universalLogging=True):
@@ -1522,6 +1577,13 @@ class ScriptEngine(usecase.ScriptEngine):
                 uncheckEvent = CellToggleEvent(uncheckChangeName, parentTreeView, renderer, indexer, False)
                 self._addEventToScripts(uncheckEvent)
 
+    def registerCellEdit(self, renderer, description, parentTreeView):
+        if self.active():
+            stdName = self.standardName(description)
+            indexer = self.getTreeViewIndexer(parentTreeView)
+            event = CellEditEvent(stdName, parentTreeView, renderer, indexer)
+            self._addEventToScripts(event)
+
     def registerFileChooser(self, fileChooser, fileDesc, folderChangeDesc):
         # Since we have not found and good way to connect to the gtk.Entry for giving filenames to save
         # we'll monitor pressing the (dialog OK) button given to us. When replaying,
@@ -1609,7 +1671,10 @@ class ScriptEngine(usecase.ScriptEngine):
     def makeReplacement(self, command, replacements):
         for origName, newName in replacements:
             if command.startswith(origName):
-                return command.replace(origName, newName)
+                if newName:
+                    return command.replace(origName, newName)
+                else:
+                    return
         return command
 
     def replaceAutoRecordingForShortcut(self, script, parentWindow):
@@ -1643,7 +1708,11 @@ class ScriptEngine(usecase.ScriptEngine):
         self.uiMap.storeNames(zip(autoGeneratedInfo, newNames))
         replacements = zip(autoGenerated, newNames)
         for script in scripts:
-            newCommands = [ self.makeReplacement(c, replacements) for c in script.getRecordedCommands() ]
+            newCommands = []
+            for c in script.getRecordedCommands():
+                newCommand = self.makeReplacement(c, replacements)
+                if newCommand:
+                    newCommands.append(newCommand)
             script.rerecord(newCommands)
                 
 #private
@@ -1753,9 +1822,9 @@ class ScriptEngine(usecase.ScriptEngine):
     def _addEventToScripts(self, event, autoGenerated=False):
         if self.uiMap and not autoGenerated:
             self.uiMap.storeEvent(event)
-        if self.replayerActive():
+        if event.name and self.replayerActive():
             self.replayer.addEvent(event)
-        if self.recorderActive():
+        if event.name and self.recorderActive():
             event.connectRecord(self.recorder.writeEvent)
 
     def findEventClassesFor(self, widget):
