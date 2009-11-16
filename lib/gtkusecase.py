@@ -160,7 +160,7 @@ class GtkEvent(usecase.UserEvent):
     def _outputForScript(self, *args):
         return self.name
 
-    def generate(self, argumentString):        
+    def checkWidgetStatus(self):
         if not self.widget.get_property("visible"):
             raise usecase.UseCaseScriptError, "widget '" + self.widget.get_name() + \
                   "' is not visible at the moment, cannot simulate event " + repr(self.name)
@@ -169,8 +169,11 @@ class GtkEvent(usecase.UserEvent):
             raise usecase.UseCaseScriptError, "widget '" + self.widget.get_name() + \
                   "' is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
 
+    def generate(self, argumentString):
+        self.checkWidgetStatus()
         args = self.getGenerationArguments(argumentString)
         self.changeMethod(*args)
+
         
 # Generic class for all GTK events due to widget signals. Many won't be able to use this, however
 class SignalEvent(GtkEvent):
@@ -185,7 +188,7 @@ class SignalEvent(GtkEvent):
             return cls.signalName
         elif isinstance(widget, gtk.Button) or isinstance(widget, gtk.ToolButton):
             return "clicked"
-        elif isinstance(widget, gtk.Entry) or isinstance(widget, gtk.MenuItem):
+        elif isinstance(widget, gtk.Entry):
             return "activate"
     def getRecordSignal(self):
         return self.signalName
@@ -336,6 +339,12 @@ class ActivateEvent(StateChangeEvent):
             return [ cls.signalName + ".true", cls.signalName + ".false" ]
 
 
+class MenuActivateEvent(ActivateEvent):
+    def generate(self, *args):
+        self.checkWidgetStatus()
+        self.widget.emit("activate-item")
+
+
 class NotebookPageChangeEvent(StateChangeEvent):
     signalName = "switch-page"
     def getChangeMethod(self):
@@ -353,6 +362,12 @@ class NotebookPageChangeEvent(StateChangeEvent):
                 return i
         raise usecase.UseCaseScriptError, "'" + self.name + "' failed : Could not find page '" + \
             argumentString + "' in the " + self.widget.get_name().replace("Gtk", "") + "." 
+
+# Confusingly different signals used in different circumstances here.
+class MenuItemSignalEvent(SignalEvent):
+    signalName = "activate"
+    def getGenerationArguments(self, *args):
+        return [ "activate-item" ]
 
 class TreeColumnClickEvent(SignalEvent):
     signalName = "clicked"
@@ -1379,8 +1394,8 @@ class ScriptEngine(usecase.ScriptEngine):
     eventTypes = [
         (gtk.Button       , [ SignalEvent ]),
         (gtk.ToolButton   , [ SignalEvent ]),
-        (gtk.MenuItem     , [ SignalEvent ]),
-        (gtk.CheckMenuItem, [ ActivateEvent ]),
+        (gtk.MenuItem     , [ MenuItemSignalEvent ]),
+        (gtk.CheckMenuItem, [ MenuActivateEvent ]),
         (gtk.ToggleButton , [ ActivateEvent ]),
         (gtk.Entry        , [ EntryEvent, SignalEvent ]),
         (gtk.FileChooser  , [ FileChooserFileSelectEvent, FileChooserFolderChangeEvent, 
@@ -1484,12 +1499,16 @@ class ScriptEngine(usecase.ScriptEngine):
 
     def registerToggleButton(self, button, checkDescription, uncheckDescription = ""):
         if self.active():
+            if isinstance(button, gtk.CheckMenuItem):
+                eventClass = MenuActivateEvent
+            else:
+                eventClass = ActivateEvent
             checkChangeName = self.standardName(checkDescription)
-            checkEvent = ActivateEvent(checkChangeName, button, True)
+            checkEvent = eventClass(checkChangeName, button, True)
             self._addEventToScripts(checkEvent)
             if uncheckDescription:
                 uncheckChangeName = self.standardName(uncheckDescription)
-                uncheckEvent = ActivateEvent(uncheckChangeName, button, False)
+                uncheckEvent = eventClass(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
 
     def registerCellToggleButton(self, renderer, checkDescription, parentTreeView, uncheckDescription=""):

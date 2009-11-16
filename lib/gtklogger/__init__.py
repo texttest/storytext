@@ -124,7 +124,7 @@ class Describer:
                 return data[2]
 
     def getSeparator(self, container):
-        if isinstance(container, gtk.HBox) or isinstance(container, gtk.HButtonBox):
+        if isinstance(container, gtk.HBox) or isinstance(container, gtk.HButtonBox) or isinstance(container, gtk.MenuBar):
             return " , "
         elif isinstance(container, gtk.Paned):
             return self.getPanedSeparator(container)
@@ -219,9 +219,7 @@ class Describer:
     def getMenuItemDescription(self, menuitem):
         text = " " * self.indent + self.getBasicDescription(menuitem.get_child())
         if menuitem.get_submenu():
-            self.indent += 2
-            text += " Menu :\n" + self.getDescription(menuitem.get_submenu())
-            self.indent -= 2
+            text += " (+)"
         return text
 
     def getProgressBarDescription(self, progressBar):
@@ -375,7 +373,7 @@ class Describer:
         return describer.getDescription(image)
 
     def getMenuBarDescription(self, menubar):
-        return self.getBarDescription(menubar, "Menu")
+        return "\nMenu Bar : " + self.getContainerDescription(menubar)
 
     def getToolbarDescription(self, toolbar):
         return self.getBarDescription(toolbar, "Tool")
@@ -498,13 +496,7 @@ class IdleScheduler:
             # Don't worry about internals of file chooser, which aren't really relevant
             return []
 
-        if isinstance(widget, gtk.MenuItem):
-            submenu = widget.get_submenu()
-            if submenu:
-                return [ submenu ]
-            else:
-                return []
-        elif isinstance(widget, gtk.Container):
+        if isinstance(widget, gtk.Container):
             return widget.get_children()
         else:
             return []
