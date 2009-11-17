@@ -48,7 +48,7 @@ class Describer:
     supportedWidgets = [ gtk.Label, gtk.ToggleToolButton, gtk.ToolButton, gtk.SeparatorToolItem,
                          gtk.ToolItem, gtk.ToggleButton, gtk.Button, gtk.Table, gtk.Frame, gtk.FileChooser,
                          gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.CellView, gtk.ComboBoxEntry,
-                         gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
+                         gtk.ComboBox, gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
                          gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}
     @classmethod
@@ -295,16 +295,29 @@ class Describer:
         else:
             return basic
 
-    def getComboBoxEntryDescription(self, combobox):
-        entryDescription = self.getDescription(combobox.get_child())
-        model = combobox.get_model()
+    def collectEntries(self, model, path, iter, allEntries):        
+        allEntries.append(model.get_value(iter, 0))
+
+    def getDropDownDescription(self, combobox):
         allEntries = []
-        iter = model.get_iter_root()
-        while iter:
-            allEntries.append(model.get_value(iter, 0))
-            iter = model.iter_next(iter)
-        dropDownDescription = " (drop-down list containing " + repr(allEntries) + ")"
-        return entryDescription + dropDownDescription
+        combobox.get_model().foreach(self.collectEntries, allEntries)
+        return " (drop-down list containing " + repr(allEntries) + ")"
+
+    def getComboBoxEntryDescription(self, combobox):
+        return self.getDescription(combobox.get_child()) + self.getDropDownDescription(combobox)
+    
+    def getComboBoxDescription(self, combobox):
+        idleScheduler.monitor(combobox, [ "changed" ], "Changed selection in ")
+        text = ""
+        if self.prefix != "Showing ":
+            text += self.prefix + "'" + combobox.get_name() + "' "
+        text += "Combo Box"
+        value = combobox.get_model().get_value(combobox.get_active_iter(), 0)
+        if value:
+            text += " (selected '" + value + "')"
+        if self.prefix == "Showing ":
+            text += self.getDropDownDescription(combobox)
+        return text
 
     def getTextViewDescription(self, view):
         describer = self.cachedDescribers.setdefault(view, TextViewDescriber(view))

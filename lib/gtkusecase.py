@@ -248,6 +248,26 @@ class EntryEvent(StateChangeEvent):
     def getChangeMethod(self):
         return self.widget.set_text
 
+class ComboBoxEvent(StateChangeEvent):
+    def getStateDescription(self, *args):
+        # Hardcode 0, seems to work for the most part...
+        return self.widget.get_model().get_value(self.widget.get_active_iter(), 0)
+    
+    def getChangeMethod(self):
+        return self.widget.set_active_iter
+
+    def getGenerationArguments(self, argumentString):
+        iters = []
+        self.widget.get_model().foreach(self.getMatchingIter, (argumentString, iters))
+        return iters
+
+    def getMatchingIter(self, model, path, iter, data):
+        argumentString, iters = data
+        if model.get_value(iter, 0) == argumentString:
+            iters.append(iter)
+            return True
+
+
 class PaneDragEvent(StateChangeEvent):
     signalName = "notify::position"
     def __init__(self, name, widget, *args):
@@ -1458,6 +1478,8 @@ class ScriptEngine(usecase.ScriptEngine):
         (gtk.MenuItem     , [ MenuItemSignalEvent ]),
         (gtk.CheckMenuItem, [ MenuActivateEvent ]),
         (gtk.ToggleButton , [ ActivateEvent ]),
+        (gtk.ComboBoxEntry, []), # just use the entry, don't pick up ComboBoxEvents
+        (gtk.ComboBox     , [ ComboBoxEvent ]),
         (gtk.Entry        , [ EntryEvent, SignalEvent ]),
         (gtk.FileChooser  , [ FileChooserFileSelectEvent, FileChooserFolderChangeEvent, 
                               FileChooserEntryEvent ]),
@@ -1551,6 +1573,12 @@ class ScriptEngine(usecase.ScriptEngine):
             if self.recorderActive():
                 entryEvent.widget.connect("activate", self.recorder.writeEvent, entryEvent)
             self._addEventToScripts(entryEvent)
+
+    def registerComboBox(self, combobox, description):
+        if self.active():
+            stateChangeName = self.standardName(description)
+            event = ComboBoxEvent(stateChangeName, combobox)
+            self._addEventToScripts(event)
 
     def registerPaned(self, paned, description):
         if self.active():
