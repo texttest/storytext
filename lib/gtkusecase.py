@@ -573,7 +573,7 @@ class CellEditEvent(CellEvent):
 
     def shouldRecord(self, renderer, path, new_text, *args):
         value = self.getValue(renderer, path)
-        return TreeViewEvent.shouldRecord(self, renderer, path, *args) and new_text != value
+        return TreeViewEvent.shouldRecord(self, renderer, path, *args) and new_text != str(value)
     
     def _connectRecord(self, widget, method):
         # Push our way to the front of the queue
