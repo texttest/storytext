@@ -397,6 +397,10 @@ class TreeColumnClickEvent(SignalEvent):
 
     def connectRecord(self, method):
         self._connectRecord(self.column, method)
+        
+    @classmethod
+    def getClassWithSignal(cls):
+        return gtk.TreeViewColumn
 
     def getUiMapSignature(self):
         return self.getRecordSignal() + "." + getColumnName(self.column).lower()
@@ -557,12 +561,30 @@ class CellEvent(TreeViewEvent):
                 strPath += ":"
         return strPath
 
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        signatures = []
+        for column in widget.get_columns():
+            for renderer in column.get_cell_renderers():
+                if isinstance(renderer, cls.getClassWithSignal()):
+                    rootName = cls.signalName + "." + getColumnName(column).lower()
+                    signatures += cls.getSignaturesFrom(rootName)
+        return signatures
+    
+    @classmethod
+    def getSignaturesFrom(cls, rootName):
+        return [ rootName ]
+
 
 class CellToggleEvent(CellEvent):
     signalName = "toggled"
     def __init__(self, name, widget, cellRenderer, indexer, relevantState):
         self.relevantState = relevantState
         CellEvent.__init__(self, name, widget, cellRenderer, indexer, "active")        
+        
+    @classmethod
+    def getClassWithSignal(cls):
+        return gtk.CellRendererToggle
 
     def shouldRecord(self, *args):
         return TreeViewEvent.shouldRecord(self, *args) and self.getValue(*args) == self.relevantState
@@ -570,26 +592,24 @@ class CellToggleEvent(CellEvent):
     def getUiMapSignature(self):
         return self.getRecordSignal() + "." + self.getColumnName() + "." + repr(self.relevantState)
 
-    @classmethod
-    def getAssociatedSignatures(cls, widget):
-        signatures = []
-        for column in widget.get_columns():
-            for renderer in column.get_cell_renderers():
-                if isinstance(renderer, gtk.CellRendererToggle):
-                    rootName = cls.signalName + "." + getColumnName(column).lower()
-                    signatures.append(rootName + ".true")
-                    signatures.append(rootName + ".false")
-        return signatures
-
     def getGenerationArguments(self, argumentString):
         path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]
         return [ self.signalName, self.getPathAsString(path) ]
+
+    @classmethod
+    def getSignaturesFrom(cls, rootName):
+        return [ rootName + ".true", rootName + ".false" ]
+
 
 
 class CellEditEvent(CellEvent):
     signalName = "edited"
     def __init__(self, *args, **kw):
         CellEvent.__init__(self, property="text", *args, **kw)
+
+    @classmethod
+    def getClassWithSignal(cls):
+        return gtk.CellRendererText
 
     def shouldRecord(self, renderer, path, new_text, *args):
         value = self.getValue(renderer, path)
@@ -611,15 +631,6 @@ class CellEditEvent(CellEvent):
 
     def _outputForScript(self, path, new_text, *args):
         return CellEvent._outputForScript(self, path, new_text, *args) + " = " + new_text
-
-    @classmethod
-    def getAssociatedSignatures(cls, widget):
-        signatures = []
-        for column in widget.get_columns():
-            for renderer in column.get_cell_renderers():
-                if isinstance(renderer, gtk.CellRendererText) and renderer.get_property("editable"):
-                    signatures.append(cls.signalName + "." + getColumnName(column).lower())
-        return signatures
 
     def getGenerationArguments(self, argumentString):
         oldName, newName = argumentString.split(" = ")
@@ -809,6 +820,10 @@ class TreeSelectionEvent(StateChangeEvent):
         self.prevSelected = []
         self.prevDeselections = []
         StateChangeEvent.__init__(self, name, widget)
+
+    @classmethod
+    def getClassWithSignal(cls):
+        return gtk.TreeSelection
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
@@ -1891,6 +1906,47 @@ class ScriptEngine(usecase.ScriptEngine):
 
         newArgs = args + (signalName,)
         return SignalEvent(*newArgs)
+
+    def getClassName(self, widgetClass):
+        return "gtk." + widgetClass.__name__
+
+    def addSignals(self, classes, widgetClass, currEventClasses):
+        try:
+            widget = widgetClass()
+        except:
+            widget = None
+        signalNames = set()
+        for eventClass in currEventClasses:
+            try:
+                classes[self.getClassName(eventClass.getClassWithSignal())] = [ eventClass.signalName ]
+            except:
+                if widget:
+                    signalNames.add(eventClass.getAssociatedSignal(widget))
+                else:
+                    signalNames.add(eventClass.signalName)
+        classes[self.getClassName(widgetClass)] = sorted(signalNames)
+
+    def describeSupportedWidgets(self):
+        print """The following lists the PyGTK widget types and the associated signals on them which 
+PyUseCase is currently capable of recording and replaying. Any type derived from the listed
+types is also supported.
+"""
+        classes = {}
+        for widgetClass, currEventClasses in self.eventTypes:
+            if len(currEventClasses):
+                self.addSignals(classes, widgetClass, currEventClasses)
+        for className in sorted(classes.keys()):
+            print className.ljust(25) + ":", " , ".join(classes[className])
+
+        print """
+The following lists the PyGTK widget types whose status and changes PyUseCase is 
+currently capable of monitoring and logging. Any type derived from the listed types 
+is also supported but will only have features of the listed type described.
+"""
+        classNames = [ self.getClassName(w) for w in gtklogger.Describer.supportedWidgets ]
+        classNames.sort()
+        for className in classNames:
+            print className
 
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
