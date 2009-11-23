@@ -58,22 +58,35 @@ def run_python_file(args):
 
 
 if __name__ == "__main__":
-    usage = "usage: %prog [options] <program> <program_args> ..."
+    usage = """usage: %prog [options] <program> <program_args> ...
+
+PyUseCase is a record/replay tool for Python GUIs, currently consisting of a generic 
+interface and an implementation for PyGTK. Unlike traditional record/replay tools, 
+it does not record UI events directly but relies on its user maintaining a mapping 
+between the current UI controls and "domain language" names that express the 
+intent of the actions, allowing tests to be recorded in a very high level customer-readable format.
+
+For PyGTK, it also generates a logfile describing in a textual format the visible GUI and the changes
+that occur in it. This makes it easy to test PyGTK GUIs using a text-based test tool such as TextTest.
+It does not currently have any other means of "asserting" what is happening in the GUI.
+
+For fuller documentation refer to the online docs at http://www.texttest.org"""
+
     parser = OptionParser(usage, version="%prog " + usecase.version)
     parser.disable_interspersed_args() # don't try to parse the application's args
-    parser.add_option("-r", "--record", 
-                      help="record script to FILE", metavar="FILE")
-    parser.add_option("-p", "--replay", 
-                      help="replay script from FILE", metavar="FILE")
+    parser.add_option("-d", "--delay", metavar="SECONDS", 
+                      help="amount of time to wait between each action when replaying")
     parser.add_option("-i", "--interface", metavar="INTERFACE",
                       help="type of interface used by application, should be 'console' or 'gtk' ('gtk' is default)", 
                       default="gtk")
-    parser.add_option("-d", "--delay", metavar="SECONDS", 
-                      help="amount of time to wait between each action when replaying")
     parser.add_option("-l", "--loglevel", default="INFO", 
                       help="produce logging at level LEVEL, should be 'info', 'debug', 'config' or 'off'", metavar="LEVEL")
     parser.add_option("-m", "--mapfiles", default=os.path.join(usecase.ScriptEngine.usecaseHome, "ui_map.conf"),
                       help="Use the UI map file(s) at FILE1,...", metavar="FILE1,...")
+    parser.add_option("-p", "--replay", 
+                      help="replay script from FILE", metavar="FILE")
+    parser.add_option("-r", "--record", 
+                      help="record script to FILE", metavar="FILE")
     parser.add_option("-t", "--test", action="store_true", 
                       help="Used for internal testing: instruments also the interface for entering widget names")
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
