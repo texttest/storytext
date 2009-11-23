@@ -5,8 +5,7 @@
 # just be used to run programs directly
 
 # Usage pyusecase [ -r <record_file> ] [ -p <playback_file> ] <program>
-import os, imp, sys, logging
-from optparse import OptionParser
+import os, imp, sys, logging, optparse
 
 install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath(os.path.abspath(sys.argv[0])))))
 # Find our own "lib" directory
@@ -72,25 +71,24 @@ It does not currently have any other means of "asserting" what is happening in t
 
 For fuller documentation refer to the online docs at http://www.texttest.org"""
 
-    parser = OptionParser(usage, version="%prog " + usecase.version)
+    parser = optparse.OptionParser(usage, version="%prog " + usecase.version)
     parser.disable_interspersed_args() # don't try to parse the application's args
     parser.add_option("-d", "--delay", metavar="SECONDS", 
-                      help="amount of time to wait between each action when replaying")
+                      help="amount of time to wait between each action when replaying. Also enabled via the environment variable USECASE_REPLAY_DELAY.")
     parser.add_option("-i", "--interface", metavar="INTERFACE",
                       help="type of interface used by application, should be 'console' or 'gtk' ('gtk' is default)", 
                       default="gtk")
     parser.add_option("-l", "--loglevel", default="INFO", 
-                      help="produce logging at level LEVEL, should be 'info', 'debug', 'config' or 'off'", metavar="LEVEL")
+                      help="produce logging at level LEVEL, should be 'info', 'debug', 'config' or 'off'. 'info' will point the auto-generated GUI log at standard output. 'debug' will produce a large amount of PyUseCase debug information on standard output. 'off' will disable the auto-generated log. 'config' will enabled the auto-generated log but not set any global log level: it is a way to tell PyUseCase that your application will configure its logging via its own log configuration files.", metavar="LEVEL")
     parser.add_option("-m", "--mapfiles", default=os.path.join(usecase.ScriptEngine.usecaseHome, "ui_map.conf"),
-                      help="Use the UI map file(s) at FILE1,...", metavar="FILE1,...")
+                      help="Use the UI map file(s) at FILE1,... If not set PyUseCase will read and write such a file at the location determined by $USECASE_HOME/ui_map.conf. If run standalone $USECASE_HOME defaults to ~/usecases, while TextTest will point it to a 'pyusecase_files' subdirectory of the root test suite. If multiple files are provided, the last in the list will be used for writing.", metavar="FILE1,...")
     parser.add_option("-p", "--replay", 
-                      help="replay script from FILE", metavar="FILE")
+                      help="replay script from FILE. Also enabled via the environment variable USECASE_REPLAY_SCRIPT.", metavar="FILE")
     parser.add_option("-r", "--record", 
-                      help="record script to FILE", metavar="FILE")
-    parser.add_option("-t", "--test", action="store_true", 
-                      help="Used for internal testing: instruments also the interface for entering widget names")
+                      help="record script to FILE. Also enabled via the environment variable USECASE_RECORD_SCRIPT.", metavar="FILE")
+    parser.add_option("-t", "--test", action="store_true", help=optparse.SUPPRESS_HELP)
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
-                      help="Disable the entering of usecase names when unrecognised actions are recorded")
+                      help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
 
 
     options, args = parser.parse_args()
