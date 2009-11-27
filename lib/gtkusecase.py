@@ -252,19 +252,19 @@ class ComboBoxEvent(StateChangeEvent):
     def getStateDescription(self, *args):
         # Hardcode 0, seems to work for the most part...
         return self.widget.get_model().get_value(self.widget.get_active_iter(), 0)
-    
+
     def getChangeMethod(self):
         return self.widget.set_active_iter
+    
+    def getProgrammaticChangeMethods(self):
+        return [ self.widget.set_active ]
 
-    def getGenerationArguments(self, argumentString):
-        iters = []
-        self.widget.get_model().foreach(self.getMatchingIter, (argumentString, iters))
-        return iters
+    def generate(self, argumentString):
+        self.widget.get_model().foreach(self.setMatchingIter, argumentString)
 
-    def getMatchingIter(self, model, path, iter, data):
-        argumentString, iters = data
+    def setMatchingIter(self, model, path, iter, argumentString):
         if model.get_value(iter, 0) == argumentString:
-            iters.append(iter)
+            self.changeMethod(iter)
             return True
 
 
