@@ -2013,7 +2013,15 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         # Set a lower than default priority (=high number!), as filechoosers use idle handlers
         # with default priorities. Higher priority than when we're just logging, however, try to block
         # out the application
-        self.idleHandler = gobject.idle_add(self.describeAndRun, priority=gtklogger.PRIORITY_PYUSECASE_REPLAY_IDLE)
+        self.idleHandler = self._enableReplayHandler(self.describeAndRun, 
+                                                     priority=gtklogger.PRIORITY_PYUSECASE_REPLAY_IDLE)
+
+    def _enableReplayHandler(self, *args, **kw):
+        if self.delay:
+            milliseconds = int(self.delay * 1000)
+            return gobject.timeout_add(milliseconds, *args, **kw)
+        else:
+            return gobject.idle_add(*args, **kw)
 
     def handleNewWindows(self):
         if self.uiMap and (self.isActive() or self.recorder.isActive()):

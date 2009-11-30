@@ -188,7 +188,7 @@ class UseCaseReplayer:
         self.logger = logging.getLogger("usecase replay log")
         self.scripts = []
         self.events = {}
-        self.delay = int(os.getenv("USECASE_REPLAY_DELAY", 0))
+        self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
         self.waitingForEvents = []
         self.applicationEventNames = []
         self.replayThread = None
@@ -249,7 +249,8 @@ class UseCaseReplayer:
 
     def runCommands(self):
         while self.runNextCommand():
-            pass
+            if self.delay:
+                time.sleep(self.delay)
 
     def getCommands(self):
         nextCommands = self.scripts[-1].getCommands()
@@ -300,9 +301,6 @@ class UseCaseReplayer:
             pass
 
     def processCommand(self, commandName, argumentString):
-        if self.delay:
-            time.sleep(self.delay)
-        
         if commandName == signalCommandName:
             return self.processSignalCommand(argumentString)
         else:
