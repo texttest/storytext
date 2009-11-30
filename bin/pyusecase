@@ -88,6 +88,7 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="record script to FILE. Also enabled via the environment variable USECASE_RECORD_SCRIPT.", metavar="FILE")
     parser.add_option("-s", "--supported", action="store_true",
                       help="list which PyGTK widgets and signals are currently supported 'out-of-the-box'")
+    parser.add_option("--supported-html", action="store_true", help=optparse.SUPPRESS_HELP)
     parser.add_option("-t", "--test", action="store_true", help=optparse.SUPPRESS_HELP)
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
@@ -117,6 +118,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
 
     if options.supported:
         usecase.scriptEngine.describeSupportedWidgets()
+    elif options.supported_html:
+        usecase.scriptEngine.describeSupportedWidgets(html=True)
     else:
         run_python_file(args)
     
