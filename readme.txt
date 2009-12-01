@@ -1,0 +1,75 @@
+Summary of what it is:
+
+        The full documentation is present at http://www.texttest.org/index.php?page=ui_testing
+        What follows is just a brief summary.
+
+        PyUseCase is a record/replay layer for Python GUIs. It consists of three modules: usecase.py, which
+        is a generic framework for all Python GUIs (or even non-GUI programs), gtkusecase.py, which
+        handles record and replay for PyGTK GUIs, and gtklogger.py, which produces an automatic "gui log"
+        in a PyGTK GUI. See www.pygtk.org for more info on PyGTK, see the above page for more details of this.
+
+        The aim is only to simulate the interactive actions of a user, not to verify correctness of a program
+        as such. The log produced should form a good basis for textual testing though, using a tool like
+        TextTest, also available from SourceForge.
+
+        To summarise, the motivation for it is that traditional record/replay tools, besides being expensive,
+        tend to record very low-level scripts that are a nightmare to maintain and can only be read by developers.
+        This is in large part because they record the GUI mechanics rather than the intent behind the test. (Even
+        though this is usually in terms of widgets not pixels now)
+
+        Use-case recorders like PyUseCase are built around the idea of recording in a domain language
+        by maintaining a mapping between the actions that can be performed with the UI and
+        names that describe what the point of these actions is. This incurs a small extra setup cost of course,
+        but it has the dual benefit of making the tests much more readable and much more resilient to future
+        UI changes than if they are recorded in a more programming-language-like script.
+
+        Another key advantage over other approaches is that, with some very simple instrumentation in the code,
+        it is easy to tell PyUseCase where the script will need to wait, thus allowing it to record "wait"
+        statements without the test writer having to worry about it. This is otherwise a common headache
+        for recorded tests: most other tools require you to explicitly synchronise the test when writing it (external
+        to the recording).
+
+        Example recorded usecase ("test script") for a flight booking system:
+
+        wait for flight information to load
+        select flight SA004
+        proceed to book seats
+        # SA004 is full...
+        accept error message
+        quit
+
+System requirements:
+
+    At least Python 2.4
+    At least PyGTK 2.10 for the PyGTK part
+
+Other Open Source Software packaged with it/used by it:
+
+    ndict.py  : sequential dictionaries. (Wolfgang Grafen, v0.3.2)
+
+Installation:
+
+    Go to the "lib" directory and run "python setup.py install".
+    Alternatively, just leave the directory in place and add its "bin" directory to your PATH
+      (and its "lib" directory to your PYTHONPATH if you use application events or shortcuts).
+
+Documentation:
+
+    http://www.texttest.org/index.php?page=ui_testing
+
+Examples:
+
+    A simple "video store" PyGTK GUI is provided to give an example usage in the "examples" directory. 
+    It's basically an ordinary PyGTK app with the shortcut bar included. You can for example do
+ 
+    pyusecase -r my_script.txt videostore.py
+
+    will record a high-level use case to my_script.txt, based on whatever you do. This can
+    then be replayed via
+
+    pyusecase -p my_script.txt videostore.py
+
+Bugs/Support:
+    
+    Write to the mailing list at pyusecase-users@lists.sourceforge.net
+    Report bugs in the Launchpad bugtracker at https://bugs.launchpad.net/pyusecase
