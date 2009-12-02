@@ -7,55 +7,14 @@ to pixel positions etc., which tend to be extremely brittle if the GUI is update
 
 It is based on the generic usecase.py, read the documentation there too.
 
-(1) For user actions such as clicking a button, selecting a list item etc., the general idea
-is to add an extra argument to the call to 'connect', so that instead of writing
+The instrumentation that was necessary here up until version 3.0 is still present
+in the ScriptEngine class for back-compatibility but is no longer the expected way to proceed.
+Instead, it works by traversing the GUI objects downwards each time an idle handler is called,
+finding widgets, recording actions on them and then asking the user for names at the end.
 
-button.connect("clicked", myMethod)
+GUI shortcuts
 
-you would write
-
-scriptEngine.connect("save changes", "clicked", button, myMethod)
-
-thus tying the user action to the script command "save changes". If you set up a record
-script, then the module will write "save changes" to the script whenever the button is clicked.
-Conversely, if you set up a replay script, then on finding the command "save changes", the
-module will emit the "clicked" signal for said button, effectively clicking it programatically.
-
-This means that, so long as my GUI has a concept of "save changes", I can redesign the GUI totally,
-making the user choose to do this via a totally different widget, but all my scripts wiill
-remaing unchanged.
-
-(2) Some GUI widgets have "state" rather than relying on signals (for example text entries, toggle buttons),
-so that the GUI itself may not necessarily make any calls to 'connect'. But you still want to generate
-script commands when they change state, and be able to change them programatically. I have done this
-by providing a 'register' method, so that an extra call is made to scriptEngine
-
-entry = gtk.Entry()
-scriptEngine.registerEntry(entry, "enter file name = ")
-
-which would tie the "leave-notify-event" to the script command "enter file name = <current_entry_contents>".
-
-(3) There are also composite widgets like the TreeView where you need to be able to specify an argument.
-In this case the application has to provide extra information as to how the text is to be translated
-into selecting an item in the tree. So, for example:
-
-treeView.connect("row_activated", myMethod)
-
-might become
-
-scriptEngine.connect("select file", "row_activated", treeView, myMethod, (column, dataIndex))
-
-(column, dataIndex) is a tuple to tell it which data in the tree view we are looking for. So that
-the command "select file foobar.txt" will search the tree's column <column> and data index <dataIndex>
-for the text "foobar.txt" and select that row accordingly.
-
-(4) There are other widgets supported too, it's probably easiest just to read the code for the API
-to these, they're fairly self-explanatory. But there are also many widgets that aren't (I have implemented
-what I have needed myself and no more) - happy hacking!
-
-(5) GUI shortcuts
-
-Provided your scriptEngine was created with enableShortcuts=1, you can call the method gtk.createShortcutBar,
+The only reason to import this module in application code now is to call the method gtkusecase.createShortcutBar,
 which will return a gtk.HBox allowing the user to dynamically record multiple clicks and make extra buttons
 appear on this bar so that they can be created. Such shortcuts will be recorded in the directory indicated
 by USECASE_HOME (defaulting to ~/usecases). Also, where a user makes a sequence of clicks which correspond to

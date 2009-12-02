@@ -1,29 +1,27 @@
 
 """
-The idea of this module is to implement a generic record/playback tool, independent of
-particular GUIs or anything. Objects of class "ScriptEngine" may be constructed.
+The idea of this module is to implement a generic record/playback framework, independent of
+particular GUI frameworks or anything. The only GUI toolkit support by PyUseCase right now is
+PyGTK but in principle all the code in this module would be useful for PyQT or wxPython also.
 
-scriptEngine = ScriptEngine(logger = None, enableShortcuts = 0)
+It's also useful for console applications in recording and replaying signals sent to the process.
 
-(here <logger> is a log4py logger for logging replayed events, if desired: if not they
-are logged to standard output. enableShortcuts turns on GUI shortcuts, see later)
+The module reads the following environment variables. These are set by TextTest, and also
+from the pyusecase command line
+USECASE_RECORD_SCRIPT (-r)
+USECASE_REPLAY_SCRIPT (-p)
+USECASE_REPLAY_DELAY  (-d)
 
-The module reads the following environment variables, all of which are set appropriately by TextTest:
-USECASE_RECORD_SCRIPT
-USECASE_REPLAY_SCRIPT
-USECASE_REPLAY_DELAY
-
-These will then be capable of
+The functionality present here is therefore
     
-(1) Record and replaying external signals received by the process
-    - If USECASE_RECORD_SCRIPT is defined, they will be recorded there. If USECASE_REPLAY_SCRIPT
-    is defined and a signal command read from it, they will be generated.
+(1) Record and replay for signals received by the process
+    - This just happens. If the process gets SIGINT, 'receive signal SIGINT' is recorded
     
 (2) Recording specified 'application events'
     - These are events that are not caused by the user doing something, generally the
     application enters a certain state. 
 
-    scriptEngine.applicationEvent("idle handler exit")
+    usecase.applicationEvent("idle handler exit")
 
     Recording will take the form of recording a "wait" command in USECASE_RECORD_SCRIPT in this
     case as "wait for idle handler exit". When such a command is read from USECASE_REPLAY_SCRIPT,
@@ -36,13 +34,10 @@ These will then be capable of
     only events in the same category will overwrite each other. Events with no category will
     overwrite all events in all categories.
 
-(3) Being extended to be able to deal with GUI events and shortcuts.
-    - This is necessarily specific to particular GUI libraries. One such extension is currently
+(3) Basic framework for GUI testing
+    - The aim is to handle the boilerplate around a recorder and a replayer here, while
+    letting particular extensions fill out which widgets they support. One such extension is currently
     available for PyGTK (gtkusecase.py)
-
-(4) Being able to pause between replaying replay script events.
-    - This allows you to see what is happening more easily and is controlled by the environment
-    variable USECASE_REPLAY_DELAY.
 """
 
 import os, string, sys, signal, time, stat, logging
