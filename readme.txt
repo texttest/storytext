@@ -49,15 +49,15 @@ Other Open Source Software packaged with it/used by it:
 
 Installation:
 
-    Go to the "lib" directory and run "python setup.py install".
-    Alternatively, just leave the directory in place and add its "bin" directory to your PATH
-      (and its "lib" directory to your PYTHONPATH if you use application events or shortcuts).
+    Go to the "source/lib" directory and run "python setup.py install".
+    Alternatively, just leave the directory in place and add its "source/bin" directory to your PATH
+      (and its "source/lib" directory to your PYTHONPATH if you use application events or shortcuts).
 
 Documentation:
 
     http://www.texttest.org/index.php?page=ui_testing
 
-Examples:
+Examples and tests:
 
     A simple "video store" PyGTK GUI is provided to give an example usage in the "examples" directory. 
     It's basically an ordinary PyGTK app with the shortcut bar included. You can for example do
@@ -68,6 +68,10 @@ Examples:
     then be replayed via
 
     pyusecase -p my_script.txt videostore.py
+
+    The complete test suite (which uses Texttest) is also provided under "tests", this has a wealth of little GUIs
+    illustrating the support for the various widgets. It should be possible to run it via texttest.py -d <path to tests>
+    (if you install TextTest, of course)
 
 Bugs/Support:
     
