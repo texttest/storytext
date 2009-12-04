@@ -120,8 +120,9 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
         usecase.scriptEngine.describeSupportedWidgets()
     elif options.supported_html:
         usecase.scriptEngine.describeSupportedWidgets(html=True)
+    elif len(args) == 0:
+        parser.print_help()
     else:
         run_python_file(args)
-    
-    if options.interface == "gtk" and not options.disable_usecase_names:
-        usecase.scriptEngine.replaceAutoRecordingForUseCase(options.test)
+        if options.interface == "gtk" and not options.disable_usecase_names:
+            usecase.scriptEngine.replaceAutoRecordingForUseCase(options.test)
