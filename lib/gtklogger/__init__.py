@@ -582,7 +582,7 @@ class IdleScheduler:
             # Low priority, to not get in the way of filechooser updates
             self.idleHandler = gobject.idle_add(self.describeUpdates, priority=PRIORITY_PYUSECASE_LOG_IDLE)
 
-    def shouldDescribe(self, widget):
+    def shouldDescribeUpdate(self, widget):
         if not widget.get_property("visible"):
             return False
 
@@ -600,14 +600,17 @@ class IdleScheduler:
             currPage = parent.get_nth_page(parent.get_current_page())
             return currPage is widget
         else:
-            return self.shouldDescribe(parent)
+            return self.shouldDescribeUpdate(parent)
 
     def sorted(self, widgets):
         return sorted(widgets, lambda x,y: cmp(self.allWidgets.index(x), self.allWidgets.index(y)))        
 
+    def shouldDescribe(self, window):
+        return window.get_property("visible") and window.get_type_hint() != gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP
+
     def describeNewWindows(self):
         if self.universalLogging:
-            for window in filter(lambda w: w.get_property("visible"), gtk.window_list_toplevels()):
+            for window in filter(self.shouldDescribe, gtk.window_list_toplevels()):
                 if window not in self.visibleWindows:
                     self.visibleWindows.append(window)
                     describe(window)
@@ -625,7 +628,7 @@ class IdleScheduler:
             prefix, titleOnly = self.widgetsForDescribe.get(widget)
             if prefix == "Hiding":
                 Describer.logger.info("Hiding the '" + Describer.getBriefDescription(widget) + "' widget")
-            elif self.shouldDescribe(widget):
+            elif self.shouldDescribeUpdate(widget):
                 describe(widget, prefix=prefix)
 
         self.reset()
