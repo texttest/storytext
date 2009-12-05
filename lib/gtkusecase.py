@@ -1420,19 +1420,9 @@ class UIMap:
             self.storeInfo(widgetDescription, signalName, eventName, addToReadParser=False)
         self.write()
 
-    def monitorNewWindows(self):
-        for window in gtk.window_list_toplevels():
-            self.monitorWindow(window)
-
-    def isComboBoxPopup(self, window):
-        return isinstance(window.child, gtk.Menu) and isinstance(window.child.get_attach_widget(), gtk.ComboBox)
-
     def monitorWindow(self, window):
         if window not in self.windows and window.get_title() != DomainNameGUI.title:
             self.windows.append(window)
-            if self.isComboBoxPopup(window):
-                self.logger.debug("Ignoring Combobox popup window")
-                return False
             if isinstance(window, origDialog):
                 # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
                 # which may have been added since then...
@@ -2019,11 +2009,22 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         else:
             return gobject.idle_add(*args, **kw)
 
+    def shouldMonitorWindow(self, window):
+        hint = window.get_type_hint()
+        if hint == gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP:
+            return False
+        elif isinstance(window.child, gtk.Menu) and isinstance(window.child.get_attach_widget(), gtk.ComboBox):
+            return False
+        else:
+            return True
+
     def handleNewWindows(self):
-        if self.uiMap and (self.isActive() or self.recorder.isActive()):
-            self.uiMap.monitorNewWindows()
-        if self.loggerActive:
-            gtklogger.describeNewWindows()
+        for window in gtk.window_list_toplevels():
+            if self.shouldMonitorWindow(window):
+                if self.uiMap and (self.isActive() or self.recorder.isActive()):
+                    self.uiMap.monitorWindow(window)
+                if self.loggerActive and window.get_property("visible"):
+                    gtklogger.describeNewWindow(window)
         return True
 
     def describeAndRun(self):

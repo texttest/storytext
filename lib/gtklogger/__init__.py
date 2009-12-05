@@ -40,8 +40,8 @@ def setMonitoring(loggingEnabled=False):
         if loggingEnabled:
             performInterceptions()
 
-def describeNewWindows(*args):
-    return idleScheduler.describeNewWindows(*args)
+def describeNewWindow(*args):
+    return idleScheduler.describeNewWindow(*args)
 
 class Describer:
     logger = None
@@ -605,16 +605,10 @@ class IdleScheduler:
     def sorted(self, widgets):
         return sorted(widgets, lambda x,y: cmp(self.allWidgets.index(x), self.allWidgets.index(y)))        
 
-    def shouldDescribe(self, window):
-        return window.get_property("visible") and window.get_type_hint() != gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP
-
-    def describeNewWindows(self):
-        if self.universalLogging:
-            for window in filter(self.shouldDescribe, gtk.window_list_toplevels()):
-                if window not in self.visibleWindows:
-                    self.visibleWindows.append(window)
-                    describe(window)
-        return Describer.isEnabled()
+    def describeNewWindow(self, window):
+        if window not in self.visibleWindows:
+            self.visibleWindows.append(window)
+            describe(window)
         
     def describeUpdates(self):
         if len(self.enabledWidgets) or len(self.disabledWidgets):
