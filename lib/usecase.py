@@ -136,7 +136,7 @@ class ReplayScript:
         self.pointer = 0
         self.name = scriptName
         if not os.path.isfile(scriptName):
-            raise UseCaseScriptError, "Cannot replay script " + scriptName + ", no such file or directory"
+            raise UseCaseScriptError, "Cannot replay script " + repr(scriptName) + ", no such file or directory."
         for line in open(scriptName).xreadlines():
             line = line.strip()
             if line != "" and line[0] != "#":

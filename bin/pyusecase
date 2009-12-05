@@ -55,8 +55,7 @@ def run_python_file(args):
         sys.argv = old_argv
         sys.path[0] = old_path0
 
-
-if __name__ == "__main__":
+def create_option_parser():
     usage = """usage: %prog [options] <program> <program_args> ...
 
 PyUseCase is a record/replay tool for Python GUIs, currently consisting of a generic 
@@ -92,16 +91,10 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-t", "--test", action="store_true", help=optparse.SUPPRESS_HELP)
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
+    return parser
 
 
-    options, args = parser.parse_args()
-    if options.record:
-        os.environ["USECASE_RECORD_SCRIPT"] = options.record
-    if options.replay:
-        os.environ["USECASE_REPLAY_SCRIPT"] = options.replay
-    if options.delay:
-        os.environ["USECASE_REPLAY_DELAY"] = options.delay
-
+def create_script_engine(options):
     logLevel = options.loglevel.upper()
     if logLevel in [ "INFO", "DEBUG" ]:
         level = eval("logging." + logLevel)
@@ -111,18 +104,36 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
         import gtkusecase
         logEnabled = logLevel != "OFF"
         mapFiles = options.mapfiles.split(",")
-        usecase.scriptEngine = gtkusecase.ScriptEngine(uiMapFiles=mapFiles,
-                                                       universalLogging=logEnabled)
+        return gtkusecase.ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled)
     else:
-        usecase.scriptEngine = usecase.ScriptEngine()
+        return usecase.ScriptEngine()
 
-    if options.supported:
-        usecase.scriptEngine.describeSupportedWidgets()
-    elif options.supported_html:
-        usecase.scriptEngine.describeSupportedWidgets(html=True)
-    elif len(args) == 0:
-        parser.print_help()
-    else:
-        run_python_file(args)
-        if options.interface == "gtk" and not options.disable_usecase_names:
-            usecase.scriptEngine.replaceAutoRecordingForUseCase(options.test)
+def set_up_environment(options):
+    if options.record:
+        os.environ["USECASE_RECORD_SCRIPT"] = options.record
+    if options.replay:
+        os.environ["USECASE_REPLAY_SCRIPT"] = options.replay
+    if options.delay:
+        os.environ["USECASE_REPLAY_DELAY"] = options.delay
+
+
+
+if __name__ == "__main__":
+    parser = create_option_parser()
+    options, args = parser.parse_args()
+    set_up_environment(options)    
+    try:
+        usecase.scriptEngine = create_script_engine(options)
+        if options.supported:
+            usecase.scriptEngine.describeSupportedWidgets()
+        elif options.supported_html:
+            usecase.scriptEngine.describeSupportedWidgets(html=True)
+        elif len(args) == 0:
+            parser.print_help()
+        else:
+            run_python_file(args)
+            if options.interface == "gtk" and not options.disable_usecase_names:
+                usecase.scriptEngine.replaceAutoRecordingForUseCase(options.test)
+    except usecase.UseCaseScriptError, e:
+        sys.stderr.write(str(e) + "\n")
+
