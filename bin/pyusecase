@@ -117,12 +117,22 @@ def set_up_environment(options):
         os.environ["USECASE_REPLAY_DELAY"] = options.delay
 
 
+def check_python_version():
+    major, minor = sys.version_info[:2]
+    reqMajor, reqMinor = (2, 4)
+    if (major, minor) < (reqMajor, reqMinor):
+        strVersion = str(major) + "." + str(minor)
+        reqVersion = str(reqMajor) + "." + str(reqMinor)
+        raise usecase.UseCaseScriptError, "PyUseCase " + usecase.version + " requires at least Python " + \
+            reqVersion + ": found version " + strVersion + "."
+
 
 if __name__ == "__main__":
     parser = create_option_parser()
     options, args = parser.parse_args()
     set_up_environment(options)    
     try:
+        check_python_version()
         usecase.scriptEngine = create_script_engine(options)
         if options.supported:
             usecase.scriptEngine.describeSupportedWidgets()
