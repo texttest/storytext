@@ -1157,13 +1157,43 @@ class FileChooserDialog(DialogHelper, origFileChooserDialog):
         self.tryMonitor()
 
 
+class WriteParserHandler:
+    def __init__(self, fileName):
+        self.fileName = fileName
+        self.parser = ConfigParser(dict_type=seqdict)
+        self.parser.read([ self.fileName ])
+        self.changed = False
+
+    def write(self):
+        if self.changed:
+            if not os.path.isdir(os.path.dirname(self.fileName)):
+                os.makedirs(os.path.dirname(self.fileName))
+            self.parser.write(open(self.fileName, "w"))
+            self.changed = False
+
+    def add_section(self, *args):
+        self.changed = True
+        self.parser.add_section(*args)
+
+    def set(self, *args):
+        self.changed = True
+        self.parser.set(*args)
+
+    def __getattr__(self, name):
+        return getattr(self.parser, name)
+
+
 class UIMap:
     ignoreWidgetTypes = [ "Label" ]
     def __init__(self, scriptEngine, uiMapFiles): 
         # See top of file: uses the version from 2.6
-        self.readParser = ConfigParser(dict_type=seqdict)
-        self.readFiles(uiMapFiles)
-        self.changed = False
+        self.writeParsers = map(WriteParserHandler, uiMapFiles)
+        if len(self.writeParsers) == 1:
+            self.readParser = self.writeParsers[0]
+        else:
+            self.readParser = ConfigParser(dict_type=seqdict)
+            self.readParser.read(uiMapFiles)
+        
         self.scriptEngine = scriptEngine
         self.windows = []
         self.storedEvents = set()
@@ -1173,16 +1203,7 @@ class UIMap:
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
         gtk.quit_add(1, self.write) # Write changes to the GUI map when the application exits
-
-    def readFiles(self, uiMapFiles):
-        self.file = uiMapFiles[-1]
-        self.readParser.read(uiMapFiles)
-        if len(uiMapFiles) > 1:
-            self.writeParser = ConfigParser(dict_type=seqdict)
-            self.writeParser.read([ self.file ])
-        else:
-            self.writeParser = self.readParser
-
+        
     def monitorDialog(self, dialog):
         if self.monitorWidget(dialog):
             self.logger.debug("Picked up file-monitoring for dialog '" + self.getSectionName(dialog) + 
@@ -1193,11 +1214,8 @@ class UIMap:
             return False
                 
     def write(self, *args):
-        if self.changed:
-            if not os.path.isdir(os.path.dirname(self.file)):
-                os.makedirs(os.path.dirname(self.file))
-            self.writeParser.write(open(self.file, "w"))
-            self.changed = False
+        for parserHandler in self.writeParsers:
+            parserHandler.write()
 
     def getTitle(self, widget):
         try:
@@ -1243,11 +1261,10 @@ class UIMap:
         
         self.logger.debug("Storing instrumented event for section '" + sectionName + "'")
         if not self.readParser.has_section(sectionName):
-            self.writeParser.add_section(sectionName)
-            if self.readParser is not self.writeParser:
+            self.writeParsers[-1].add_section(sectionName)
+            if len(self.writeParsers) > 1:
                 self.readParser.add_section(sectionName)
 
-            self.changed = True
         eventName = event.name
         self.storedEvents.add(eventName)
         if self.storeInfo(sectionName, event.getUiMapSignature(), eventName, addToReadParser=True):
@@ -1256,8 +1273,10 @@ class UIMap:
     def storeInfo(self, sectionName, signature, eventName, addToReadParser):
         signature = signature.replace("::", "-") # Can't store :: in ConfigParser unfortunately
         if not self.readParser.has_option(sectionName, signature):
-            self.writeParser.set(sectionName, signature, eventName)
-            if addToReadParser and self.readParser is not self.writeParser:
+            for writeParser in self.writeParsers:
+                if writeParser.has_section(sectionName):
+                    writeParser.set(sectionName, signature, eventName)
+            if addToReadParser and len(self.writeParsers) > 1:
                 self.readParser.set(sectionName, signature, eventName)
             return True
         else:
@@ -1342,6 +1361,27 @@ class UIMap:
             if isinstance(renderer, cls):
                 return renderer
 
+    def tryImproveSectionName(self, widget, section):
+        if not section.startswith("Name="):
+            newName = self.getSectionName(widget)
+            if newName != section:
+                return self.updateSectionName(section, newName)
+        return section
+
+    def findWriteParser(self, section):
+        for parser in self.writeParsers:
+            if parser.has_section(section):
+                return parser
+
+    def updateSectionName(self, section, newName):
+        writeParser = self.findWriteParser(section)
+        if not writeParser.has_section(newName):
+            writeParser.add_section(newName)
+        for name, value in self.readParser.items(section):
+            writeParser.set(newName, name, value)
+        writeParser.remove_section(section)
+        return newName
+
     def instrumentFromMapFile(self, widget):
         widgetType = widget.__class__.__name__
         if widgetType in self.ignoreWidgetTypes:
@@ -1350,6 +1390,7 @@ class UIMap:
         autoInstrumented = False
         section = self.findSection(widget, widgetType)
         if section:
+            section = self.tryImproveSectionName(widget, section)
             self.logger.debug("Reading map file section " + repr(section) + " for widget of type " + widgetType)
             for signature, eventName in self.readParser.items(section):
                 signature = signature.replace("notify-", "notify::")
@@ -1413,10 +1454,9 @@ class UIMap:
         return autoGenerated
 
     def storeNames(self, toStore):
-        self.changed = True
         for ((widgetType, widgetDescription, signalName), eventName) in toStore:
             if not self.readParser.has_section(widgetDescription):
-                self.writeParser.add_section(widgetDescription)
+                self.writeParsers[-1].add_section(widgetDescription)
             self.storeInfo(widgetDescription, signalName, eventName, addToReadParser=False)
         self.write()
 
