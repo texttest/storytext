@@ -1186,14 +1186,7 @@ class WriteParserHandler:
 class UIMap:
     ignoreWidgetTypes = [ "Label" ]
     def __init__(self, scriptEngine, uiMapFiles): 
-        # See top of file: uses the version from 2.6
-        self.writeParsers = map(WriteParserHandler, uiMapFiles)
-        if len(self.writeParsers) == 1:
-            self.readParser = self.writeParsers[0]
-        else:
-            self.readParser = ConfigParser(dict_type=seqdict)
-            self.readParser.read(uiMapFiles)
-        
+        self.readFiles(uiMapFiles)
         self.scriptEngine = scriptEngine
         self.windows = []
         self.storedEvents = set()
@@ -1203,6 +1196,15 @@ class UIMap:
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
         gtk.quit_add(1, self.write) # Write changes to the GUI map when the application exits
+
+    def readFiles(self, uiMapFiles):
+        # See top of file: uses the version from 2.6
+        self.writeParsers = map(WriteParserHandler, uiMapFiles)
+        if len(self.writeParsers) == 1:
+            self.readParser = self.writeParsers[0]
+        else:
+            self.readParser = ConfigParser(dict_type=seqdict)
+            self.readParser.read(uiMapFiles)
         
     def monitorDialog(self, dialog):
         if self.monitorWidget(dialog):
