@@ -148,3 +148,14 @@ PyGTK Auto-logging (gtklogger/*)
 	gtk.Window now describes changes of title
     - Ordering of visibility/sensitivity change descriptions now sorted
 	(doesn't depend on order of object creation in the app)
+
+Version 3.0.1:
+-------------
+Enhancement/bugfix:
+    - Now automatically update the UI map file appropriately when a widget is named
+Bug fixes:
+    - Auto-logging now ignores tooltip windows, preventing sporadic description of them when system is loaded
+    - Fixed stacktrace from logging gtk.EntryCompletion windows
+    - Check Python version >= 2.4
+    - Show help on no args instead of stacktrace
+    - Update the correct UI map file when there are several and one already has a matching section
