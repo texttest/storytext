@@ -1085,8 +1085,6 @@ class TreeViewIndexer:
                           " rows, setting unique names")
         parentSuffices = {}
         for index, row in enumerate(rows):
-            if row is None:
-                raise usecase.UseCaseScriptError, "Cannot index tree model, there exist non-unique paths for " + oldName
             iter = self.model.get_iter(row.get_path())
             parent = self.model.iter_parent(iter)
             parentSuffix = self.getParentSuffix(parent)
@@ -1103,11 +1101,17 @@ class TreeViewIndexer:
             else:
                 matchingRows = [ rows[ix] for ix in indices ]
                 parents = map(self.getParentRow, matchingRows)
-                parentNames = self.getNewNames(parents, newName)
-                for index, parentName in enumerate(parentNames):
-                    self.logger.debug("Name from parents, setting row " + repr(indices[index]) + 
-                                      " name to " + repr(parentName))
-                    newNames[indices[index]] = parentName
+                if None not in parents:
+                    parentNames = self.getNewNames(parents, newName)
+                    for index, parentName in enumerate(parentNames):
+                        self.logger.debug("Name from parents, setting row " + repr(indices[index]) + 
+                                          " name to " + repr(parentName))
+                        newNames[indices[index]] = parentName
+                else:
+                    # No other option, enumerate them and identify them by index
+                    for index, row in enumerate(matchingRows):
+                        newNames[indices[index]] = newName + " (" + str(index + 1) + ")"
+
         return newNames
 
     def getParentRow(self, row):
