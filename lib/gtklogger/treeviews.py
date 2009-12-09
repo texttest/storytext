@@ -110,7 +110,9 @@ class TreeViewDescriber:
         self.rendererDescribers = []
         self.describersOK = False
         self.idleScheduler = idleScheduler
-        idleScheduler.monitor(self.model, [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ], "Updated : ", self.view)
+        if self.model:
+            modelSignals = [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ]
+            idleScheduler.monitor(self.model, modelSignals, "Updated : ", self.view)
         idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ")
         idleScheduler.monitor(self.view, [ "row-collapsed" ], "Collapsed row in ")
         for column in self.view.get_columns():
@@ -127,7 +129,7 @@ class TreeViewDescriber:
         columns = self.view.get_columns()
         titles = " , ".join([ column.get_title() for column in columns ])
         message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
-        if "Column titles" not in prefix:
+        if "Column titles" not in prefix and self.model:
             if not self.describersOK:
                 self.rendererDescribers = self.getRendererDescribers()
             message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
