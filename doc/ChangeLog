@@ -162,3 +162,4 @@ Bug fixes:
     - Don't stacktrace if gtk.TreeView has no model attached
     - Don't stacktrace if gtk.TreeView has non-unique full paths
     - Don't stacktrace if gtk.ComboBox is empty or has no model attached
+    - Don't insert shortcuts if additional commands are executed in between their component parts
