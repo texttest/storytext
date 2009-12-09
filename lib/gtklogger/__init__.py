@@ -300,7 +300,9 @@ class Describer:
 
     def getDropDownDescription(self, combobox):
         allEntries = []
-        combobox.get_model().foreach(self.collectEntries, allEntries)
+        model = combobox.get_model()
+        if model:
+            model.foreach(self.collectEntries, allEntries)
         return " (drop-down list containing " + repr(allEntries) + ")"
 
     def getComboBoxEntryDescription(self, combobox):
@@ -312,9 +314,11 @@ class Describer:
         if self.prefix != "Showing ":
             text += self.prefix + "'" + combobox.get_name() + "' "
         text += "Combo Box"
-        value = combobox.get_model().get_value(combobox.get_active_iter(), 0)
-        if value:
-            text += " (selected '" + value + "')"
+        iter = combobox.get_active_iter()
+        if iter is not None:
+            value = combobox.get_model().get_value(iter, 0)
+            if value:
+                text += " (selected '" + value + "')"
         if self.prefix == "Showing ":
             text += self.getDropDownDescription(combobox)
         return text
