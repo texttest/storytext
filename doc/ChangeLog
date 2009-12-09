@@ -159,3 +159,5 @@ Bug fixes:
     - Check Python version >= 2.4
     - Show help on no args instead of stacktrace
     - Update the correct UI map file when there are several and one already has a matching section
+    - Don't stacktrace if gtk.TreeView has no model attached
+    - Don't stacktrace if gtk.ComboBox is empty or has no model attached
