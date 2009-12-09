@@ -354,19 +354,25 @@ class ShortcutTracker:
         self.replayScript = replayScript
         self.unmatchedCommands = []
         self.reset()
+
     def reset(self):
         self.replayScript = ReplayScript(self.replayScript.name)
         self.currCommand = self.replayScript.getCommand()
+
     def updateCompletes(self, line):
         if line == self.currCommand:
             self.currCommand = self.replayScript.getCommand()
             return not self.currCommand
-        self.unmatchedCommands.append(line)
-        return 0
+        else:
+            self.unmatchedCommands.append(line)
+            self.reset()
+            return False
+
     def getNewCommands(self):
         self.reset()
         self.unmatchedCommands.append(self.replayScript.getShortcutName().lower())
         return self.unmatchedCommands
+
     
 # Take care not to record empty files...
 class RecordScript:
