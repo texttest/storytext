@@ -20,7 +20,7 @@ else:
 
 setup(name='PyUseCase',
       version=version,
-      packages=["gtklogger"],
+      packages=["gtklogger","gtkusecase"],
       py_modules=mod_files,
       scripts=scripts
       )
