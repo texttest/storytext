@@ -224,7 +224,9 @@ class Describer:
 
     def getProgressBarDescription(self, progressBar):
         idleScheduler.monitor(progressBar, [ "notify::text", "notify::fraction" ])
-        message = "Progress bar set to fraction " + str(progressBar.get_fraction()) + ", text '" + progressBar.get_text() + "'"
+        message = "Progress bar set to fraction " + str(progressBar.get_fraction())
+        if progressBar.get_text():
+            message += ", text '" + progressBar.get_text() + "'"
         if self.prefix == "Showing ": # initial
             return message
         else:
