@@ -28,11 +28,6 @@ def describe(widget, prefix="Showing "):
         describer = Describer(prefix)
         describer(widget)
 
-def scheduleDescribe(widget):
-    if isEnabled():
-        setMonitoring()
-        idleScheduler.scheduleDescribe(widget)
-
 def setMonitoring(loggingEnabled=False):
     global idleScheduler
     if not idleScheduler:
@@ -76,7 +71,7 @@ class Describer:
     def getDescription(self, widget):
         baseDesc = self.getBasicDescription(widget)
         propDesc = self.getPropertyDescription(widget)
-        if propDesc == "" or not baseDesc.startswith("\n"): # single line
+        if propDesc == "" or not baseDesc.startswith("\n") or baseDesc.count("\n") <= 1: # single line
             return baseDesc + propDesc
         else:
             firstEndline = baseDesc.find("\n", 1) # ignore leading newline
