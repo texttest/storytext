@@ -5,6 +5,113 @@ from baseevents import StateChangeEvent, SignalEvent
 from usecase import UseCaseScriptError
 import gtk, types
 
+origToggleAction = gtk.ToggleAction
+origRadioAction = gtk.RadioAction
+
+def performInterceptions():
+    gtk.ToggleAction = ToggleAction
+    gtk.RadioAction = RadioAction
+
+toggleActionProxies = {}
+
+class ToggleAction(origToggleAction):
+    def create_menu_item(self):
+        item = origToggleAction.create_menu_item(self)
+        toggleActionProxies[item] = self
+        return item
+    
+    def create_tool_item(self):
+        item = origToggleAction.create_tool_item(self)
+        toggleActionProxies[item] = self
+        return item
+
+
+class RadioAction(origRadioAction):
+    def create_menu_item(self):
+        item = origRadioAction.create_menu_item(self)
+        toggleActionProxies[item] = self
+        return item
+    
+    def create_tool_item(self):
+        item = origRadioAction.create_tool_item(self)
+        toggleActionProxies[item] = self
+        return item    
+
+    
+class ActivateEvent(StateChangeEvent):
+    signalName = "toggled"
+    widgetsBlocked = set()
+    def __init__(self, name, widget, relevantState):
+        StateChangeEvent.__init__(self, name, widget)
+        self.relevantState = self.parseState(relevantState)
+
+    def parseState(self, relevantState):
+        if type(relevantState) == types.StringType:
+            return relevantState == "true"
+        else:
+            return relevantState
+
+    def eventIsRelevant(self):
+        if self.widget.get_active() != self.relevantState:
+            return False
+        if self.widget in self.widgetsBlocked:
+            self.widgetsBlocked.remove(self.widget)
+            return False
+
+        action = toggleActionProxies.get(self.widget)
+        if action:
+            for proxy in action.get_proxies():
+                if proxy is not self.widget:
+                    self.widgetsBlocked.add(proxy)
+        return True
+
+    def _outputForScript(self, *args):
+        return self.name
+
+    def getStateChangeArgument(self, argumentString):
+        return self.relevantState
+
+    def getChangeMethod(self):
+        return self.widget.set_active
+
+    def getProgrammaticChangeMethods(self):
+        try:
+            return [ self.widget.toggled ]
+        except AttributeError:
+            return [] # gtk.ToggleToolButton doesn't have this
+    
+    def getUiMapSignature(self):
+        return self.getRecordSignal() + "." + repr(self.relevantState)
+
+    @classmethod 
+    def isRadio(cls, widget):
+        if isinstance(widget, gtk.RadioButton) or isinstance(widget, gtk.RadioToolButton) or \
+            isinstance(widget, gtk.RadioMenuItem):
+            return True
+        action = toggleActionProxies.get(widget)
+        return action and isinstance(action, gtk.RadioAction)
+
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        # Radio buttons can't be unchecked directly
+        if cls.isRadio(widget):
+            return [ cls.signalName + ".true" ]
+        else:
+            return [ cls.signalName + ".true", cls.signalName + ".false" ]
+
+
+class MenuActivateEvent(ActivateEvent):
+    def generate(self, *args):
+        self.checkWidgetStatus()
+        self.widget.emit("activate-item")
+
+
+# Confusingly different signals used in different circumstances here.
+class MenuItemSignalEvent(SignalEvent):
+    signalName = "activate"
+    def getGenerationArguments(self, *args):
+        return [ "activate-item" ]        
+
 
 class EntryEvent(StateChangeEvent):
     def getStateDescription(self, *args):
@@ -32,58 +139,6 @@ class ComboBoxEvent(StateChangeEvent):
         if model.get_value(iter, 0) == argumentString:
             self.changeMethod(iter)
             return True
-
-    
-class ActivateEvent(StateChangeEvent):
-    signalName = "toggled"
-    def __init__(self, name, widget, relevantState):
-        StateChangeEvent.__init__(self, name, widget)
-        self.relevantState = self.parseState(relevantState)
-
-    def parseState(self, relevantState):
-        if type(relevantState) == types.StringType:
-            return relevantState == "true"
-        else:
-            return relevantState
-
-    def eventIsRelevant(self):
-        return self.widget.get_active() == self.relevantState
-
-    def _outputForScript(self, *args):
-        return self.name
-
-    def getStateChangeArgument(self, argumentString):
-        return self.relevantState
-
-    def getChangeMethod(self):
-        return self.widget.set_active
-
-    def getProgrammaticChangeMethods(self):
-        return [ self.widget.toggled ]
-    
-    def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + repr(self.relevantState)
-
-    @classmethod
-    def getAssociatedSignatures(cls, widget):
-        # Radio buttons can't be unchecked directly
-        if isinstance(widget, gtk.RadioButton):
-            return [ cls.signalName + ".true" ]
-        else:
-            return [ cls.signalName + ".true", cls.signalName + ".false" ]
-
-
-class MenuActivateEvent(ActivateEvent):
-    def generate(self, *args):
-        self.checkWidgetStatus()
-        self.widget.emit("activate-item")
-
-
-# Confusingly different signals used in different circumstances here.
-class MenuItemSignalEvent(SignalEvent):
-    signalName = "activate"
-    def getGenerationArguments(self, *args):
-        return [ "activate-item" ]        
 
 
 class NotebookPageChangeEvent(StateChangeEvent):

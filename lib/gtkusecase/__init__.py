@@ -400,31 +400,32 @@ class UIMap:
 
 class ScriptEngine(usecase.ScriptEngine):
     eventTypes = [
-        (gtk.Button       , [ baseevents.SignalEvent ]),
-        (gtk.ToolButton   , [ baseevents.SignalEvent ]),
-        (gtk.MenuItem     , [ miscevents.MenuItemSignalEvent ]),
-        (gtk.CheckMenuItem, [ miscevents.MenuActivateEvent ]),
-        (gtk.ToggleButton , [ miscevents.ActivateEvent ]),
-        (gtk.ComboBoxEntry, []), # just use the entry, don't pick up ComboBoxEvents
-        (gtk.ComboBox     , [ miscevents.ComboBoxEvent ]),
-        (gtk.Entry        , [ miscevents.EntryEvent, 
-                              baseevents.SignalEvent ]),
-        (gtk.FileChooser  , [ filechooserevents.FileChooserFileSelectEvent, 
-                              filechooserevents.FileChooserFolderChangeEvent, 
-                              filechooserevents.FileChooserEntryEvent ]),
-        (gtk.Dialog       , [ windowevents.ResponseEvent, 
-                              windowevents.DeletionEvent ]),
-        (gtk.Window       , [ windowevents.DeletionEvent ]),
-        (gtk.Notebook     , [ miscevents.NotebookPageChangeEvent ]),
-        (gtk.Paned        , [ miscevents.PaneDragEvent ]),
-        (gtk.TreeView     , [ treeviewevents.RowActivationEvent, 
-                              treeviewevents.TreeSelectionEvent, 
-                              treeviewevents.RowExpandEvent, 
-                              treeviewevents.RowCollapseEvent, 
-                              treeviewevents.RowRightClickEvent, 
-                              treeviewevents.CellToggleEvent,
-                              treeviewevents.CellEditEvent, 
-                              treeviewevents.TreeColumnClickEvent ])
+        (gtk.Button           , [ baseevents.SignalEvent ]),
+        (gtk.ToolButton       , [ baseevents.SignalEvent ]),
+        (gtk.MenuItem         , [ miscevents.MenuItemSignalEvent ]),
+        (gtk.CheckMenuItem    , [ miscevents.MenuActivateEvent ]),
+        (gtk.ToggleButton     , [ miscevents.ActivateEvent ]),
+        (gtk.ToggleToolButton , [ miscevents.ActivateEvent ]),
+        (gtk.ComboBoxEntry    , []), # just use the entry, don't pick up ComboBoxEvents
+        (gtk.ComboBox         , [ miscevents.ComboBoxEvent ]),
+        (gtk.Entry            , [ miscevents.EntryEvent, 
+                                  baseevents.SignalEvent ]),
+        (gtk.FileChooser      , [ filechooserevents.FileChooserFileSelectEvent, 
+                                  filechooserevents.FileChooserFolderChangeEvent, 
+                                  filechooserevents.FileChooserEntryEvent ]),
+        (gtk.Dialog           , [ windowevents.ResponseEvent, 
+                                  windowevents.DeletionEvent ]),
+        (gtk.Window           , [ windowevents.DeletionEvent ]),
+        (gtk.Notebook         , [ miscevents.NotebookPageChangeEvent ]),
+        (gtk.Paned            , [ miscevents.PaneDragEvent ]),
+        (gtk.TreeView         , [ treeviewevents.RowActivationEvent, 
+                                  treeviewevents.TreeSelectionEvent, 
+                                  treeviewevents.RowExpandEvent, 
+                                  treeviewevents.RowCollapseEvent, 
+                                  treeviewevents.RowRightClickEvent, 
+                                  treeviewevents.CellToggleEvent,
+                                  treeviewevents.CellEditEvent, 
+                                  treeviewevents.TreeColumnClickEvent ])
 ]
     defaultMapFile = os.path.join(usecase.ScriptEngine.usecaseHome, "ui_map.conf")
     def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ], universalLogging=True):
@@ -436,6 +437,7 @@ class ScriptEngine(usecase.ScriptEngine):
         gtklogger.setMonitoring(universalLogging)
         if self.uiMap or gtklogger.isEnabled():
             gtktreeviewextract.performInterceptions()
+            miscevents.performInterceptions()
 
     def addUiMapFiles(self, uiMapFiles):
         if self.uiMap:
