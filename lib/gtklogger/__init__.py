@@ -252,16 +252,13 @@ class Describer:
     def getLabelText(self, container):
         labelWidget = container.get_label_widget()
         if labelWidget:
-            try:
-                return True, labelWidget.get_text()
-            except AttributeError:
-                return True, labelWidget.get_child().get_text()
+            return True, self.getDescription(labelWidget)
         else:
             return False, ""
 
     def getExpanderDescription(self, expander):
         labelExisted, label = self.getLabelText(expander)
-        text = "Expander '" + label + "':\n"
+        text = "Expander: " + label + "\n"
         # Last child is the label :)
         for child in expander.get_children()[:-1]:
             text += "-> " + self.getDescription(child) + "\n"
