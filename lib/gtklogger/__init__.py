@@ -158,7 +158,7 @@ class Describer:
                 methodName = "get" + widgetClass.__name__ + "Description"
                 return getattr(self, methodName)(widget)
 
-        return "A widget of type '" + widget.__class__.__name__ + "'"
+        return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should never happen
 
     def getLabelDescription(self, widget):
         idleScheduler.monitor(widget, [ "notify::label" ], "\nChanging " + widget.get_name() + " to: ")
