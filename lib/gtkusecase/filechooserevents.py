@@ -49,7 +49,7 @@ class FileChooserFolderChangeEvent(DialogEventHandler, StateChangeEvent):
         if os.path.isdir(folder):
             return folder
         else: 
-            raise usecase.UseCaseScriptError, "Cannot find folder '" + argumentString + "' to change to!"
+            raise UseCaseScriptError, "Cannot find folder '" + argumentString + "' to change to!"
 
 # Base class for selecting a file or typing a file name
 class FileChooserFileEvent(DialogEventHandler, StateChangeEvent):
@@ -85,8 +85,12 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
     def getChangeMethod(self):
         return self.fileChooser.select_filename
     
+    def connectRecord(self, *args):
+        FileChooserFileEvent.connectRecord(self, *args)
+        self.fileChooser.connect("current-folder-changed", self.getStateDescription)
+
     def getProgrammaticChangeMethods(self):
-        return [ self.fileChooser.set_filename ]
+        return [ self.fileChooser.set_filename, self.fileChooser.set_current_folder ]
 
     def setProgrammaticChange(self, val, filename=None):
         FileChooserFileEvent.setProgrammaticChange(self, val)
@@ -97,7 +101,7 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
         if self.currentName: # once we've got a name, everything is permissible...
             return FileChooserFileEvent.shouldRecord(self, *args)
         else:
-            self.currentName = self._getStateDescription()
+            self.getStateDescription()
             return False
 
     def getStateChangeArgument(self, argumentString):
