@@ -344,8 +344,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
 
     def findFirstDifferent(self, oldSelected, newSelected):
         for index in range(len(oldSelected)):
-            if index >= len(newSelected):
-                return index
+            # Old set isn't a superset, so index cannot overflow "newSelected" here
             if oldSelected[index] != newSelected[index]:
                 return index
         return len(oldSelected)
