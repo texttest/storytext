@@ -293,23 +293,15 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
     def getStateDescription(self, *args):
         return self._getStateDescription(storeSelected=True)
 
-    def selectedPreviously(self, iter1, iter2):
-        selPrev1 = iter1 in self.prevSelected
-        selPrev2 = iter2 in self.prevSelected
-        if selPrev1 and not selPrev2:
-            return -1
-        elif selPrev2 and not selPrev1:
-            return 1
-        elif selPrev1 and selPrev2:
-            index1 = self.prevSelected.index(iter1)
-            index2 = self.prevSelected.index(iter2)
-            return cmp(index1, index2)
-        else:
-            return 0
+    def previousIndex(self, iter):
+        try:
+            return self.prevSelected.index(iter)
+        except ValueError:
+            return len(self.prevSelected)
 
     def _getStateDescription(self, storeSelected=False):
         newSelected = self.findSelectedIters()
-        newSelected.sort(self.selectedPreviously)
+        newSelected.sort(key=self.previousIndex)
         if storeSelected:
             self.prevDeselections = filter(lambda i: i not in newSelected, self.prevSelected)
             self.prevSelected = newSelected
