@@ -45,15 +45,23 @@ class TreeViewEvent(baseevents.GtkEvent):
     def __init__(self, name, widget, *args):
         baseevents.GtkEvent.__init__(self, name, widget)
         self.indexer = TreeViewIndexer.getIndexer(widget)
+
     def _outputForScript(self, iter, *args):
         return self.name + " " + self.indexer.iter2string(iter)
+
     def _outputForScriptFromPath(self, path, *args):
         return self.name + " " + self.indexer.path2string(path)
+
     def getGenerationArguments(self, argumentString):
         return [ self.indexer.string2path(argumentString) ] + self.getTreeViewArgs()
+
     def getTreeViewArgs(self):
         return []
+
+    def isRelevantSelection(self, prevEvent):
+        return isinstance(prevEvent, TreeSelectionEvent) and self.widget is prevEvent.widget
    
+
 class RowExpandEvent(TreeViewEvent):
     signalName = "row-expanded"
     def getChangeMethod(self):
@@ -70,10 +78,7 @@ class RowCollapseEvent(TreeViewEvent):
         return self.widget.collapse_row
 
     def implies(self, prevLine, prevEvent, view, iter, path, *args):
-        if not isinstance(prevEvent, TreeSelectionEvent):
-            return False
-
-        if self.widget is not prevEvent.widget:
+        if not self.isRelevantSelection(prevEvent):
             return False
 
         for deselectName in prevEvent.prevDeselections:
@@ -101,10 +106,7 @@ class RowActivationEvent(TreeViewEvent):
         return [ self.widget.get_column(0) ]
 
     def implies(self, prevLine, prevEvent, *args):
-        if not isinstance(prevEvent, TreeSelectionEvent):
-            return False
-
-        return self.widget is prevEvent.widget
+        return self.isRelevantSelection(prevEvent)
 
 
 class RowRightClickEvent(baseevents.RightClickEvent):
