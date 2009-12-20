@@ -78,9 +78,9 @@ class RowCollapseEvent(TreeViewEvent):
         return self.widget.collapse_row
 
     def implies(self, prevLine, prevEvent, view, iter, path, *args):
-        if not self.isRelevantSelection(prevEvent):
-            return False
+        return self.isRelevantSelection(prevEvent) and self.isDeselectionUnder(prevEvent, path)
 
+    def isDeselectionUnder(self, prevEvent, path):
         for deselectName in prevEvent.prevDeselections:
             deselectPath = self.indexer.string2path(deselectName)
             if len(deselectPath) > len(path) and deselectPath[:len(path)] == path:
