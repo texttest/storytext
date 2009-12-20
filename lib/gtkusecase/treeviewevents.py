@@ -463,8 +463,6 @@ class TreeViewIndexer:
 
     def rowInserted(self, model, path, iter):
         givenName = self.getValue(model, iter)
-        if givenName is None:
-            return True # break off foreach
         row = gtk.TreeRowReference(model, path)
         if self.store(row, givenName):
             allRows = self.findAllRows(givenName)
