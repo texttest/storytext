@@ -163,3 +163,22 @@ Bug fixes:
     - Don't stacktrace if gtk.TreeView has non-unique full paths
     - Don't stacktrace if gtk.ComboBox is empty or has no model attached
     - Don't insert shortcuts if additional commands are executed in between their component parts
+
+Version 3.1
+-----------
+Enhancements:
+    - Usecase name entry dialog now shows you a preview of the current usecase as you type
+    - Usecase name entry dialog now uses descriptive action names instead of PyGTK signal names
+    - Support around gtk.ToggleToolButton and gtk.ToolAction proxies much improved
+	(both record/playback and logging)
+    - Label widgets for gtk.Frame and gtk.Expander now handled in a generic way
+	Will mean the format of the log will probably change for these widgets
+    - Logging of gtk.Image much improved
+	Support animations, display filenames provided by "set_from_file", find images that are children of buttons
+Bug fixes:
+    - Workaround for GTK 2.10 bug where updates sent after main loop exited
+    - Don't stacktrace if gtk.ProgressBar has no text on it
+    - Fix logging bug where the last character of 2-line outputs got moved after the "property descriptions"
+    - Don't record a file selection for gtk.FileChooser when the folder is changed to a subdirectory
+    - Don't stacktrace when a non-existent file is selected in gtk.FileChooser
+
