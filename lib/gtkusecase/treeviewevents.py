@@ -288,10 +288,28 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
                     self.selection.select_path, self.selection.unselect_path,
                     self.widget.set_model, self.widget.row_activated, self.widget.collapse_row,
                     realModel.remove, realModel.clear ]
-        if modelFilter:
-            methods.append(modelFilter.refilter) # can change visibility and hence selection
-            methods.append(realModel.set_value) # changing visibility column can change selection
+
         return methods
+
+    def eventIsRelevant(self):
+        return not self.isEmptyReselect() and not self.previousSelectionNowHidden()
+
+    def isEmptyReselect(self):
+        # The user has no way to re-select 0 rows, if this is generated, it's internal/programmatic
+        return len(self.prevSelected) == 0 and self.selection.count_selected_rows() == 0
+
+    def previousSelectionNowHidden(self):
+        # We assume any change here that involves previously selected rows ceasing to be visible
+        # implies that a row has been deselected by being hidden, i.e. programmatically
+        modelFilter, realModel = self.getModels()
+        if modelFilter:
+            for rowName in self.prevSelected:
+                try:
+                    self.indexer.string2iter(rowName)
+                except UseCaseScriptError:
+                    return True
+
+        return False
 
     def getStateDescription(self, *args):
         return self._getStateDescription(storeSelected=True)
