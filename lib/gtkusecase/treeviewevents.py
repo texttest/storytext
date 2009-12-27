@@ -289,6 +289,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
                     self.widget.set_model, self.widget.row_activated, self.widget.collapse_row,
                     realModel.remove, realModel.clear ]
         if modelFilter:
+            methods.append(modelFilter.refilter) # can change visibility and hence selection
             methods.append(realModel.set_value) # changing visibility column can change selection
         return methods
 
