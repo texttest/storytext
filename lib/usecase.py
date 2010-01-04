@@ -432,6 +432,7 @@ class UseCaseRecorder:
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
+            self.addSignalHandlers()
 
         for entry in dir(signal):
             if entry.startswith("SIG") and not entry.startswith("SIG_"):
@@ -446,8 +447,6 @@ class UseCaseRecorder:
 
     def addScript(self, scriptName):
         self.scripts.append(RecordScript(scriptName))
-        if len(self.scripts) == 1:
-            self.addSignalHandlers()
     
     def addSignalHandlers(self):
         signal.signal = self.appRegistersSignal
@@ -467,19 +466,12 @@ class UseCaseRecorder:
             self.realSignalHandlers[signum] = handler
         else:
             self.origSignal(signum, handler)
-            
-    def removeSignalHandlers(self):
-        for signum, handler in self.realSignalHandlers.items():
-            self.origSignal(signum, handler)
-        self.realSignalHandlers = {}
 
     def blockTopLevel(self, eventName):
         self.eventsBlockedTopLevel.append(eventName)
 
     def terminateScript(self):
         script = self.scripts.pop()
-        if len(self.scripts) == 0:
-            self.removeSignalHandlers()
         if script.fileForAppend:
             return script
 
