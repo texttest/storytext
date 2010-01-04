@@ -148,9 +148,6 @@ class ReplayScript:
     def getShortcutName(self):
         return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
 
-    def rollback(self, amount):
-        self.pointer -= amount
-
     def getCommand(self, name=""):
         if self.pointer >= len(self.commands):
             if len(name) == 0:
@@ -278,9 +275,8 @@ class UseCaseReplayer:
                 if commandName == waitCommandName:
                     if not self.processWait(argumentString):
                         return False
-                elif not self.processCommand(commandName, argumentString):
-                    self.scripts[-1].rollback(len(commands))
-                    return True
+                else:
+                    self.processCommand(commandName, argumentString)
             except UseCaseScriptError:
                 type, value, traceback = sys.exc_info()
                 self.write("ERROR: " + str(value))
@@ -297,13 +293,12 @@ class UseCaseReplayer:
 
     def processCommand(self, commandName, argumentString):
         if commandName == signalCommandName:
-            return self.processSignalCommand(argumentString)
+            self.processSignalCommand(argumentString)
         else:
             event = self.events[commandName]
             self.write("")
             self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
             event.generate(argumentString)
-            return True
             
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
@@ -346,7 +341,6 @@ class UseCaseReplayer:
         self.write("Generating signal " + signalArg)
         JobProcess(os.getpid()).killAll(signalNum) # So we can generate signals for ourselves...
         self.logger.debug("Signal " + signalArg + " has been sent")
-        return True
 
 
 class ShortcutTracker:
