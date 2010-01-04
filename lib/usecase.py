@@ -375,16 +375,18 @@ class RecordScript:
         self.fileForAppend = None
         self.shortcutTrackers = []
     
-    def record(self, line):
-        self._record(line)
+    def record(self, line, flush=False):
+        self._record(line, flush)
         for tracker in self.shortcutTrackers:
             if tracker.updateCompletes(line):
                 self.rerecord(tracker.getNewCommands())
     
-    def _record(self, line):
+    def _record(self, line, flush=False):
         if not self.fileForAppend:
             self.fileForAppend = open(self.scriptName, "w")
         self.fileForAppend.write(line + "\n")
+        if flush:
+            self.fileForAppend.flush()
     
     def registerShortcut(self, shortcut):
         self.shortcutTrackers.append(ShortcutTracker(shortcut))
@@ -483,17 +485,18 @@ class UseCaseRecorder:
 
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
-        self.record(signalCommandName + " " + self.signalNames[signum])
+        self.record(signalCommandName + " " + self.signalNames[signum], flush=True) # in case we get killed hard
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
         # If there was no handler-override installed, resend the signal with the handler reset
-        if realHandler == signal.SIG_DFL:
+        if realHandler == signal.SIG_DFL: 
             self.origSignal(signum, self.realSignalHandlers[signum])
             print "Killing process", self.processId, "with signal", signum
+            sys.stdout.flush()
             os.kill(self.processId, signum)
             # If we're still alive, set the signal handler back again to record future signals
             self.origSignal(signum, self.recordSignal)
-        elif realHandler is not None:
+        elif realHandler is not None and realHandler != signal.SIG_IGN:
             # If there was a handler, just call it
             realHandler(signum, stackFrame)
         elif signum == signal.SIGINT:
@@ -524,9 +527,9 @@ class UseCaseRecorder:
             self.stateChangeEventInfo = None
             self.record(scriptOutput, event)
 
-    def record(self, line, event=None):
+    def record(self, line, event=None, flush=False):
         for script in self.getScriptsToRecord(event):
-            script.record(line)
+            script.record(line, flush)
 
     def getScriptsToRecord(self, event):   
         if event and (event.name in self.eventsBlockedTopLevel):
