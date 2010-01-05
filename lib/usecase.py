@@ -180,7 +180,6 @@ class UseCaseReplayer:
         self.logger = logging.getLogger("usecase replay log")
         self.scripts = []
         self.events = {}
-        self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
         self.waitingForEvents = []
         self.applicationEventNames = []
         self.replayThread = None
@@ -241,8 +240,7 @@ class UseCaseReplayer:
 
     def runCommands(self):
         while self.runNextCommand():
-            if self.delay:
-                time.sleep(self.delay)
+            pass
 
     def getCommands(self):
         nextCommands = self.scripts[-1].getCommands()
@@ -286,7 +284,7 @@ class UseCaseReplayer:
     def write(self, line):
         try:
             self.logger.info(line)
-        except IOError:
+        except IOError: # pragma: no cover - not easy to reproduce this
             # Can get interrupted system call here as it tries to close the file
             # This isn't worth crashing over!
             pass
@@ -491,9 +489,6 @@ class UseCaseRecorder:
         elif realHandler is not None and realHandler != signal.SIG_IGN:
             # If there was a handler, just call it
             realHandler(signum, stackFrame)
-        elif signum == signal.SIGINT:
-            # Fake Python's default handler for SIGINT
-            raise KeyboardInterrupt()
 
     def writeEvent(self, *args):
         if len(self.scripts) == 0 or self.suspended == 1:

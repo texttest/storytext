@@ -902,6 +902,7 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         self.idleHandler = None
         self.loggerActive = universalLogging
         self.recorder = recorder
+        self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
         self.tryAddDescribeHandler()
         # Anyone calling events_pending doesn't mean to include our logging events
         # so we intercept it and return the right answer for them...
