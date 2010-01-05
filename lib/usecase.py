@@ -404,7 +404,9 @@ class RecordScript:
         self.close()
         if os.path.isfile(self.scriptName):
             return map(string.strip, open(self.scriptName).readlines())
-        else:
+        else: # pragma: no cover - there for completeness/theoretical correctness 
+            # There is currently no way to record an empty usecase with a UI as signals, kills etc will be picked up
+            # and an empty shortcut will currently be detected by terminateScript() before calling this method 
             return []
 
     def rename(self, newName):
@@ -462,7 +464,7 @@ class UseCaseRecorder:
         # Don't want to interfere after a fork, leave child processes to the application to manage...
         if os.getpid() == self.processId:
             self.realSignalHandlers[signum] = handler
-        else:
+        else:  # pragma: no cover - coverage isn't active after a fork anyway
             self.origSignal(signum, handler)
 
     def blockTopLevel(self, eventName):
