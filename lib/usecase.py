@@ -374,10 +374,13 @@ class RecordScript:
         self.shortcutTrackers = []
     
     def record(self, line, flush=False):
-        self._record(line, flush)
-        for tracker in self.shortcutTrackers:
-            if tracker.updateCompletes(line):
-                self.rerecord(tracker.getNewCommands())
+        try:
+            self._record(line, flush)
+            for tracker in self.shortcutTrackers:
+                if tracker.updateCompletes(line):
+                    self.rerecord(tracker.getNewCommands())
+        except IOError:
+            sys.stderr.write("ERROR: Unable to record " + repr(line) + " to file " + repr(self.scriptName) + "\n") 
     
     def _record(self, line, flush=False):
         if not self.fileForAppend:
