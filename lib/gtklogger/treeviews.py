@@ -136,7 +136,7 @@ class TreeViewDescriber:
         return message.rstrip()
     
     def getSubTreeDescription(self, iter, indent):
-        if iter is not None and len(self.rendererDescribers) == 0:
+        if iter is not None and len(self.rendererDescribers) == 0: # pragma: no cover - for robustness only
             return "ERROR: Could not find the relevant column IDs, so cannot describe tree view!"
         message = ""
         while iter is not None:
@@ -159,7 +159,7 @@ class TreeViewDescriber:
                 if extractors:
                     className = renderer.__class__.__name__ + "Describer"
                     describers.append(eval(className + "(extractors)"))
-                else:
+                else: # pragma: no cover - for robustness only, shouldn't be reachable
                     self.describersOK = False
         return describers
 
