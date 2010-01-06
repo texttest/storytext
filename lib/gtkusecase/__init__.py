@@ -257,8 +257,7 @@ class UIMap:
         columnName, relevantState = self.splitParseData(argumentParseData)
         column = self.findTreeViewColumn(widget, columnName)
         if not column:
-            sys.stderr.write("ERROR in UI map file: Could not find column with name " + repr(columnName) + "\n")
-            return
+            raise usecase.UseCaseScriptError, "Could not find column with name " + repr(columnName)
 
         if signalName == "clicked":
             return treeviewevents.TreeColumnClickEvent(eventName, widget, column)
@@ -318,10 +317,13 @@ class UIMap:
                 if eventName in self.storedEvents:
                     signaturesInstrumented.add(signature)
                 else:
-                    currSignature = self.autoInstrument(eventName, signature, widget, widgetType)
-                    if currSignature:
-                        signaturesInstrumented.add(currSignature)
-                        autoInstrumented = True
+                    try:
+                        currSignature = self.autoInstrument(eventName, signature, widget, widgetType)
+                        if currSignature:
+                            signaturesInstrumented.add(currSignature)
+                            autoInstrumented = True
+                    except usecase.UseCaseScriptError, e:
+                        sys.stderr.write("ERROR in UI map file: " + str(e) + "\n")
         return signaturesInstrumented, autoInstrumented
 
     def findAutoInstrumentSignatures(self, widget, preInstrumented):
@@ -800,6 +802,11 @@ class ScriptEngine(usecase.ScriptEngine):
             if eventClass is not baseevents.SignalEvent and eventClass.getAssociatedSignal(widget) == stdSignalName:
                 return eventClass(eventName, widget, argumentParseData)
         
+        try:
+            widget.get_property("sensitive")
+        except:
+            raise usecase.UseCaseScriptError, "Cannot create events for " + widget.__class__.__name__ + \
+                ", it doesn't support basic widget properties"
         return self._createGenericSignalEvent(signalName, eventName, widget)
 
     def _createGenericSignalEvent(self, signalName, *args):
