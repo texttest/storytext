@@ -103,7 +103,9 @@ def create_script_engine(options):
     if options.interface == "gtk":
         import gtkusecase
         logEnabled = logLevel != "OFF"
-        mapFiles = options.mapfiles.split(",")
+        mapFiles = []
+        if options.mapfiles:
+            mapFiles = options.mapfiles.split(",")
         return gtkusecase.ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled)
     else:
         return usecase.ScriptEngine()
