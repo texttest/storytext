@@ -182,9 +182,6 @@ class UIMap:
 
     def storeEvent(self, event):
         sectionName = self.getSectionName(event.widget)
-        if not sectionName:
-            return
-        
         self.logger.debug("Storing instrumented event for section '" + sectionName + "'")
         if not self.readParser.has_section(sectionName):
             self.writeParsers[-1].add_section(sectionName)
@@ -260,7 +257,8 @@ class UIMap:
         columnName, relevantState = self.splitParseData(argumentParseData)
         column = self.findTreeViewColumn(widget, columnName)
         if not column:
-            raise usecase.UseCaseScriptError, "Could not find column with name " + repr(columnName)
+            sys.stderr.write("ERROR in UI map file: Could not find column with name " + repr(columnName) + "\n")
+            return
 
         if signalName == "clicked":
             return treeviewevents.TreeColumnClickEvent(eventName, widget, column)
