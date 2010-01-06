@@ -554,17 +554,14 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.active() and fileChooser not in self.dialogsBlocked:
             stdName = self.standardName(fileDesc)
             action = fileChooser.get_property("action")
-            if action == gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER:
-                # Selecting folders, do everything with the folder change...
-                self.registerFolderChange(fileChooser, stdName)
-            else:
-                if action == gtk.FILE_CHOOSER_ACTION_OPEN:
-                    event = filechooserevents.FileChooserFileSelectEvent(stdName, fileChooser)
-                else:
-                    event = filechooserevents.FileChooserEntryEvent(stdName, fileChooser)
+            if action == gtk.FILE_CHOOSER_ACTION_OPEN:
+                event = filechooserevents.FileChooserFileSelectEvent(stdName, fileChooser)
+            elif action == gtk.FILE_CHOOSER_ACTION_SAVE:
+                event = filechooserevents.FileChooserEntryEvent(stdName, fileChooser)
                 
+            if event:
                 self._addEventToScripts(event)
-                self.registerFolderChange(fileChooser, folderChangeDesc)
+            self.registerFolderChange(fileChooser, folderChangeDesc)
              
     def registerFolderChange(self, fileChooser, description):
         stdName = self.standardName(description)
@@ -924,13 +921,13 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
             self.idleHandler = None
 
     def tryRemoveDescribeHandler(self):
-        if not self.isMonitoring() and not self.readingEnabled:
+        if not self.isMonitoring() and not self.readingEnabled: # pragma: no cover - cannot test code with replayer disabled
             self.logger.debug("Disabling all idle handlers")
             self._disableIdleHandlers()
             if self.uiMap:
                 self.uiMap.windows = [] # So we regenerate everything next time around
 
-    def events_pending(self):
+    def events_pending(self): # pragma: no cover - cannot test code with replayer disabled
         if not self.isActive():
             self.logger.debug("Removing idle handler for descriptions")
             self._disableIdleHandlers()
@@ -992,7 +989,7 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
             if not self.readingEnabled:
                 self.idleHandler = None
                 self.tryAddDescribeHandler()
-                if not self.idleHandler and self.uiMap:
+                if not self.idleHandler and self.uiMap: # pragma: no cover - cannot test with replayer disabled
                     # End of shortcut: reset for next time
                     self.logger.debug("Shortcut terminated: Resetting UI map ready for next shortcut")
                     self.uiMap.windows = [] 
@@ -1078,14 +1075,13 @@ class DomainNameGUI:
     def updatePreview(self, entry, data):
         buffer, lineNo, arg = data
         text = entry.get_text()
-        if len(text) == 0:
-            toUse = "?\n"
-        else:
-            toUse = text + arg + "\n"
+        toUse = "?"
+        if text:
+            toUse = text + arg 
         start = buffer.get_iter_at_line(lineNo)
         end = buffer.get_iter_at_line(lineNo + 1)
         buffer.delete(start, end)
-        buffer.insert(start, toUse)
+        buffer.insert(start, toUse + "\n")
 
     def createPreview(self, commands):
         frame = gtk.Frame("Current Usecase Preview")
