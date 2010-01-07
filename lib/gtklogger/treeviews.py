@@ -62,7 +62,11 @@ class CellRendererTextDescriber(CellRendererDescriber):
         if markupDesc:
             return markupDesc
         else:
-            return str(self.getValue("text", *args))
+            textDesc = self.getValue("text", *args)
+            if textDesc is not None:
+                return str(textDesc)
+            else:
+                return ""
 
     def getColourProperties(self):
         return [ "background", "cell-background" ]
