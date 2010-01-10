@@ -1,14 +1,14 @@
 
 """ The base classes from which widget record/replay classes are derived"""
 
-from usecase import UserEvent, UseCaseScriptError
+from guiusecase import GuiEvent
+from usecase import UseCaseScriptError
 import gtk
 
 # Abstract Base class for all GTK events
-class GtkEvent(UserEvent):
+class GtkEvent(GuiEvent):
     def __init__(self, name, widget, *args):
-        UserEvent.__init__(self, name)
-        self.widget = widget
+        GuiEvent.__init__(self, name, widget)
         self.interceptMethod(self.widget.stop_emission, EmissionStopIntercept)
         self.interceptMethod(self.widget.emit_stop_by_name, EmissionStopIntercept)
         self.programmaticChange = False

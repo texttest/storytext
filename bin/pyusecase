@@ -75,7 +75,7 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-d", "--delay", metavar="SECONDS", 
                       help="amount of time to wait between each action when replaying. Also enabled via the environment variable USECASE_REPLAY_DELAY.")
     parser.add_option("-i", "--interface", metavar="INTERFACE",
-                      help="type of interface used by application, should be 'console' or 'gtk' ('gtk' is default)", 
+                      help="type of interface used by application, should be 'console', 'gtk' or 'tkinter' ('gtk' is default)", 
                       default="gtk")
     parser.add_option("-l", "--loglevel", default="INFO", 
                       help="produce logging at level LEVEL, should be 'info', 'debug', 'config' or 'off'. 'info' will point the auto-generated GUI log at standard output. 'debug' will produce a large amount of PyUseCase debug information on standard output. 'off' will disable the auto-generated log. 'config' will enabled the auto-generated log but not set any global log level: it is a way to tell PyUseCase that your application will configure its logging via its own log configuration files.", metavar="LEVEL")
@@ -100,16 +100,16 @@ def create_script_engine(options):
         level = eval("logging." + logLevel)
         logging.basicConfig(level=level, stream=sys.stdout, format="%(message)s")
 
-    if options.interface == "gtk":
-        import gtkusecase
-        logEnabled = logLevel != "OFF"
-        mapFiles = []
-        if options.mapfiles:
-            mapFiles = options.mapfiles.split(",")
-        return gtkusecase.ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled)
-    else:
+    if options.interface == "console":
         return usecase.ScriptEngine()
 
+    exec "from " + options.interface + "usecase import ScriptEngine"
+    logEnabled = logLevel != "OFF"
+    mapFiles = []
+    if options.mapfiles:
+        mapFiles = options.mapfiles.split(",")
+    return ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled)
+    
 def set_up_environment(options):
     if options.record:
         os.environ["USECASE_RECORD_SCRIPT"] = options.record

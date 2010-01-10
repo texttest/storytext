@@ -27,7 +27,7 @@ class TreeColumnClickEvent(baseevents.SignalEvent):
         return gtk.TreeViewColumn
 
     def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + getColumnName(self.column).lower()
+        return self.getRecordSignal() + "." + getColumnName(self.column)
 
     def getChangeMethod(self):
         return self.column.emit
@@ -37,7 +37,7 @@ class TreeColumnClickEvent(baseevents.SignalEvent):
         signatures = []
         for column in widget.get_columns():
             if column.get_clickable():
-                signatures.append(cls.signalName + "." + getColumnName(column).lower())
+                signatures.append(cls.signalName + "." + getColumnName(column))
         return signatures
 
 
@@ -166,7 +166,7 @@ class CellEvent(TreeViewEvent):
         for column in widget.get_columns():
             for renderer in column.get_cell_renderers():
                 if isinstance(renderer, cls.getClassWithSignal()):
-                    rootName = cls.signalName + "." + getColumnName(column).lower()
+                    rootName = cls.signalName + "." + getColumnName(column)
                     signatures += cls.getSignaturesFrom(rootName)
         return signatures
     
@@ -189,7 +189,7 @@ class CellToggleEvent(CellEvent):
         return TreeViewEvent.shouldRecord(self, *args) and self.getValue(*args) == self.relevantState
     
     def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + self.getColumnName() + "." + repr(self.relevantState)
+        return self.getRecordSignal() + "." + self.getColumnName() + "." + repr(self.relevantState).lower()
 
     def getGenerationArguments(self, argumentString):
         path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]

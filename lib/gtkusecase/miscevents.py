@@ -81,7 +81,7 @@ class ActivateEvent(StateChangeEvent):
             return [] # gtk.ToggleToolButton doesn't have this
     
     def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + repr(self.relevantState)
+        return self.getRecordSignal() + "." + repr(self.relevantState).lower()
 
     @classmethod 
     def isRadio(cls, widget):
