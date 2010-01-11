@@ -6,7 +6,7 @@ import usecase, os, sys, logging
 from ndict import seqdict
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
-if sys.version[:2] >= (2, 6):
+if sys.version_info[:2] >= (2, 6):
     from ConfigParser import ConfigParser
 else:
     from ConfigParser26 import ConfigParser
