@@ -59,6 +59,14 @@ class SignalEvent(guiusecase.GuiEvent):
         for eventDescriptor in self.eventDescriptors:
             self.widget.event_generate(eventDescriptor, x=0, y=0) 
 
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        if isinstance(widget, Tkinter.Button):
+            return [ "<Enter>,<Button-1>,<ButtonRelease-1>" ]
+        else: # Assume anything else just gets clicked on
+            return [ "<Button-1>", "<Button-2>", "<Button-3>" ]
+    
+
 def getWidgetOption(widget, optionName):
     try:
         return widget.cget(optionName)
@@ -108,7 +116,10 @@ class UIMap(guiusecase.UIMap):
 
 
 class ScriptEngine(guiusecase.ScriptEngine):
-    eventTypes = []
+    eventTypes = [
+        (Tkinter.Button   , [ SignalEvent ]),
+        (Tkinter.Label    , [ SignalEvent ]),
+        ]
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
  
