@@ -373,21 +373,20 @@ class RecordScript:
         self.fileForAppend = None
         self.shortcutTrackers = []
     
-    def record(self, line, flush=False):
+    def record(self, line):
         try:
-            self._record(line, flush)
+            self._record(line)
             for tracker in self.shortcutTrackers:
                 if tracker.updateCompletes(line):
                     self.rerecord(tracker.getNewCommands())
         except IOError:
             sys.stderr.write("ERROR: Unable to record " + repr(line) + " to file " + repr(self.scriptName) + "\n") 
     
-    def _record(self, line, flush=False):
+    def _record(self, line):
         if not self.fileForAppend:
             self.fileForAppend = open(self.scriptName, "w")
         self.fileForAppend.write(line + "\n")
-        if flush:
-            self.fileForAppend.flush()
+        self.fileForAppend.flush()
     
     def registerShortcut(self, shortcut):
         self.shortcutTrackers.append(ShortcutTracker(shortcut))
@@ -403,15 +402,6 @@ class RecordScript:
         for command in newCommands:
             self._record(command)
     
-    def getRecordedCommands(self):
-        self.close()
-        if os.path.isfile(self.scriptName):
-            return map(string.strip, open(self.scriptName).readlines())
-        else: # pragma: no cover - there for completeness/theoretical correctness 
-            # There is currently no way to record an empty usecase with a UI as signals, kills etc will be picked up
-            # and an empty shortcut will currently be detected by terminateScript() before calling this method 
-            return []
-
     def rename(self, newName):
         self.close()
         os.rename(self.scriptName, newName)
@@ -480,7 +470,7 @@ class UseCaseRecorder:
 
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
-        self.record(signalCommandName + " " + self.signalNames[signum], flush=True) # in case we get killed hard
+        self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
         # If there was no handler-override installed, resend the signal with the handler reset
@@ -519,9 +509,9 @@ class UseCaseRecorder:
             self.stateChangeEventInfo = None
             self.record(scriptOutput, event)
 
-    def record(self, line, event=None, flush=False):
+    def record(self, line, event=None):
         for script in self.getScriptsToRecord(event):
-            script.record(line, flush)
+            script.record(line)
 
     def getScriptsToRecord(self, event):   
         if event and (event.name in self.eventsBlockedTopLevel):

@@ -15,7 +15,7 @@ if os.name == "nt":
     make_windows_script("../bin/pyusecase")
     scripts=["../bin/pyusecase.py", "../bin/pyusecase.exe"]
 else:
-    scripts=["../bin/pyusecase"]
+    scripts=["../bin/pyusecase","../bin/usecase_name_chooser"]
 
 
 setup(name='PyUseCase',

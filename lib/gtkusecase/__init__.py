@@ -25,7 +25,6 @@ To see this in action, try out the video store example.
 
 import baseevents, windowevents, filechooserevents, treeviewevents, miscevents
 import guiusecase, usecase, gtklogger, gtktreeviewextract, gtk, gobject, os, logging, sys
-from domainnamegui import DomainNameGUI
 from ndict import seqdict
 
 
@@ -86,7 +85,7 @@ class UIMap(guiusecase.UIMap):
         Dialog.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
-        gtk.quit_add(1, self.write) # Write changes to the GUI map when the application exits
+        gtk.quit_add(1, self.fileHandler.write) # Write changes to the GUI map when the application exits
         
     def monitorDialog(self, dialog):
         if self.monitorWidget(dialog):
@@ -97,10 +96,6 @@ class UIMap(guiusecase.UIMap):
         else:
             return False
                 
-    def write(self, *args):
-        for parserHandler in self.writeParsers:
-            parserHandler.write()
-
     def getTitle(self, widget):
         try:
             return widget.get_title()
@@ -141,27 +136,11 @@ class UIMap(guiusecase.UIMap):
     def storeEvent(self, event):
         sectionName = self.getSectionName(event.widget)
         self.logger.debug("Storing instrumented event for section '" + sectionName + "'")
-        if not self.readParser.has_section(sectionName):
-            self.writeParsers[-1].add_section(sectionName)
-            if len(self.writeParsers) > 1:
-                self.readParser.add_section(sectionName)
-
         eventName = event.name
         self.storedEvents.add(eventName)
-        if self.storeInfo(sectionName, event.getUiMapSignature(), eventName, addToReadParser=True):
+        if self.fileHandler.storeInfo(sectionName, event.getUiMapSignature(), 
+                                      eventName, addToReadParser=len(self.fileHandler.writeParsers) > 1):
             self.changed = True
-
-    def storeInfo(self, sectionName, signature, eventName, addToReadParser):
-        signature = signature.replace("::", "-") # Can't store :: in ConfigParser unfortunately
-        if not self.readParser.has_option(sectionName, signature):
-            for writeParser in self.writeParsers:
-                if writeParser.has_section(sectionName):
-                    writeParser.set(sectionName, signature, eventName)
-            if addToReadParser and len(self.writeParsers) > 1:
-                self.readParser.set(sectionName, signature, eventName)
-            return True
-        else:
-            return False
  
     def findPossibleSectionNames(self, widget):
         return [ "Name=" + widget.get_name(), "Title=" + str(self.getTitle(widget)), 
@@ -238,35 +217,14 @@ class UIMap(guiusecase.UIMap):
             if isinstance(renderer, cls):
                 return renderer
 
-    def findWriteParser(self, section):
-        for parser in self.writeParsers:
-            if parser.has_section(section):
-                return parser
-
-    def updateSectionName(self, section, newName):
-        writeParser = self.findWriteParser(section)
-        if not writeParser.has_section(newName):
-            writeParser.add_section(newName)
-        for name, value in self.readParser.items(section):
-            writeParser.set(newName, name, value)
-        writeParser.remove_section(section)
-        return newName
-
     def monitorChildren(self, widget, *args, **kw):
         if hasattr(widget, "get_children") and widget.get_name() != "Shortcut bar" and \
                not isinstance(widget, gtk.FileChooser) and not isinstance(widget, gtk.ToolItem):
             for child in widget.get_children():
                 self.monitor(child, *args, **kw)
 
-    def storeNames(self, toStore):
-        for ((command, widgetType, widgetDescription, signalName), eventName) in toStore:
-            if not self.readParser.has_section(widgetDescription):
-                self.writeParsers[-1].add_section(widgetDescription)
-            self.storeInfo(widgetDescription, signalName, eventName, addToReadParser=False)
-        self.write()
-
     def monitorWindow(self, window):
-        if window not in self.windows and window.get_title() != DomainNameGUI.title:
+        if window not in self.windows:
             self.windows.append(window)
             if isinstance(window, origDialog):
                 # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
@@ -464,20 +422,6 @@ class ScriptEngine(guiusecase.ScriptEngine):
         existingbox.show()
         newbox.show()
         return buttonbox
-
-    def resetInstrumentation(self, testMode):
-        guiusecase.ScriptEngine.resetInstrumentation(self, testMode)
-        # Kill off any windows that are still around...
-        for window in gtk.window_list_toplevels():
-            if window.get_property("visible"):
-                # It's not unheard of for the application to connect the "destroy"
-                # signal to gtk.main_quit. In this case it will cause a double-quit
-                # which throws an exception. So we block that here.
-                try:
-                    window.handler_block_by_func(gtk.main_quit)
-                except TypeError:
-                    pass
-                window.destroy()
                         
 #private
     def getShortcutFiles(self):
@@ -562,7 +506,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
             if not scriptExistedPreviously:
                 replayScript = usecase.ReplayScript(newScriptName)
                 self.addShortcutButton(existingbox, replayScript)
-            self.replaceAutoRecordingForShortcut(script, button.get_toplevel())
+            self.replaceAutoRecordingForShortcut(script)
 
     def replayShortcut(self, button, script, *args):
         self.replayer.addScript(script)
