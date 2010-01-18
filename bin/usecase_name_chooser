@@ -3,7 +3,7 @@
 """ Small GTK GUI to allow the user to enter domain names for user actions.
     Tkinter users still need GTK for TextTest to work... """
 
-import gtk, os, sys, logging
+import gtk, os, sys, logging, shutil
 from ndict import seqdict
 from optparse import OptionParser
 
@@ -97,7 +97,7 @@ class UseCaseNameChooser:
             if newLine:
                 newFile.write(newLine)
         newFile.close()
-        os.rename(newFileName, fileName)
+        shutil.move(newFileName, fileName)
 
     def makeReplacement(self, command, replacements):
         for origName, newName in replacements:
