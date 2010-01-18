@@ -573,11 +573,7 @@ class IdleScheduler:
         if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
             self.widgetsForDescribe[widget] = prefix, titleOnly
 
-        try:
-            self.tryEnableIdleHandler()
-        except ValueError:
-            # Might have already exited the main loop, GTK 2.10 has been known to throw here...
-            pass
+        self.tryEnableIdleHandler()
         
     def tryEnableIdleHandler(self):
         if self.idleHandler is None:
