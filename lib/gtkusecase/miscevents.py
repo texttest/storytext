@@ -182,9 +182,6 @@ class PaneDragEvent(StateChangeEvent):
         return ret
 
     def eventIsRelevant(self):
-        if self.totalSpace() == 0:
-            return False
-        
         newState = self.getStateDescription()
         if newState != self.prevState:
             self.prevPos = newState
