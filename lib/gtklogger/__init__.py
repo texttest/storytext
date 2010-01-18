@@ -465,17 +465,10 @@ class TextViewDescriber:
         return "\n" + header + "\n" + self.getContents().rstrip() + "\n" + "=" * len(header)
 
     def getContents(self):
+        # Assumes it's impossible to get text into the UI that is invalid for the current locale encoding
         unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter())
-        localeEncoding = locale.getdefaultlocale()[1]
-        warning = ""
-        if localeEncoding:
-            try:
-                return unicodeInfo.encode(localeEncoding, 'strict')
-            except:
-                warning = "WARNING: Failed to encode Unicode string '" + unicodeInfo + \
-                          "' using strict '" + localeEncoding + "' encoding.\nReverting to non-strict UTF-8 " + \
-                          "encoding but replacing problematic\ncharacters with the Unicode replacement character, U+FFFD.\n"
-        return warning + unicodeInfo.encode('utf-8', 'replace')
+        encoding = locale.getdefaultlocale()[1] or "utf-8"
+        return unicodeInfo.encode(encoding, 'replace')
 
 
 class IdleScheduler:
@@ -540,17 +533,13 @@ class IdleScheduler:
         action.connect("notify::sensitive", self.storeSensitivityChange)
 
     def storeSensitivityChange(self, actionOrWidget, *args):
-        desc = Describer.getBriefDescription(actionOrWidget)
+        descSet = set([ Describer.getBriefDescription(actionOrWidget) ])
         if actionOrWidget.get_property("sensitive"):
-            if desc in self.disabledWidgets:
-                self.disabledWidgets.remove(desc)
-            else:
-                self.enabledWidgets.add(desc)
+            self.disabledWidgets.difference_update(descSet)
+            self.enabledWidgets.update(descSet)
         else:
-            if desc in self.enabledWidgets:
-                self.enabledWidgets.remove(desc)
-            else:
-                self.disabledWidgets.add(desc)
+            self.enabledWidgets.difference_update(descSet)
+            self.disabledWidgets.update(descSet)
         self.tryEnableIdleHandler()
     
     def lookupWidget(self, widget, *args):
@@ -561,14 +550,9 @@ class IdleScheduler:
 
     def scheduleDescribeCallback(self, widget, *args):
         describeWidget, prefix, titleOnly = self.lookupWidget(widget, *args)
-        self._scheduleDescribe(describeWidget, prefix, titleOnly)
+        self.scheduleDescribe(describeWidget, prefix, titleOnly)
 
-    def scheduleDescribe(self, widget): # Called externally
-        if widget not in self.allWidgets:
-            self.allWidgets.append(widget) # Sort in order they appear
-        self._scheduleDescribe(widget, prefix="Showing ", titleOnly=False)
-
-    def _scheduleDescribe(self, widget, prefix, titleOnly):
+    def scheduleDescribe(self, widget, prefix="Showing ", titleOnly=False):
         otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(widget, (None, None))
         if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
             self.widgetsForDescribe[widget] = prefix, titleOnly
