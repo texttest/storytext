@@ -533,13 +533,17 @@ class IdleScheduler:
         action.connect("notify::sensitive", self.storeSensitivityChange)
 
     def storeSensitivityChange(self, actionOrWidget, *args):
-        descSet = set([ Describer.getBriefDescription(actionOrWidget) ])
+        desc = Describer.getBriefDescription(actionOrWidget)
         if actionOrWidget.get_property("sensitive"):
-            self.disabledWidgets.difference_update(descSet)
-            self.enabledWidgets.update(descSet)
+            if desc in self.disabledWidgets:
+                self.disabledWidgets.remove(desc)
+            else:
+                self.enabledWidgets.add(desc)
         else:
-            self.enabledWidgets.difference_update(descSet)
-            self.disabledWidgets.update(descSet)
+            if desc in self.enabledWidgets:
+                self.enabledWidgets.remove(desc)
+            else:
+                self.disabledWidgets.add(desc)
         self.tryEnableIdleHandler()
     
     def lookupWidget(self, widget, *args):
