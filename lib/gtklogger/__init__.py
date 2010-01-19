@@ -6,7 +6,7 @@ to aid in text-based UI testing for GTK
 
 import logging, gtk, gobject, locale, operator
 
-from treeviews import TreeViewDescriber
+from treeviews import TreeViewDescriber, treeModelSignals
 from images import performInterceptions, ImageDescriber
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
@@ -297,23 +297,28 @@ class Describer:
         model = combobox.get_model()
         if model:
             model.foreach(self.collectEntries, allEntries)
+            idleScheduler.monitor(model, treeModelSignals, "Updated drop-down list in ", combobox)
         return " (drop-down list containing " + repr(allEntries) + ")"
 
     def getComboBoxEntryDescription(self, combobox):
         return self.getDescription(combobox.get_child()) + self.getDropDownDescription(combobox)
     
     def getComboBoxDescription(self, combobox):
-        idleScheduler.monitor(combobox, [ "changed" ], "Changed selection in ")
+        changePrefix = "Changed selection in "
+        idleScheduler.monitor(combobox, [ "changed" ], changePrefix)
         text = ""
         if self.prefix != "Showing ":
-            text += self.prefix + "'" + combobox.get_name() + "' "
+            text += self.prefix
+            name = combobox.get_name()
+            if not name.startswith("Gtk"): # auto-generated
+                text += "'" + name + "' "
         text += "Combo Box"
         iter = combobox.get_active_iter()
         if iter is not None:
             value = combobox.get_model().get_value(iter, 0)
             if value:
                 text += " (selected '" + value + "')"
-        if self.prefix == "Showing ":
+        if self.prefix != changePrefix:
             text += self.getDropDownDescription(combobox)
         return text
 

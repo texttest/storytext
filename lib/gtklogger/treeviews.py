@@ -7,6 +7,9 @@ and little direct support for extracting information from them. So they get thei
 import gtktreeviewextract, gtk, logging
 from images import ImageDescriber
 
+# Things that need to be updated for monitoring gtk.TreeModel objects for logging
+treeModelSignals = [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ]
+
 class CellRendererDescriber:
     def __init__(self, extractors):
         self.extractors = extractors
@@ -111,8 +114,7 @@ class TreeViewDescriber:
         self.describersOK = False
         self.idleScheduler = idleScheduler
         if self.model:
-            modelSignals = [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ]
-            idleScheduler.monitor(self.model, modelSignals, "Updated : ", self.view)
+            idleScheduler.monitor(self.model, treeModelSignals, "Updated : ", self.view)
         idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ")
         idleScheduler.monitor(self.view, [ "row-collapsed" ], "Collapsed row in ")
         for column in self.view.get_columns():
