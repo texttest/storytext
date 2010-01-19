@@ -59,7 +59,7 @@ class ScriptEngine(usecase.ScriptEngine):
         new_env = {}
         for var, value in os.environ.items():
             if var == "PATH":
-                new_env[var] = value + ":" + self.binDir
+                new_env[var] = value + os.pathsep + self.binDir
             elif not var.startswith("USECASE_RE"): # Don't transfer our record scripts!
                 new_env[var] = value
         return new_env
@@ -81,7 +81,11 @@ class ScriptEngine(usecase.ScriptEngine):
         if self.uiMap and recordScript and os.path.isfile(recordScript) and self.hasAutoRecordings(recordScript):
             sys.stdout.flush()
             cmdArgs = self.getUsecaseNameChooserCmdArgs(recordScript, interface)
-            os.execvpe(cmdArgs[0], cmdArgs, self.getUsecaseNameChooserEnv())
+            env = self.getUsecaseNameChooserEnv()
+            if os.name == "posix":
+                os.execvpe(cmdArgs[0], cmdArgs, env)
+            else:
+                subprocess.call(cmdArgs, env=env)
 
     def replaceAutoRecordingForShortcut(self, script):
         if self.uiMap and self.binDir:
