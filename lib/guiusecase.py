@@ -15,6 +15,64 @@ class GuiEvent(usecase.UserEvent):
     def __init__(self, name, widget, *args):
         usecase.UserEvent.__init__(self, name)
         self.widget = widget
+        self.programmaticChange = False
+        self.changeMethod = self.getRealMethod(self.getChangeMethod())
+        if self.changeMethod:
+            allChangeMethods = [ self.changeMethod ] + self.getProgrammaticChangeMethods()
+            for method in allChangeMethods:
+                self.interceptMethod(method, ProgrammaticChangeIntercept)
+
+    def getRealMethod(self, method):
+        if isinstance(method, MethodIntercept):
+            return method.method
+        else:
+            return method
+        
+    def interceptMethod(self, method, interceptClass):
+        if isinstance(method, MethodIntercept):
+            method.addEvent(self)
+        else:
+            setattr(self.getSelf(method), method.__name__, interceptClass(method, self))
+
+    def getSelf(self, method):
+        # seems to be different for built-in and bound methods
+        try:
+            return method.im_self
+        except AttributeError:
+            return method.__self__
+
+    def getProgrammaticChangeMethods(self):
+        return []
+
+    def shouldRecord(self, *args):
+        return not self.programmaticChange
+
+    def setProgrammaticChange(self, val, *args, **kwargs):
+        self.programmaticChange = val
+
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return set([ cls.getAssociatedSignal(widget) ])
+
+
+class MethodIntercept:
+    def __init__(self, method, event):
+        self.method = method
+        self.events = [ event ]
+    def addEvent(self, event):
+        self.events.append(event)
+
+class ProgrammaticChangeIntercept(MethodIntercept):
+    def __call__(self, *args, **kwds):
+        # Allow for possibly nested programmatic changes, observation can have knock-on effects
+        eventsToBlock = filter(lambda event: not event.programmaticChange, self.events)
+        for event in eventsToBlock:
+            event.setProgrammaticChange(True, *args, **kwds)
+        retVal = apply(self.method, args, kwds)
+        for event in eventsToBlock:
+            event.setProgrammaticChange(False)
+        return retVal
+
 
 
 class ScriptEngine(usecase.ScriptEngine):
