@@ -61,9 +61,9 @@ class SignalEvent(guiusecase.GuiEvent):
     def getChangeMethod(self):
         return self.widget.event_generate
     
-    def generate(self, argumentString):
+    def generate(self, *args, **kw):
         for eventDescriptor in self.eventDescriptors:
-            self.changeMethod(eventDescriptor, x=0, y=0) 
+            self.changeMethod(eventDescriptor, x=0, y=0, **kw) 
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
@@ -84,7 +84,23 @@ class DestroyEvent(SignalEvent):
         if val: # If we've been programmatically destroyed, we should stay that way...
             self.programmaticChange = val
 
+class EntryEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "<KeyPress>,<KeyRelease>" ]
+    
+    def isStateChange(self):
+        return True
 
+    def generate(self, argumentString):
+        self.widget.focus_force()
+        self.widget.delete(0, Tkinter.END)
+        for char in argumentString:
+            SignalEvent.generate(self, keysym=char)
+
+    def outputForScript(self, *args):
+        return self.name + " " + self.widget.get()
+        
 
 def getWidgetOption(widget, optionName):
     try:
@@ -139,7 +155,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
         (Tkinter.Button   , [ SignalEvent ]),
         (Tkinter.Label    , [ SignalEvent ]),
         (Tkinter.Toplevel , [ DestroyEvent ]),
-        (Tkinter.Tk       , [ DestroyEvent ])
+        (Tkinter.Tk       , [ DestroyEvent ]),
+        (Tkinter.Entry    , [ EntryEvent ])
         ]
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
@@ -237,6 +254,12 @@ class Describer:
             bg = getWidgetOption(widget, "bg")
             if bg:
                 text += " (" + bg + ")"
+            return text
+        elif isinstance(widget, Tkinter.Entry):
+            text = "Text entry"
+            entryText = widget.get()
+            if entryText:
+                text += " (set to '" + entryText + "')"
             return text
         else:
             return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable

@@ -29,9 +29,11 @@ class UseCaseNameChooser:
             }, 
         "tkinter" : {
             "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
+            "<KeyPress>,<KeyRelease>": "edited text",
             "<Button-1>": "left-clicked",
             "<Button-2>": "middle-clicked",
-            "<Button-3>": "right-clicked"
+            "<Button-3>": "right-clicked",
+            "<Destroy>": "closed"
             }
         }
     columnSignalDescs = {
