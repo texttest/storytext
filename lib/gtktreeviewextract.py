@@ -12,18 +12,21 @@ cellRendererExtractors = {}
 # For CellEditEvent to use
 cellRendererConnectInfo = {}
 
-def getAllExtractors(renderer):
-    return cellRendererExtractors.get(renderer, {})
+def getAllExtractors(column, renderer):
+    # Some information is column-specific, while other information is global
+    extractors = cellRendererExtractors.get((column, renderer), {})
+    extractors.update(cellRendererExtractors.get((None, renderer), {}))
+    return extractors
 
-def getExtractor(renderer, property):
-    return getAllExtractors(renderer).get(property)
+def getExtractor(column, renderer, property):
+    return getAllExtractors(column, renderer).get(property)
 
-def getTextExtractor(renderer):
-    extractor = getExtractor(renderer, "text")
+def getTextExtractor(column, renderer):
+    extractor = getExtractor(column, renderer, "text")
     if extractor:
         return extractor
     else:
-        markupExtractor = getExtractor(renderer, "markup")
+        markupExtractor = getExtractor(column, renderer, "markup")
         if markupExtractor:
             return MarkupRemover(markupExtractor)
 
@@ -43,7 +46,7 @@ class CellRendererText(origCellRendererText):
     orig_set_property = origCellRendererText.set_property
     def set_property(self, property, value):
         self.orig_set_property(property, value)
-        cellRendererExtractors.setdefault(self, {})[property] = ConstantExtractor(value)
+        cellRendererExtractors.setdefault((None, self), {})[property] = ConstantExtractor(value)
 
     def connect(self, *args):
         handler = origCellRendererText.connect(self, *args)
@@ -54,13 +57,13 @@ class CellRendererToggle(origCellRendererToggle):
     orig_set_property = origCellRendererToggle.set_property
     def set_property(self, property, value):
         self.orig_set_property(property, value)
-        cellRendererExtractors.setdefault(self, {})[property] = ConstantExtractor(value)
+        cellRendererExtractors.setdefault((None, self), {})[property] = ConstantExtractor(value)
 
 class CellRendererPixbuf(origCellRendererPixbuf):
     orig_set_property = origCellRendererPixbuf.set_property
     def set_property(self, property, value):
         self.orig_set_property(property, value)
-        cellRendererExtractors.setdefault(self, {})[property] = ConstantExtractor(value)
+        cellRendererExtractors.setdefault((None, self), {})[property] = ConstantExtractor(value)
 
 # Will overwrite gtk.TreeViewColumn when/if the logging or UI map is enabled.
 # Yes this is monkey-patching and a bit backwards, but I can't find a better way...
@@ -77,7 +80,7 @@ class TreeViewColumn(origTreeViewColumn):
 
     def add_model_extractor(self, cell_renderer, attribute, column):
         std_attribute = attribute.replace("_", "-")
-        cellRendererExtractors.setdefault(cell_renderer, {})[std_attribute] = ModelExtractor(column)
+        cellRendererExtractors.setdefault((self, cell_renderer), {})[std_attribute] = ModelExtractor(column)
 
     def add_attribute(self, cell_renderer, attribute, column):
         origTreeViewColumn.add_attribute(self, cell_renderer, attribute, column)
@@ -89,8 +92,8 @@ class TreeViewColumn(origTreeViewColumn):
 
     def clear_attributes(self, cell_renderer):
         origTreeViewColumn.clear_attributes(self, cell_renderer)
-        if cellRendererExtractors.has_key(cell_renderer):
-            del cellRendererExtractors[cell_renderer]
+        if cellRendererExtractors.has_key((self, cell_renderer)):
+            del cellRendererExtractors[(self, cell_renderer)]
 
     def set_cell_data_func(self, cell_renderer, func, func_data=None):
         origTreeViewColumn.set_cell_data_func(self, cell_renderer, self.collect_cell_data, (func, func_data))
@@ -98,7 +101,7 @@ class TreeViewColumn(origTreeViewColumn):
     def collect_cell_data(self, column, cell, model, iter, user_data):
         orig_func, orig_func_data = user_data
         orig_set_property = cell.set_property
-        cell.set_property = PropertySetter(cell, model, iter)
+        cell.set_property = PropertySetter(cell, column, model, iter)
         # We assume that this function calls set_property on the cell with its results
         # seems to be the point of this kind of set-up
         if orig_func_data is not None:
@@ -109,14 +112,15 @@ class TreeViewColumn(origTreeViewColumn):
 
 
 class PropertySetter:
-    def __init__(self, cell, model, iter):
+    def __init__(self, cell, column, model, iter):
         self.cell = cell
+        self.column = column
         self.rowRef = gtk.TreeRowReference(model, model.get_path(iter))
         
     def __call__(self, property, value):
         self.cell.orig_set_property(property, value)
-        cellRendererExtractors.setdefault(self.cell, {}).setdefault(property, HistoryExtractor()).add(value, self.rowRef)
-
+        cellRendererExtractors.setdefault((self.column, self.cell), {}).setdefault(property, HistoryExtractor()).add(value, self.rowRef)
+        
 
 class ConstantExtractor:
     def __init__(self, value):

@@ -157,11 +157,11 @@ class TreeViewDescriber:
         self.describersOK = True
         for column in self.view.get_columns():
             for renderer in column.get_cell_renderers():
-                extractors = gtktreeviewextract.getAllExtractors(renderer)
+                extractors = gtktreeviewextract.getAllExtractors(column, renderer)
                 if extractors:
                     className = renderer.__class__.__name__ + "Describer"
                     describers.append(eval(className + "(extractors)"))
-                else: # pragma: no cover - for robustness only, shouldn't be reachable
+                else:
                     self.describersOK = False
         return describers
 

@@ -124,9 +124,9 @@ class RowRightClickEvent(baseevents.RightClickEvent):
 
 
 class CellEvent(TreeViewEvent):
-    def __init__(self, name, widget, cellRenderer, property):
+    def __init__(self, name, widget, cellRenderer, column, property):
         self.cellRenderer = cellRenderer
-        self.extractor = gtktreeviewextract.getExtractor(cellRenderer, property)
+        self.extractor = gtktreeviewextract.getExtractor(column, cellRenderer, property)
         TreeViewEvent.__init__(self, name, widget)
 
     def getValue(self, renderer, path, *args):
@@ -177,9 +177,9 @@ class CellEvent(TreeViewEvent):
 
 class CellToggleEvent(CellEvent):
     signalName = "toggled"
-    def __init__(self, name, widget, cellRenderer, relevantState):
+    def __init__(self, name, widget, cellRenderer, column, relevantState):
         self.relevantState = relevantState
-        CellEvent.__init__(self, name, widget, cellRenderer, "active")        
+        CellEvent.__init__(self, name, widget, cellRenderer, column, "active")        
         
     @classmethod
     def getClassWithSignal(cls):
@@ -220,7 +220,8 @@ class CellEditEvent(CellEvent):
         connectInfo = gtktreeviewextract.cellRendererConnectInfo.get(widget, [])
         allArgs = [ info[1] for info in connectInfo ]
         for handler, args in connectInfo:
-            widget.disconnect(handler)
+            if widget.handler_is_connected(handler):
+                widget.disconnect(handler)
         CellEvent._connectRecord(self, widget, method)
         for args in allArgs:
             widget.connect(*args)
@@ -406,13 +407,13 @@ class TreeViewIndexer:
         self.logger = logging.getLogger("TreeModelIndexer")
         self.name2row = {}
         self.uniqueNames = {}
-        self.renderer = self.getFirstTextRenderer(treeview)
+        self.rendererInfo = self.getFirstTextRenderer(treeview)
         self.extractor = None
         self.tryPopulateMapping()
 
     def tryPopulateMapping(self):
         if not self.extractor:
-            self.extractor = gtktreeviewextract.getTextExtractor(self.renderer)
+            self.extractor = gtktreeviewextract.getTextExtractor(*self.rendererInfo)
             if self.extractor:
                 self.model.foreach(self.rowInserted)
                 self.model.connect("row-changed", self.rowInserted)
@@ -421,7 +422,8 @@ class TreeViewIndexer:
         for column in treeview.get_columns():
             for renderer in column.get_cell_renderers():
                 if isinstance(renderer, gtk.CellRendererText):
-                    return renderer
+                    return column, renderer
+        return None, None
 
     def getValue(self, *args):
         return str(self.extractor.getValue(*args))

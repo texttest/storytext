@@ -199,10 +199,10 @@ class UIMap(guiusecase.UIMap):
             return treeviewevents.TreeColumnClickEvent(eventName, widget, column)
         elif signalName == "toggled":
             renderer = self.findRenderer(column, gtk.CellRendererToggle)
-            return treeviewevents.CellToggleEvent(eventName, widget, renderer, relevantState)
+            return treeviewevents.CellToggleEvent(eventName, widget, renderer, column, relevantState)
         elif signalName == "edited":
             renderer = self.findRenderer(column, gtk.CellRendererText)
-            return treeviewevents.CellEditEvent(eventName, widget, renderer)
+            return treeviewevents.CellEditEvent(eventName, widget, renderer, column)
         else:
             # If we don't know, create a basic event on the column
             return self.scriptEngine._createSignalEvent(eventName, signalName, column, widget)
@@ -362,20 +362,20 @@ class ScriptEngine(guiusecase.ScriptEngine):
                 uncheckEvent = eventClass(uncheckChangeName, button, False)
                 self._addEventToScripts(uncheckEvent)
 
-    def registerCellToggleButton(self, renderer, checkDescription, parentTreeView, uncheckDescription=""):
+    def registerCellToggleButton(self, renderer, checkDescription, column, parentTreeView, uncheckDescription=""):
         if self.active():
             checkChangeName = self.standardName(checkDescription)
-            checkEvent = treeviewevents.CellToggleEvent(checkChangeName, parentTreeView, renderer, True)
+            checkEvent = treeviewevents.CellToggleEvent(checkChangeName, parentTreeView, renderer, column, True)
             self._addEventToScripts(checkEvent)
             if uncheckDescription:
                 uncheckChangeName = self.standardName(uncheckDescription)
-                uncheckEvent = treeviewevents.CellToggleEvent(uncheckChangeName, parentTreeView, renderer, False)
+                uncheckEvent = treeviewevents.CellToggleEvent(uncheckChangeName, parentTreeView, renderer, column, False)
                 self._addEventToScripts(uncheckEvent)
 
-    def registerCellEdit(self, renderer, description, parentTreeView):
+    def registerCellEdit(self, renderer, description, column, parentTreeView):
         if self.active():
             stdName = self.standardName(description)
-            event = treeviewevents.CellEditEvent(stdName, parentTreeView, renderer)
+            event = treeviewevents.CellEditEvent(stdName, parentTreeView, renderer, column)
             self._addEventToScripts(event)
 
     def registerFileChooser(self, fileChooser, fileDesc, folderChangeDesc):
