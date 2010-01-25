@@ -6,8 +6,8 @@ to aid in text-based UI testing for GTK
 
 import logging, gtk, gobject, locale, operator
 
-from treeviews import TreeViewDescriber, treeModelSignals
-from images import performInterceptions, ImageDescriber
+from treeviews import performTreeViewInterceptions, TreeViewDescriber, treeModelSignals
+from images import performImageInterceptions, ImageDescriber
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
 PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
@@ -33,7 +33,8 @@ def setMonitoring(loggingEnabled=False):
     if not idleScheduler:
         idleScheduler = IdleScheduler(loggingEnabled)
         if loggingEnabled:
-            performInterceptions()
+            performTreeViewInterceptions()
+            performImageInterceptions()
 
 def describeNewWindow(*args):
     return idleScheduler.describeNewWindow(*args)

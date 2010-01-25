@@ -7,6 +7,17 @@ and little direct support for extracting information from them. So they get thei
 import gtktreeviewextract, gtk, logging
 from images import ImageDescriber
 
+orig_color_parse = gtk.gdk.color_parse
+all_colours = {}
+
+def color_parse(spec):
+    colour = orig_color_parse(spec)
+    all_colours[colour] = spec
+    return colour
+
+def performTreeViewInterceptions():
+    gtk.gdk.color_parse = color_parse
+
 # Things that need to be updated for monitoring gtk.TreeModel objects for logging
 treeModelSignals = [ "row-inserted", "row-deleted", "row-changed", "rows-reordered" ]
 
@@ -48,6 +59,10 @@ class CellRendererDescriber:
                 value = self.getValue(property, *args)
                 if value:
                     return value
+                gdkValue = self.getValue(property + "-gdk", *args)
+                colour = all_colours.get(gdkValue)
+                if colour:
+                    return colour
 
     def getColourProperties(self):
         return [ "cell-background" ]
@@ -56,7 +71,7 @@ class CellRendererDescriber:
         return []
 
     def propertyOutput(self, desc):
-        return desc
+        return str(desc)
 
 
 class CellRendererTextDescriber(CellRendererDescriber):    
@@ -72,10 +87,10 @@ class CellRendererTextDescriber(CellRendererDescriber):
                 return ""
 
     def getColourProperties(self):
-        return [ "background", "cell-background" ]
+        return [ "foreground", "background", "cell-background" ]
 
     def getAdditionalProperties(self):
-        return [ "font" ]
+        return [ "font", "weight" ]
 
 class CellRendererToggleDescriber(CellRendererDescriber):        
     def getBasicDescription(self, *args):

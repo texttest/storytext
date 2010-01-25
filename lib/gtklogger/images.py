@@ -31,7 +31,7 @@ class PixbufAnimation(origAnimation):
         origAnimation.__init__(self, filename)
         ImageDescriber.pixbufs[self] = os.path.basename(filename)
 
-def performInterceptions():
+def performImageInterceptions():
     gtk.gdk.pixbuf_new_from_file = pixbuf_new_from_file
     gtk.gdk.pixbuf_new_from_xpm_data = pixbuf_new_from_xpm_data
     gtk.Image = Image
