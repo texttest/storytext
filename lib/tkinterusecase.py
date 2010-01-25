@@ -158,7 +158,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         (Tkinter.Entry    , [ EntryEvent ])
         ]
     if os.name == "posix":
-        eventTypes.append(Tkinter.Tk       , [ DestroyEvent ])
+        eventTypes.append((Tkinter.Tk       , [ DestroyEvent ]))
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
  
