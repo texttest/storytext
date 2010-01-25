@@ -81,6 +81,10 @@ class ImageDescriber:
                     return self.getDescription(image)
             except ValueError:
                 return ""
+        if hasattr(widget, "get_icon_widget"):
+            image = widget.get_icon_widget()
+            if image:
+                return self.getDescription(image)
         return ""
 
     def getPixbufDescription(self, pixbuf, header="Image"):
