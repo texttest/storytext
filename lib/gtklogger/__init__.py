@@ -129,7 +129,10 @@ class Describer:
 
     def getPanedSeparator(self, paned):
         panedSeparator = "-" * 30
-        proportion = float(paned.get_position()) / paned.get_property("max-position")
+        maxPos =  paned.get_property("max-position")
+        proportion = 0.0
+        if maxPos:
+            proportion = float(paned.get_position()) / maxPos
         roundedProportion = str(int(round(100 * proportion, 0)))
         name = paned.get_name()
         if name.startswith("Gtk"):
