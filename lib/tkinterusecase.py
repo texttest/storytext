@@ -339,9 +339,9 @@ class Describer:
         return self.addToDescription(vertDesc, horizDesc)
 
     def getGridSlavesDescription(self, widget, slaves, children):
-        rows, columns = widget.grid_size()
+        row_count = widget.grid_size()[-1]
         gridDesc = ""
-        for x in range(rows):
+        for x in range(row_count):
             rowSlaves = filter(lambda w: w in children, widget.grid_slaves(row=x))
             slaves.update(rowSlaves)
             allDescs = map(self.getDescription, rowSlaves)
