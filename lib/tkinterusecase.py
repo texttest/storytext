@@ -4,6 +4,7 @@
 import guiusecase, os, time, Tkinter, logging, re
 from threading import Thread
 from usecase import UseCaseScriptError
+from ndict import seqdict
 
 origTk = Tkinter.Tk
 origToplevel = Tkinter.Toplevel
@@ -263,6 +264,10 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
     def findWindowsForMonitoring(self):
         return [ Tkinter._default_root ] + Toplevel.instances
 
+    def handleNewWindows(self):
+        self.describer.describeUpdates()
+        guiusecase.UseCaseReplayer.handleNewWindows(self)
+
     def describeNewWindow(self, window):
         self.describer.describe(window)
 
@@ -295,6 +300,7 @@ class Describer:
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
+        self.widgetsWithState = seqdict()
         self.defaultLabelBackground = None
 
     def describe(self, window):
@@ -306,6 +312,12 @@ class Describer:
         self.logger.info(self.getChildrenDescription(window))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
+
+    def describeUpdates(self):
+        for widget, oldState in self.widgetsWithState.items():
+            state = self.getState(widget)
+            if state != oldState:
+                self.logger.info("\n" + self.getDescription(widget))
 
     def addToDescription(self, desc, newText):
         if newText:
@@ -369,6 +381,9 @@ class Describer:
             self.defaultLabelBackground = Tkinter.Label(widget.master).cget("bg")
         return self.defaultLabelBackground
 
+    def getState(self, widget):
+        return widget.get("1.0", Tkinter.END).rstrip()
+
     def getWidgetDescription(self, widget):
         if isinstance(widget, (Tkinter.Frame, Tkinter.Scrollbar)):
             return ""
@@ -402,8 +417,10 @@ class Describer:
                 text += "  " + self.getMenuItemDescription(widget, i) + "\n"
             return text
         elif isinstance(widget, Tkinter.Text):
-            header = "=" * 10 + " Text " + "=" * 10        
-            return header + "\n" + widget.get("1.0", Tkinter.END).rstrip() + "\n" + "=" * len(header)
+            header = "=" * 10 + " Text " + "=" * 10
+            state = self.getState(widget)
+            self.widgetsWithState[widget] = state
+            return header + "\n" + state + "\n" + "=" * len(header)
         else:
             return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
 
