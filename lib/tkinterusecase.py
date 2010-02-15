@@ -295,6 +295,7 @@ class Describer:
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
+        self.defaultLabelBackground = None
 
     def describe(self, window):
         if window in self.windows:
@@ -306,17 +307,70 @@ class Describer:
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
 
-    def getChildrenDescription(self, widget):
+    def addToDescription(self, desc, newText):
+        if newText:
+            if desc:
+                desc += "\n"
+            desc += newText.rstrip() + "\n"
+        return desc
+
+    def getDescription(self, widget):
         desc = ""
-        for child in widget.winfo_children():
-            widgetDesc = self.getWidgetDescription(child)
-            if widgetDesc:
-                desc += widgetDesc + "\n"
-            desc += self.getChildrenDescription(child)
+        desc = self.addToDescription(desc, self.getWidgetDescription(widget))
+        desc = self.addToDescription(desc, self.getChildrenDescription(widget))
+        return desc.rstrip()
+    
+    def getPackSlavesDescription(self, widget, slaves):
+        packSlaves = widget.pack_slaves()
+        if len(packSlaves) == 0:
+            return ""
+        sideGroups = {}
+        for slave in packSlaves:
+            try:
+                info = slave.pack_info()
+                slaves.add(slave)
+                sideGroups.setdefault(info.get("side"), []).append(self.getDescription(slave))
+            except Tkinter.TclError: 
+                # Weirdly, sometimes get things in here that then deny they know anything about packing...
+                pass
+
+        vertDesc = "\n".join(sideGroups.get(Tkinter.TOP, []) + list(reversed(sideGroups.get(Tkinter.BOTTOM, []))))
+        horizDesc = " , ".join(sideGroups.get(Tkinter.LEFT, []) + list(reversed(sideGroups.get(Tkinter.RIGHT, []))))
+        return self.addToDescription(vertDesc, horizDesc)
+
+    def getGridSlavesDescription(self, widget, slaves, children):
+        rows, columns = widget.grid_size()
+        gridDesc = ""
+        for x in range(rows):
+            rowSlaves = filter(lambda w: w in children, widget.grid_slaves(row=x))
+            slaves.update(rowSlaves)
+            allDescs = map(self.getDescription, rowSlaves)
+            gridDesc += " | ".join(reversed(allDescs)) + "\n"
+        return gridDesc
+
+    def getChildrenDescription(self, widget):
+        slaves = set()
+        children = widget.winfo_children()
+        gridDesc = self.getGridSlavesDescription(widget, slaves, children)
+        packDesc = self.getPackSlavesDescription(widget, slaves)
+        childDesc = ""
+        for child in children:
+            if child not in slaves:
+                childDesc = self.addToDescription(childDesc, self.getDescription(child))
+        
+        desc = ""
+        desc = self.addToDescription(desc, childDesc)
+        desc = self.addToDescription(desc, packDesc)
+        desc = self.addToDescription(desc, gridDesc)
         return desc.rstrip()
 
+    def getDefaultLabelBackground(self, widget):
+        if self.defaultLabelBackground is None:
+            self.defaultLabelBackground = Tkinter.Label(widget.master).cget("bg")
+        return self.defaultLabelBackground
+
     def getWidgetDescription(self, widget):
-        if isinstance(widget, Tkinter.Frame):
+        if isinstance(widget, (Tkinter.Frame, Tkinter.Scrollbar)):
             return ""
         if isinstance(widget, Tkinter.Button):
             text = "Button"
@@ -327,7 +381,7 @@ class Describer:
         elif isinstance(widget, Tkinter.Label):
             text = "'" + getWidgetOption(widget, "text") + "'"
             bg = getWidgetOption(widget, "bg")
-            if bg:
+            if bg and bg != self.getDefaultLabelBackground(widget):
                 text += " (" + bg + ")"
             return text
         elif isinstance(widget, Tkinter.Entry):
@@ -342,6 +396,9 @@ class Describer:
             for i in range(endIndex + 1):
                 text += "  " + self.getMenuItemDescription(widget, i) + "\n"
             return text
+        elif isinstance(widget, Tkinter.Text):
+            header = "=" * 10 + " Text " + "=" * 10        
+            return header + "\n" + widget.get("1.0", Tkinter.END).rstrip() + "\n" + "=" * len(header)
         else:
             return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
 
