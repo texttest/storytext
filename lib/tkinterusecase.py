@@ -392,7 +392,12 @@ class Describer:
             return text
         elif isinstance(widget, Tkinter.Menu):
             endIndex = widget.index(Tkinter.END)
-            text = "Menu:\n"
+            parent, index = getMenuParentOption(widget)
+            if parent:
+                text = parent.entrycget(index, "label")
+            else:
+                text = "Root"
+            text += " menu:\n"
             for i in range(endIndex + 1):
                 text += "  " + self.getMenuItemDescription(widget, i) + "\n"
             return text
@@ -405,7 +410,10 @@ class Describer:
     def getMenuItemDescription(self, widget, index):
         typeName = widget.type(index)
         if typeName in [ "cascade", "command" ]:
-            return widget.entrycget(index, "label")
+            text = widget.entrycget(index, "label")
+            if typeName == "cascade":
+                text += " (+)"
+            return text
         elif typeName == "separator":
             return "---"
         else:
