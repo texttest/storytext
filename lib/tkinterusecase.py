@@ -317,7 +317,7 @@ class Describer:
         for widget, oldState in self.widgetsWithState.items():
             state = self.getState(widget)
             if state != oldState:
-                self.logger.info("\n" + self.getDescription(widget))
+                self.logger.info(self.getUpdatePrefix(widget) + self.getDescription(widget))
 
     def addToDescription(self, desc, newText):
         if newText:
@@ -381,8 +381,22 @@ class Describer:
             self.defaultLabelBackground = Tkinter.Label(widget.master).cget("bg")
         return self.defaultLabelBackground
 
+    def getUpdatePrefix(self, widget):
+        if isinstance(widget, Tkinter.Entry):
+            return "Updated "
+        else:
+            return "\n"
+    
     def getState(self, widget):
-        return widget.get("1.0", Tkinter.END).rstrip()
+        if isinstance(widget, Tkinter.Entry):
+            text = widget.get()
+            showChar = getWidgetOption(widget, "show")
+            if showChar:
+                return showChar * len(text)
+            else:
+                return text
+        else:
+            return widget.get("1.0", Tkinter.END).rstrip()
 
     def getWidgetDescription(self, widget):
         if isinstance(widget, (Tkinter.Frame, Tkinter.Scrollbar)):
@@ -401,9 +415,10 @@ class Describer:
             return text
         elif isinstance(widget, Tkinter.Entry):
             text = "Text entry"
-            entryText = widget.get()
-            if entryText:
-                text += " (set to '" + entryText + "')"
+            state = self.getState(widget)
+            self.widgetsWithState[widget] = state
+            if state:
+                text += " (set to '" + state + "')"
             return text
         elif isinstance(widget, Tkinter.Menu):
             endIndex = widget.index(Tkinter.END)
