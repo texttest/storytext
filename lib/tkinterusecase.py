@@ -12,8 +12,14 @@ origToplevel = Tkinter.Toplevel
 class WindowIdleManager:
     idle_methods = []
     timeout_methods = []
-    handlers = []
+    handlers = [] 
     def __init__(self):
+        self.protocols = {}
+
+    def protocol(self, protocolName, method):
+        self.protocols[protocolName] = method
+
+    def setUpHandlers(self):
         self.removeHandlers()
         idleThread = Thread(target=self.addIdleMethods)
         idleThread.run()
@@ -34,16 +40,21 @@ class WindowIdleManager:
         self.event_generate("<Destroy>") # Make sure we can record whatever it was caused this to be called
 
 
+
 class Tk(WindowIdleManager, origTk):
+    orig_protocol = origTk.protocol
     def __init__(self, *args, **kw):
-        origTk.__init__(self, *args, **kw)
         WindowIdleManager.__init__(self)
+        origTk.__init__(self, *args, **kw)
+        self.setUpHandlers()
                 
 class Toplevel(WindowIdleManager, origToplevel):
     instances = []
+    orig_protocol = origToplevel.protocol
     def __init__(self, *args, **kw):
-        origToplevel.__init__(self, *args, **kw)
         WindowIdleManager.__init__(self)
+        origToplevel.__init__(self, *args, **kw)
+        self.setUpHandlers()
         Toplevel.instances.append(self)
 
 Tkinter.Tk = Tk
@@ -87,17 +98,27 @@ class SignalEvent(guiusecase.GuiEvent):
         else: # Assume anything else just gets clicked on
             return [ "<Button-1>", "<Button-2>", "<Button-3>" ]
     
-class DestroyEvent(SignalEvent):
+class WindowManagerDeleteEvent(guiusecase.GuiEvent):
+    def __init__(self, eventName, eventDescriptor, widget, *args):
+        guiusecase.GuiEvent.__init__(self, eventName, widget)
+        self.recordMethod = None
+        
     @classmethod
-    def getAssociatedSignatures(cls, widget):
-        return [ "<Destroy>" ]
-
-    def shouldRecord(self, event, *args):
-        return SignalEvent.shouldRecord(self, event, *args) and event.widget is self.widget
+    def getAssociatedSignal(cls, widget):
+        return "WM_DELETE_WINDOW"
     
-    def setProgrammaticChange(self, val, *args, **kwargs):
-        if val: # If we've been programmatically destroyed, we should stay that way...
-            self.programmaticChange = val
+    def connectRecord(self, method):
+        self.recordMethod = method
+        self.widget.orig_protocol(self.getAssociatedSignal(self.widget), self.deleteWindow)
+
+    def deleteWindow(self):
+        self.recordMethod(self)
+        protocolMethod = self.widget.protocols.get(self.getAssociatedSignal(self.widget))
+        protocolMethod()
+        
+    def generate(self, *args, **kw):
+        self.deleteWindow()
+
 
 class EntryEvent(SignalEvent):
     @classmethod
@@ -227,12 +248,11 @@ class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (Tkinter.Button   , [ SignalEvent ]),
         (Tkinter.Label    , [ SignalEvent ]),
-        (Tkinter.Toplevel , [ DestroyEvent ]),
+        (Tkinter.Toplevel , [ WindowManagerDeleteEvent ]),
+        (Tkinter.Tk       , [ WindowManagerDeleteEvent ]),
         (Tkinter.Entry    , [ EntryEvent ]),
         (Tkinter.Menu     , [ MenuEvent ])
         ]
-    if os.name == "posix":
-        eventTypes.append((Tkinter.Tk       , [ DestroyEvent ]))
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
  

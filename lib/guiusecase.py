@@ -41,6 +41,9 @@ class GuiEvent(usecase.UserEvent):
         except AttributeError:
             return method.__self__
 
+    def getChangeMethod(self):
+        pass
+
     def getProgrammaticChangeMethods(self):
         return []
 

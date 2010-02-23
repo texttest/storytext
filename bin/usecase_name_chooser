@@ -33,7 +33,7 @@ class UseCaseNameChooser:
             "<Button-1>": "left-clicked",
             "<Button-2>": "middle-clicked",
             "<Button-3>": "right-clicked",
-            "<Destroy>": "closed"
+            "WM_DELETE_WINDOW": "closed"
             }
         }
     columnSignalDescs = {
