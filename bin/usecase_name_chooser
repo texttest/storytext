@@ -11,46 +11,16 @@ install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath
 # Find our own "lib" directory
 sys.path.insert(0, os.path.join(install_root, "lib"))
 
-import usecase
-from gtkusecase import ScriptEngine
+import usecase, gtkusecase
 from guiusecase import UIMapFileHandler
 
 class UseCaseNameChooser:
-    signalDescs = { 
-        "gtk" : {
-            "row-activated" : "double-clicked row",
-            "changed.selection" : "clicked on row",
-            "delete-event": "closed",
-            "notify::position": "dragged separator", 
-            "toggled.true": "checked",
-            "toggled.false": "unchecked",
-            "button-press-event": "right-clicked row",
-            "current-name-changed": "filename changed"
-            }, 
-        "tkinter" : {
-            "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
-            "<KeyPress>,<KeyRelease>": "edited text",
-            "<Button-1>": "left-clicked",
-            "<Button-2>": "middle-clicked",
-            "<Button-3>": "right-clicked",
-            "WM_DELETE_WINDOW": "closed"
-            }
-        }
-    columnSignalDescs = {
-        "gtk" : {
-            "toggled.true": "checked box in column",
-            "toggled.false": "unchecked box in column",
-            "edited": "edited cell in column",
-            "clicked": "clicked column header"
-            },
-        "tkinter" : {}
-        }
     title = "Enter Usecase names for auto-recorded actions"
     def __init__(self, fileName, interface, mapFiles):
         self.fileName = fileName
         self.interface = interface
         self.uiMapFileHandler = UIMapFileHandler(mapFiles)
-        self.scriptEngine = ScriptEngine(uiMapFiles=[])
+        self.scriptEngine = gtkusecase.ScriptEngine(uiMapFiles=[])
         self.allEntries = seqdict()
 
     def collectNames(self):
@@ -134,7 +104,8 @@ class UseCaseNameChooser:
         dialog.response(gtk.RESPONSE_ACCEPT)
 
     def getActionDescription(self, signalName, widgetType):
-        desc = self.signalDescs.get(self.interface).get(signalName)
+        exec "from " + self.interface + "usecase import ScriptEngine"
+        desc = ScriptEngine.getDisplayName(signalName)
         if desc:
             return desc
         if signalName == "activate":
@@ -159,7 +130,7 @@ class UseCaseNameChooser:
         remaining = parts[0]
         if remaining == "toggled":
             remaining = ".".join([ remaining, parts[-1] ])
-        return self.columnSignalDescs.get(self.interface).get(remaining, remaining) + " '" + columnName + "'"
+        return ScriptEngine.getColumnDisplayName(remaining) + " '" + columnName + "'"
         
     def splitAutoCommand(self, command):
         for cmd in self.allEntries.keys():

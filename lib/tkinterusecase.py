@@ -253,6 +253,15 @@ class ScriptEngine(guiusecase.ScriptEngine):
         (Tkinter.Entry    , [ EntryEvent ]),
         (Tkinter.Menu     , [ MenuEvent ])
         ]
+    signalDescs = {
+        "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
+        "<KeyPress>,<KeyRelease>": "edited text",
+        "<Button-1>": "left-clicked",
+        "<Button-2>": "middle-clicked",
+        "<Button-3>": "right-clicked",
+        "WM_DELETE_WINDOW": "closed"
+        }
+    columnSignalDescs = {}
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
  
@@ -264,6 +273,25 @@ class ScriptEngine(guiusecase.ScriptEngine):
             if eventClass is not SignalEvent:
                 return eventClass(eventName, eventDescriptor, widget)
         return SignalEvent(eventName, eventDescriptor, widget)
+
+    def getDescriptionInfo(self):
+        return "Tkinter", "Tkinter", "actions", "http://infohost.nmt.edu/tcc/help/pubs/tkinter/"
+
+    def addSignals(self, classes, widgetClass, currEventClasses, module):
+        try:
+            widget = widgetClass()
+        except:
+            widget = None
+        signalNames = set()
+        for eventClass in currEventClasses:
+            signatures = eventClass.getAssociatedSignatures(widget)
+            descs = set([ self.signalDescs.get(s, s) for s in signatures ])
+            signalNames.update(descs)
+        className = self.getClassName(widgetClass, module)
+        classes[className] = sorted(signalNames)
+
+    def getSupportedLogWidgets(self):
+        return Describer.supportedWidgets
 
 
 class UseCaseReplayer(guiusecase.UseCaseReplayer):
@@ -317,6 +345,8 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 
 class Describer:
+    supportedWidgets = [ Tkinter.Frame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
+                         Tkinter.Entry, Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -419,45 +449,58 @@ class Describer:
             return widget.get("1.0", Tkinter.END).rstrip()
 
     def getWidgetDescription(self, widget):
-        if isinstance(widget, (Tkinter.Frame, Tkinter.Scrollbar)):
-            return ""
-        if isinstance(widget, Tkinter.Button):
-            text = "Button"
-            labelText = getWidgetOption(widget, "text")
-            if labelText:
-                text += " '" + labelText + "'"
-            return text
-        elif isinstance(widget, Tkinter.Label):
-            text = "'" + getWidgetOption(widget, "text") + "'"
-            bg = getWidgetOption(widget, "bg")
-            if bg and bg != self.getDefaultLabelBackground(widget):
-                text += " (" + bg + ")"
-            return text
-        elif isinstance(widget, Tkinter.Entry):
-            text = "Text entry"
-            state = self.getState(widget)
-            self.widgetsWithState[widget] = state
-            if state:
-                text += " (set to '" + state + "')"
-            return text
-        elif isinstance(widget, Tkinter.Menu):
-            endIndex = widget.index(Tkinter.END)
-            parent, index = getMenuParentOption(widget)
-            if parent:
-                text = parent.entrycget(index, "label")
-            else:
-                text = "Root"
-            text += " menu:\n"
-            for i in range(endIndex + 1):
-                text += "  " + self.getMenuItemDescription(widget, i) + "\n"
-            return text
-        elif isinstance(widget, Tkinter.Text):
-            header = "=" * 10 + " Text " + "=" * 10
-            state = self.getState(widget)
-            self.widgetsWithState[widget] = state
-            return header + "\n" + state + "\n" + "=" * len(header)
+        for widgetClass in self.supportedWidgets:
+            if isinstance(widget, widgetClass):
+                methodName = "get" + widgetClass.__name__ + "Description"
+                return getattr(self, methodName)(widget)
+        
+        return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
+
+    def getFrameDescription(self, widget):
+        return ""
+
+    def getScrollbarDescription(self, widget):
+        return ""
+
+    def getButtonDescription(self, widget):
+        text = "Button"
+        labelText = getWidgetOption(widget, "text")
+        if labelText:
+            text += " '" + labelText + "'"
+        return text
+
+    def getLabelDescription(self, widget):
+        text = "'" + getWidgetOption(widget, "text") + "'"
+        bg = getWidgetOption(widget, "bg")
+        if bg and bg != self.getDefaultLabelBackground(widget):
+            text += " (" + bg + ")"
+        return text
+
+    def getEntryDescription(self, widget):
+        text = "Text entry"
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        if state:
+            text += " (set to '" + state + "')"
+        return text
+
+    def getMenuDescription(self, widget):
+        endIndex = widget.index(Tkinter.END)
+        parent, index = getMenuParentOption(widget)
+        if parent:
+            text = parent.entrycget(index, "label")
         else:
-            return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
+            text = "Root"
+        text += " menu:\n"
+        for i in range(endIndex + 1):
+            text += "  " + self.getMenuItemDescription(widget, i) + "\n"
+        return text
+
+    def getTextDescription(self, widget):
+        header = "=" * 10 + " Text " + "=" * 10
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        return header + "\n" + state + "\n" + "=" * len(header)
 
     def getMenuItemDescription(self, widget, index):
         typeName = widget.type(index)

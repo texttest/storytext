@@ -267,6 +267,22 @@ class ScriptEngine(guiusecase.ScriptEngine):
                                   treeviewevents.CellEditEvent, 
                                   treeviewevents.TreeColumnClickEvent ])
 ]
+    signalDescs = { 
+        "row-activated" : "double-clicked row",
+        "changed.selection" : "clicked on row",
+        "delete-event": "closed",
+        "notify::position": "dragged separator", 
+        "toggled.true": "checked",
+        "toggled.false": "unchecked",
+        "button-press-event": "right-clicked row",
+        "current-name-changed": "filename changed"
+        }
+    columnSignalDescs = {
+        "toggled.true": "checked box in column",
+        "toggled.false": "unchecked box in column",
+        "edited": "edited cell in column",
+        "clicked": "clicked column header"
+        }
     def __init__(self, universalLogging=True, **kw):
         guiusecase.ScriptEngine.__init__(self, universalLogging=universalLogging, **kw)
         self.dialogsBlocked = []
@@ -552,10 +568,10 @@ class ScriptEngine(guiusecase.ScriptEngine):
         newArgs = args + (signalName,)
         return baseevents.SignalEvent(*newArgs)
 
-    def getClassName(self, widgetClass):
-        return "gtk." + widgetClass.__name__
+    def getDescriptionInfo(self):
+        return "PyGTK", "gtk", "signals", "http://library.gnome.org/devel/pygtk/stable/class-gtk"
 
-    def addSignals(self, classes, widgetClass, currEventClasses):
+    def addSignals(self, classes, widgetClass, currEventClasses, module):
         try:
             widget = widgetClass()
         except:
@@ -563,72 +579,18 @@ class ScriptEngine(guiusecase.ScriptEngine):
         signalNames = set()
         for eventClass in currEventClasses:
             try:
-                classes[self.getClassName(eventClass.getClassWithSignal())] = [ eventClass.signalName ]
+                className = self.getClassName(eventClass.getClassWithSignal(), module)
+                classes[className] = [ eventClass.signalName ]
             except:
                 if widget:
                     signalNames.add(eventClass.getAssociatedSignal(widget))
                 else:
                     signalNames.add(eventClass.signalName)
-        classes[self.getClassName(widgetClass)] = sorted(signalNames)
+        className = self.getClassName(widgetClass, module)
+        classes[className] = sorted(signalNames)
 
-    def getFormatted(self, text, html, title):
-        if html:
-            return '<div class="Text_Header">' + title + "</div>\n" + \
-                '<div class="Text_Normal">' + text + "</div>"
-        else:
-            return text
-
-    def describeSupportedWidgets(self, html=False):
-        intro = """The following lists the PyGTK widget types and the associated signals on them which 
-PyUseCase %s is currently capable of recording and replaying. Any type derived from the listed
-types is also supported.
-""" % usecase.version
-        print self.getFormatted(intro, html, "PyGTK Widgets and signals supported for record/replay")
-        classes = {}
-        for widgetClass, currEventClasses in self.eventTypes:
-            if len(currEventClasses):
-                self.addSignals(classes, widgetClass, currEventClasses)
-        classNames = sorted(classes.keys())
-        if html:
-            self.writeHtmlTable(classNames, classes)
-        else:
-            self.writeAsciiTable(classNames, classes)
-
-        logIntro = """
-The following lists the PyGTK widget types whose status and changes PyUseCase %s is 
-currently capable of monitoring and logging. Any type derived from the listed types 
-is also supported but will only have features of the listed type described.
-""" % usecase.version
-        print self.getFormatted(logIntro, html, "PyGTK Widgets supported for automatic logging")
-        classNames = [ self.getClassName(w) for w in gtklogger.Describer.supportedWidgets ]
-        classNames.sort()
-        if html:
-            self.writeHtmlList(classNames)
-        else:
-            for className in classNames:
-                print className
-
-    def writeAsciiTable(self, classNames, classes):
-        for className in classNames:
-            print className.ljust(25) + ":", " , ".join(classes[className])
-
-    def writeHtmlTable(self, classNames, classes):
-        print '<div class="Text_Normal"><table border=1 cellpadding=1 cellspacing=1>'
-        for className in classNames:
-            print '<tr><td>' + self.getLink(className) + '</td><td><div class="Table_Text_Normal">' + \
-                " , ".join(classes[className]) + "</div></td></tr>"
-        print "</table></div>"
-
-    def getLink(self, className):
-        docName = className.replace(".", "").lower()
-        return '<a class="Text_Link" href=http://library.gnome.org/devel/pygtk/stable/class-' + \
-            docName + '.html>' + className + '</a>'
-
-    def writeHtmlList(self, classNames):
-        print '<div class="Text_Normal">'
-        for className in classNames:
-            print '<li>' + self.getLink(className)
-        print '</div><div class="Text_Normal"><i>(Note that a textual version of this page can be auto-generated by running "pyusecase -s")</i></div>'
+    def getSupportedLogWidgets(self):
+        return gtklogger.Describer.supportedWidgets
 
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
