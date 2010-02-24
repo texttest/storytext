@@ -103,7 +103,7 @@ def create_script_engine(options):
         return usecase.ScriptEngine()
 
     exec "from " + options.interface + "usecase import ScriptEngine"
-    logEnabled = logLevel != "OFF"
+    logEnabled = logLevel != "OFF" and not options.supported and not options.supported_html
     mapFiles = []
     if options.mapfiles:
         mapFiles = options.mapfiles.split(",")
@@ -112,8 +112,12 @@ def create_script_engine(options):
 def set_up_environment(options):
     if options.record:
         os.environ["USECASE_RECORD_SCRIPT"] = options.record
+    elif options.supported or options.supported_html: # don't set up replay when just printing supported info
+        os.environ["USECASE_RECORD_SCRIPT"] = ""
     if options.replay:
         os.environ["USECASE_REPLAY_SCRIPT"] = options.replay
+    elif options.supported or options.supported_html: # don't set up replay when just printing supported info
+        os.environ["USECASE_REPLAY_SCRIPT"] = ""
     if options.delay:
         os.environ["USECASE_REPLAY_DELAY"] = options.delay
 
