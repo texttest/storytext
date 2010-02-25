@@ -182,3 +182,24 @@ Bug fixes:
     - Don't record a file selection for gtk.FileChooser when the folder is changed to a subdirectory
     - Don't stacktrace when a non-existent file is selected in gtk.FileChooser
 
+Version 3.2
+-----------
+Tkinter support:
+    - Basic Tkinter support added which should suffice for simple applications. Both record/playback and autologging.
+	See website for which widgets are supported.
+PyGTK Enhancements:
+    - gtk.TreeView logging improved
+	Now describes foreground colours and font weight, if set
+    - Non-stock images present in toolbar items are now logged
+    - Additional entries added to gtk.ComboBox and gtk.ComboBoxEntry are now noticed and logged
+    - "Name chooser" UI is now a separate process, can be run at any point, not just after initial recording.
+    - Programmatic deselection of gtk.TreeView rows caused by hiding a row won't be recorded any more
+    - Programmatic change caused by gtk.TreeModelFilter.refilter calls won't be recorded either
+Bug fixes:
+    - Don't stacktrace logging a gtk.Paned of size zero.
+    - Don't rely on widget class names in case the application has its own classes with the same names.
+    - Don't assume the application has different gtk.CellRenderers for each gtk.TreeViewColumn any more.
+    - Better error handling if invalid path given for record script
+    - Now works to clear the default map file with -m ''
+    - Don't crash if application installs its own signal handler with signal.SIG_IGN
+	
