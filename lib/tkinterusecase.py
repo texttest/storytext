@@ -278,10 +278,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         return "Tkinter", "Tkinter", "actions", "http://infohost.nmt.edu/tcc/help/pubs/tkinter/"
 
     def addSignals(self, classes, widgetClass, currEventClasses, module):
-        try:
-            widget = widgetClass()
-        except:
-            widget = None
+        widget = widgetClass()
         signalNames = set()
         for eventClass in currEventClasses:
             signatures = eventClass.getAssociatedSignatures(widget)
