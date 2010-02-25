@@ -3,10 +3,10 @@ Summary of what it is:
         The full documentation is present at http://www.texttest.org/index.php?page=ui_testing
         What follows is just a brief summary.
 
-        PyUseCase is a record/replay layer for Python GUIs. It consists of three modules: usecase.py, which
-        is a generic framework for all Python GUIs (or even non-GUI programs), gtkusecase.py, which
-        handles record and replay for PyGTK GUIs, and gtklogger.py, which produces an automatic "gui log"
-        in a PyGTK GUI. See www.pygtk.org for more info on PyGTK, see the above page for more details of this.
+        PyUseCase is a record/replay layer for Python GUIs. It currently has extensive support for PyGTK GUIs
+        and fairly basic support for Tkinter GUIs. Besides providing a mechanism for record and playing back
+        UI interaction, it also generates a log of the UI appearance. On UNIX-based systems it can also be 
+        useful on console programs to record and simulate signals received by the process.
 
         The aim is only to simulate the interactive actions of a user, not to verify correctness of a program
         as such. The log produced should form a good basis for textual testing though, using a tool like
@@ -50,7 +50,8 @@ Other Open Source Software packaged with it/used by it:
 Installation:
 
     Go to the "source/lib" directory and run "python setup.py install".
-    Alternatively, just leave the directory in place and add its "source/bin" directory to your PATH
+    On Windows, this will probably install to C:\Pythonxx\Scripts, which will then need to be in your PATH.
+    Alternatively on UNIX, just leave the directory in place and add its "source/bin" directory to your PATH
       (and its "source/lib" directory to your PYTHONPATH if you use application events or shortcuts).
 
 Documentation:
