@@ -145,9 +145,11 @@ if __name__ == "__main__":
         elif len(args) == 0:
             parser.print_help()
         else:
-            run_python_file(args)
-            if options.interface != "console" and not options.disable_usecase_names:
-                usecase.scriptEngine.replaceAutoRecordingForUsecase(options.interface)
+            try:
+                run_python_file(args)
+            finally:
+                if options.interface != "console" and not options.disable_usecase_names:
+                    usecase.scriptEngine.replaceAutoRecordingForUsecase(options.interface)
     except usecase.UseCaseScriptError, e:
         sys.stderr.write(str(e) + "\n")
 
