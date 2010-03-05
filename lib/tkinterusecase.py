@@ -131,8 +131,9 @@ class EntryEvent(SignalEvent):
     def generate(self, argumentString):
         self.widget.focus_force()
         self.widget.delete(0, Tkinter.END)
-        for char in argumentString:
-            SignalEvent.generate(self, keysym=char)
+        self.widget.insert(Tkinter.END, argumentString)
+        # Generate a keypress, just to trigger recording
+        SignalEvent.generate(self, keysym="Right")
 
     def outputForScript(self, *args):
         return self.name + " " + self.widget.get()
