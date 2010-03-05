@@ -203,3 +203,9 @@ Bug fixes:
     - Now works to clear the default map file with -m ''
     - Don't crash if application installs its own signal handler with signal.SIG_IGN
 	
+Version 3.2.1
+-------------
+Bug fixes:
+    - Tkinter.Entry handling now deals with non-alphanumeric characters properly
+    - Usecase names are now collected properly even if the application exits with an exception 
+	(particularly SystemExit is important as it's not really an error)
