@@ -373,7 +373,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 
 class Describer:
-    supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
+    supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
                          Tkinter.Entry, Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
@@ -486,6 +486,9 @@ class Describer:
 
     def getFrameDescription(self, widget):
         return ""
+
+    def getLabelFrameDescription(self, widget):
+        return "....." + getWidgetOption(widget, "text") + "......"
 
     def getScrollbarDescription(self, widget):
         return ""
