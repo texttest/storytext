@@ -73,6 +73,16 @@ class Menu(origMenu):
 
 Tkinter.Menu = Menu
 
+origCheckbutton = Tkinter.Checkbutton
+
+class Checkbutton(origCheckbutton):
+    def __init__(self, *args, **kw):
+        origCheckbutton.__init__(self, *args, **kw)
+        self.variable = kw.get("variable")
+
+Tkinter.Checkbutton = Checkbutton
+
+
 class SignalEvent(guiusecase.GuiEvent):
     def __init__(self, eventName, eventDescriptor, widget, *args):
         guiusecase.GuiEvent.__init__(self, eventName, widget)
@@ -118,6 +128,23 @@ class WindowManagerDeleteEvent(guiusecase.GuiEvent):
         
     def generate(self, *args, **kw):
         self.deleteWindow()
+
+
+class ToggleEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "<Button-1>.true", "<Button-1>.false" ]
+
+    def __init__(self, eventName, eventDescriptor, widget, stateStr):
+        SignalEvent.__init__(self, eventName, eventDescriptor, widget)
+        self.enabling = stateStr == "true"
+
+    def isStateChange(self):
+        return True
+
+    def shouldRecord(self, *args):
+        # Variable hasn't been updated when we get here
+        return self.widget.variable.get() != self.enabling
 
 
 class EntryEvent(SignalEvent):
@@ -247,16 +274,19 @@ class UIMap(guiusecase.UIMap):
 
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
-        (Tkinter.Button   , [ SignalEvent ]),
-        (Tkinter.Label    , [ SignalEvent ]),
-        (Tkinter.Toplevel , [ WindowManagerDeleteEvent ]),
-        (Tkinter.Tk       , [ WindowManagerDeleteEvent ]),
-        (Tkinter.Entry    , [ EntryEvent ]),
-        (Tkinter.Menu     , [ MenuEvent ])
+        (Tkinter.Button      , [ SignalEvent ]),
+        (Tkinter.Checkbutton , [ ToggleEvent ]),
+        (Tkinter.Label       , [ SignalEvent ]),
+        (Tkinter.Toplevel    , [ WindowManagerDeleteEvent ]),
+        (Tkinter.Tk          , [ WindowManagerDeleteEvent ]),
+        (Tkinter.Entry       , [ EntryEvent ]),
+        (Tkinter.Menu        , [ MenuEvent ])
         ]
     signalDescs = {
         "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
         "<KeyPress>,<KeyRelease>": "edited text",
+        "<Button-1>.true": "checked",
+        "<Button-1>.false": "unchecked",
         "<Button-1>": "left-clicked",
         "<Button-2>": "middle-clicked",
         "<Button-3>": "right-clicked",
@@ -272,7 +302,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
     def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
         for eventClass in self.findEventClassesFor(widget):
             if eventClass is not SignalEvent:
-                return eventClass(eventName, eventDescriptor, widget)
+                return eventClass(eventName, eventDescriptor, widget, argumentParseData)
         return SignalEvent(eventName, eventDescriptor, widget)
 
     def getDescriptionInfo(self):
@@ -343,7 +373,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 
 class Describer:
-    supportedWidgets = [ Tkinter.Frame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
+    supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
                          Tkinter.Entry, Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
@@ -465,6 +495,12 @@ class Describer:
         labelText = getWidgetOption(widget, "text")
         if labelText:
             text += " '" + labelText + "'"
+        return text
+
+    def getCheckbuttonDescription(self, widget):
+        text = "Check " + self.getButtonDescription(widget)
+        if widget.variable.get():
+            text += " (checked)"
         return text
 
     def getLabelDescription(self, widget):
