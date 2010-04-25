@@ -135,11 +135,10 @@ def killArbitaryProcess(pid, sig=None):
             print "WARNING - none of taskkill (Vista), tskill (XP) nor pskill (2000) found, not able to kill processes"
             return False
 
-def killSubProcessAndChildren(process, sig=None):
+def killSubProcessAndChildren(process, sig=None, cmd=None):
     if os.name == "posix":
         killArbitaryProcess(process.pid, sig)
-    else:
+    elif not cmd or not runCmd(cmd+" "+str(process.pid)):
         import ctypes
         ctypes.windll.kernel32.TerminateProcess(int(process._handle), -1)
 
-    
