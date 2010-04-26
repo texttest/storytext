@@ -228,7 +228,7 @@ def getMenuParentOption(widget):
                 submenuName = parent.entrycget(i, "menu")
                 if submenuName.endswith(widget.winfo_name()):
                     return parent, i
-    return None, None
+    return parent, -1
 
 class UIMap(guiusecase.UIMap):
     def monitorWindow(self, window):
@@ -259,7 +259,7 @@ class UIMap(guiusecase.UIMap):
             return text
         elif isinstance(widget, Tkinter.Menu):
             parent, index = getMenuParentOption(widget)
-            if parent:
+            if index >= 0:
                 return parent.entrycget(index, "label")
         return ""
 
@@ -383,7 +383,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 class Describer:
     supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
-                         Tkinter.Entry, Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
+                         Tkinter.Entry, Tkinter.Menubutton, Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -428,14 +428,23 @@ class Describer:
             try:
                 info = slave.pack_info()
                 slaves.add(slave)
-                sideGroups.setdefault(info.get("side"), []).append(self.getDescription(slave))
+                sideGroups.setdefault(self.getSide(slave, info), []).append(self.getDescription(slave))
             except Tkinter.TclError: 
                 # Weirdly, sometimes get things in here that then deny they know anything about packing...
                 pass
 
+        menuDesc = "\n\n".join(sideGroups.get("Menus", []))
         vertDesc = "\n".join(sideGroups.get(Tkinter.TOP, []) + list(reversed(sideGroups.get(Tkinter.BOTTOM, []))))
         horizDesc = " , ".join(sideGroups.get(Tkinter.LEFT, []) + list(reversed(sideGroups.get(Tkinter.RIGHT, []))))
-        return self.addToDescription(vertDesc, horizDesc)
+        desc = self.addToDescription(vertDesc, horizDesc)
+        return self.addToDescription(desc, menuDesc)
+
+    def getSide(self, slave, info):
+        # Always show menu buttons vertically as their menus invariably take vertical space
+        if isinstance(slave, Tkinter.Menubutton):
+            return "Menus"
+        else:
+            return info.get("side")
 
     def getGridSlavesDescription(self, widget, slaves, children):
         row_count = widget.grid_size()[-1]
@@ -496,6 +505,12 @@ class Describer:
     def getFrameDescription(self, widget):
         return ""
 
+    def getMenubuttonDescription(self, widget):
+        if len(widget.winfo_children()) == 0:
+            return getWidgetOption(widget, "text") + " menu (empty)"
+        else:
+            return ""
+
     def getLabelFrameDescription(self, widget):
         return "....." + getWidgetOption(widget, "text") + "......"
 
@@ -533,8 +548,10 @@ class Describer:
     def getMenuDescription(self, widget):
         endIndex = widget.index(Tkinter.END)
         parent, index = getMenuParentOption(widget)
-        if parent:
+        if index >= 0:
             text = parent.entrycget(index, "label")
+        elif isinstance(parent, Tkinter.Menubutton):
+            text = getWidgetOption(parent, "text")
         else:
             text = "Root"
         text += " menu:\n"
