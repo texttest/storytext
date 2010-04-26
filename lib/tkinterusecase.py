@@ -80,6 +80,11 @@ class Menu(origMenu):
         origMenu.add_command(self, command=command, **kw)
         self.commands[self.index(Tkinter.END)] = command
 
+    def post(self, *args, **kw):
+        origMenu.post(self, *args, **kw)
+        describer = Describer()
+        describer.describePopup(self)
+
 Tkinter.Menu = Menu
 
 origCheckbutton = Tkinter.Checkbutton
@@ -176,6 +181,17 @@ class EntryEvent(SignalEvent):
 
 
 class MenuEvent(guiusecase.GuiEvent):
+    class CommandWithRecord:
+        def __init__(self, index, event, command, method):
+            self.index = index
+            self.event = event
+            self.command = command
+            self.method = method
+
+        def __call__(self):
+            self.method(self.index, self.event)
+            self.command()
+                
     def __init__(self, eventName, eventDescriptor, widget, *args):
         guiusecase.GuiEvent.__init__(self, eventName, widget)
 
@@ -188,11 +204,7 @@ class MenuEvent(guiusecase.GuiEvent):
         for i in range(endIndex + 1):
             if self.widget.type(i) == "command":
                 command = self.widget.commands[i]
-                def commandWithRecord():
-                    method(i, self)
-                    command()
-
-                self.widget.entryconfigure(i, command=commandWithRecord)
+                self.widget.entryconfigure(i, command=self.CommandWithRecord(i, self, command, method))
 
     def outputForScript(self, index, *args):
         return self.name + " " + self.widget.entrycget(index, "label")
@@ -436,8 +448,8 @@ class Describer:
         menuDesc = "\n\n".join(sideGroups.get("Menus", []))
         vertDesc = "\n".join(sideGroups.get(Tkinter.TOP, []) + list(reversed(sideGroups.get(Tkinter.BOTTOM, []))))
         horizDesc = " , ".join(sideGroups.get(Tkinter.LEFT, []) + list(reversed(sideGroups.get(Tkinter.RIGHT, []))))
-        desc = self.addToDescription(vertDesc, horizDesc)
-        return self.addToDescription(desc, menuDesc)
+        desc = self.addToDescription(vertDesc, menuDesc)
+        return self.addToDescription(desc, horizDesc)
 
     def getSide(self, slave, info):
         # Always show menu buttons vertically as their menus invariably take vertical space
@@ -456,20 +468,28 @@ class Describer:
             gridDesc += " | ".join(reversed(allDescs)) + "\n"
         return gridDesc
 
+    def isPopupMenu(self, child, parent):
+        return isinstance(child, Tkinter.Menu) and not isinstance(parent, (Tkinter.Menu, Tkinter.Menubutton))
+
     def getChildrenDescription(self, widget):
         slaves = set()
         children = widget.winfo_children()
+        desc = ""
+        menuChildName = getWidgetOption(widget, "menu")
+        if menuChildName:
+            menuChild = widget.nametowidget(menuChildName)
+            slaves.add(menuChild)
+            desc = self.addToDescription(desc, self.getDescription(menuChild))
         gridDesc = self.getGridSlavesDescription(widget, slaves, children)
         packDesc = self.getPackSlavesDescription(widget, slaves)
         childDesc = ""
         for child in children:
-            if child not in slaves:
+            if child not in slaves and not self.isPopupMenu(child, widget):
                 childDesc = self.addToDescription(childDesc, self.getDescription(child))
         
-        desc = ""
-        desc = self.addToDescription(desc, childDesc)
         desc = self.addToDescription(desc, packDesc)
         desc = self.addToDescription(desc, gridDesc)
+        desc = self.addToDescription(desc, childDesc)
         return desc.rstrip()
 
     def getDefaultLabelBackground(self, widget):
@@ -545,7 +565,7 @@ class Describer:
             text += " (set to '" + state + "')"
         return text
 
-    def getMenuDescription(self, widget):
+    def getMenuDescription(self, widget, rootDesc="Root"):
         endIndex = widget.index(Tkinter.END)
         parent, index = getMenuParentOption(widget)
         if index >= 0:
@@ -553,11 +573,14 @@ class Describer:
         elif isinstance(parent, Tkinter.Menubutton):
             text = getWidgetOption(parent, "text")
         else:
-            text = "Root"
+            text = rootDesc
         text += " menu:\n"
         for i in range(endIndex + 1):
             text += "  " + self.getMenuItemDescription(widget, i) + "\n"
         return text
+
+    def describePopup(self, menu):
+        self.logger.info(self.getMenuDescription(menu, rootDesc="Posting popup").rstrip())
 
     def getTextDescription(self, widget):
         header = "=" * 10 + " Text " + "=" * 10
