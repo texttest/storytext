@@ -30,7 +30,8 @@ class WindowIdleManager:
         WindowIdleManager.handlers = []
 
     def addIdleMethods(self):
-        self.wait_visibility()
+        if not self.winfo_ismapped():
+            self.wait_visibility()
         for idle_method in self.idle_methods: 
             self.handlers.append(self.after_idle(idle_method))
         for args in self.timeout_methods:
@@ -46,7 +47,15 @@ class Tk(WindowIdleManager, origTk):
     def __init__(self, *args, **kw):
         WindowIdleManager.__init__(self)
         origTk.__init__(self, *args, **kw)
-        self.setUpHandlers()
+        # Set up the handlers from the mainloop call, don't want things to happen before we're ready as seems quite possible
+        origMainLoop = self.tk.mainloop
+        def mainloop(n=0):
+            self.setUpHandlers()
+            self.tk.mainloop(n)
+        def mainloopMethod(w, n=0):
+            mainloop(n)
+        Tkinter.Misc.mainloop = mainloopMethod
+        Tkinter.mainloop = mainloop
                 
 class Toplevel(WindowIdleManager, origToplevel):
     instances = []
