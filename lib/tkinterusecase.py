@@ -446,10 +446,12 @@ class Describer:
                 pass
 
         menuDesc = "\n\n".join(sideGroups.get("Menus", []))
-        vertDesc = "\n".join(sideGroups.get(Tkinter.TOP, []) + list(reversed(sideGroups.get(Tkinter.BOTTOM, []))))
+        topDesc = "\n".join(sideGroups.get(Tkinter.TOP, []))
+        bottomDesc = "\n".join(list(reversed(sideGroups.get(Tkinter.BOTTOM, []))))
         horizDesc = " , ".join(sideGroups.get(Tkinter.LEFT, []) + list(reversed(sideGroups.get(Tkinter.RIGHT, []))))
-        desc = self.addToDescription(vertDesc, menuDesc)
-        return self.addToDescription(desc, horizDesc)
+        desc = self.addToDescription(topDesc, menuDesc)
+        desc = self.addToDescription(desc, horizDesc)
+        return self.addToDescription(desc, bottomDesc)
 
     def getSide(self, slave, info):
         # Always show menu buttons vertically as their menus invariably take vertical space
