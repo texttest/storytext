@@ -394,8 +394,9 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 
 class Describer:
-    supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Button, Tkinter.Label, 
-                         Tkinter.Entry, Tkinter.Menubutton, Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
+    supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, 
+                         Tkinter.Button, Tkinter.Label, Tkinter.Canvas, Tkinter.Entry, Tkinter.Menubutton, 
+                         Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -585,10 +586,13 @@ class Describer:
         self.logger.info(self.getMenuDescription(menu, rootDesc="Posting popup").rstrip())
 
     def getTextDescription(self, widget):
-        header = "=" * 10 + " Text " + "=" * 10
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
-        return header + "\n" + state + "\n" + "=" * len(header)
+        return self.headerAndFooter(state, "Text")
+
+    def headerAndFooter(self, text, title):
+        header = "=" * 10 + " " + title + " " + "=" * 10
+        return header + "\n" + text.rstrip() + "\n" + "=" * len(header)
 
     def getMenuItemDescription(self, widget, index):
         typeName = widget.type(index)
@@ -601,3 +605,13 @@ class Describer:
             return "---"
         else:
             return ">>>"
+
+    def getCanvasDescription(self, widget):
+        text = ""
+        for item in widget.find_all():
+            itemType = widget.type(item)
+            if itemType in ("rectangle", "oval", "polygon"):
+                text += itemType.capitalize() + " (" + widget.itemcget(item, "fill") + ")\n"
+            elif itemType == "text":
+                text += "  '" + widget.itemcget(item, "text") + "'\n"
+        return self.headerAndFooter(text, "Canvas")
