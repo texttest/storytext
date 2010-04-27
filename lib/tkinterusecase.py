@@ -607,11 +607,61 @@ class Describer:
             return ">>>"
 
     def getCanvasDescription(self, widget):
-        text = ""
+        items = set()
+        allDescs = {}
         for item in widget.find_all():
-            itemType = widget.type(item)
-            if itemType in ("rectangle", "oval", "polygon"):
-                text += itemType.capitalize() + " (" + widget.itemcget(item, "fill") + ")\n"
-            elif itemType == "text":
-                text += "  '" + widget.itemcget(item, "text") + "'\n"
+            if item not in items:
+                desc = self.getCanvasItemDescription(widget, item)
+                allDescs.setdefault(self.getRow(widget, item, allDescs.keys()), []).append(desc)
+                for enclosedItem in self.findEnclosedItems(widget, item):
+                    items.add(enclosedItem)
+                    desc = "  " + self.getCanvasItemDescription(widget, enclosedItem)
+                    allDescs.setdefault(self.getRow(widget, enclosedItem, allDescs.keys()), []).append(desc)
+        text = self.arrange(allDescs)
         return self.headerAndFooter(text, "Canvas")
+
+    def getRow(self, widget, item, existingRows):
+        x1, y1, x2, y2 = widget.bbox(item)
+        for attempt in [ y1, y1 - 1, y1 + 1 ]:
+            if attempt in existingRows:
+                return attempt
+        return y1
+
+    def getCanvasItemDescription(self, widget, item):
+        itemType = widget.type(item)
+        if itemType in ("rectangle", "oval", "polygon"):
+            return itemType.capitalize() + " (" + widget.itemcget(item, "fill") + ")"
+        elif itemType == "text":
+            return "'" + widget.itemcget(item, "text") + "'"
+
+    def findEnclosedItems(self, widget, item):
+        bbox = widget.bbox(item)
+        allItems = list(widget.find_enclosed(*bbox))
+        if item in allItems:
+            allItems.remove(item)
+        return allItems
+
+    def padColumns(self, allDescs):
+        widths = self.getColumnWidths(allDescs)
+        for descList in allDescs.values():
+            for col, desc in enumerate(descList):
+                if len(desc) < widths[col]:
+                    descList[col] = desc.ljust(widths[col])
+
+    def getColumnWidths(self, allDescs):
+        widths = []
+        for descList in allDescs.values():
+            for col, desc in enumerate(descList):
+                if col >= len(widths):
+                    widths.append(len(desc))
+                elif len(desc) >= widths[col]:
+                    widths[col] = len(desc)
+        return widths
+
+    def arrange(self, allDescs):
+        self.padColumns(allDescs)
+        text = ""
+        for row in sorted(allDescs.keys()):
+            text += " , ".join(allDescs[row]) + "\n"
+        return text
+            
