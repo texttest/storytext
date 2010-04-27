@@ -248,7 +248,7 @@ class MenuEvent(guiusecase.GuiEvent):
     def generate(self, argumentString):
         index = self.findIndex(argumentString)
         self.changeMethod(index)
-
+        self.widget.unpost()
 
 def getWidgetOption(widget, optionName):
     try:
