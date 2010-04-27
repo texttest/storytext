@@ -122,6 +122,32 @@ class SignalEvent(guiusecase.GuiEvent):
         else: # Assume anything else just gets clicked on
             return [ "<Button-1>", "<Button-2>", "<Button-3>" ]
     
+class CanvasEvent(SignalEvent):
+    def outputForScript(self, tkEvent, *args):
+        items = self.widget.find_closest(self.widget.canvasx(tkEvent.x), self.widget.canvasy(tkEvent.y))
+        tags = self.widget.gettags(items)
+        if len(tags) == 0 or (len(tags) == 1 and tags[0] == "current"):
+            itemName = str(items[0])
+        else:
+            itemName = tags[0]
+        return self.name + " " + itemName
+
+    def generate(self, tagOrId):
+        item = self.findItem(tagOrId)
+        x1, y1, x2, y2 = self.widget.bbox(item)
+        x = x1 + x2 / 2
+        y = y1 + y2 / 2
+        self.changeMethod(self.eventDescriptors[0], x=x, y=y)
+
+    def findItem(self, tagOrId):
+        # Seems obvious to use find_withtag, but that fails totally when
+        # the tag looks like an integer. So we make our own...
+        for item in self.widget.find_all():
+            if str(item) == tagOrId or tagOrId in self.widget.gettags(item):
+                return item
+        raise UseCaseScriptError, "Could not find canvas item '" + tagOrId + "'"
+
+
 class WindowManagerDeleteEvent(guiusecase.GuiEvent):
     def __init__(self, eventName, eventDescriptor, widget, *args):
         guiusecase.GuiEvent.__init__(self, eventName, widget)
@@ -298,6 +324,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         (Tkinter.Button      , [ SignalEvent ]),
         (Tkinter.Checkbutton , [ ToggleEvent ]),
         (Tkinter.Label       , [ SignalEvent ]),
+        (Tkinter.Canvas      , [ CanvasEvent ]),
         (Tkinter.Toplevel    , [ WindowManagerDeleteEvent ]),
         (Tkinter.Tk          , [ WindowManagerDeleteEvent ]),
         (Tkinter.Entry       , [ EntryEvent ]),
