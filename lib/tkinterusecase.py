@@ -441,10 +441,17 @@ class Describer:
         self.logger.info("-" * footerLength)
 
     def describeUpdates(self):
+        defunctWidgets = []
         for widget, oldState in self.widgetsWithState.items():
-            state = self.getState(widget)
-            if state != oldState:
-                self.logger.info(self.getUpdatePrefix(widget) + self.getDescription(widget))
+            try:
+                state = self.getState(widget)
+                if state != oldState:
+                    self.logger.info(self.getUpdatePrefix(widget) + self.getDescription(widget))
+            except:
+                # If the window where it existed has been removed, for example...
+                defunctWidgets.append(widget)
+        for widget in defunctWidgets:
+            del self.widgetsWithState[widget]
 
     def addToDescription(self, desc, newText):
         if newText:
