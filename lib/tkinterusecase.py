@@ -548,15 +548,12 @@ class Describer:
     
     def getState(self, widget):
         if isinstance(widget, Tkinter.Entry):
-            text = widget.get()
-            showChar = getWidgetOption(widget, "show")
-            if showChar:
-                return showChar * len(text)
-            else:
-                return text
+            return self.getEntryState(widget)
+        elif isinstance(widget, Tkinter.Text):
+            return self.getTextState(widget)
         else:
-            return widget.get("1.0", Tkinter.END).rstrip()
-
+            return self.getCanvasState(widget)
+        
     def getWidgetDescription(self, widget):
         for widgetClass in self.supportedWidgets:
             if isinstance(widget, widgetClass):
@@ -602,11 +599,19 @@ class Describer:
 
     def getEntryDescription(self, widget):
         text = "Text entry"
-        state = self.getState(widget)
+        state = self.getEntryState(widget)
         self.widgetsWithState[widget] = state
         if state:
             text += " (set to '" + state + "')"
         return text
+
+    def getEntryState(self, widget):
+        text = widget.get()
+        showChar = getWidgetOption(widget, "show")
+        if showChar:
+            return showChar * len(text)
+        else:
+            return text
 
     def getMenuDescription(self, widget, rootDesc="Root"):
         endIndex = widget.index(Tkinter.END)
@@ -626,9 +631,12 @@ class Describer:
         self.logger.info(self.getMenuDescription(menu, rootDesc="Posting popup").rstrip())
 
     def getTextDescription(self, widget):
-        state = self.getState(widget)
+        state = self.getTextState(widget)
         self.widgetsWithState[widget] = state
         return self.headerAndFooter(state, "Text")
+
+    def getTextState(self, widget):
+        return widget.get("1.0", Tkinter.END).rstrip()
 
     def headerAndFooter(self, text, title):
         header = "=" * 10 + " " + title + " " + "=" * 10
@@ -647,6 +655,11 @@ class Describer:
             return ">>>"
 
     def getCanvasDescription(self, widget):
+        state = self.getCanvasState(widget)
+        self.widgetsWithState[widget] = state
+        return self.headerAndFooter(state, "Canvas")
+
+    def getCanvasState(self, widget):
         items = set()
         allDescs = {}
         for item in widget.find_all():
@@ -657,8 +670,7 @@ class Describer:
                     items.add(enclosedItem)
                     desc = "  " + self.getCanvasItemDescription(widget, enclosedItem)
                     allDescs.setdefault(self.getRow(widget, enclosedItem, allDescs.keys()), []).append(desc)
-        text = self.arrange(allDescs)
-        return self.headerAndFooter(text, "Canvas")
+        return self.arrange(allDescs)
 
     def getRow(self, widget, item, existingRows):
         x1, y1, x2, y2 = widget.bbox(item)
