@@ -248,7 +248,13 @@ class MenuEvent(guiusecase.GuiEvent):
     def generate(self, argumentString):
         index = self.findIndex(argumentString)
         self.changeMethod(index)
-        self.widget.unpost()
+        try:
+            self.widget.unpost()
+        except:
+            # Yes it's ugly, the menu might not have been posted in the first place
+            # That seems to throw some unprintable exception: trying to examine it
+            # causes the program to exit with error code
+            pass
 
 def getWidgetOption(widget, optionName):
     try:
