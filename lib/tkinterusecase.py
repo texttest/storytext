@@ -250,7 +250,7 @@ class MenuEvent(guiusecase.GuiEvent):
         self.changeMethod(index)
         try:
             self.widget.unpost()
-        except:
+        except: # pragma: no cover - seems to happen under rather unpredictable circumstances
             # Yes it's ugly, the menu might not have been posted in the first place
             # That seems to throw some unprintable exception: trying to examine it
             # causes the program to exit with error code
