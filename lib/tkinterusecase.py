@@ -441,6 +441,7 @@ class Describer:
         self.logger = logging.getLogger("gui log")
         self.windows = set()
         self.widgetsWithState = seqdict()
+        self.canvasWindows = set()
         self.defaultLabelBackground = None
 
     def describe(self, window):
@@ -534,7 +535,7 @@ class Describer:
         packDesc = self.getPackSlavesDescription(widget, slaves)
         childDesc = ""
         for child in children:
-            if child not in slaves and not self.isPopupMenu(child, widget):
+            if child not in slaves and not self.isPopupMenu(child, widget) and not child in self.canvasWindows:
                 childDesc = self.addToDescription(childDesc, self.getDescription(child))
         
         desc = self.addToDescription(desc, packDesc)
@@ -686,6 +687,13 @@ class Describer:
             return itemType.capitalize() + " (" + widget.itemcget(item, "fill") + ")"
         elif itemType == "text":
             return "'" + widget.itemcget(item, "text") + "'"
+        elif itemType == "window":
+            windowWidgetName = widget.itemcget(item, "window")
+            windowWidget = widget.nametowidget(windowWidgetName)
+            self.canvasWindows.add(windowWidget) # Stop it being described by other means
+            return self.getDescription(windowWidget)
+        else: # pragma: no cover - not really supposed to happen
+            return "A Canvas Item of type '" + itemType + "'"
 
     def findEnclosedItems(self, widget, item):
         bbox = widget.bbox(item)
