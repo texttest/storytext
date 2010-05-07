@@ -571,7 +571,10 @@ class Describer:
         return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
 
     def getFrameDescription(self, widget):
-        return ""
+        if getWidgetOption(widget, "bd"):
+            return ".................."
+        else:
+            return ""
 
     def getMenubuttonDescription(self, widget):
         if len(widget.winfo_children()) == 0:
