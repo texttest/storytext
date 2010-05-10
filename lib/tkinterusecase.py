@@ -582,6 +582,8 @@ class Describer:
     def getUpdatePrefix(self, widget):
         if isinstance(widget, Tkinter.Entry):
             return "Updated "
+        elif isinstance(widget, Tkinter.Checkbutton):
+            return "Toggled "
         else:
             return "\n"
     
@@ -590,6 +592,8 @@ class Describer:
             return self.getEntryState(widget)
         elif isinstance(widget, Tkinter.Text):
             return self.getTextState(widget)
+        elif isinstance(widget, Tkinter.Checkbutton):
+            return self.getCheckbuttonState(widget)
         else:
             return self.getCanvasState(widget)
         
@@ -626,9 +630,14 @@ class Describer:
             text += " '" + labelText + "'"
         return text
 
+    def getCheckbuttonState(self, widget):
+        return widget.variable.get()
+
     def getCheckbuttonDescription(self, widget):
         text = "Check " + self.getButtonDescription(widget)
-        if widget.variable.get():
+        state = self.getCheckbuttonState(widget)
+        self.widgetsWithState[widget] = state
+        if state:
             text += " (checked)"
         return text
 
