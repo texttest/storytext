@@ -2,7 +2,6 @@
 # Experimental and rather basic support for Tkinter
 
 import guiusecase, os, time, Tkinter, logging, re
-from threading import Thread
 from usecase import UseCaseScriptError
 from ndict import seqdict
 
@@ -21,8 +20,7 @@ class WindowIdleManager:
 
     def setUpHandlers(self):
         self.removeHandlers()
-        idleThread = Thread(target=self.addIdleMethods)
-        idleThread.run()
+        self.addIdleMethods()
 
     def removeHandlers(self):
         for handler in self.handlers:
@@ -66,6 +64,11 @@ class Toplevel(WindowIdleManager, origToplevel):
         self.setUpHandlers()
         Toplevel.instances.append(self)
 
+    def wait_window(self, *args, **kw):
+        # Not at all clear what this method is for but it causes a hang if we manage to delete the window before it's called
+        # Do nothing for now...
+        pass
+
 Tkinter.Tk = Tk
 Tkinter.Toplevel = Toplevel
 
@@ -96,11 +99,21 @@ class Checkbutton(origCheckbutton):
 
 Tkinter.Checkbutton = Checkbutton
 
+origButton = Tkinter.Button
+
+class Button(origButton):
+    def __init__(self, *args, **kw):
+        origButton.__init__(self, *args, **kw)
+        self.command = kw.get("command")
+
+Tkinter.Button = Button
+
 
 class SignalEvent(guiusecase.GuiEvent):
     def __init__(self, eventName, eventDescriptor, widget, *args):
         guiusecase.GuiEvent.__init__(self, eventName, widget)
         self.eventDescriptors = eventDescriptor.split(",")
+        self.logger = logging.getLogger("gui log")
 
     def connectRecord(self, method):
         def handler(event, userEvent=self):
@@ -113,14 +126,14 @@ class SignalEvent(guiusecase.GuiEvent):
     
     def generate(self, *args, **kw):
         for eventDescriptor in self.eventDescriptors:
+            self.logger.debug("Generating event '" + eventDescriptor + "' on widget of type '" + self.widget.__class__.__name__ + "'")
             self.changeMethod(eventDescriptor, x=0, y=0, **kw) 
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        if isinstance(widget, Tkinter.Button):
-            return [ "<Enter>,<Button-1>,<ButtonRelease-1>" ]
-        else: # Assume anything else just gets clicked on
-            return [ "<Button-1>", "<Button-2>", "<Button-3>" ]
+        # Assume anything else just gets clicked on
+        return [ "<Button-1>", "<Button-2>", "<Button-3>" ]
+
     
 class CanvasEvent(SignalEvent):
     def outputForScript(self, tkEvent, *args):
@@ -173,7 +186,7 @@ class WindowManagerDeleteEvent(guiusecase.GuiEvent):
 class ToggleEvent(SignalEvent):
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        return [ "<Button-1>.true", "<Button-1>.false" ]
+        return [ "<Enter>,<Button-1>,<ButtonRelease-1>.true", "<Enter>,<Button-1>,<ButtonRelease-1>.false" ]
 
     def __init__(self, eventName, eventDescriptor, widget, stateStr):
         SignalEvent.__init__(self, eventName, eventDescriptor, widget)
@@ -183,8 +196,7 @@ class ToggleEvent(SignalEvent):
         return True
 
     def shouldRecord(self, *args):
-        # Variable hasn't been updated when we get here
-        return self.widget.variable.get() != self.enabling
+        return self.widget.variable.get() == self.enabling
 
 
 class EntryEvent(SignalEvent):
@@ -255,6 +267,25 @@ class MenuEvent(guiusecase.GuiEvent):
             # That seems to throw some unprintable exception: trying to examine it
             # causes the program to exit with error code
             pass
+
+class ButtonEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "<Enter>,<Button-1>,<ButtonRelease-1>" ]
+
+    def getChangeMethod(self):
+        return self.widget.invoke
+
+    def generate(self, argumentString):
+        self.changeMethod()
+
+    def connectRecord(self, method):
+        def handler():
+            self.widget.command()
+            return method(self)
+
+        self.widget.configure(command=handler)
+        
 
 def getWidgetOption(widget, optionName):
     try:
@@ -334,7 +365,7 @@ class UIMap(guiusecase.UIMap):
 
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
-        (Tkinter.Button      , [ SignalEvent ]),
+        (Tkinter.Button      , [ ButtonEvent ]),
         (Tkinter.Checkbutton , [ ToggleEvent ]),
         (Tkinter.Label       , [ SignalEvent ]),
         (Tkinter.Canvas      , [ CanvasEvent ]),
@@ -346,8 +377,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
     signalDescs = {
         "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
         "<KeyPress>,<KeyRelease>": "edited text",
-        "<Button-1>.true": "checked",
-        "<Button-1>.false": "unchecked",
+        "<Enter>,<Button-1>,<ButtonRelease-1>.true": "checked",
+        "<Enter>,<Button-1>,<ButtonRelease-1>.false": "unchecked",
         "<Button-1>": "left-clicked",
         "<Button-2>": "middle-clicked",
         "<Button-3>": "right-clicked",
