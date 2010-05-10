@@ -700,20 +700,20 @@ class Describer:
             return ">>>"
 
     def getCanvasDescription(self, widget):
-        state = self.getCanvasState(widget)
-        self.widgetsWithState[widget] = state
-        return self.headerAndFooter(state, "Canvas")
+        self.widgetsWithState[widget] = self.getCanvasState(widget, includeWindows=False)
+        desc = self.getCanvasState(widget, includeWindows=True)
+        return self.headerAndFooter(desc, "Canvas")
 
-    def getCanvasState(self, widget):
+    def getCanvasState(self, widget, includeWindows=False):
         items = set()
         allDescs = {}
         for item in widget.find_all():
             if item not in items:
-                desc = self.getCanvasItemDescription(widget, item)
+                desc = self.getCanvasItemDescription(widget, item, includeWindows)
                 allDescs.setdefault(self.getRow(widget, item, allDescs.keys()), []).append(desc)
                 for enclosedItem in self.findEnclosedItems(widget, item):
                     items.add(enclosedItem)
-                    desc = "  " + self.getCanvasItemDescription(widget, enclosedItem)
+                    desc = "  " + self.getCanvasItemDescription(widget, enclosedItem, includeWindows)
                     allDescs.setdefault(self.getRow(widget, enclosedItem, allDescs.keys()), []).append(desc)
         return self.arrange(allDescs)
 
@@ -724,17 +724,20 @@ class Describer:
                 return attempt
         return y1
 
-    def getCanvasItemDescription(self, widget, item):
+    def getCanvasItemDescription(self, widget, item, includeWindows):
         itemType = widget.type(item)
         if itemType in ("rectangle", "oval", "polygon"):
             return itemType.capitalize() + " (" + widget.itemcget(item, "fill") + ")"
         elif itemType == "text":
             return "'" + widget.itemcget(item, "text") + "'"
         elif itemType == "window":
-            windowWidgetName = widget.itemcget(item, "window")
-            windowWidget = widget.nametowidget(windowWidgetName)
-            self.canvasWindows.add(windowWidget) # Stop it being described by other means
-            return self.getDescription(windowWidget)
+            if includeWindows:
+                windowWidgetName = widget.itemcget(item, "window")
+                windowWidget = widget.nametowidget(windowWidgetName)
+                self.canvasWindows.add(windowWidget) # Stop it being described by other means
+                return self.getDescription(windowWidget)
+            else:
+                return ""
         else: # pragma: no cover - not really supposed to happen
             return "A Canvas Item of type '" + itemType + "'"
 
