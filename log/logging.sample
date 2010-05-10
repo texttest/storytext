@@ -1,0 +1,99 @@
+
+[logger_root]
+handlers=root
+level=WARNING
+
+[handler_root]
+class=StreamHandler
+level=WARNING
+args=(sys.stdout,)
+
+[handler_stdout]
+class=StreamHandler
+args=(sys.stdout,)
+#formatter=timed
+
+[formatter_timed]
+format=%(asctime)s - %(message)s
+
+[formatter_debug]
+format=%(name)s %(levelname)s - %(message)s
+
+# ====== The following are enabled by default ======
+# ======= Section for gui log ======
+[logger_gui log]
+handlers=gui log
+qualname=gui log
+level=INFO
+
+[handler_gui log]
+class=FileHandler
+#formatter=timed
+#args=(os.devnull, 'a')
+args=('gui_log.sample', 'a')
+
+# ======= Section for usecase replay log ======
+[logger_usecase replay log]
+handlers=gui log
+qualname=usecase replay log
+level=INFO
+
+# ====== The following are disabled by default ======
+# ======= Section for TreeModelIndexer ======
+[logger_TreeModelIndexer]
+handlers=TreeModelIndexer
+qualname=TreeModelIndexer
+#level=INFO
+
+[handler_TreeModelIndexer]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('treemodelindexer.sample', 'a')
+
+# ======= Section for TreeViewDescriber ======
+[logger_TreeViewDescriber]
+handlers=TreeViewDescriber
+qualname=TreeViewDescriber
+#level=INFO
+
+[handler_TreeViewDescriber]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('treeviewdescriber.sample', 'a')
+
+# ======= Section for gui map ======
+[logger_gui map]
+handlers=gui map
+qualname=gui map
+#level=INFO
+
+[handler_gui map]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('guimap.sample', 'a')
+
+# ======= Section for usecase record ======
+[logger_usecase record]
+handlers=usecase record
+qualname=usecase record
+#level=INFO
+
+[handler_usecase record]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('usecaserecord.sample', 'a')
+
+# ====== Cruft that python logging module needs ======
+[loggers]
+keys=root,gui log,usecase replay log,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
+
+[handlers]
+keys=root,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
+
+[formatters]
+keys=timed,debug
+
