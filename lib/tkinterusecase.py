@@ -75,6 +75,7 @@ Tkinter.Toplevel = Toplevel
 origMenu = Tkinter.Menu
 
 class Menu(origMenu):
+    replayActive = False
     def __init__(self, *args, **kw):
         origMenu.__init__(self, *args, **kw)
         self.commands = {}
@@ -84,7 +85,11 @@ class Menu(origMenu):
         self.commands[self.index(Tkinter.END)] = command
 
     def post(self, *args, **kw):
-        origMenu.post(self, *args, **kw)
+        if not self.replayActive or os.name != "nt":
+            # On Windows this causes a hang that can only be relieved by clicking the mouse
+            # somewhere. Seems to be a bug but requests on Tkinter list didn't get anywhere.
+            # For now just don't post menus for real when replaying on Windows
+            origMenu.post(self, *args, **kw)
         describer = Describer()
         describer.describePopup(self)
 
@@ -385,6 +390,10 @@ class ScriptEngine(guiusecase.ScriptEngine):
         "WM_DELETE_WINDOW": "closed"
         }
     columnSignalDescs = {}
+    def __init__(self, *args, **kw):
+        guiusecase.ScriptEngine.__init__(self, *args, **kw)
+        Menu.replayActive = self.replayerActive()
+        
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
  
