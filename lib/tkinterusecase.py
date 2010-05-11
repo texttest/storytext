@@ -682,7 +682,10 @@ class Describer:
         return text
 
     def describePopup(self, menu):
-        self.logger.info(self.getMenuDescription(menu, rootDesc="Posting popup").rstrip())
+        desc = ""
+        desc = self.addToDescription(desc, self.getMenuDescription(menu, rootDesc="Posting popup"))
+        desc = self.addToDescription(desc, self.getChildrenDescription(menu)) # submenus
+        self.logger.info(desc.rstrip())
 
     def getTextDescription(self, widget):
         state = self.getTextState(widget)
