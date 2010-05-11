@@ -115,19 +115,37 @@ Tkinter.Button = Button
 
 
 class SignalEvent(guiusecase.GuiEvent):
+    class RecordHandler:
+        def __init__(self, index, event, method):
+            self.index = index
+            self.event = event
+            self.method = method
+
+        def __call__(self, tkEvent, *args):
+            self.event.logger.debug("Got event number " + repr(self.index))
+            if self.event.recordIndex == self.index:
+                self.event.handleNext(tkEvent, self.method)
+                
     def __init__(self, eventName, eventDescriptor, widget, *args):
         guiusecase.GuiEvent.__init__(self, eventName, widget)
         self.eventDescriptors = eventDescriptor.split(",")
         self.logger = logging.getLogger("gui log")
+        self.recordIndex = 0
 
     def connectRecord(self, method):
-        def handler(event, userEvent=self):
-            return method(event, self)
-
-        self.widget.bind(self.eventDescriptors[-1], handler, "+")
+        for i, eventDescriptor in enumerate(self.eventDescriptors):
+            handler = self.RecordHandler(i, self, method)
+            self.widget.bind(eventDescriptor, handler, "+")
     
     def getChangeMethod(self):
         return self.widget.event_generate
+
+    def handleNext(self, tkEvent, method):
+        self.recordIndex += 1
+        self.logger.debug("Got event number " + repr(self.recordIndex) + " for '" + self.name + "'")
+        if self.recordIndex >= len(self.eventDescriptors):
+            method(tkEvent, self)
+            self.recordIndex = 0
     
     def generate(self, *args, **kw):
         for eventDescriptor in self.eventDescriptors:
@@ -191,7 +209,7 @@ class WindowManagerDeleteEvent(guiusecase.GuiEvent):
 class ToggleEvent(SignalEvent):
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        return [ "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.true", "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.false" ]
+        return [ "<Button-1>,<ButtonRelease-1>,<Leave>.true", "<Button-1>,<ButtonRelease-1>,<Leave>.false" ]
 
     def __init__(self, eventName, eventDescriptor, widget, stateStr):
         SignalEvent.__init__(self, eventName, eventDescriptor, widget)
@@ -200,8 +218,8 @@ class ToggleEvent(SignalEvent):
     def isStateChange(self):
         return True
 
-    def shouldRecord(self, *args):
-        return self.widget.variable.get() == self.enabling
+    def shouldRecord(self, event, *args):
+        return self.widget is event.widget and self.widget.variable.get() == self.enabling
 
 
 class EntryEvent(SignalEvent):
@@ -382,8 +400,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
     signalDescs = {
         "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
         "<KeyPress>,<KeyRelease>": "edited text",
-        "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.true": "checked",
-        "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.false": "unchecked",
+        "<Button-1>,<ButtonRelease-1>,<Leave>.true": "checked",
+        "<Button-1>,<ButtonRelease-1>,<Leave>.false": "unchecked",
         "<Button-1>": "left-clicked",
         "<Button-2>": "middle-clicked",
         "<Button-3>": "right-clicked",
