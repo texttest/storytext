@@ -186,7 +186,7 @@ class WindowManagerDeleteEvent(guiusecase.GuiEvent):
 class ToggleEvent(SignalEvent):
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        return [ "<Enter>,<Button-1>,<ButtonRelease-1>.true", "<Enter>,<Button-1>,<ButtonRelease-1>.false" ]
+        return [ "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.true", "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.false" ]
 
     def __init__(self, eventName, eventDescriptor, widget, stateStr):
         SignalEvent.__init__(self, eventName, eventDescriptor, widget)
@@ -377,8 +377,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
     signalDescs = {
         "<Enter>,<Button-1>,<ButtonRelease-1>": "clicked",
         "<KeyPress>,<KeyRelease>": "edited text",
-        "<Enter>,<Button-1>,<ButtonRelease-1>.true": "checked",
-        "<Enter>,<Button-1>,<ButtonRelease-1>.false": "unchecked",
+        "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.true": "checked",
+        "<Enter>,<Button-1>,<ButtonRelease-1>,<Leave>.false": "unchecked",
         "<Button-1>": "left-clicked",
         "<Button-2>": "middle-clicked",
         "<Button-3>": "right-clicked",
