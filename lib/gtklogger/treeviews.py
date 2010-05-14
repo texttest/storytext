@@ -7,8 +7,24 @@ and little direct support for extracting information from them. So they get thei
 import gtktreeviewextract, gtk, logging
 from images import ImageDescriber
 
+class ColourSpecMap(dict):
+    def __setitem__(self, colour, spec):
+        dict.__setitem__(self, self.getKey(colour), spec)
+
+    def getKey(self, colour):
+        if hasattr(colour, "to_string"):
+            # PyGTK 2.12 or later
+            return colour.to_string()
+        else:
+            # Doesn't work from PyGTK 2.14
+            return colour 
+
+    def get(self, colour):
+        return dict.get(self, self.getKey(colour))
+        
+
 orig_color_parse = gtk.gdk.color_parse
-all_colours = {}
+all_colours = ColourSpecMap()
 
 def color_parse(spec):
     colour = orig_color_parse(spec)
