@@ -110,14 +110,13 @@ class UIMap(guiusecase.UIMap):
             return text
 
     def getLabelText(self, widget):
-        try:
+        if isinstance(widget, gtk.MenuItem):
+            child = widget.get_child()
+            # "child" is normally a gtk.AccelLabel, but in theory it could be anything
+            if isinstance(child, gtk.Label):
+                return child.get_text()
+        elif hasattr(widget, "get_label"):
             return widget.get_label()
-        except AttributeError:
-            if isinstance(widget, gtk.MenuItem):
-                child = widget.get_child()
-                # "child" is normally a gtk.AccelLabel, but in theory it could be anything
-                if isinstance(child, gtk.Label): 
-                    return child.get_text()
             
     def getSectionName(self, widget):
         widgetName = widget.get_name()
