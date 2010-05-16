@@ -570,9 +570,9 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 class Describer:
     supportedWidgets = [ Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, 
-                         Tkinter.Button, Tkinter.Label, Tkinter.Menubutton, 
-                         Tkinter.Menu, Tkinter.Toplevel, Tkinter.Tk ]
-    stateWidgets = [ Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas, Tkinter.Listbox ]
+                         Tkinter.Button, Tkinter.Label, Tkinter.Menubutton, Tkinter.Menu ]
+    stateWidgets = [ Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
+                     Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -585,10 +585,17 @@ class Describer:
             return
         self.windows.add(window)
         message = "-" * 10 + " Window '" + window.title() + "' " + "-" * 10
+        self.widgetsWithState[window] = window.title()
         self.logger.info("\n" + message)
         self.logger.info(self.getChildrenDescription(window))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
+
+    def getTkState(self, window):
+        return window.title()
+
+    def getToplevelState(self, window):
+        return window.title()
 
     def describeUpdates(self):
         defunctWidgets = []
@@ -596,7 +603,8 @@ class Describer:
             try:
                 state = self.getState(widget)
                 if state != oldState:
-                    self.logger.info(self.getUpdatePrefix(widget) + self.getDescription(widget))
+                    self.logger.info(self.getStateChangeDescription(widget))
+                    self.widgetsWithState[widget] = state
             except:
                 # If the window where it existed has been removed, for example...
                 defunctWidgets.append(widget)
@@ -683,6 +691,12 @@ class Describer:
         if self.defaultLabelBackground is None:
             self.defaultLabelBackground = Tkinter.Label(widget.master).cget("bg")
         return self.defaultLabelBackground
+
+    def getStateChangeDescription(self, widget):
+        if isinstance(widget, (Tkinter.Tk, Tkinter.Toplevel)):
+            return "Changing title for window '" + widget.title() + "'"
+        else:
+            return self.getUpdatePrefix(widget) + self.getDescription(widget)
 
     def getUpdatePrefix(self, widget):
         if isinstance(widget, Tkinter.Entry):
