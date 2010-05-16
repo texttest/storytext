@@ -103,6 +103,21 @@ class Checkbutton(origCheckbutton):
         self.variable = kw.get("variable")
         self.command = kw.get("command")
 
+    def configure(self, *args, **kw):
+        origCheckbutton.configure(self, *args, **kw)
+        self.variable = kw.get("variable") or self.variable
+        self.command = kw.get("command") or self.command
+
+    def __setitem__(self, key, value):
+        origCheckbutton.__setitem__(self, key, value)
+        if key == "command":
+            self.command = value
+        elif key == "variable":
+            self.variable = value
+
+    config = configure
+    internal_configure = origCheckbutton.configure
+
 Tkinter.Checkbutton = Checkbutton
 
 origButton = Tkinter.Button
@@ -111,6 +126,18 @@ class Button(origButton):
     def __init__(self, *args, **kw):
         origButton.__init__(self, *args, **kw)
         self.command = kw.get("command")
+
+    def configure(self, *args, **kw):
+        origButton.configure(self, *args, **kw)
+        self.command = kw.get("command") or self.command
+
+    def __setitem__(self, key, value):
+        origButton.__setitem__(self, key, value)
+        if key == "command":
+            self.command = value
+
+    config = configure
+    internal_configure = origButton.configure
 
 Tkinter.Button = Button
 
@@ -223,7 +250,7 @@ class ButtonEvent(SignalEvent):
                 self.widget.command()
             return method(self)
 
-        self.widget.configure(command=handler)
+        self.widget.internal_configure(command=handler)
 
 class ToggleHandler:
     def __init__(self, widget, method, event):
@@ -249,7 +276,7 @@ class ToggleEvent(ButtonEvent):
             self.widget.toggleHandler.events.append(self)
         else:
             self.widget.toggleHandler = ToggleHandler(self.widget, method, self)
-            self.widget.configure(command=self.widget.toggleHandler)
+            self.widget.internal_configure(command=self.widget.toggleHandler)
 
 class CheckEvent(ToggleEvent):
     @classmethod
