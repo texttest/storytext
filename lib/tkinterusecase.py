@@ -363,6 +363,28 @@ class MenuEvent(guiusecase.GuiEvent):
             # That seems to throw some unprintable exception: trying to examine it
             # causes the program to exit with error code
             pass
+
+class ListboxEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "<<ListboxSelect>>" ]
+
+    def outputForScript(self, *args):
+        indices = self.widget.curselection()
+        texts = map(self.widget.get, indices)
+        return self.name + " " + ",".join(texts)
+
+    def generate(self, argumentString):
+        self.widget.selection_clear(0, Tkinter.END)
+        index = self.findIndex(argumentString)
+        self.widget.selection_set(index)
+        SignalEvent.generate(self, argumentString)
+
+    def findIndex(self, label):
+        for i in range(self.widget.size()):
+            if self.widget.get(i) == label:
+                return i
+        raise UseCaseScriptError, "Could not find item '" + label + "' in Listbox."
         
 
 def getWidgetOption(widget, optionName):
@@ -450,6 +472,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         (Tkinter.Toplevel    , [ WindowManagerDeleteEvent ]),
         (Tkinter.Tk          , [ WindowManagerDeleteEvent ]),
         (Tkinter.Entry       , [ EntryEvent ]),
+        (Tkinter.Listbox     , [ ListboxEvent ]),
         (Tkinter.Menu        , [ MenuEvent ])
         ]
     signalDescs = {
@@ -458,6 +481,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         "<Button-1>": "left-clicked",
         "<Button-2>": "middle-clicked",
         "<Button-3>": "right-clicked",
+        "<<ListboxSelect>>": "select item",
         "WM_DELETE_WINDOW": "closed"
         }
     columnSignalDescs = {}
@@ -491,7 +515,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         classes[className] = sorted(signalNames)
 
     def getSupportedLogWidgets(self):
-        return Describer.supportedWidgets
+        return Describer.supportedWidgets + Describer.stateWidgets
 
 
 class UseCaseReplayer(guiusecase.UseCaseReplayer):
@@ -545,9 +569,10 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 
 class Describer:
-    supportedWidgets = [ Tkinter.Checkbutton, Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, 
-                         Tkinter.Button, Tkinter.Label, Tkinter.Canvas, Tkinter.Entry, Tkinter.Menubutton, 
-                         Tkinter.Menu, Tkinter.Text, Tkinter.Toplevel, Tkinter.Tk ]
+    supportedWidgets = [ Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, 
+                         Tkinter.Button, Tkinter.Label, Tkinter.Menubutton, 
+                         Tkinter.Menu, Tkinter.Toplevel, Tkinter.Tk ]
+    stateWidgets = [ Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas, Tkinter.Listbox ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -668,17 +693,15 @@ class Describer:
             return "\n"
     
     def getState(self, widget):
-        if isinstance(widget, Tkinter.Entry):
-            return self.getEntryState(widget)
-        elif isinstance(widget, Tkinter.Text):
-            return self.getTextState(widget)
-        elif isinstance(widget, Tkinter.Checkbutton):
-            return self.getCheckbuttonState(widget)
-        else:
-            return self.getCanvasState(widget)
+        for widgetClass in self.stateWidgets:
+            if isinstance(widget, widgetClass):
+                methodName = "get" + widgetClass.__name__ + "State"
+                return getattr(self, methodName)(widget)
+        
+        return "ERROR: got unexpected widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
         
     def getWidgetDescription(self, widget):
-        for widgetClass in self.supportedWidgets:
+        for widgetClass in self.supportedWidgets + self.stateWidgets:
             if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "Description"
                 return getattr(self, methodName)(widget)
@@ -757,6 +780,21 @@ class Describer:
         desc = self.addToDescription(desc, self.getMenuDescription(menu, rootDesc="Posting popup"))
         desc = self.addToDescription(desc, self.getChildrenDescription(menu)) # submenus
         self.logger.info(desc.rstrip())
+
+    def getListboxState(self, widget):
+        text = ""
+        if getWidgetOption(widget, "bd"):
+            text += ".................\n"
+        for i in range(widget.size()):
+            text += "-> " + widget.get(i) + "\n"
+        if getWidgetOption(widget, "bd"):
+            text += ".................\n"
+        return text
+
+    def getListboxDescription(self, widget):
+        state = self.getListboxState(widget)
+        self.widgetsWithState[widget] = state
+        return state
 
     def getTextDescription(self, widget):
         state = self.getTextState(widget)
