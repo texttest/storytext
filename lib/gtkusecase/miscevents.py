@@ -121,6 +121,18 @@ class EntryEvent(StateChangeEvent):
         return self.widget.set_text
 
 
+class TextViewEvent(StateChangeEvent):
+    def getStateDescription(self, *args):
+        buffer = self.widget.get_buffer()
+        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
+
+    def getChangeMethod(self):
+        return self.widget.get_buffer().set_text
+
+    def connectRecord(self, method):
+        self._connectRecord(self.widget.get_buffer(), method)
+
+
 class ComboBoxEvent(StateChangeEvent):
     def getStateDescription(self, *args):
         # Hardcode 0, seems to work for the most part...

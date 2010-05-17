@@ -148,6 +148,8 @@ class UIMap(guiusecase.UIMap):
     def widgetHasSignal(self, widget, signalName):
         if signalName == "current-name-changed" and isinstance(widget, gtk.FileChooser):
             return True # Our favourite fake signal...
+        elif signalName == "changed" and isinstance(widget, gtk.TextView):
+            return True # exists on the buffer
 
         # We tried using gobject.type_name and gobject.signal_list_names but couldn't make it work
         # We go for the brute force approach : actually do it and remove it again and see if we succeed...
@@ -249,6 +251,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         (gtk.ComboBox         , [ miscevents.ComboBoxEvent ]),
         (gtk.Entry            , [ miscevents.EntryEvent, 
                                   baseevents.SignalEvent ]),
+        (gtk.TextView         , [ miscevents.TextViewEvent ]),
         (gtk.FileChooser      , [ filechooserevents.FileChooserFileSelectEvent, 
                                   filechooserevents.FileChooserFolderChangeEvent, 
                                   filechooserevents.FileChooserEntryEvent ]),
@@ -350,6 +353,12 @@ class ScriptEngine(guiusecase.ScriptEngine):
             if self.recorderActive():
                 entryEvent.widget.connect("activate", self.recorder.writeEvent, entryEvent)
             self._addEventToScripts(entryEvent)
+
+    def registerTextView(self, textview, description):
+        if self.active():
+            stateChangeName = self.standardName(description)
+            event = miscevents.TextViewEvent(stateChangeName, textview)
+            self._addEventToScripts(event)
 
     def registerComboBox(self, combobox, description):
         if self.active():
