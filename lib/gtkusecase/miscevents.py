@@ -132,6 +132,13 @@ class TextViewEvent(StateChangeEvent):
     def connectRecord(self, method):
         self._connectRecord(self.widget.get_buffer(), method)
 
+    def getProgrammaticChangeMethods(self):
+        buffer = self.widget.get_buffer()
+        return [ buffer.insert, buffer.insert_at_cursor, buffer.insert_interactive,
+                 buffer.insert_interactive_at_cursor, buffer.insert_range, buffer.insert_range_interactive,
+                 buffer.insert_with_tags, buffer.insert_with_tags_by_name, buffer.insert_pixbuf,
+                 buffer.insert_child_anchor, buffer.delete, buffer.delete_interactive ]
+
 
 class ComboBoxEvent(StateChangeEvent):
     def getStateDescription(self, *args):
