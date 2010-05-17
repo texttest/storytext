@@ -31,7 +31,7 @@ class WindowIdleManager:
         if not self.winfo_ismapped():
             self.wait_visibility()
         for idle_method in self.idle_methods: 
-            self.handlers.append(self.after_idle(idle_method))
+            self.handlers.append(self.after(0, idle_method))
         for args in self.timeout_methods:
             self.handlers.append(self.after(*args))
 
@@ -528,7 +528,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def makeIdleHandler(self, method):
         if Tkinter._default_root:
-            return Tkinter._default_root.after_idle(method)
+            return Tkinter._default_root.after(0, method)
         else:
             Tk.idle_methods.append(method)
             return True # anything to show we've got something
