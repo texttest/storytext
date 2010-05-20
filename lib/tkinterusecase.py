@@ -515,7 +515,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         classes[className] = sorted(signalNames)
 
     def getSupportedLogWidgets(self):
-        return Describer.supportedWidgets + Describer.stateWidgets
+        return Describer.statelessWidgets + Describer.stateWidgets
 
 
 class UseCaseReplayer(guiusecase.UseCaseReplayer):
@@ -569,10 +569,10 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 
 class Describer:
-    supportedWidgets = [ Tkinter.Frame, Tkinter.LabelFrame, Tkinter.Scrollbar, 
-                         Tkinter.Button, Tkinter.Label, Tkinter.Menubutton, Tkinter.Menu ]
-    stateWidgets = [ Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
-                     Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
+    statelessWidgets = [ Tkinter.Button, Tkinter.Menubutton, Tkinter.Frame,
+                         Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Label, Tkinter.Menu ]
+    stateWidgets = [  Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
+                      Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -603,7 +603,7 @@ class Describer:
             try:
                 state = self.getState(widget)
                 if state != oldState:
-                    self.logger.info(self.getStateChangeDescription(widget))
+                    self.logger.info(self.getStateChangeDescription(widget, oldState, state))
                     self.widgetsWithState[widget] = state
             except:
                 # If the window where it existed has been removed, for example...
@@ -692,30 +692,49 @@ class Describer:
             self.defaultLabelBackground = Tkinter.Label(widget.master).cget("bg")
         return self.defaultLabelBackground
 
-    def getStateChangeDescription(self, widget):
+    def getStateChangeDescription(self, widget, oldState, state):
         if isinstance(widget, (Tkinter.Tk, Tkinter.Toplevel)):
-            return "Changing title for window '" + widget.title() + "'"
+            return "Changing title for window '" + state + "'"
         else:
-            return self.getUpdatePrefix(widget) + self.getDescription(widget)
+            return self.getUpdatePrefix(widget, oldState, state) + self.getDescription(widget)
 
-    def getUpdatePrefix(self, widget):
+    def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, Tkinter.Entry):
             return "Updated "
         elif isinstance(widget, Tkinter.Checkbutton):
-            return "Toggled "
+            if "(checked)" in oldState == "(checked)" in state:
+                return "Changed state of "
+            else:
+                return "Toggled "
+        elif isinstance(widget, Tkinter.Button):
+            return "Changed state of "
         else:
             return "\n"
     
     def getState(self, widget):
+        state = self.getSpecificState(widget)
+        sensitivity = self.getSensitivityState(widget)
+        if sensitivity:
+            state = state.rstrip() + " " + sensitivity
+        return state.strip()
+
+    def getSpecificState(self, widget):
         for widgetClass in self.stateWidgets:
             if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
         
-        return "ERROR: got unexpected widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
+        return ""
+
+    def getSensitivityState(self, widget):
+        state = getWidgetOption(widget, "state")
+        if state == Tkinter.DISABLED:
+            return "(greyed out)"
+        else:
+            return ""
         
     def getWidgetDescription(self, widget):
-        for widgetClass in self.supportedWidgets + self.stateWidgets:
+        for widgetClass in self.statelessWidgets + self.stateWidgets:
             if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "Description"
                 return getattr(self, methodName)(widget)
@@ -745,18 +764,20 @@ class Describer:
         labelText = getWidgetOption(widget, "text")
         if labelText:
             text += " '" + labelText + "'"
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        if state:
+            text += " " + state
         return text
 
     def getCheckbuttonState(self, widget):
-        return widget.variable.get()
+        if widget.variable.get():
+            return "(checked)"
+        else:
+            return ""
 
     def getCheckbuttonDescription(self, widget):
-        text = "Check " + self.getButtonDescription(widget)
-        state = self.getCheckbuttonState(widget)
-        self.widgetsWithState[widget] = state
-        if state:
-            text += " (checked)"
-        return text
+        return "Check " + self.getButtonDescription(widget)
 
     def getLabelDescription(self, widget):
         text = "'" + getWidgetOption(widget, "text") + "'"
@@ -767,7 +788,7 @@ class Describer:
 
     def getEntryDescription(self, widget):
         text = "Text entry"
-        state = self.getEntryState(widget)
+        state = self.getState(widget)
         self.widgetsWithState[widget] = state
         if state:
             text += " (set to '" + state + "')"
@@ -806,12 +827,12 @@ class Describer:
         return text
 
     def getListboxDescription(self, widget):
-        state = self.getListboxState(widget)
+        state = self.getState(widget)
         self.widgetsWithState[widget] = state
         return state
 
     def getTextDescription(self, widget):
-        state = self.getTextState(widget)
+        state = self.getState(widget)
         self.widgetsWithState[widget] = state
         return self.headerAndFooter(state, "Text")
 
@@ -905,5 +926,5 @@ class Describer:
         text = ""
         for row in sorted(allDescs.keys()):
             text += " , ".join(allDescs[row]) + "\n"
-        return text
+        return text.strip()
             
