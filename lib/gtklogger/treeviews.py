@@ -160,7 +160,7 @@ class TreeViewDescriber:
 
     def getDescription(self, prefix):
         columns = self.view.get_columns()
-        titles = " , ".join([ column.get_title() for column in columns ])
+        titles = " , ".join([ column.get_title() or "" for column in columns ])
         message = "\n" + prefix + self.view.get_name() + " with columns: " + titles + "\n"
         if "Column titles" not in prefix and self.model:
             if not self.describersOK:

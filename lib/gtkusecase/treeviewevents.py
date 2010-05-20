@@ -10,8 +10,8 @@ def getColumnName(column):
     if name:
         return name
     else:
-        return column.get_title()
-
+        # PyGTK 2.16 has started returning None here...
+        return column.get_title() or ""
 
 class TreeColumnClickEvent(baseevents.SignalEvent):
     signalName = "clicked"
