@@ -426,7 +426,7 @@ class TreeViewIndexer:
         return None, None
 
     def getValue(self, *args):
-        return str(self.extractor.getValue(*args))
+        return str(self.extractor.getValue(*args)).replace("\n", " / ")
 
     def iter2string(self, iter):
         self.tryPopulateMapping()
@@ -452,7 +452,10 @@ class TreeViewIndexer:
         if len(rows) == 1:
             return self.convertTo(rows[0].get_path(), name)
         elif len(rows) == 0:
-            raise UseCaseScriptError, "Could not find row '" + name + "' in Tree View\nKnown names are " + repr(self.name2row.keys())
+            if " / " in name:
+                return self.string2path(name.replace(" / ", "\n"))
+            else:
+                raise UseCaseScriptError, "Could not find row '" + name + "' in Tree View\nKnown names are " + repr(self.name2row.keys())
         else:
             raise UseCaseScriptError, "'" + name + "' in Tree View is ambiguous, could refer to " \
                   + str(len(rows)) + " different paths"
