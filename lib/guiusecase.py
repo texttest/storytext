@@ -235,8 +235,9 @@ class WriteParserHandler:
 
     def write(self):
         if self.changed:
-            if not os.path.isdir(os.path.dirname(self.fileName)):
-                os.makedirs(os.path.dirname(self.fileName))
+            dirName = os.path.dirname(self.fileName)
+            if dirName and not os.path.isdir(dirName):
+                os.makedirs(dirName)
             self.parser.write(open(self.fileName, "w"))
             self.changed = False
 
