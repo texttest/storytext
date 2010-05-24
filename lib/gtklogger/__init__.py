@@ -44,8 +44,8 @@ class Describer:
     supportedWidgets = [ gtk.Label, gtk.ToggleToolButton, gtk.ToolButton, gtk.SeparatorToolItem,
                          gtk.ToolItem, gtk.ToggleButton, gtk.Button, gtk.Table, gtk.Frame, gtk.FileChooser,
                          gtk.ProgressBar, gtk.Expander, gtk.Notebook, gtk.TreeView, gtk.CellView, gtk.ComboBoxEntry,
-                         gtk.ComboBox, gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.Entry, gtk.TextView,
-                         gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
+                         gtk.ComboBox, gtk.CheckMenuItem, gtk.SeparatorMenuItem, gtk.MenuItem, gtk.SpinButton, 
+                         gtk.Entry, gtk.TextView, gtk.MenuBar, gtk.Toolbar, gtk.Container, gtk.Separator, gtk.Image ]
     cachedDescribers = {}
     @classmethod
     def createLogger(cls):
@@ -335,11 +335,25 @@ class Describer:
         text = ""
         if self.prefix != "Showing ":
             text += self.prefix + "'" + entry.get_name() + "' "
-        text += "Text entry"
+        text += self.getTypeDescription(entry)
         entryText = entry.get_text()
         if entryText:
             text += " (set to '" + entryText + "')"
         return text
+
+    def getTypeDescription(self, entry):
+        if isinstance(entry, gtk.SpinButton):
+            return "Spin button entry"
+        else:
+            return "Text entry"
+
+    def getSpinButtonDescription(self, spinner):
+        desc = self.getEntryDescription(spinner)
+        if self.prefix == "Showing ":
+            adj = spinner.get_adjustment()
+            desc += " (min=" + str(adj.lower) + ", max=" + str(adj.upper) + \
+                ", step=" + str(adj.step_increment) + ")"
+        return desc
 
     def getFileChooserDescription(self, fileChooser):
         if fileChooser.get_property("action") != gtk.FILE_CHOOSER_ACTION_SAVE:
