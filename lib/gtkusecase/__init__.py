@@ -188,6 +188,8 @@ class UIMap(guiusecase.UIMap):
             return argumentParseData, None
 
     def makeTreeViewEvent(self, eventName, widget, argumentParseData, signalName):
+        if widget.get_model() is None:
+            return
         if signalName == "changed" and argumentParseData == "selection":
             return treeviewevents.TreeSelectionEvent(eventName, widget, widget.get_selection())
         
@@ -233,7 +235,7 @@ class UIMap(guiusecase.UIMap):
                 self.logger.debug("Monitoring children for dialog with title " + repr(window.get_title()))
                 return self.monitorChildren(window, excludeWidget=window.action_area)
             else:
-                self.logger.debug("Monitoring new window with title " + repr(window.get_title()))
+                self.logger.debug("Monitoring new window with title " + repr(window.get_title()) + ", type hint " + repr(window.get_type_hint()))
                 return self.monitor(window)
         else:
             return False
@@ -649,7 +651,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def shouldMonitorWindow(self, window):
         hint = window.get_type_hint()
-        if hint == gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP:
+        if hint == gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP or hint == gtk.gdk.WINDOW_TYPE_HINT_COMBO:
             return False
         elif isinstance(window.child, gtk.Menu) and isinstance(window.child.get_attach_widget(), gtk.ComboBox):
             return False

@@ -255,11 +255,8 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        if widget.get_model():
-            return [ "changed.selection" ]
-        else:
-            return []
-
+        return [ "changed.selection" ]
+        
     def getUiMapSignature(self):
         return "changed.selection"
 
