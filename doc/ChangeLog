@@ -209,3 +209,52 @@ Bug fixes:
     - Tkinter.Entry handling now deals with non-alphanumeric characters properly
     - Usecase names are now collected properly even if the application exits with an exception 
 	(particularly SystemExit is important as it's not really an error)
+
+Version 3.3
+-----------
+General:
+    - Try to support PyGTK 2.16 now
+    - Can now configure PyUseCase logging with -L <logconfigfile> via standard Python logging format files
+    - Usecase name chooser no longer stacktraces on an explicit local path (-m mapfile)
+	
+Tkinter Record/Playback:
+    - New widgets supported for record/playback:
+	Tkinter.Canvas
+	Tkinter.Checkbutton
+	Tkinter.Listbox
+    - Changed from using after_idle to after(0... for replaying
+	Otherwise application calls to "after" get blocked
+    - Replayer added just before mainloop entered
+	Reduces risk of it trying to operate before widgets are visible
+    - Many more variants of configuring Buttons and Checkbuttons now picked up correctly
+    - Now intercept Tkinter.Toplevel.wait_window so that it does nothing when replaying
+	Prevents it from blocking idles and hence replayer. Cannot work out why this method
+	is useful anyway, it doesn't appear to achieve anything.
+Tkinter Autologging:
+    - New widgets supported for autologging only
+	Tkinter.LabelFrame
+	Tkinter.Menubutton
+    - Many more widget updates now picked up
+	Tkinter.Toplevel, changes of title
+    - Visible borders on Tkinter.Frame get described
+    - Layout description improved where items at the bottom are concerned
+    - Autologging now picks up widget state, i.e. whether they are greyed out or not
+    - Popup menu submenus now get logged properly
+Tkinter bugfixes:
+    - Tkinter.Text in a dialog no longer causes stacktraces after the dialog is closed
+    - Tkinter.Menu items other than the last one can now be selected (!)
+    - Don't post popup menus when replaying on Windows, otherwise replay hangs
+	
+PyGTK Record/Playback:
+    - New widgets supported for record/playback:
+	gtk.TextView (previously only autologging)
+    - Introduced convention for indexing TreeViews where the labels stretch across multiple lines 
+PyGTK Autologging:
+    - New widgets supported for specific autologging:
+	gtk.SpinButton (previously logged as a gtk.Entry)
+PyGTK Bugfixes:
+    - Don't stack trace on PyGTK 2.16 with gtk.TreeViewColumn with no title
+    - gtk.gdk.color_parse no longer causes stacktraces on PyGTK 2.16
+    - gtk.MenuItems built by UIManager no longer causes stacktraces on PyGTK 2.16
+    - Don't stack trace on gtk.TreeView with no model attached, even if there is a matching entry in the UI map.
+    - Don't try to monitor combo box popup windows
