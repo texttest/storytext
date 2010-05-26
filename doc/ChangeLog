@@ -244,7 +244,7 @@ Tkinter bugfixes:
     - Tkinter.Text in a dialog no longer causes stacktraces after the dialog is closed
     - Tkinter.Menu items other than the last one can now be selected (!)
     - Don't post popup menus when replaying on Windows, otherwise replay hangs
-	
+
 PyGTK Record/Playback:
     - New widgets supported for record/playback:
 	gtk.TextView (previously only autologging)
@@ -252,9 +252,10 @@ PyGTK Record/Playback:
 PyGTK Autologging:
     - New widgets supported for specific autologging:
 	gtk.SpinButton (previously logged as a gtk.Entry)
+    - gtk.TreeViews which set both foreground and background colour now log both these values 
 PyGTK Bugfixes:
     - Don't stack trace on PyGTK 2.16 with gtk.TreeViewColumn with no title
     - gtk.gdk.color_parse no longer causes stacktraces on PyGTK 2.16
     - gtk.MenuItems built by UIManager no longer causes stacktraces on PyGTK 2.16
     - Don't stack trace on gtk.TreeView with no model attached, even if there is a matching entry in the UI map.
-    - Don't try to monitor combo box popup windows
+    - Don't try to monitor combo box popup windows, also if they aren't menus
