@@ -69,16 +69,23 @@ class CellRendererDescriber:
         return extraInfo
 
     def getColourDescription(self, *args):
-        for property in self.getColourProperties():
-            set_property = self.getValue(property + "-set", *args)
-            if set_property is not False: # Only if it's been explicitly set to False do we care
-                value = self.getValue(property, *args)
-                if value:
-                    return value
-                gdkValue = self.getValue(property + "-gdk", *args)
-                colour = all_colours.get(gdkValue)
-                if colour:
-                    return colour
+        colourDescs = []
+        for prop in self.getColourProperties():
+            desc = self.getColourPropertyDescription(prop, *args)
+            if desc:
+                colourDescs.append(desc)
+        return "/".join(colourDescs)
+
+    def getColourPropertyDescription(self, prop, *args):
+        set_property = self.getValue(prop + "-set", *args)
+        if set_property is not False: # Only if it's been explicitly set to False do we care
+            value = self.getValue(prop, *args)
+            if value:
+                return value
+            gdkValue = self.getValue(prop + "-gdk", *args)
+            colour = all_colours.get(gdkValue)
+            if colour:
+                return colour
 
     def getColourProperties(self):
         return [ "cell-background" ]
