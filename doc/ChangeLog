@@ -258,4 +258,5 @@ PyGTK Bugfixes:
     - gtk.gdk.color_parse no longer causes stacktraces on PyGTK 2.16
     - gtk.MenuItems built by UIManager no longer causes stacktraces on PyGTK 2.16
     - Don't stack trace on gtk.TreeView with no model attached, even if there is a matching entry in the UI map.
+    - Window closure now recorded correctly if application close handler hides the window
     - Don't try to monitor combo box popup windows, also if they aren't menus

@@ -13,6 +13,9 @@ class DeletionEvent(SignalEvent):
         SignalEvent.generate(self, argumentString)
         self.widget.destroy() # just in case...
 
+    def shouldRecord(self, *args):
+        return True # Even if the window is hidden, we still want to record it being closed...
+
 
 class DialogEventHandler:      
     def hasUsecaseName(self):
