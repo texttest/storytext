@@ -443,11 +443,13 @@ class UseCaseRecorder:
     
     def addSignalHandlers(self):
         signal.signal = self.appRegistersSignal
+        # Don't record SIGCHLD unless told to, these are generally ignored
+        # Also don't record SIGCONT, which is sent by LSF when suspension resumed
+        # SIGBUS and SIGSEGV are usually internaly errors
+        ignoreSignals = [ signal.SIGCHLD, signal.SIGCONT, signal.SIGBUS, signal.SIGSEGV ]
         for signum in range(signal.NSIG):
             try:
-                # Don't record SIGCHLD unless told to, these are generally ignored
-                # Also don't record SIGCONT, which is sent by LSF when suspension resumed
-                if signum != signal.SIGCHLD and signum != signal.SIGCONT:
+                if signum not in ignoreSignals:
                     self.realSignalHandlers[signum] = self.origSignal(signum, self.recordSignal)
             except:
                 # Various signals aren't really valid here...
