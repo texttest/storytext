@@ -43,13 +43,7 @@ class ActivateEvent(StateChangeEvent):
     widgetsBlocked = set()
     def __init__(self, name, widget, relevantState):
         StateChangeEvent.__init__(self, name, widget)
-        self.relevantState = self.parseState(relevantState)
-
-    def parseState(self, relevantState):
-        if type(relevantState) == types.StringType:
-            return relevantState == "true"
-        else:
-            return relevantState
+        self.relevantState = relevantState == "true"
 
     def eventIsRelevant(self):
         if self.widget.get_active() != self.relevantState:
@@ -80,9 +74,6 @@ class ActivateEvent(StateChangeEvent):
         except AttributeError:
             return [] # gtk.ToggleToolButton doesn't have this
     
-    def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + repr(self.relevantState).lower()
-
     @classmethod 
     def isRadio(cls, widget):
         if isinstance(widget, gtk.RadioButton) or isinstance(widget, gtk.RadioToolButton) or \

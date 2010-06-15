@@ -26,9 +26,6 @@ class TreeColumnClickEvent(baseevents.SignalEvent):
     def getClassWithSignal(cls):
         return gtk.TreeViewColumn
 
-    def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + getColumnName(self.column)
-
     def getChangeMethod(self):
         return self.column.emit
 
@@ -143,11 +140,6 @@ class CellEvent(TreeViewEvent):
     def _outputForScript(self, path, *args):
         return self.name + " " + self.indexer.path2string(path)
 
-    def getColumnName(self):
-        for column in self.widget.get_columns():
-            if self.cellRenderer in column.get_cell_renderers():
-                return getColumnName(column)
-
     def getPathAsString(self, path):
         # For some reason, the treemodel access methods I use
         # don't like the (3,0) list-type paths created by
@@ -188,9 +180,6 @@ class CellToggleEvent(CellEvent):
     def shouldRecord(self, *args):
         return TreeViewEvent.shouldRecord(self, *args) and self.getValue(*args) == self.relevantState
     
-    def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + self.getColumnName() + "." + repr(self.relevantState).lower()
-
     def getGenerationArguments(self, argumentString):
         path = TreeViewEvent.getGenerationArguments(self, argumentString)[0]
         return [ self.signalName, self.getPathAsString(path) ]
@@ -226,9 +215,6 @@ class CellEditEvent(CellEvent):
         for args in allArgs:
             widget.connect(*args)
 
-    def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + self.getColumnName()
-
     def _outputForScript(self, path, new_text, *args):
         return CellEvent._outputForScript(self, path, new_text, *args) + " = " + new_text
 
@@ -257,9 +243,6 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
     def getAssociatedSignatures(cls, widget):
         return [ "changed.selection" ]
         
-    def getUiMapSignature(self):
-        return "changed.selection"
-
     def connectRecord(self, method):
         self._connectRecord(self.selection, method)
 

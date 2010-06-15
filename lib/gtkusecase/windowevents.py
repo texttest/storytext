@@ -63,12 +63,6 @@ class ResponseEvent(DialogEventHandler, SignalEvent):
     def getProgrammaticChangeMethods(self):
         return [ self.widget.response ]
 
-    def getUiMapSignature(self):
-        return self.getRecordSignal() + "." + self.getResponseIdSignature()
-
-    def getResponseIdSignature(self):
-        return repr(self.responseId).split()[1].split("_")[-1].lower()
-
     def getEmissionArgs(self, argumentString):
         return [ self.responseId ]
 

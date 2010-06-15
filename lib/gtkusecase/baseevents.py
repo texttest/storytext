@@ -20,9 +20,6 @@ class GtkEvent(GuiEvent):
     def getRecordSignal(self):
         return self.signalName
 
-    def getUiMapSignature(self):
-        return self.getRecordSignal()
-
     def connectRecord(self, method):
         self._connectRecord(self.widget, method)
 
