@@ -425,7 +425,8 @@ class UseCaseRecorder:
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
-            self.addSignalHandlers()
+            if os.name != "nt":
+                self.addSignalHandlers()
 
         for entry in dir(signal):
             if entry.startswith("SIG") and not entry.startswith("SIG_"):
