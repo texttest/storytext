@@ -563,7 +563,12 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         return self.makeIdleHandler(method)
 
     def describeAndRun(self):
-        Tkinter._default_root.update_idletasks()
+        try:
+            Tkinter._default_root.update_idletasks()
+        except Tkinter.TclError: # pragma: no cover - pathological and hard to reproduce
+            # Seems to occasionally get called by Tkinter even after application is terminated.
+            # That causes a TclError here. We should ignore it and just terminate
+            return
         guiusecase.UseCaseReplayer.describeAndRun(self)
         self.enableReplayHandler()
 
