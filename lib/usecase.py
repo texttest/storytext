@@ -502,13 +502,16 @@ class UseCaseRecorder:
             if event.implies(*(self.stateChangeEventInfo + args)):
                 self.logger.debug("Implies previous state change event, ignoring previous")
             else:
+                self.logger.debug("Recording previous state change " + repr(self.stateChangeEventInfo[0]))
                 self.record(*self.stateChangeEventInfo)
 
         scriptOutput = event.outputForScript(*args)
         self.writeApplicationEventDetails()
         if event.isStateChange():
+            self.logger.debug("Storing up state change event " + repr(scriptOutput))
             self.stateChangeEventInfo = scriptOutput, event
         else:
+            self.logger.debug("Recording  " + repr(scriptOutput))
             self.stateChangeEventInfo = None
             self.record(scriptOutput, event)
 
@@ -561,6 +564,7 @@ class UseCaseRecorder:
         if len(self.applicationEvents) > 0:
             eventString = ", ".join(sorted(self.applicationEvents.values()))
             self.record(waitCommandName + " " + eventString)
+            self.logger.debug("Recording wait for " + repr(eventString))
             self.applicationEvents = seqdict()
 
     def registerShortcut(self, replayScript):
