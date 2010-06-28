@@ -111,13 +111,8 @@ class Describer:
     def getTooltipText(self, widget):
         if isinstance(widget, gtk.ToolButton):
             return self.getTooltipText(widget.get_child())
-        try:
-            # New 3.12 method...
+        else:
             return widget.get_tooltip_text()
-        except AttributeError:
-            data = gtk.tooltips_data_get(widget)
-            if data:
-                return data[2]
 
     def getSeparator(self, container):
         if isinstance(container, gtk.HBox) or isinstance(container, gtk.HButtonBox) or isinstance(container, gtk.MenuBar):
