@@ -49,7 +49,7 @@ Other Open Source Software packaged with it/used by it:
 
 Installation:
 
-    Go to the "source/lib" directory and run "python setup.py install".
+    Go to the "source" directory and run "python setup.py install".
     On Windows, this will probably install to C:\Pythonxx\Scripts, which will then need to be in your PATH.
     Alternatively on UNIX, just leave the directory in place and add its "source/bin" directory to your PATH
       (and its "source/lib" directory to your PYTHONPATH if you use application events or shortcuts).

@@ -235,7 +235,7 @@ Tkinter Autologging:
 	Tkinter.LabelFrame
 	Tkinter.Menubutton
     - Many more widget updates now picked up
-	Tkinter.Toplevel, changes of title
+	e.g. Tkinter.Toplevel, changes of title
     - Visible borders on Tkinter.Frame get described
     - Layout description improved where items at the bottom are concerned
     - Autologging now picks up widget state, i.e. whether they are greyed out or not
