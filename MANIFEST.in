@@ -2,3 +2,4 @@ include README.txt
 recursive-include doc *
 recursive-include log *
 recursive-include examples *
+recursive-include bin *
