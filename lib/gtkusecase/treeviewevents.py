@@ -121,9 +121,9 @@ class RowRightClickEvent(baseevents.RightClickEvent):
 
 
 class CellEvent(TreeViewEvent):
-    def __init__(self, name, widget, cellRenderer, column, property):
-        self.cellRenderer = cellRenderer
-        self.extractor = gtktreeviewextract.getExtractor(column, cellRenderer, property)
+    def __init__(self, name, widget, column, property):
+        self.cellRenderer = self.findRenderer(column)
+        self.extractor = gtktreeviewextract.getExtractor(column, self.cellRenderer, property)
         TreeViewEvent.__init__(self, name, widget)
 
     def getValue(self, renderer, path, *args):
@@ -153,13 +153,18 @@ class CellEvent(TreeViewEvent):
         return strPath
 
     @classmethod
+    def findRenderer(cls, column):
+        for renderer in column.get_cell_renderers():
+            if isinstance(renderer, cls.getClassWithSignal()):
+                return renderer
+
+    @classmethod
     def getAssociatedSignatures(cls, widget):
         signatures = []
         for column in widget.get_columns():
-            for renderer in column.get_cell_renderers():
-                if isinstance(renderer, cls.getClassWithSignal()):
-                    rootName = cls.signalName + "." + getColumnName(column)
-                    signatures += cls.getSignaturesFrom(rootName)
+            if cls.findRenderer(column):
+                rootName = cls.signalName + "." + getColumnName(column)
+                signatures += cls.getSignaturesFrom(rootName)
         return signatures
     
     @classmethod
@@ -169,9 +174,9 @@ class CellEvent(TreeViewEvent):
 
 class CellToggleEvent(CellEvent):
     signalName = "toggled"
-    def __init__(self, name, widget, cellRenderer, column, relevantState):
+    def __init__(self, name, widget, column, relevantState):
         self.relevantState = relevantState
-        CellEvent.__init__(self, name, widget, cellRenderer, column, "active")        
+        CellEvent.__init__(self, name, widget, column, "active")        
         
     @classmethod
     def getClassWithSignal(cls):

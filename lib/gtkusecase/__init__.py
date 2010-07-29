@@ -185,11 +185,9 @@ class UIMap(guiusecase.UIMap):
         if signalName == "clicked":
             return treeviewevents.TreeColumnClickEvent(eventName, widget, column)
         elif signalName == "toggled":
-            renderer = self.findRenderer(column, gtk.CellRendererToggle)
-            return treeviewevents.CellToggleEvent(eventName, widget, renderer, column, relevantState)
+            return treeviewevents.CellToggleEvent(eventName, widget, column, relevantState)
         elif signalName == "edited":
-            renderer = self.findRenderer(column, gtk.CellRendererText)
-            return treeviewevents.CellEditEvent(eventName, widget, renderer, column)
+            return treeviewevents.CellEditEvent(eventName, widget, column)
         else:
             # If we don't know, create a basic event on the column
             return self.scriptEngine._createSignalEvent(eventName, signalName, column, widget)
@@ -198,11 +196,6 @@ class UIMap(guiusecase.UIMap):
         for column in widget.get_columns():
             if treeviewevents.getColumnName(column) == columnName:
                 return column
-
-    def findRenderer(self, column, cls):
-        for renderer in column.get_cell_renderers():
-            if isinstance(renderer, cls):
-                return renderer
 
     def monitorChildren(self, widget, *args, **kw):
         if hasattr(widget, "get_children") and widget.get_name() != "Shortcut bar" and \
