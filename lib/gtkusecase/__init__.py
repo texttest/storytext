@@ -138,6 +138,8 @@ class UIMap(guiusecase.UIMap):
             return True # Our favourite fake signal...
         elif signalName == "changed" and isinstance(widget, gtk.TextView):
             return True # exists on the buffer
+        elif isinstance(widget, gtk.TreeView):
+            return widget.get_model() is not None
 
         # We tried using gobject.type_name and gobject.signal_list_names but couldn't make it work
         # We go for the brute force approach : actually do it and remove it again and see if we succeed...
@@ -154,49 +156,11 @@ class UIMap(guiusecase.UIMap):
         return guiusecase.UIMap.tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args)
 
     def autoInstrument(self, eventName, signalName, widget, argumentParseData, widgetType):
-        if argumentParseData and isinstance(widget, gtk.TreeView):
-            event = self.makeTreeViewEvent(eventName, widget, argumentParseData, signalName)
-            if event:
-                self.scriptEngine._addEventToScripts(event)
-                return True
-        elif self.widgetHasSignal(widget, signalName):
+        if self.widgetHasSignal(widget, signalName):
             return guiusecase.UIMap.autoInstrument(self, eventName, signalName, widget, argumentParseData)
         else:
             return False
     
-    def splitParseData(self, argumentParseData):
-        if argumentParseData.endswith(".true") or argumentParseData.endswith(".false"):
-            columnName, relevantState = argumentParseData.rsplit(".", 1)
-            return columnName, relevantState == "true"
-        else:
-            return argumentParseData, None
-
-    def makeTreeViewEvent(self, eventName, widget, argumentParseData, signalName):
-        if widget.get_model() is None:
-            return
-        if signalName == "changed" and argumentParseData == "selection":
-            return treeviewevents.TreeSelectionEvent(eventName, widget, widget.get_selection())
-        
-        columnName, relevantState = self.splitParseData(argumentParseData)
-        column = self.findTreeViewColumn(widget, columnName)
-        if not column:
-            raise usecase.UseCaseScriptError, "Could not find column with name " + repr(columnName)
-
-        if signalName == "clicked":
-            return treeviewevents.TreeColumnClickEvent(eventName, widget, column)
-        elif signalName == "toggled":
-            return treeviewevents.CellToggleEvent(eventName, widget, column, relevantState)
-        elif signalName == "edited":
-            return treeviewevents.CellEditEvent(eventName, widget, column)
-        else:
-            # If we don't know, create a basic event on the column
-            return self.scriptEngine._createSignalEvent(eventName, signalName, column, widget)
-
-    def findTreeViewColumn(self, widget, columnName):
-        for column in widget.get_columns():
-            if treeviewevents.getColumnName(column) == columnName:
-                return column
-
     def monitorChildren(self, widget, *args, **kw):
         if hasattr(widget, "get_children") and widget.get_name() != "Shortcut bar" and \
                not isinstance(widget, gtk.FileChooser) and not isinstance(widget, gtk.ToolItem):
@@ -408,11 +372,6 @@ class ScriptEngine(guiusecase.ScriptEngine):
             if eventClass is not baseevents.SignalEvent and eventClass.getAssociatedSignal(widget) == stdSignalName:
                 return eventClass(eventName, widget, argumentParseData)
         
-        try:
-            widget.get_property("sensitive")
-        except:
-            raise usecase.UseCaseScriptError, "Cannot create events for " + widget.__class__.__name__ + \
-                ", it doesn't support basic widget properties"
         return self._createGenericSignalEvent(signalName, eventName, widget)
 
     def _createGenericSignalEvent(self, signalName, *args):

@@ -4,19 +4,29 @@
 import baseevents, gtk, gtktreeviewextract, logging
 from usecase import UseCaseScriptError
 
-# utility method
-def getColumnName(column):
-    name = column.get_data("name")
-    if name:
-        return name
-    else:
-        # PyGTK 2.16 has started returning None here...
-        return column.get_title() or ""
+
+class TreeColumnHelper:
+    @classmethod
+    def findColumn(cls, treeView, columnName):
+        for column in treeView.get_columns():
+            if cls.getColumnName(column) == columnName:
+                return column
+        raise UseCaseScriptError, "Could not find column with name " + repr(columnName)
+
+    @staticmethod
+    def getColumnName(column):
+        name = column.get_data("name")
+        if name:
+            return name
+        else:
+            # PyGTK 2.16 has started returning None here...
+            return column.get_title() or ""
+
 
 class TreeColumnClickEvent(baseevents.SignalEvent):
     signalName = "clicked"
-    def __init__(self, name, widget, column):
-        self.column = column
+    def __init__(self, name, widget, argumentParseData):
+        self.column = TreeColumnHelper.findColumn(widget, argumentParseData)
         baseevents.SignalEvent.__init__(self, name, widget)
 
     def connectRecord(self, method):
@@ -34,7 +44,7 @@ class TreeColumnClickEvent(baseevents.SignalEvent):
         signatures = []
         for column in widget.get_columns():
             if column.get_clickable():
-                signatures.append(cls.signalName + "." + getColumnName(column))
+                signatures.append(cls.signalName + "." + TreeColumnHelper.getColumnName(column))
         return signatures
 
 
@@ -121,7 +131,8 @@ class RowRightClickEvent(baseevents.RightClickEvent):
 
 
 class CellEvent(TreeViewEvent):
-    def __init__(self, name, widget, column, property):
+    def __init__(self, name, widget, columnName, property):
+        column = TreeColumnHelper.findColumn(widget, columnName)
         self.cellRenderer = self.findRenderer(column)
         self.extractor = gtktreeviewextract.getExtractor(column, self.cellRenderer, property)
         TreeViewEvent.__init__(self, name, widget)
@@ -163,7 +174,7 @@ class CellEvent(TreeViewEvent):
         signatures = []
         for column in widget.get_columns():
             if cls.findRenderer(column):
-                rootName = cls.signalName + "." + getColumnName(column)
+                rootName = cls.signalName + "." + TreeColumnHelper.getColumnName(column)
                 signatures += cls.getSignaturesFrom(rootName)
         return signatures
     
@@ -174,9 +185,10 @@ class CellEvent(TreeViewEvent):
 
 class CellToggleEvent(CellEvent):
     signalName = "toggled"
-    def __init__(self, name, widget, column, relevantState):
-        self.relevantState = relevantState
-        CellEvent.__init__(self, name, widget, column, "active")        
+    def __init__(self, name, widget, argumentParseData):
+        columnName, stateStr = argumentParseData.rsplit(".", 1)
+        self.relevantState = stateStr == "true"
+        CellEvent.__init__(self, name, widget, columnName, "active")        
         
     @classmethod
     def getClassWithSignal(cls):
@@ -230,12 +242,12 @@ class CellEditEvent(CellEvent):
 
 
 class TreeSelectionEvent(baseevents.StateChangeEvent):
-    def __init__(self, name, widget, selection):
+    def __init__(self, name, widget, *args):
         self.indexer = TreeViewIndexer.getIndexer(widget)
-        self.selection = selection
+        self.selection = widget.get_selection()
         # cache these before calling base class constructor, or they get intercepted...
-        self.unselect_iter = selection.unselect_iter
-        self.select_iter = selection.select_iter
+        self.unselect_iter = self.selection.unselect_iter
+        self.select_iter = self.selection.select_iter
         self.prevSelected = []
         self.prevDeselections = []
         baseevents.StateChangeEvent.__init__(self, name, widget)

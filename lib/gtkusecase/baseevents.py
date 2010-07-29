@@ -54,7 +54,11 @@ class GtkEvent(GuiEvent):
     def generate(self, argumentString):
         self.checkWidgetStatus()
         args = self.getGenerationArguments(argumentString)
-        self.changeMethod(*args)
+        try:
+            self.changeMethod(*args)
+        except TypeError:
+            raise UseCaseScriptError, "Cannot create generate signal " + repr(self.signalName) + \
+                  " for  widget of type " + repr(self.widget.__class__.__name__)
 
 
 class EmissionStopIntercept(MethodIntercept):
