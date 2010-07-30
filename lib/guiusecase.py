@@ -78,7 +78,21 @@ class ScriptEngine(usecase.ScriptEngine):
     def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ], universalLogging=True, binDir=""):
         self.uiMap = self.createUIMap(uiMapFiles)
         self.binDir = binDir
+        self.addCustomEventTypes()
         usecase.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
+
+    def addCustomEventTypes(self):
+        try:
+            from customwidgetevents import customEventTypes
+            for customWidgetClass, customEventClasses in customEventTypes:
+                for widgetClass, currEventClasses in self.eventTypes:
+                    if widgetClass is customWidgetClass:
+                        # Insert at the start, to give first try to the custom events
+                        currEventClasses[0:0] = customEventClasses
+                        break
+                self.eventTypes.insert(0, (customWidgetClass, customEventClasses))
+        except ImportError:
+            pass
 
     def findEventClassesFor(self, widget):
         eventClasses = []
