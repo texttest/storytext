@@ -32,11 +32,13 @@ PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
 version = usecase.version
 
 # Useful to have at module level as can't really be done externally
-def createShortcutBar(uiMapFiles=[]):
+def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
     if not usecase.scriptEngine: # pragma: no cover - cannot test with replayer disabled
-        usecase.scriptEngine = ScriptEngine(universalLogging=False, uiMapFiles=uiMapFiles)
+        usecase.scriptEngine = ScriptEngine(universalLogging=False,
+                                            uiMapFiles=uiMapFiles, customEventTypes=customEventTypes)
     elif uiMapFiles:
         usecase.scriptEngine.addUiMapFiles(uiMapFiles)
+        usecase.scriptEngine.addCustomEventTypes(customEventTypes)
     return usecase.scriptEngine.createShortcutBar()
         
 
@@ -347,7 +349,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         eventClasses = self.findEventClassesFor(widget) + \
                        [ baseevents.LeftClickEvent, baseevents.RightClickEvent ]
         for eventClass in eventClasses:
-            if eventClass.canHandleEvent(widget, stdSignalName):
+            if eventClass.canHandleEvent(widget, stdSignalName, argumentParseData):
                 return eventClass(eventName, widget, argumentParseData)
 
         if baseevents.SignalEvent.widgetHasSignal(widget, stdSignalName):

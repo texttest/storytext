@@ -18,7 +18,7 @@ class GtkEvent(GuiEvent):
         return cls.signalName
 
     @classmethod
-    def canHandleEvent(cls, widget, signalName):
+    def canHandleEvent(cls, widget, signalName, *args):
         return cls.getAssociatedSignal(widget) == signalName and cls.widgetHasSignal(widget, signalName)
 
     @staticmethod

@@ -75,24 +75,29 @@ class ProgrammaticChangeIntercept(MethodIntercept):
 
 class ScriptEngine(usecase.ScriptEngine):
     defaultMapFile = os.path.join(usecase.ScriptEngine.usecaseHome, "ui_map.conf")
-    def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ], universalLogging=True, binDir=""):
+    def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ],
+                 customEventTypes=[], universalLogging=True, binDir=""):
         self.uiMap = self.createUIMap(uiMapFiles)
         self.binDir = binDir
-        self.addCustomEventTypes()
+        self.addCustomEventTypes(customEventTypes)
+        self.importCustomEventTypes()
         usecase.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
 
-    def addCustomEventTypes(self):
+    def importCustomEventTypes(self):
         try:
             from customwidgetevents import customEventTypes
-            for customWidgetClass, customEventClasses in customEventTypes:
-                for widgetClass, currEventClasses in self.eventTypes:
-                    if widgetClass is customWidgetClass:
-                        # Insert at the start, to give first try to the custom events
-                        currEventClasses[0:0] = customEventClasses
-                        break
-                self.eventTypes.insert(0, (customWidgetClass, customEventClasses))
+            self.addCustomEventTypes(customEventTypes)
         except ImportError:
             pass
+
+    def addCustomEventTypes(self, customEventTypes):
+        for customWidgetClass, customEventClasses in customEventTypes:
+            for widgetClass, currEventClasses in self.eventTypes:
+                if widgetClass is customWidgetClass:
+                    # Insert at the start, to give first try to the custom events
+                    currEventClasses[0:0] = customEventClasses
+                    break
+            self.eventTypes.insert(0, (customWidgetClass, customEventClasses))
 
     def findEventClassesFor(self, widget):
         eventClasses = []
