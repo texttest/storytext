@@ -133,33 +133,9 @@ class UIMap(guiusecase.UIMap):
         return [ "Name=" + widget.get_name(), "Title=" + str(self.getTitle(widget)), 
                  "Label=" + str(self.getLabel(widget)) ]
 
-    def widgetHasSignal(self, widget, signalName):
-        if signalName == "current-name-changed" and isinstance(widget, gtk.FileChooser):
-            return True # Our favourite fake signal...
-        elif signalName == "changed" and isinstance(widget, gtk.TextView):
-            return True # exists on the buffer
-        elif isinstance(widget, gtk.TreeView):
-            return widget.get_model() is not None
-
-        # We tried using gobject.type_name and gobject.signal_list_names but couldn't make it work
-        # We go for the brute force approach : actually do it and remove it again and see if we succeed...
-        try:
-            def nullFunc(*args) : pass
-            handler = widget.connect(signalName, nullFunc)
-            widget.disconnect(handler)
-            return True
-        except TypeError:
-            return False
-
     def tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args):
         signature = signature.replace("notify-", "notify::")
         return guiusecase.UIMap.tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args)
-
-    def autoInstrument(self, eventName, signalName, widget, argumentParseData, widgetType):
-        if self.widgetHasSignal(widget, signalName):
-            return guiusecase.UIMap.autoInstrument(self, eventName, signalName, widget, argumentParseData)
-        else:
-            return False
     
     def monitorChildren(self, widget, *args, **kw):
         if hasattr(widget, "get_children") and widget.get_name() != "Shortcut bar" and \
@@ -368,19 +344,14 @@ class ScriptEngine(guiusecase.ScriptEngine):
                                 
     def _createSignalEvent(self, eventName, signalName, widget, argumentParseData):
         stdSignalName = signalName.replace("_", "-")
-        for eventClass in self.findEventClassesFor(widget):
-            if eventClass is not baseevents.SignalEvent and eventClass.getAssociatedSignal(widget) == stdSignalName:
+        eventClasses = self.findEventClassesFor(widget) + \
+                       [ baseevents.LeftClickEvent, baseevents.RightClickEvent ]
+        for eventClass in eventClasses:
+            if eventClass.canHandleEvent(widget, stdSignalName):
                 return eventClass(eventName, widget, argumentParseData)
-        
-        return self._createGenericSignalEvent(signalName, eventName, widget)
 
-    def _createGenericSignalEvent(self, signalName, *args):
-        for eventClass in [ baseevents.LeftClickEvent, baseevents.RightClickEvent ]:
-            if eventClass.signalName == signalName:
-                return eventClass(*args)
-
-        newArgs = args + (signalName,)
-        return baseevents.SignalEvent(*newArgs)
+        if baseevents.SignalEvent.widgetHasSignal(widget, stdSignalName):
+            return baseevents.SignalEvent(eventName, widget, stdSignalName)
 
     def getDescriptionInfo(self):
         return "PyGTK", "gtk", "signals", "http://library.gnome.org/devel/pygtk/stable/class-gtk"

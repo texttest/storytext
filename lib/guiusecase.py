@@ -95,8 +95,9 @@ class ScriptEngine(usecase.ScriptEngine):
     def monitorSignal(self, eventName, signalName, widget, argumentParseData=None):
         if self.active():
             signalEvent = self._createSignalEvent(eventName, signalName, widget, argumentParseData)
-            self._addEventToScripts(signalEvent)
-            return signalEvent
+            if signalEvent:
+                self._addEventToScripts(signalEvent)
+                return signalEvent
 
     def _addEventToScripts(self, event):
         if event.name and self.replayerActive():

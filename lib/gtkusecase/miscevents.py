@@ -117,6 +117,10 @@ class TextViewEvent(StateChangeEvent):
         buffer = self.widget.get_buffer()
         return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
 
+    @staticmethod
+    def widgetHasSignal(widget, signalName):
+        return isinstance(widget, gtk.TextView) # exists on the buffer
+
     def getChangeMethod(self):
         return self.widget.get_buffer().set_text
 

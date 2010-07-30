@@ -17,6 +17,26 @@ class GtkEvent(GuiEvent):
     def getAssociatedSignal(cls, widget):
         return cls.signalName
 
+    @classmethod
+    def canHandleEvent(cls, widget, signalName):
+        return cls.getAssociatedSignal(widget) == signalName and cls.widgetHasSignal(widget, signalName)
+
+    @staticmethod
+    def widgetHasSignal(widget, signalName):
+        if isinstance(widget, gtk.TreeView):
+            # Ignore this for treeviews: as they have no title/label they can't really get confused with other stuff
+            return widget.get_model() is not None
+
+        # We tried using gobject.type_name and gobject.signal_list_names but couldn't make it work
+        # We go for the brute force approach : actually do it and remove it again and see if we succeed...
+        try:
+            def nullFunc(*args) : pass
+            handler = widget.connect(signalName, nullFunc)
+            widget.disconnect(handler)
+            return True
+        except TypeError:
+            return False
+
     def getRecordSignal(self):
         return self.signalName
 
@@ -75,7 +95,9 @@ class SignalEvent(GtkEvent):
         GtkEvent.__init__(self, name, widget)
         if signalName:
             self.signalName = signalName
-        # else we assume it's defined at the class level
+        else:
+            self.signalName = self.getAssociatedSignal(widget)
+
     @classmethod
     def getAssociatedSignal(cls, widget):
         if hasattr(cls, "signalName"):
@@ -84,12 +106,16 @@ class SignalEvent(GtkEvent):
             return "clicked"
         elif isinstance(widget, gtk.Entry):
             return "activate"
+
     def getRecordSignal(self):
         return self.signalName
+
     def getChangeMethod(self):
         return self.widget.emit
+
     def getGenerationArguments(self, argumentString):
         return [ self.signalName ] + self.getEmissionArgs(argumentString)
+
     def getEmissionArgs(self, argumentString):
         return []
 

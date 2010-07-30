@@ -122,6 +122,10 @@ class FileChooserEntryEvent(FileChooserFileEvent):
     def __init__(self, name, fileChooser, *args):
         FileChooserFileEvent.__init__(self, name, fileChooser)
 
+    @staticmethod
+    def widgetHasSignal(widget, signalName):
+        return isinstance(widget, gtk.FileChooser) # not a real signal, so we fake it
+
     def _connectRecord(self, widget, method):
         # Wait for the dialog to be closed before we record
         # We must therefore be first among the handlers so we can record
