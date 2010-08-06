@@ -395,6 +395,10 @@ class UIMap:
                     signatures.append(signature)
         return signatures
 
+    def findPossibleSectionNames(self, widget):
+        return [ "Name=" + self.getName(widget), "Title=" + str(self.getTitle(widget)), 
+                 "Label=" + str(self.getLabel(widget)) ]
+
     def findSection(self, widget, widgetType):
         sectionNames = self.findPossibleSectionNames(widget) + [ "Type=" + widgetType ]
         for sectionName in sectionNames:

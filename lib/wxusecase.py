@@ -22,11 +22,7 @@ wx.App = App
 class UIMap(guiusecase.UIMap):
     def getChildren(self, widget):
         return widget.GetChildren()
-    
-    def findPossibleSectionNames(self, widget):
-        return [ "Name=" + widget.GetName(), "Title=" + str(self.getTitle(widget)), 
-                 "Label=" + self.getLabel(widget) ]
-    
+        
     def getTitle(self, widget):
         try:
             return widget.GetTitle()

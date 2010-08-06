@@ -417,11 +417,7 @@ def getMenuParentLabel(widget, defaultLabel=""):
 class UIMap(guiusecase.UIMap):
     def getChildren(self, widget):
         return widget.winfo_children()
-    
-    def findPossibleSectionNames(self, widget):
-        return [ "Name=" + widget.winfo_name(), "Title=" + str(self.getTitle(widget)), 
-                 "Label=" + self.getLabel(widget) ]
-    
+        
     def getTitle(self, widget):
         try:
             return widget.title()
