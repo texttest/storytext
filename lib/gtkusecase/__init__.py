@@ -138,18 +138,13 @@ class UIMap(guiusecase.UIMap):
                 self.monitor(child, *args, **kw)
 
     def monitorWindow(self, window):
-        if window not in self.windows:
-            self.windows.append(window)
-            if isinstance(window, origDialog):
-                # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
-                # which may have been added since then...
-                self.logger.debug("Monitoring children for dialog with title " + repr(window.get_title()))
-                return self.monitorChildren(window, excludeWidget=window.action_area)
-            else:
-                self.logger.debug("Monitoring new window with title " + repr(window.get_title()) + ", type hint " + repr(window.get_type_hint()))
-                return self.monitor(window)
+        if isinstance(window, origDialog):
+            # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
+            # which may have been added since then...
+            self.logger.debug("Monitoring children for dialog with title " + repr(window.get_title()))
+            return self.monitorChildren(window, excludeWidget=window.action_area)
         else:
-            return False
+            return guiusecase.UIMap.monitorWindow(self, window)
 
 
 class ScriptEngine(guiusecase.ScriptEngine):

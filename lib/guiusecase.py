@@ -324,6 +324,17 @@ class UIMap:
     def getMapFileNames(self):
         return [ parser.fileName for parser in self.fileHandler.writeParsers ]
 
+    def monitorAndStoreWindow(self, window):
+        if window not in self.windows:
+            self.windows.append(window)
+            return self.monitorWindow(window)
+        else:
+            return False
+
+    def monitorWindow(self, window):
+        self.logger.debug("Monitoring new window with title " + repr(self.getTitle(window)))
+        return self.monitor(window)
+
     def monitor(self, widget, excludeWidget=None, mapFileOnly=False):
         mapFileOnly |= widget is excludeWidget
         autoInstrumented = self.monitorWidget(widget, mapFileOnly)
@@ -441,7 +452,7 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
     def handleNewWindows(self):
         for window in self.findWindowsForMonitoring():
             if self.uiMap and (self.isActive() or self.recorder.isActive()):
-                self.uiMap.monitorWindow(window)
+                self.uiMap.monitorAndStoreWindow(window)
             if self.loggerActive:
                 self.describeNewWindow(window)
         return self.callHandleAgain()

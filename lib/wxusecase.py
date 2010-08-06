@@ -20,14 +20,6 @@ class App(origApp):
 wx.App = App
         
 class UIMap(guiusecase.UIMap):
-    def monitorWindow(self, window):
-        if window not in self.windows:
-            self.windows.append(window)
-            self.logger.debug("Monitoring new window with title " + repr(window.GetTitle()))
-            return self.monitor(window)
-        else:
-            return False
-
     def monitorChildren(self, widget, *args, **kw):
         for child in widget.GetChildren():
             self.monitor(child, *args, **kw)

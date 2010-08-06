@@ -415,14 +415,6 @@ def getMenuParentLabel(widget, defaultLabel=""):
         return defaultLabel
 
 class UIMap(guiusecase.UIMap):
-    def monitorWindow(self, window):
-        if window not in self.windows:
-            self.windows.append(window)
-            self.logger.debug("Monitoring new window with title " + repr(window.title()))
-            return self.monitor(window)
-        else:
-            return False
-
     def monitorChildren(self, widget, *args, **kw):
         for child in widget.winfo_children():
             self.monitor(child, *args, **kw)
