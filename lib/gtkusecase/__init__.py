@@ -132,10 +132,15 @@ class UIMap(guiusecase.UIMap):
         return guiusecase.UIMap.tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args)
     
     def monitorChildren(self, widget, *args, **kw):
-        if hasattr(widget, "get_children") and widget.get_name() != "Shortcut bar" and \
+        if widget.get_name() != "Shortcut bar" and \
                not isinstance(widget, gtk.FileChooser) and not isinstance(widget, gtk.ToolItem):
-            for child in widget.get_children():
-                self.monitor(child, *args, **kw)
+            guiusecase.UIMap.monitorChildren(self, widget)
+
+    def getChildren(self, widget):
+        if hasattr(widget, "get_children"):
+            return widget.get_children()
+        else:
+            return []
 
     def monitorWindow(self, window):
         if isinstance(window, origDialog):

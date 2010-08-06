@@ -341,6 +341,10 @@ class UIMap:
         self.monitorChildren(widget, excludeWidget, mapFileOnly)
         return autoInstrumented
 
+    def monitorChildren(self, widget, *args, **kw):
+        for child in self.getChildren(widget):
+            self.monitor(child, *args, **kw)
+
     def monitorWidget(self, widget, mapFileOnly=False):
         signaturesInstrumented, autoInstrumented = self.instrumentFromMapFile(widget)
         if not mapFileOnly and self.scriptEngine.recorderActive():

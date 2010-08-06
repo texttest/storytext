@@ -20,10 +20,9 @@ class App(origApp):
 wx.App = App
         
 class UIMap(guiusecase.UIMap):
-    def monitorChildren(self, widget, *args, **kw):
-        for child in widget.GetChildren():
-            self.monitor(child, *args, **kw)
-
+    def getChildren(self, widget):
+        return widget.GetChildren()
+    
     def findPossibleSectionNames(self, widget):
         return [ "Name=" + widget.GetName(), "Title=" + str(self.getTitle(widget)), 
                  "Label=" + self.getLabel(widget) ]
