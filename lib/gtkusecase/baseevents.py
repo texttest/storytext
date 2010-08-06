@@ -102,9 +102,9 @@ class SignalEvent(GtkEvent):
     def getAssociatedSignal(cls, widget):
         if hasattr(cls, "signalName"):
             return cls.signalName
-        elif isinstance(widget, gtk.Button) or isinstance(widget, gtk.ToolButton):
+        elif widget.isInstanceOf(gtk.Button) or widget.isInstanceOf(gtk.ToolButton):
             return "clicked"
-        elif isinstance(widget, gtk.Entry):
+        elif widget.isInstanceOf(gtk.Entry):
             return "activate"
 
     def getRecordSignal(self):

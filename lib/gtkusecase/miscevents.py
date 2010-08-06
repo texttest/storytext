@@ -76,8 +76,8 @@ class ActivateEvent(StateChangeEvent):
     
     @classmethod 
     def isRadio(cls, widget):
-        if isinstance(widget, gtk.RadioButton) or isinstance(widget, gtk.RadioToolButton) or \
-            isinstance(widget, gtk.RadioMenuItem):
+        if widget.isInstanceOf(gtk.RadioButton) or widget.isInstanceOf(gtk.RadioToolButton) or \
+           widget.isInstanceOf(gtk.RadioMenuItem):
             return True
         action = toggleActionProxies.get(widget)
         return action and isinstance(action, gtk.RadioAction)
@@ -119,7 +119,7 @@ class TextViewEvent(StateChangeEvent):
 
     @staticmethod
     def widgetHasSignal(widget, signalName):
-        return isinstance(widget, gtk.TextView) # exists on the buffer
+        return widget.isInstanceOf(gtk.TextView) # exists on the buffer
 
     def getChangeMethod(self):
         return self.widget.get_buffer().set_text
