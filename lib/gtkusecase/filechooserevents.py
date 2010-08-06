@@ -124,7 +124,7 @@ class FileChooserEntryEvent(FileChooserFileEvent):
 
     @staticmethod
     def widgetHasSignal(widget, signalName):
-        return isinstance(widget, gtk.FileChooser) # not a real signal, so we fake it
+        return widget.isInstanceOf(gtk.FileChooser) # not a real signal, so we fake it
 
     def _connectRecord(self, widget, method):
         # Wait for the dialog to be closed before we record
