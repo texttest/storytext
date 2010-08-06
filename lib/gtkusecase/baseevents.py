@@ -23,7 +23,7 @@ class GtkEvent(GuiEvent):
 
     @staticmethod
     def widgetHasSignal(widget, signalName):
-        if isinstance(widget, gtk.TreeView):
+        if widget.isInstanceOf(gtk.TreeView):
             # Ignore this for treeviews: as they have no title/label they can't really get confused with other stuff
             return widget.get_model() is not None
 
@@ -77,8 +77,8 @@ class GtkEvent(GuiEvent):
         try:
             self.changeMethod(*args)
         except TypeError:
-            raise UseCaseScriptError, "Cannot create generate signal " + repr(self.signalName) + \
-                  " for  widget of type " + repr(self.widget.__class__.__name__)
+            raise UseCaseScriptError, "Cannot generate signal " + repr(self.signalName) + \
+                  " for  widget of type " + repr(self.widget.getType())
 
 
 class EmissionStopIntercept(MethodIntercept):

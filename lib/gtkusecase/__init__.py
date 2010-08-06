@@ -260,7 +260,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         newButton = gtk.Button()
         newButton.set_use_underline(1)
         newButton.set_label("_New")
-        self.monitorSignal("create new shortcut", "clicked", WidgetAdapter(newButton))
+        self.monitorSignal("create new shortcut", "clicked", newButton)
         newButton.connect("clicked", self.createShortcut, buttonbox)
         newButton.show()
         buttonbox.pack_start(newButton, expand=False, fill=False)
@@ -270,7 +270,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         buttonName = replayScript.getShortcutName()
         button.set_use_underline(1)
         button.set_label(buttonName)
-        self.monitorSignal(buttonName.lower(), "clicked", WidgetAdapter(button))
+        self.monitorSignal(buttonName.lower(), "clicked", button)
         button.connect("clicked", self.replayShortcut, replayScript)
         firstCommand = replayScript.commands[0]
         button.show()
@@ -282,12 +282,12 @@ class ScriptEngine(guiusecase.ScriptEngine):
         buttonbox.pack_start(label, expand=False, fill=False)
         entry = gtk.Entry()
         entry.set_name("Shortcut Name")
-        self.monitorSignal("set shortcut name to", "changed", WidgetAdapter(entry))
+        self.monitorSignal("set shortcut name to", "changed", entry)
         buttonbox.pack_start(entry, expand=False, fill=False)
         stopButton = gtk.Button()
         stopButton.set_use_underline(1)
         stopButton.set_label("S_top")
-        self.monitorSignal("stop recording", "clicked", WidgetAdapter(stopButton))
+        self.monitorSignal("stop recording", "clicked", stopButton)
         stopButton.connect("clicked", self.stopRecording, label, entry, buttonbox, existingbox)
 
         self.recorder.blockTopLevel("stop recording")
@@ -353,7 +353,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
 
     def addSignals(self, classes, widgetClass, currEventClasses, module):
         try:
-            widget = widgetClass()
+            widget = WidgetAdapter(widgetClass())
         except:
             widget = None
         signalNames = set()

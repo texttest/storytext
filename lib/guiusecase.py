@@ -151,12 +151,15 @@ class ScriptEngine(usecase.ScriptEngine):
                     eventClasses += currEventClasses
         return eventClasses
 
-    def monitorSignal(self, eventName, signalName, widget, argumentParseData=None):
+    def monitorSignal(self, eventName, signalName, widget, *args, **kw):
         if self.active():
-            signalEvent = self._createSignalEvent(eventName, signalName, widget, argumentParseData)
-            if signalEvent:
-                self._addEventToScripts(signalEvent)
-                return signalEvent
+            return self._monitorSignal(eventName, signalName, WidgetAdapter.adapt(widget), *args, **kw)
+
+    def _monitorSignal(self, eventName, signalName, widget, argumentParseData=None):
+        signalEvent = self._createSignalEvent(eventName, signalName, widget, argumentParseData)
+        if signalEvent:
+            self._addEventToScripts(signalEvent)
+            return signalEvent
 
     def _addEventToScripts(self, event):
         if event.name and self.replayerActive():
@@ -456,7 +459,7 @@ class UIMap:
 
     def autoInstrument(self, eventName, signalName, widget, argumentParseData, *args):
         self.logger.debug("Monitor " + eventName + ", " + signalName + ", " + str(widget.__class__) + ", " + str(argumentParseData))
-        self.scriptEngine.monitorSignal(eventName, signalName, widget, argumentParseData)
+        self.scriptEngine._monitorSignal(eventName, signalName, widget, argumentParseData)
         return True
 
     def getSectionName(self, widget):
