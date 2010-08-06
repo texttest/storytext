@@ -18,6 +18,12 @@ class WidgetAdapter:
     def __getattr__(self, name):
         return getattr(self.widget, name)
 
+    def __hash__(self):
+        return hash(self.widget)
+
+    def __cmp__(self, other):
+        return cmp(self.widget, other)
+
     def getTitle(self):
         try:
             return self.getWidgetTitle()
