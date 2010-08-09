@@ -52,6 +52,20 @@ class ButtonEvent(guiusecase.GuiEvent):
         self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
         
     
+class ListCtrlEvent(guiusecase.GuiEvent):
+    def connectRecord(self, method):
+        def handler(event):
+            method(event, self)
+            event.Skip()
+        self.widget.Bind(wx.EVT_LIST_ITEM_SELECTED, handler)
+            
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Select"
+
+    def generate(self, *args):
+        self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_MENU_SELECTED, self.widget.GetId())) 
+
 class UseCaseReplayer(guiusecase.UseCaseReplayer):
     def __init__(self, *args, **kw):
         guiusecase.UseCaseReplayer.__init__(self, *args, **kw)
@@ -95,6 +109,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (wx.Button      , [ ButtonEvent ]),
+        (wx.ListCtrl,     [ ListCtrlEvent ]),
         ]
     signalDescs = {
         }
