@@ -1,8 +1,9 @@
+import pdb
 
 # Experimental and rather basic support for wx
 
 import guiusecase, os, time, wx, logging
-#from usecase import UseCaseScriptError
+from usecase import UseCaseScriptError
 #from ndict import seqdict
 
 origApp = wx.App
@@ -51,20 +52,45 @@ class ButtonEvent(guiusecase.GuiEvent):
     def generate(self, *args):
         self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
         
-    
 class ListCtrlEvent(guiusecase.GuiEvent):
     def connectRecord(self, method):
         def handler(event):
             method(event, self)
             event.Skip()
         self.widget.Bind(wx.EVT_LIST_ITEM_SELECTED, handler)
-            
+
     @classmethod
     def getAssociatedSignal(cls, widget):
-        return "Select"
+        return "ListCtrlSelect"
 
-    def generate(self, *args):
-        self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_MENU_SELECTED, self.widget.GetId())) 
+    def generate(self, argumentString):
+        self._clearSelection()
+        label_list = argumentString.split(',')
+        for label in label_list:
+            index = self._findIndex(label)
+            self.widget.Select(index, 1)
+
+    def _clearSelection(self):
+        for i in range(self.widget.ItemCount):
+            self.widget.Select(i, 0)
+
+    def _findIndex(self, label):
+        for i in range(self.widget.ItemCount):
+            if self.widget.GetItemText(i) == label:
+                return i
+        raise UseCaseScriptError, "Could not find item '" + label + "' in ListCtrl."
+
+    def outputForScript(self, *args):
+        texts = []
+        i = -1
+        while True:
+            i = self.widget.GetNextSelected(i)
+            if i == -1:
+                break
+            else:
+                texts.append(self.widget.GetItemText(i))
+        return self.name + " " + ",".join(texts)
+                
 
 class UseCaseReplayer(guiusecase.UseCaseReplayer):
     def __init__(self, *args, **kw):
@@ -109,9 +135,10 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (wx.Button      , [ ButtonEvent ]),
-        (wx.ListCtrl,     [ ListCtrlEvent ]),
+        (wx.ListCtrl    , [ ListCtrlEvent ]),
         ]
     signalDescs = {
+        "<<ListCtrlSelect>>": "select item",
         }
     columnSignalDescs = {} 
     def createReplayer(self, universalLogging=False):
