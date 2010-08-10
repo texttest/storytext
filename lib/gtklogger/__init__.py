@@ -503,14 +503,15 @@ class IdleScheduler:
         self.disabledWidgets = set()
         self.enabledWidgets = set()
         
-    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, titleOnly=False):
+    def monitor(self, monitorWidget, signals, prefix="", describeWidget=None, titleOnly=False, priority=1):
         if describeWidget is None:
             describeWidget = monitorWidget
         # So that we can order things correctly
         if not describeWidget in self.allWidgets:
             self.allWidgets.append(describeWidget)
+        usePriority = priority + int(titleOnly) * 100
         for signal in signals:
-            self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, titleOnly
+            self.widgetMapping.setdefault(monitorWidget, {})[signal] = describeWidget, prefix, titleOnly, usePriority
             monitorWidget.connect(signal, self.scheduleDescribeCallback, signal)
 
     def getChildWidgets(self, widget):
@@ -571,13 +572,13 @@ class IdleScheduler:
                 return signalMapping.get(arg)
 
     def scheduleDescribeCallback(self, widget, *args):
-        describeWidget, prefix, titleOnly = self.lookupWidget(widget, *args)
-        self.scheduleDescribe(describeWidget, prefix, titleOnly)
+        widgetData = self.lookupWidget(widget, *args)
+        self.scheduleDescribe(*widgetData)
 
-    def scheduleDescribe(self, widget, prefix="Showing ", titleOnly=False):
-        otherPrefix, otherTitleOnly = self.widgetsForDescribe.get(widget, (None, None))
-        if otherTitleOnly is None or (otherTitleOnly and not titleOnly):
-            self.widgetsForDescribe[widget] = prefix, titleOnly
+    def scheduleDescribe(self, widget, prefix="Showing ", titleOnly=False, priority=1):
+        otherPrefix, otherTitleOnly, otherPriority = self.widgetsForDescribe.get(widget, (None, None, None))
+        if otherPriority is None or (priority is not None and priority < otherPriority):
+            self.widgetsForDescribe[widget] = prefix, titleOnly, priority
 
         self.tryEnableIdleHandler()
         
@@ -595,7 +596,7 @@ class IdleScheduler:
             return True
         
         if parent in self.widgetsForDescribe:
-            prefix, titleOnly = self.widgetsForDescribe.get(parent)
+            prefix, titleOnly, priority = self.widgetsForDescribe.get(parent)
             # If we're describing the parent in full, and not just its title, we shouldn't redescribe the children
             if not titleOnly:
                 return False
@@ -623,7 +624,7 @@ class IdleScheduler:
             Describer.logger.info("No longer greyed out : " + ", ".join(sorted(self.enabledWidgets)))
 
         for widget in self.sorted(self.widgetsForDescribe.keys()):
-            prefix, titleOnly = self.widgetsForDescribe.get(widget)
+            prefix, titleOnly, priority = self.widgetsForDescribe.get(widget)
             if prefix == "Hiding":
                 Describer.logger.info("Hiding the '" + Describer.getBriefDescription(widget) + "' widget")
             elif self.shouldDescribeUpdate(widget):
