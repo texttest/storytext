@@ -57,9 +57,6 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         guiusecase.UseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
 
-    def makeDescribeHandler(self, method):
-        return self.makeIdleHandler(method)
-
     def makeIdleHandler(self, method):
         if wx.GetApp():
             return wx.GetApp().Bind(wx.EVT_IDLE, method)
@@ -80,16 +77,6 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
     def removeHandler(self, handler):
         # Need to do this for real handlers, don't need it yet
         wx.App.idle_methods = []
-
-    def callHandleAgain(self):
-        pass
-
-    def makeIdleReplayHandler(self, method):
-        return self.makeIdleHandler(method)
-
-    def describeAndRun(self, *args):
-        guiusecase.UseCaseReplayer.describeAndRun(self)
-        self.enableReplayHandler()
 
 
 class ScriptEngine(guiusecase.ScriptEngine):

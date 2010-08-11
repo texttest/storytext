@@ -435,5 +435,5 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         if window.get_property("visible"):
             gtklogger.describeNewWindow(window)
 
-    def callHandleAgain(self):
+    def callReplayHandlerAgain(self):
         return True # GTK's way of saying the handle should come again

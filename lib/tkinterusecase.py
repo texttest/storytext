@@ -495,9 +495,6 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         guiusecase.UseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
 
-    def makeDescribeHandler(self, method):
-        return self.makeIdleHandler(method)
-
     def makeIdleHandler(self, method):
         if Tkinter._default_root:
             return Tkinter._default_root.after(0, method)
@@ -520,19 +517,12 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         #Tkinter._default_root.after_cancel(handler)
         Tk.idle_methods = []
 
-    def callHandleAgain(self):
-        pass
-        #self.idleHandler = Tkinter._default_root.after_idle(self.handleNewWindows)
-
     def makeTimeoutReplayHandler(self, method, milliseconds): 
         if Tkinter._default_root:
             return Tkinter._default_root.after(milliseconds, method)
         else:
             Tk.timeout_methods.append((milliseconds, method))
             return True # anything to show we've got something
-
-    def makeIdleReplayHandler(self, method):
-        return self.makeIdleHandler(method)
 
     def describeAndRun(self):
         try:
@@ -542,8 +532,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
             # That causes a TclError here. We should ignore it and just terminate
             return
         guiusecase.UseCaseReplayer.describeAndRun(self)
-        self.enableReplayHandler()
-
+        
 
 class Describer:
     statelessWidgets = [ Tkinter.Button, Tkinter.Menubutton, Tkinter.Frame,
