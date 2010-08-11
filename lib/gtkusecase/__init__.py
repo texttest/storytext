@@ -23,12 +23,11 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import baseevents, windowevents, filechooserevents, treeviewevents, miscevents
-import guiusecase, usecase, gtklogger, gtktreeviewextract, gtk, gobject, os, logging, sys
+import guiusecase, usecase, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys
 from ndict import seqdict
 
 
-PRIORITY_PYUSECASE_IDLE = gtklogger.PRIORITY_PYUSECASE_IDLE
+PRIORITY_PYUSECASE_IDLE = describer.PRIORITY_PYUSECASE_IDLE
 version = usecase.version
 
 # Useful to have at module level as can't really be done externally
@@ -41,45 +40,6 @@ def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
         usecase.scriptEngine.addCustomEventTypes(customEventTypes)
     return usecase.scriptEngine.createShortcutBar()
         
-
-origDialog = gtk.Dialog
-origFileChooserDialog = gtk.FileChooserDialog    
-
-class DialogHelper:
-    def tryMonitor(self):
-        self.doneMonitoring = self.doMonitoring()
-        if self.doneMonitoring:
-            self.connect = self.connect_after_monitor
-
-    def set_name(self, *args):
-        origDialog.set_name(self, *args)
-        if not self.doneMonitoring:
-            self.doMonitoring()
-            self.connect = self.connect_after_monitor
-
-    def doMonitoring(self):
-        return self.uiMap.monitorDialog(WidgetAdapter(self))
-            
-    def connect_after_monitor(self, signalName, *args):
-        handler = origDialog.connect(self, signalName, *args)
-        if signalName == "response":
-            windowevents.ResponseEvent.storeHandler(self, handler, args=args)
-        return handler
-
-
-class Dialog(DialogHelper, origDialog):
-    uiMap = None
-    def __init__(self, *args, **kw):
-        origDialog.__init__(self, *args, **kw)
-        self.tryMonitor()
-
-
-class FileChooserDialog(DialogHelper, origFileChooserDialog):
-    uiMap = None
-    def __init__(self, *args, **kw):
-        origFileChooserDialog.__init__(self, *args, **kw)
-        self.tryMonitor()
-
 
 class WidgetAdapter(guiusecase.WidgetAdapter):
     def getChildWidgets(self):
@@ -117,72 +77,8 @@ class WidgetAdapter(guiusecase.WidgetAdapter):
 guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
 
 
-class UIMap(guiusecase.UIMap):
-    ignoreWidgetTypes = [ "Label" ]
-    def __init__(self, *args): 
-        guiusecase.UIMap.__init__(self, *args)
-        gtk.Dialog = Dialog
-        Dialog.uiMap = self
-        gtk.FileChooserDialog = FileChooserDialog
-        FileChooserDialog.uiMap = self
-        gtk.quit_add(1, self.fileHandler.write) # Write changes to the GUI map when the application exits
-        
-    def monitorDialog(self, dialog):
-        if self.monitorWidget(dialog):
-            self.logger.debug("Picked up file-monitoring for dialog '" + self.getSectionName(dialog))
-            return True
-        else:
-            return False
-                             
-    def tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args):
-        signature = signature.replace("notify-", "notify::")
-        return guiusecase.UIMap.tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args)
-    
-    def monitorChildren(self, widget, *args, **kw):
-        if widget.getName() != "Shortcut bar" and \
-               not widget.isInstanceOf(gtk.FileChooser) and not widget.isInstanceOf(gtk.ToolItem):
-            guiusecase.UIMap.monitorChildren(self, widget)
-
-    def monitorWindow(self, window):
-        if window.isInstanceOf(origDialog):
-            # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
-            # which may have been added since then...
-            self.logger.debug("Monitoring children for dialog with title " + repr(window.getTitle()))
-            return self.monitorChildren(window, excludeWidget=window.action_area)
-        else:
-            return guiusecase.UIMap.monitorWindow(self, window)
-
-
 class ScriptEngine(guiusecase.ScriptEngine):
-    eventTypes = [
-        (gtk.Button           , [ baseevents.SignalEvent ]),
-        (gtk.ToolButton       , [ baseevents.SignalEvent ]),
-        (gtk.MenuItem         , [ miscevents.MenuItemSignalEvent ]),
-        (gtk.CheckMenuItem    , [ miscevents.MenuActivateEvent ]),
-        (gtk.ToggleButton     , [ miscevents.ActivateEvent ]),
-        (gtk.ToggleToolButton , [ miscevents.ActivateEvent ]),
-        (gtk.ComboBoxEntry    , []), # just use the entry, don't pick up ComboBoxEvents
-        (gtk.ComboBox         , [ miscevents.ComboBoxEvent ]),
-        (gtk.Entry            , [ miscevents.EntryEvent, 
-                                  baseevents.SignalEvent ]),
-        (gtk.TextView         , [ miscevents.TextViewEvent ]),
-        (gtk.FileChooser      , [ filechooserevents.FileChooserFileSelectEvent, 
-                                  filechooserevents.FileChooserFolderChangeEvent, 
-                                  filechooserevents.FileChooserEntryEvent ]),
-        (gtk.Dialog           , [ windowevents.ResponseEvent, 
-                                  windowevents.DeletionEvent ]),
-        (gtk.Window           , [ windowevents.DeletionEvent ]),
-        (gtk.Notebook         , [ miscevents.NotebookPageChangeEvent ]),
-        (gtk.Paned            , [ miscevents.PaneDragEvent ]),
-        (gtk.TreeView         , [ treeviewevents.RowActivationEvent, 
-                                  treeviewevents.TreeSelectionEvent, 
-                                  treeviewevents.RowExpandEvent, 
-                                  treeviewevents.RowCollapseEvent, 
-                                  treeviewevents.RowRightClickEvent, 
-                                  treeviewevents.CellToggleEvent,
-                                  treeviewevents.CellEditEvent, 
-                                  treeviewevents.TreeColumnClickEvent ])
-]
+    eventTypes = simulator.eventTypes
     signalDescs = { 
         "row-activated" : "double-clicked row",
         "changed.selection" : "clicked on row",
@@ -201,24 +97,24 @@ class ScriptEngine(guiusecase.ScriptEngine):
         }
     def __init__(self, universalLogging=True, **kw):
         guiusecase.ScriptEngine.__init__(self, universalLogging=universalLogging, **kw)
-        gtklogger.setMonitoring(universalLogging)
-        if self.uiMap or gtklogger.isEnabled():
-            gtktreeviewextract.performInterceptions()
-            miscevents.performInterceptions()
+        describer.setMonitoring(universalLogging)
+        if self.uiMap or describer.isEnabled():
+            treeviewextract.performInterceptions()
+            simulator.performInterceptions()
 
     def createUIMap(self, uiMapFiles):
         if uiMapFiles:
-            return UIMap(self, uiMapFiles)
+            return simulator.UIMap(self, uiMapFiles)
         
     def addUiMapFiles(self, uiMapFiles):
         if self.uiMap:
             self.uiMap.readFiles(uiMapFiles)
         else:
-            self.uiMap = UIMap(self, uiMapFiles)
+            self.uiMap = simulator.UIMap(self, uiMapFiles)
         if self.replayer:
             self.replayer.addUiMap(self.uiMap)
-        if not gtklogger.isEnabled():
-            gtktreeviewextract.performInterceptions()
+        if not describer.isEnabled():
+            treeviewextract.performInterceptions()
                      
     def createShortcutBar(self):
         # Standard thing to add at the bottom of the GUI...
@@ -339,14 +235,13 @@ class ScriptEngine(guiusecase.ScriptEngine):
                                 
     def _createSignalEvent(self, eventName, signalName, widget, argumentParseData):
         stdSignalName = signalName.replace("_", "-")
-        eventClasses = self.findEventClassesFor(widget) + \
-                       [ baseevents.LeftClickEvent, baseevents.RightClickEvent ]
+        eventClasses = self.findEventClassesFor(widget) + simulator.universalEventClasses
         for eventClass in eventClasses:
             if eventClass.canHandleEvent(widget, stdSignalName, argumentParseData):
                 return eventClass(eventName, widget, argumentParseData)
 
-        if baseevents.SignalEvent.widgetHasSignal(widget, stdSignalName):
-            return baseevents.SignalEvent(eventName, widget, stdSignalName)
+        if simulator.fallbackEventClass.widgetHasSignal(widget, stdSignalName):
+            return simulator.fallbackEventClass(eventName, widget, stdSignalName)
 
     def getDescriptionInfo(self):
         return "PyGTK", "gtk", "signals", "http://library.gnome.org/devel/pygtk/stable/class-gtk"
@@ -370,7 +265,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         classes[className] = sorted(signalNames)
 
     def getSupportedLogWidgets(self):
-        return gtklogger.Describer.supportedWidgets
+        return describer.Describer.supportedWidgets
 
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
@@ -388,7 +283,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
             self.tryAddDescribeHandler()
         
     def makeDescribeHandler(self, method):
-        return gobject.idle_add(method, priority=gtklogger.PRIORITY_PYUSECASE_IDLE)
+        return gobject.idle_add(method, priority=describer.PRIORITY_PYUSECASE_IDLE)
             
     def tryRemoveDescribeHandler(self):
         if not self.isMonitoring() and not self.readingEnabled: # pragma: no cover - cannot test code with replayer disabled
@@ -414,10 +309,10 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         gobject.source_remove(handler)
 
     def makeTimeoutReplayHandler(self, method, milliseconds):
-        return gobject.timeout_add(milliseconds, method, priority=gtklogger.PRIORITY_PYUSECASE_REPLAY_IDLE)
+        return gobject.timeout_add(milliseconds, method, priority=describer.PRIORITY_PYUSECASE_REPLAY_IDLE)
 
     def makeIdleReplayHandler(self, method):
-        return gobject.idle_add(method, priority=gtklogger.PRIORITY_PYUSECASE_REPLAY_IDLE)
+        return gobject.idle_add(method, priority=describer.PRIORITY_PYUSECASE_REPLAY_IDLE)
 
     def shouldMonitorWindow(self, window):
         hint = window.get_type_hint()
@@ -433,7 +328,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def describeNewWindow(self, window):
         if window.get_property("visible"):
-            gtklogger.describeNewWindow(window)
+            describer.describeNewWindow(window)
 
     def callReplayHandlerAgain(self):
         return True # GTK's way of saying the handle should come again

@@ -4,8 +4,9 @@ Logging TreeViews is complicated because there are several ways to set them up
 and little direct support for extracting information from them. So they get their own module.
 """
 
-import gtktreeviewextract, gtk, logging
+import gtk, logging
 from images import ImageDescriber
+from ..treeviewextract import getAllExtractors
 
 class ColourSpecMap(dict):
     def __setitem__(self, colour, spec):
@@ -198,7 +199,7 @@ class TreeViewDescriber:
         self.describersOK = True
         for column in self.view.get_columns():
             for renderer in column.get_cell_renderers():
-                extractors = gtktreeviewextract.getAllExtractors(column, renderer)
+                extractors = getAllExtractors(column, renderer)
                 if extractors:
                     className = renderer.__class__.__name__ + "Describer"
                     describers.append(eval(className + "(extractors)"))

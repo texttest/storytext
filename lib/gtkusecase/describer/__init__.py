@@ -16,9 +16,6 @@ PRIORITY_PYUSECASE_LOG_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 10
 
 idleScheduler = None
 
-def gtk_has_filechooser_bug():
-    return gtk.gtk_version >= (2, 14, 0) and gtk.gtk_version < (2, 16, 3)
-
 def isEnabled():
     return Describer.isEnabled()
 
@@ -359,15 +356,11 @@ class Describer:
             text += " (selected '" + currFile.replace("\\", "/") + "')"
         if self.prefix.startswith("Updated"):
             return text
-        if gtk_has_filechooser_bug():
-            # See http://bugzilla.gnome.org/show_bug.cgi?id=586315, list_shortcut_folders just dumps core in GTK 2.14
-            text += "\nShortcut folders unknown due to bug in GTK 2.14, fixed in 2.16.3"
-        else:
-            folders = fileChooser.list_shortcut_folders()
-            if len(folders):
-                text += "\nShortcut folders (" + repr(len(folders)) + ") :"
-                for folder in folders:
-                    text += "\n- " + folder.replace("\\", "/")
+        folders = fileChooser.list_shortcut_folders()
+        if len(folders):
+            text += "\nShortcut folders (" + repr(len(folders)) + ") :"
+            for folder in folders:
+                text += "\n- " + folder.replace("\\", "/")
         return text    
     
     def getNotebookDescription(self, notebook):

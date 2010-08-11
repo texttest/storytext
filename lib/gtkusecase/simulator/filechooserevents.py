@@ -4,7 +4,7 @@
 from baseevents import StateChangeEvent
 from windowevents import DialogEventHandler, ResponseEvent
 from usecase import UseCaseScriptError
-import gtk, gtklogger, os
+import gtk, os
 
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
 # Seems quite capable of generating too many of them also
@@ -38,8 +38,6 @@ class FileChooserFolderChangeEvent(DialogEventHandler, StateChangeEvent):
         return os.path.basename(self.widget.get_current_folder())
 
     def getStateChangeArgument(self, argumentString):
-        if gtklogger.gtk_has_filechooser_bug():
-            raise UseCaseScriptError, "Cannot replay changes of folder in file choosers due to bug in GTK 2.14, fixed in GTK 2.16.3"
         for folder in self.widget.list_shortcut_folders():
             if os.path.basename(folder) == argumentString:
                 return folder
