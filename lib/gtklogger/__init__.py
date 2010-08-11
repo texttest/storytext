@@ -161,7 +161,7 @@ class Describer:
 
     def getLabelDescription(self, widget):
         idleScheduler.monitor(widget, [ "notify::label" ], "\nChanging " + widget.get_name() + " to: ")
-        text = "'" + widget.get_text() + "'"
+        text = "'" + widget.get_label() + "'"
         if "Changing" in self.prefix:
             return self.prefix + text
         else:
