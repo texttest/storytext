@@ -500,13 +500,22 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         else:
             self.idleHandler = None
 
+    def makeDescribeHandler(self, method):
+        return self.makeIdleHandler(method)
+
+    def makeIdleReplayHandler(self, method):
+        return self.makeIdleHandler(method)
+
     def handleNewWindows(self):
         for window in self.findWindowsForMonitoring():
             if self.uiMap and (self.isActive() or self.recorder.isActive()):
                 self.uiMap.monitorAndStoreWindow(window)
             if self.loggerActive:
                 self.describeNewWindow(window)
-        return self.callHandleAgain()
+        return True
+
+    def callReplayHandlerAgain(self):
+        self.enableReplayHandler()
 
     def enableReading(self):
         self.readingEnabled = True
@@ -528,7 +537,7 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         else:
             return self.makeIdleReplayHandler(method)
 
-    def describeAndRun(self):
+    def describeAndRun(self, *args):
         self.handleNewWindows()
         if self.readingEnabled:
             self.readingEnabled = self.runNextCommand()
@@ -540,4 +549,7 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
                     self.logger.debug("Shortcut terminated: Resetting UI map ready for next shortcut")
                     self.uiMap.windows = [] 
                     self.events = {}
-        return self.readingEnabled
+        if self.readingEnabled:
+            return self.callReplayHandlerAgain()
+        else:
+            return False

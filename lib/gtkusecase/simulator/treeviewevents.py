@@ -1,9 +1,9 @@
 
 """ Wrappers for events around gtk.TreeView objects """
 
-import baseevents, gtk, gtktreeviewextract, logging
+import baseevents, gtk, logging
+from .. import treeviewextract
 from usecase import UseCaseScriptError
-
 
 class TreeColumnHelper:
     @classmethod
@@ -134,7 +134,7 @@ class CellEvent(TreeViewEvent):
     def __init__(self, name, widget, columnName, property):
         column = TreeColumnHelper.findColumn(widget, columnName)
         self.cellRenderer = self.findRenderer(column)
-        self.extractor = gtktreeviewextract.getExtractor(column, self.cellRenderer, property)
+        self.extractor = treeviewextract.getExtractor(column, self.cellRenderer, property)
         TreeViewEvent.__init__(self, name, widget)
 
     def getValue(self, renderer, path, *args):
@@ -223,7 +223,7 @@ class CellEditEvent(CellEvent):
     def _connectRecord(self, widget, method):
         # Push our way to the front of the queue
         # We need to be able to tell when things have changed
-        connectInfo = gtktreeviewextract.cellRendererConnectInfo.get(widget, [])
+        connectInfo = treeviewextract.cellRendererConnectInfo.get(widget, [])
         allArgs = [ info[1] for info in connectInfo ]
         for handler, args in connectInfo:
             if widget.handler_is_connected(handler):
@@ -410,7 +410,7 @@ class TreeViewIndexer:
 
     def tryPopulateMapping(self):
         if not self.extractor:
-            self.extractor = gtktreeviewextract.getTextExtractor(*self.rendererInfo)
+            self.extractor = treeviewextract.getTextExtractor(*self.rendererInfo)
             if self.extractor:
                 self.model.foreach(self.rowInserted)
                 self.model.connect("row-changed", self.rowInserted)

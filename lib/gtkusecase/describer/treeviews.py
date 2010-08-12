@@ -4,8 +4,9 @@ Logging TreeViews is complicated because there are several ways to set them up
 and little direct support for extracting information from them. So they get their own module.
 """
 
-import gtktreeviewextract, gtk, logging
+import gtk, logging
 from images import ImageDescriber
+from ..treeviewextract import getAllExtractors
 
 class ColourSpecMap(dict):
     def __setitem__(self, colour, spec):
@@ -152,9 +153,10 @@ class TreeViewDescriber:
         self.describersOK = False
         self.idleScheduler = idleScheduler
         if self.model:
-            idleScheduler.monitor(self.model, treeModelSignals, "Updated : ", self.view)
-        idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ")
-        idleScheduler.monitor(self.view, [ "row-collapsed" ], "Collapsed row in ")
+            idleScheduler.monitor(self.model, treeModelSignals, "Updated : ", self.view, priority=2)
+        idleScheduler.monitor(self.view, [ "row-expanded" ], "Expanded row in ", priority=3)
+        idleScheduler.monitor(self.view, [ "row-collapsed" ], "Collapsed row in ", priority=3)
+        idleScheduler.monitor(self.view.get_selection(), [ "changed" ], "Changed selection in ", self.view, priority=4)
         for column in self.view.get_columns():
             idleScheduler.monitor(column, [ "notify::title" ], "Column titles changed in ", self.view, titleOnly=True)
             
@@ -163,7 +165,7 @@ class TreeViewDescriber:
         self.model = model
         self.rendererDescribers = []
         self.describersOK = False
-        self.idleScheduler.scheduleDescribe(self.view)
+        self.idleScheduler.scheduleDescribe(self.view, prefix="Recreated ")
 
     def getDescription(self, prefix):
         columns = self.view.get_columns()
@@ -183,7 +185,9 @@ class TreeViewDescriber:
             colDescriptions = [ d.getDescription(self.model, iter) for d in self.rendererDescribers ]
             while not colDescriptions[-1]:
                 colDescriptions.pop()
-            data = " | ".join(colDescriptions) 
+            data = " | ".join(colDescriptions)
+            if self.view.get_selection().iter_is_selected(iter):
+                data += "   ***"
             message += "-> " + " " * 2 * indent + data + "\n"
             if self.view.row_expanded(self.model.get_path(iter)):
                 message += self.getSubTreeDescription(self.model.iter_children(iter), indent + 1)
@@ -195,7 +199,7 @@ class TreeViewDescriber:
         self.describersOK = True
         for column in self.view.get_columns():
             for renderer in column.get_cell_renderers():
-                extractors = gtktreeviewextract.getAllExtractors(column, renderer)
+                extractors = getAllExtractors(column, renderer)
                 if extractors:
                     className = renderer.__class__.__name__ + "Describer"
                     describers.append(eval(className + "(extractors)"))
