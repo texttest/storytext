@@ -505,6 +505,8 @@ class Describer:
         idleScheduler.monitor(window, [ "notify::title" ], updateDesc, titleOnly=True)
         message = "-" * 10 + " " + title + " " + "-" * 10
         self.logger.info("\n" + message)
+        if window.maximize_initially:
+            self.logger.info("Window is maximized initially")
         if window.default_widget:
             self.logger.info("Default widget is '" + self.getBriefDescription(window.default_widget) + "'")
         elif window.focus_widget:
