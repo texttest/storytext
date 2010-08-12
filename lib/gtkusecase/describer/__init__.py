@@ -16,6 +16,42 @@ PRIORITY_PYUSECASE_LOG_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 10
 
 idleScheduler = None
 
+origEntryCompletion = gtk.EntryCompletion
+
+class EntryCompletion(origEntryCompletion):
+    def __init__(self, *args, **kw):
+        origEntryCompletion.__init__(self, *args, **kw)
+        self.realMatchFunction = None
+        self.realMatchFunctionArgs = ()
+
+    def getText(self, iter):
+        return self.get_model().get_value(iter, self.get_text_column())
+
+    def matches(self, key, iter):
+        if self.realMatchFunction:
+            return self.realMatchFunction(self, key, iter, *self.realMatchFunctionArgs)
+        else:
+            # Default implementation, lifted from PyGTK documentation
+            return key and self.getText(iter).startswith(key)
+
+    def getCurrentTexts(self):
+        key = self.get_entry().get_text()
+        texts = []
+        def getTextIfMatching(model, path, iter):
+            if self.matches(key, iter):
+                texts.append(self.getText(iter))
+        self.get_model().foreach(getTextIfMatching)
+        return texts
+
+    def set_match_func(self, function, *args):
+        self.realMatchFunction = function
+        self.realMatchFunctionArgs = args
+        origEntryCompletion.set_match_func(self, function)
+
+
+def performEntryCompletionInterceptions():
+    gtk.EntryCompletion = EntryCompletion
+
 def isEnabled():
     return Describer.isEnabled()
 
@@ -30,6 +66,7 @@ def setMonitoring(loggingEnabled=False):
     if not idleScheduler:
         idleScheduler = IdleScheduler(loggingEnabled)
         if loggingEnabled:
+            performEntryCompletionInterceptions()
             performTreeViewInterceptions()
             performImageInterceptions()
 
@@ -331,7 +368,20 @@ class Describer:
         entryText = entry.get_text()
         if entryText:
             text += " (set to '" + entryText + "')"
+        if self.prefix == "Edited ":
+            text += self.getCompletionDescription(entry.get_completion())
         return text
+
+    def getCompletionDescription(self, completion):
+        if completion:
+            texts = completion.getCurrentTexts()
+            if len(texts):
+                text = "completions " + repr(texts)
+                if completion.get_inline_completion():
+                    return " (inline " + text + ")"
+                else:
+                    return " (" + text + ")"
+        return ""
 
     def getTypeDescription(self, entry):
         if isinstance(entry, gtk.SpinButton):
