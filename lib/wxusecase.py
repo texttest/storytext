@@ -49,8 +49,11 @@ class FrameEvent(guiusecase.GuiEvent):
     def getAssociatedSignal(cls, widget):
         return "Close"
 
+    def getChangeMethod(self):
+        return self.widget.Close
+
     def generate(self, *args):
-        self.widget.Close()
+        self.changeMethod()
 
 class ButtonEvent(guiusecase.GuiEvent):
     def connectRecord(self, method):
@@ -77,16 +80,19 @@ class ListCtrlEvent(guiusecase.GuiEvent):
     def getAssociatedSignal(cls, widget):
         return "ListCtrlSelect"
 
+    def getChangeMethod(self):
+        return self.widget.Select
+
     def generate(self, argumentString):
         self._clearSelection()
         label_list = argumentString.split(',')
         for label in label_list:
             index = self._findIndex(label)
-            self.widget.Select(index, 1)
+            self.changeMethod(index, 1)
 
     def _clearSelection(self):
         for i in range(self.widget.ItemCount):
-            self.widget.Select(i, 0)
+            self.changeMethod(i, 0)
 
     def _findIndex(self, label):
         for i in range(self.widget.ItemCount):
