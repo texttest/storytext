@@ -38,6 +38,20 @@ class WidgetAdapter(guiusecase.WidgetAdapter):
 
 guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
 
+class FrameEvent(guiusecase.GuiEvent):
+    def connectRecord(self, method):
+        def handler(event):
+            method(event, self)
+            event.Skip()
+        self.widget.Bind(wx.EVT_CLOSE, handler)
+            
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Close"
+
+    def generate(self, *args):
+        self.widget.Close()
+
 class ButtonEvent(guiusecase.GuiEvent):
     def connectRecord(self, method):
         def handler(event):
@@ -121,6 +135,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
+        (wx.Frame       , [ FrameEvent ]),
         (wx.Button      , [ ButtonEvent ]),
         (wx.ListCtrl    , [ ListCtrlEvent ]),
         ]
