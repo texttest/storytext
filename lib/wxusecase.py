@@ -1,4 +1,3 @@
-import pdb
 
 # Experimental and rather basic support for wx
 
@@ -75,6 +74,13 @@ class ListCtrlEvent(guiusecase.GuiEvent):
             method(event, self)
             event.Skip()
         self.widget.Bind(wx.EVT_LIST_ITEM_SELECTED, handler)
+
+    def isStateChange(self):
+        return True
+
+    def implies(self, prevLine, *args):
+        currOutput = self.outputForScript()
+        return currOutput.startswith(prevLine)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
