@@ -3,7 +3,7 @@
 
 import guiusecase, os, time, wx, logging
 from usecase import UseCaseScriptError
-#from ndict import seqdict
+from ndict import seqdict
 
 origApp = wx.App
 
@@ -182,10 +182,11 @@ class ScriptEngine(guiusecase.ScriptEngine):
 
 class Describer:
     statelessWidgets = [ wx.Button ]
-    stateWidgets = []
+    stateWidgets = [ wx.ListCtrl ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
+        self.widgetsWithState = seqdict()
 
     def describe(self, window):
         if window in self.windows:
@@ -233,3 +234,15 @@ class Describer:
         if labelText:
             text += " '" + labelText + "'"
         return text
+
+    def getListCtrlState(self, widget):
+        text = ".................\n"
+        for i in range(widget.ItemCount):
+            text += "-> " + widget.GetItemText(i) + "\n"
+        text += ".................\n"
+        return text
+
+    def getListCtrlDescription(self, widget):
+        state = self.getListCtrlState(widget)
+        self.widgetsWithState[widget] = state
+        return state
