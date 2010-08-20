@@ -296,7 +296,7 @@ class Describer:
         return state
 
     def getTextCtrlDescription(self, widget):
-        text = "Text Contrl"
+        text = "Text Control"
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         if state:
