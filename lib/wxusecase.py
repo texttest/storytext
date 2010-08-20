@@ -79,6 +79,13 @@ class TextCtrlEvent(guiusecase.GuiEvent):
     def getAssociatedSignal(cls, widget):
         return "TextEnter"
 
+    def isStateChange(self):
+        return True
+
+    def implies(self, prevLine, *args):
+        currOutput = self.outputForScript()
+        return currOutput.startswith(prevLine)
+
     def getChangeMethod(self):
         return self.widget.SetValue
 
