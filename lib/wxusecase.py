@@ -263,7 +263,7 @@ class Describer:
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
         
-        return ""
+        return "Widget state unknown for type '" + widget.__class__.__name__ + "'" # pragma: no cover - unreachable
 
     def getButtonDescription(self, widget):
         text = "Button"
