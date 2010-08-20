@@ -67,7 +67,28 @@ class ButtonEvent(guiusecase.GuiEvent):
 
     def generate(self, *args):
         self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
+
+class TextCtrlEvent(guiusecase.GuiEvent):
+    def connectRecord(self, method):
+        def handler(event):
+            method(event, self)
+            event.Skip()
+        self.widget.Bind(wx.EVT_TEXT, handler)
         
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "TextEnter"
+
+    def getChangeMethod(self):
+        return self.widget.SetValue
+
+    def generate(self, argumentString):
+        self.changeMethod(argumentString)
+
+    def outputForScript(self, *args):
+        text = self.widget.GetValue()
+        return ' '.join([self.name, text])
+
 class ListCtrlEvent(guiusecase.GuiEvent):
     def connectRecord(self, method):
         def handler(event):
@@ -149,6 +170,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (wx.Frame       , [ FrameEvent ]),
         (wx.Button      , [ ButtonEvent ]),
+        (wx.TextCtrl    , [ TextCtrlEvent ]),
         (wx.ListCtrl    , [ ListCtrlEvent ]),
         ]
     signalDescs = {
@@ -181,8 +203,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 class Describer:
-    statelessWidgets = [ wx.Button ]
-    stateWidgets = [ wx.ListCtrl ]
+    statelessWidgets = [ wx.Button, wx.Frame ]
+    stateWidgets = [ wx.ListCtrl, wx.TextCtrl ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -228,11 +250,30 @@ class Describer:
         
         return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
 
+    def getState(self, widget):
+        state = self.getSpecificState(widget)
+        return state.strip()
+
+    def getSpecificState(self, widget):
+        for widgetClass in self.stateWidgets:
+            if isinstance(widget, widgetClass):
+                methodName = "get" + widgetClass.__name__ + "State"
+                return getattr(self, methodName)(widget)
+        
+        return ""
+
     def getButtonDescription(self, widget):
         text = "Button"
         labelText = widget.GetLabel()
         if labelText:
             text += " '" + labelText + "'"
+        return text
+
+    def getFrameDescription(self, widget):
+        text = "Frame"
+        titleText = widget.GetTitle()
+        if titleText:
+            text += " '" + titleText + "'"
         return text
 
     def getListCtrlState(self, widget):
@@ -243,6 +284,18 @@ class Describer:
         return text
 
     def getListCtrlDescription(self, widget):
-        state = self.getListCtrlState(widget)
+        state = self.getState(widget)
         self.widgetsWithState[widget] = state
         return state
+
+    def getTextCtrlDescription(self, widget):
+        text = "Text Contrl"
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        if state:
+            text += " (preset to '" + state + "')"
+        return text
+
+    def getTextCtrlState(self, widget):
+        text = widget.GetValue()
+        return text
