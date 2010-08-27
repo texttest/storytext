@@ -82,10 +82,6 @@ class TextCtrlEvent(guiusecase.GuiEvent):
     def isStateChange(self):
         return True
 
-    def implies(self, prevLine, *args):
-        currOutput = self.outputForScript()
-        return currOutput.startswith(prevLine)
-
     def getChangeMethod(self):
         return self.widget.SetValue
 
@@ -210,20 +206,20 @@ class ScriptEngine(guiusecase.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 class Describer:
-    statelessWidgets = [ wx.Button, wx.Frame ]
+    statelessWidgets = [ wx.Button, wx.Frame, wx.ScrolledWindow, wx.Window ]
     stateWidgets = [ wx.ListCtrl, wx.TextCtrl ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
-        self.windows = set()
+        self.frames = set()
         self.widgetsWithState = seqdict()
 
-    def describe(self, window):
-        if window in self.windows:
+    def describe(self, frame):
+        if frame in self.frames:
             return
-        self.windows.add(window)
-        message = "-" * 10 + " Window '" + window.GetTitle() + "' " + "-" * 10
+        self.frames.add(frame)
+        message = "-" * 10 + " Frame '" + frame.GetTitle() + "' " + "-" * 10
         self.logger.info("\n" + message)
-        self.logger.info(self.getChildrenDescription(window))
+        self.logger.info(self.getChildrenDescription(frame))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
 
@@ -250,7 +246,7 @@ class Describer:
         return desc.rstrip()
 
     def getWidgetDescription(self, widget):
-        for widgetClass in self.statelessWidgets + self.stateWidgets:
+        for widgetClass in self.stateWidgets + self.statelessWidgets:
             if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "Description"
                 return getattr(self, methodName)(widget)
@@ -267,7 +263,7 @@ class Describer:
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
         
-        return ""
+        return "Widget state unknown for type '" + widget.__class__.__name__ + "'" # pragma: no cover - unreachable
 
     def getButtonDescription(self, widget):
         text = "Button"
@@ -276,12 +272,11 @@ class Describer:
             text += " '" + labelText + "'"
         return text
 
-    def getFrameDescription(self, widget):
-        text = "Frame"
-        titleText = widget.GetTitle()
-        if titleText:
-            text += " '" + titleText + "'"
-        return text
+    def getScrolledWindowDescription(self, widget):
+        return ""
+
+    def getWindowDescription(self, widget):
+        return ""
 
     def getListCtrlState(self, widget):
         text = ".................\n"
@@ -296,7 +291,7 @@ class Describer:
         return state
 
     def getTextCtrlDescription(self, widget):
-        text = "Text Contrl"
+        text = "Text Control"
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         if state:
