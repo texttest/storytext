@@ -16,7 +16,6 @@ class App(origApp):
             self.GetTopWindow().Bind(wx.EVT_IDLE, idle_method)
         for milliseconds, timeout_method in self.timeout_methods:
             wx.CallLater(milliseconds, timeout_method)
-            #self.GetTopWindow().Bind(wx.EVT_IDLE, timeout_method)
 
     def MainLoop(self):
         self.setUpHandlers()
