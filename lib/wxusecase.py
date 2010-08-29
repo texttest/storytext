@@ -15,7 +15,8 @@ class App(origApp):
         for idle_method in self.idle_methods:
             self.GetTopWindow().Bind(wx.EVT_IDLE, idle_method)
         for milliseconds, timeout_method in self.timeout_methods:
-            self.GetTopWindow().Bind(wx.EVT_IDLE, timeout_method)
+            wx.CallLater(milliseconds, timeout_method)
+            #self.GetTopWindow().Bind(wx.EVT_IDLE, timeout_method)
 
     def MainLoop(self):
         self.setUpHandlers()
@@ -174,8 +175,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def makeTimeoutReplayHandler(self, method, milliseconds):
         if wx.GetApp():
-            time.sleep(milliseconds/1000)
-            return True
+            wx.CallLater(milliseconds, method)
         else:
             wx.App.timeout_methods.append((milliseconds, method))
             return True
