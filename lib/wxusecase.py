@@ -41,48 +41,38 @@ class WidgetAdapter(guiusecase.WidgetAdapter):
 
 guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
 
-class FrameEvent(guiusecase.GuiEvent):
+class SignalEvent(guiusecase.GuiEvent):
     def connectRecord(self, method):
         def handler(event):
             method(event, self)
             event.Skip()
-        self.widget.Bind(wx.EVT_CLOSE, handler)
-            
+        self.widget.Bind(self.event, handler)
+
     @classmethod
     def getAssociatedSignal(cls, widget):
-        return "Close"
+        return cls.signal
 
+class FrameEvent(SignalEvent):
+    event = wx.EVT_CLOSE
+    signal = 'Close'
+            
     def getChangeMethod(self):
         return self.widget.Close
 
     def generate(self, *args):
         self.changeMethod()
 
-class ButtonEvent(guiusecase.GuiEvent):
-    def connectRecord(self, method):
-        def handler(event):
-            method(event, self)
-            event.Skip()
-        self.widget.Bind(wx.EVT_BUTTON, handler)
+class ButtonEvent(SignalEvent):
+    event = wx.EVT_BUTTON
+    signal = 'Press'
             
-    @classmethod
-    def getAssociatedSignal(cls, widget):
-        return "Press"
-
     def generate(self, *args):
         self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
 
-class TextCtrlEvent(guiusecase.GuiEvent):
-    def connectRecord(self, method):
-        def handler(event):
-            method(event, self)
-            event.Skip()
-        self.widget.Bind(wx.EVT_TEXT, handler)
+class TextCtrlEvent(SignalEvent):
+    event = wx.EVT_TEXT
+    signal = 'TextEnter'
         
-    @classmethod
-    def getAssociatedSignal(cls, widget):
-        return "TextEnter"
-
     def isStateChange(self):
         return True
 
@@ -96,12 +86,9 @@ class TextCtrlEvent(guiusecase.GuiEvent):
         text = self.widget.GetValue()
         return ' '.join([self.name, text])
 
-class ListCtrlEvent(guiusecase.GuiEvent):
-    def connectRecord(self, method):
-        def handler(event):
-            method(event, self)
-            event.Skip()
-        self.widget.Bind(wx.EVT_LIST_ITEM_SELECTED, handler)
+class ListCtrlEvent(SignalEvent):
+    event = wx.EVT_LIST_ITEM_SELECTED
+    signal = 'ListCtrlSelect'
 
     def isStateChange(self):
         return True
@@ -109,10 +96,6 @@ class ListCtrlEvent(guiusecase.GuiEvent):
     def implies(self, prevLine, *args):
         currOutput = self.outputForScript()
         return currOutput.startswith(prevLine)
-
-    @classmethod
-    def getAssociatedSignal(cls, widget):
-        return "ListCtrlSelect"
 
     def getChangeMethod(self):
         return self.widget.Select
@@ -162,7 +145,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         return wx.GetTopLevelWindows()
 
     def handleNewWindows(self, *args):
-        #self.describer.describeUpdates()
+        self.describer.describeUpdates()
         guiusecase.UseCaseReplayer.handleNewWindows(self)
 
     def describeNewWindow(self, window):
@@ -216,8 +199,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 class Describer:
-    statelessWidgets = [ wx.Button, wx.Frame, wx.ScrolledWindow, wx.Window ]
-    stateWidgets = [ wx.ListCtrl, wx.TextCtrl ]
+    statelessWidgets = [ wx.Button, wx.ScrolledWindow, wx.Window ]
+    stateWidgets = [ wx.Frame, wx.ListCtrl, wx.TextCtrl ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.frames = set()
@@ -228,10 +211,27 @@ class Describer:
             return
         self.frames.add(frame)
         message = "-" * 10 + " Frame '" + frame.GetTitle() + "' " + "-" * 10
+        self.widgetsWithState[frame] = frame.GetTitle()
         self.logger.info("\n" + message)
         self.logger.info(self.getChildrenDescription(frame))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
+
+    # TODO factoring out a parent class for the describers of wx and tkinter
+    # this is exactly the same code from tkinterusecase.py
+    def describeUpdates(self):
+        defunctWidgets = []
+        for widget, oldState in self.widgetsWithState.items():
+            try:
+                state = self.getState(widget)
+                if state != oldState:
+                    self.logger.info(self.getStateChangeDescription(widget, oldState, state))
+                    self.widgetsWithState[widget] = state
+            except:
+                # If the frame where it existed has been removed, for example...
+                defunctWidgets.append(widget)
+        for widget in defunctWidgets:
+            del self.widgetsWithState[widget]
 
     def addToDescription(self, desc, newText):
         if newText:
@@ -263,6 +263,9 @@ class Describer:
         
         return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
 
+    def getStateChangeDescription(self, widget, oldState, state):
+        return 'updated with new state:\n' + state
+
     def getState(self, widget):
         state = self.getSpecificState(widget)
         return state.strip()
@@ -272,7 +275,6 @@ class Describer:
             if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
-        
         return "Widget state unknown for type '" + widget.__class__.__name__ + "'" # pragma: no cover - unreachable
 
     def getButtonDescription(self, widget):
@@ -288,10 +290,16 @@ class Describer:
     def getWindowDescription(self, widget):
         return ""
 
+    def getWindowState(self, widget):
+        return widget.GetTitle()
+
     def getListCtrlState(self, widget):
         text = ".................\n"
         for i in range(widget.ItemCount):
-            text += "-> " + widget.GetItemText(i) + "\n"
+            if widget.IsSelected(i):
+                text += "-> " + widget.GetItemText(i) + "***\n"
+            else:
+                text += "-> " + widget.GetItemText(i) + "\n"
         text += ".................\n"
         return text
 
