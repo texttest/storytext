@@ -68,7 +68,7 @@ class UIMap(guiusecase.UIMap):
     def monitorChildren(self, widget, *args, **kw):
         if widget.getName() != "Shortcut bar" and \
                not widget.isInstanceOf(gtk.FileChooser) and not widget.isInstanceOf(gtk.ToolItem):
-            guiusecase.UIMap.monitorChildren(self, widget)
+            guiusecase.UIMap.monitorChildren(self, widget, *args, **kw)
 
     def monitorWindow(self, window):
         if window.isInstanceOf(origDialog):
