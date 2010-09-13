@@ -90,7 +90,7 @@ class UseCaseNameChooser:
         dialog.vbox.pack_start(preview, expand=True, fill=True)
         yesButton = dialog.add_button(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT)
         dialog.set_default_response(gtk.RESPONSE_ACCEPT)
-        self.scriptEngine.monitorSignal("finish name entry editing", "response", dialog, gtk.RESPONSE_ACCEPT)
+        self.scriptEngine.monitorSignal("finish name entry editing", "clicked", yesButton)
         dialog.show_all()
         return dialog
         

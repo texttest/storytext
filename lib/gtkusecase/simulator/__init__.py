@@ -9,25 +9,13 @@ origFileChooserDialog = gtk.FileChooserDialog
 
 class DialogHelper:
     def tryMonitor(self):
-        self.doneMonitoring = self.doMonitoring()
-        if self.doneMonitoring:
-            self.connect = self.connect_after_monitor
-
-    def set_name(self, *args):
-        origDialog.set_name(self, *args)
-        if not self.doneMonitoring:
-            self.doMonitoring()
-            self.connect = self.connect_after_monitor
-
-    def doMonitoring(self):
-        return self.uiMap.monitorDialog(self)
+        if self.uiMap.scriptEngine.recorderActive():
+            self.connect_for_real = self.connect
+            self.connect = self.store_connect
             
-    def connect_after_monitor(self, signalName, *args):
-        handler = origDialog.connect(self, signalName, *args)
-        if signalName == "response":
-            windowevents.ResponseEvent.storeHandler(self, handler, args=args)
-        return handler
-
+    def store_connect(self, signalName, *args):
+        windowevents.ResponseEvent.storeApplicationConnect(self, signalName, *args)
+        
 
 class Dialog(DialogHelper, origDialog):
     uiMap = None
@@ -52,15 +40,7 @@ class UIMap(guiusecase.UIMap):
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
         gtk.quit_add(1, self.fileHandler.write) # Write changes to the GUI map when the application exits
-        
-    def monitorDialog(self, dialog):
-        adaptedDialog = guiusecase.WidgetAdapter.adapt(dialog)
-        if self.monitorWidget(adaptedDialog):
-            self.logger.debug("Picked up file-monitoring for dialog '" + self.getSectionName(adaptedDialog))
-            return True
-        else:
-            return False
-                             
+                                     
     def tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args):
         signature = signature.replace("notify-", "notify::")
         return guiusecase.UIMap.tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args)
@@ -72,12 +52,14 @@ class UIMap(guiusecase.UIMap):
 
     def monitorWindow(self, window):
         if window.isInstanceOf(origDialog):
-            # We've already done the dialog itself when it was empty, only look at the stuff in its vbox
-            # which may have been added since then...
+            # Do the dialog contents before we do the dialog itself. This is important for FileChoosers
+            # as they have things that use the dialog signals
             self.logger.debug("Monitoring children for dialog with title " + repr(window.getTitle()))
-            return self.monitorChildren(window, excludeWidget=window.action_area)
+            self.monitorChildren(window, excludeWidget=window.action_area)
+            self.monitorWidget(window)
+            windowevents.ResponseEvent.connectStored(window)
         else:
-            return guiusecase.UIMap.monitorWindow(self, window)
+            guiusecase.UIMap.monitorWindow(self, window)
 
 eventTypes = [
         (gtk.Button           , [ baseevents.SignalEvent ]),

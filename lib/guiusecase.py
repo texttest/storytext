@@ -370,20 +370,17 @@ class UIMap:
     def monitorAndStoreWindow(self, window):
         if window not in self.windows:
             self.windows.append(window)
-            return self.monitorWindow(WidgetAdapter.adapt(window))
-        else:
-            return False
+            self.monitorWindow(WidgetAdapter.adapt(window))
 
     def monitorWindow(self, window):
         self.logger.debug("Monitoring new window with title " + repr(window.getTitle()))
-        return self.monitor(window)
+        self.monitor(window)
 
     def monitor(self, widget, excludeWidget=None, mapFileOnly=False):
         mapFileOnly |= widget.isEquivalent(excludeWidget)
-        autoInstrumented = self.monitorWidget(widget, mapFileOnly)
+        self.monitorWidget(widget, mapFileOnly)
         self.monitorChildren(widget, excludeWidget, mapFileOnly)
-        return autoInstrumented
-
+        
     def monitorChildren(self, widget, *args, **kw):
         for child in widget.getChildren():
             self.monitor(child, *args, **kw)
