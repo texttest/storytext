@@ -2,6 +2,7 @@
 """ Events for gtk.Windows of various types, including dialogs """
 
 from baseevents import SignalEvent
+from guiusecase import WidgetAdapter
 import gtk, types
 
 class DeletionEvent(SignalEvent):
@@ -19,7 +20,17 @@ class DeletionEvent(SignalEvent):
 
 class ResponseEvent(SignalEvent):
     signalName = "response"
+    def getStandardResponses():
+        info = {}
+        for name in dir(gtk):
+            # RESPONSE_NONE is meant to be like None and shouldn't be recorded (at least not like this)
+            if name.startswith("RESPONSE_") and name != "RESPONSE_NONE":
+                info[getattr(gtk, name)] = name.lower().replace("_", ".", 1)
+        return info
+
     dialogInfo = {}
+    standardResponseInfo = getStandardResponses()
+
     def __init__(self, name, widget, responseId):
         SignalEvent.__init__(self, name, widget)
         self.responseId = self.parseId(responseId)
@@ -29,10 +40,21 @@ class ResponseEvent(SignalEvent):
                SignalEvent.shouldRecord(self, widget, responseId, *args)
 
     @classmethod
+    def getAllResponses(cls, dialog, widgetAdapter):
+        responses = []
+        respId = dialog.get_response_for_widget(widgetAdapter.widget)
+        if respId in cls.standardResponseInfo:
+            responses.append(cls.standardResponseInfo[respId])
+        elif respId != gtk.RESPONSE_NONE:
+            responses.append("response." + widgetAdapter.getUIMapIdentifier().replace("=", "--"))
+        for child in widgetAdapter.getChildren():
+            responses += cls.getAllResponses(dialog, child)
+
+        return responses
+
+    @classmethod
     def getAssociatedSignatures(cls, widget):
-        # RESPONSE_NONE is meant to be like None and shouldn't be recorded (at least not like this)
-        names = filter(lambda x: x.startswith("RESPONSE_") and x != "RESPONSE_NONE", dir(gtk))
-        return set((name.lower().replace("_", ".", 1) for name in names))
+        return cls.getAllResponses(widget, WidgetAdapter.adapt(widget.action_area))
 
     @classmethod
     def storeApplicationConnect(cls, dialog, signalName, *args):
@@ -55,10 +77,18 @@ class ResponseEvent(SignalEvent):
     def getEmissionArgs(self, argumentString):
         return [ self.responseId ]
 
+    def findChildWidget(self, widgetAdapter, identifier):
+        for child in widgetAdapter.getChildren():
+            if identifier in child.findPossibleUIMapIdentifiers():
+                return self.widget.get_response_for_widget(child.widget)
+
     def parseId(self, responseId):
         # May have to reverse the procedure in getResponseIdSignature
         if type(responseId) == types.StringType:
-            return eval("gtk.RESPONSE_" + responseId.upper())
+            if "--" in responseId:
+                return self.findChildWidget(WidgetAdapter.adapt(self.widget.action_area), responseId.replace("--", "=")) 
+            else:                
+                return getattr(gtk, "RESPONSE_" + responseId.upper())
         else:
             return responseId
 

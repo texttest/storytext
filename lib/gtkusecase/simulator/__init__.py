@@ -55,11 +55,18 @@ class UIMap(guiusecase.UIMap):
             # Do the dialog contents before we do the dialog itself. This is important for FileChoosers
             # as they have things that use the dialog signals
             self.logger.debug("Monitoring children for dialog with title " + repr(window.getTitle()))
-            self.monitorChildren(window, excludeWidget=window.action_area)
+            self.monitorChildren(window, excludeWidgets=self.getResponseWidgets(window, window.action_area))
             self.monitorWidget(window)
             windowevents.ResponseEvent.connectStored(window)
         else:
             guiusecase.UIMap.monitorWindow(self, window)
+
+    def getResponseWidgets(self, dialog, widget):
+        widgets = []
+        for child in widget.get_children():
+            if dialog.get_response_for_widget(child) != gtk.RESPONSE_NONE:
+                widgets.append(child)
+        return widgets
 
 eventTypes = [
         (gtk.Button           , [ baseevents.SignalEvent ]),
