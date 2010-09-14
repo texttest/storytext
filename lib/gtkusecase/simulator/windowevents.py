@@ -30,7 +30,8 @@ class ResponseEvent(SignalEvent):
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
-        names = filter(lambda x: x.startswith("RESPONSE_"), dir(gtk))
+        # RESPONSE_NONE is meant to be like None and shouldn't be recorded (at least not like this)
+        names = filter(lambda x: x.startswith("RESPONSE_") and x != "RESPONSE_NONE", dir(gtk))
         return set((name.lower().replace("_", ".", 1) for name in names))
 
     @classmethod
