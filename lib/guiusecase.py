@@ -163,7 +163,7 @@ class ScriptEngine(usecase.ScriptEngine):
                     eventClasses = currEventClasses
                     currClass = widgetClass
                 elif not issubclass(currClass, widgetClass):
-                    eventClasses += currEventClasses
+                    eventClasses = eventClasses + currEventClasses # make a copy
         return eventClasses
 
     def monitorSignal(self, eventName, signalName, widget, *args, **kw):
