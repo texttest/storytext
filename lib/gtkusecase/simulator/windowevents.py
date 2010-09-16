@@ -84,11 +84,7 @@ class ResponseEvent(SignalEvent):
 
     def parseId(self, responseId):
         # May have to reverse the procedure in getResponseIdSignature
-        if type(responseId) == types.StringType:
-            if "--" in responseId:
-                return self.findChildWidget(WidgetAdapter.adapt(self.widget.action_area), responseId.replace("--", "=")) 
-            else:                
-                return getattr(gtk, "RESPONSE_" + responseId.upper())
-        else:
-            return responseId
-
+        if "--" in responseId:
+            return self.findChildWidget(WidgetAdapter.adapt(self.widget.action_area), responseId.replace("--", "=")) 
+        else:                
+            return getattr(gtk, "RESPONSE_" + responseId.upper())
