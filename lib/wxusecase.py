@@ -63,6 +63,13 @@ class FrameEvent(SignalEvent):
     def generate(self, *args):
         self.changeMethod()
 
+class DialogEvent(SignalEvent):
+    event = wx.EVT_CLOSE
+    signal = 'DialogClose'
+            
+    def generate(self, *args):
+        self.widget.EndModal(0)
+
 class ButtonEvent(SignalEvent):
     event = wx.EVT_BUTTON
     signal = 'Press'
@@ -166,6 +173,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (wx.Frame       , [ FrameEvent ]),
+        (wx.Dialog      , [ DialogEvent ]),
         (wx.Button      , [ ButtonEvent ]),
         (wx.TextCtrl    , [ TextCtrlEvent ]),
         (wx.ListCtrl    , [ ListCtrlEvent ]),
@@ -201,7 +209,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
 
 class Describer:
     statelessWidgets = [ wx.Button, wx.ScrolledWindow, wx.Window ]
-    stateWidgets = [ wx.Frame, wx.ListCtrl, wx.TextCtrl ]
+    stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.frames = set()
@@ -316,4 +324,11 @@ class Describer:
 
     def getTextCtrlState(self, widget):
         text = widget.GetValue()
+        return text
+
+    def getDialogDescription(self, widget):
+        text = "Dialog"
+        title = widget.GetTitle()
+        if title:
+            text += " '" + title + "'"
         return text
