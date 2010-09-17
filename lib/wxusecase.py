@@ -295,7 +295,7 @@ class Describer:
         text = ".................\n"
         for i in range(widget.ItemCount):
             if widget.IsSelected(i):
-                text += "-> " + widget.GetItemText(i) + "***\n"
+                text += "-> " + widget.GetItemText(i) + "   ***\n"
             else:
                 text += "-> " + widget.GetItemText(i) + "\n"
         text += ".................\n"
