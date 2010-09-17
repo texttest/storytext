@@ -90,7 +90,7 @@ class UseCaseNameChooser:
         dialog.vbox.pack_start(preview, expand=True, fill=True)
         yesButton = dialog.add_button(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT)
         dialog.set_default_response(gtk.RESPONSE_ACCEPT)
-        self.scriptEngine.monitorSignal("finish name entry editing", "response", dialog, gtk.RESPONSE_ACCEPT)
+        self.scriptEngine.monitorSignal("finish name entry editing", "clicked", yesButton)
         dialog.show_all()
         return dialog
         
@@ -123,7 +123,11 @@ class UseCaseNameChooser:
             return signalName.replace("-", " ")
 
         if parts[0] == "response":
-            return parts[1]
+            text = parts[1]
+            if "--" in text:
+                return text.replace("--", "='") + "'"
+            else:
+                return text
 
         columnName = parts[1]
         remaining = parts[0]

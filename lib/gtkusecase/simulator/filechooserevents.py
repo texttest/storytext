@@ -2,15 +2,13 @@
 """ Event-handling around gtk.FileChoosers of various sorts """
 
 from baseevents import StateChangeEvent
-from windowevents import DialogEventHandler, ResponseEvent
 from usecase import UseCaseScriptError
 import gtk, os
 
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards
 # Seems quite capable of generating too many of them also
-class FileChooserFolderChangeEvent(DialogEventHandler, StateChangeEvent):
+class FileChooserFolderChangeEvent(StateChangeEvent):
     signalName = "current-folder-changed"
-    dialogInfo = {}
     def __init__(self, name, widget, *args):
         self.currentFolder = widget.get_current_folder()
         StateChangeEvent.__init__(self, name, widget)
@@ -48,16 +46,13 @@ class FileChooserFolderChangeEvent(DialogEventHandler, StateChangeEvent):
             raise UseCaseScriptError, "Cannot find folder '" + argumentString + "' to change to!"
 
 # Base class for selecting a file or typing a file name
-class FileChooserFileEvent(DialogEventHandler, StateChangeEvent):
-    def __init__(self, name, widget, fileChooser=None):
-        self.fileChooser = fileChooser
-        if not fileChooser:
-            self.fileChooser = widget
+class FileChooserFileEvent(StateChangeEvent):
+    def __init__(self, name, widget, *args):
         StateChangeEvent.__init__(self, name, widget)
         self.currentName = self.getStateDescription()
 
     def eventIsRelevant(self):
-        if self.fileChooser.get_filename() is None:
+        if self.widget.get_filename() is None:
             return False
         return self.currentName != self._getStateDescription()
 
@@ -66,7 +61,7 @@ class FileChooserFileEvent(DialogEventHandler, StateChangeEvent):
         return self.currentName
 
     def _getStateDescription(self):
-        fileName = self.fileChooser.get_filename()
+        fileName = self.widget.get_filename()
         if fileName:
             return os.path.basename(fileName)
         else:
@@ -74,16 +69,15 @@ class FileChooserFileEvent(DialogEventHandler, StateChangeEvent):
     
 class FileChooserFileSelectEvent(FileChooserFileEvent):
     signalName = "selection-changed"
-    dialogInfo = {}
     def getChangeMethod(self):
-        return self.fileChooser.select_filename
+        return self.widget.select_filename
     
     def connectRecord(self, *args):
         FileChooserFileEvent.connectRecord(self, *args)
-        self.fileChooser.connect("current-folder-changed", self.getStateDescription)
+        self.widget.connect("current-folder-changed", self.getStateDescription)
 
     def getProgrammaticChangeMethods(self):
-        return [ self.fileChooser.set_filename, self.fileChooser.set_current_folder ]
+        return [ self.widget.set_filename, self.widget.set_current_folder ]
 
     def setProgrammaticChange(self, val, filename=None):
         FileChooserFileEvent.setProgrammaticChange(self, val)
@@ -98,7 +92,7 @@ class FileChooserFileSelectEvent(FileChooserFileEvent):
             return False
 
     def getStateChangeArgument(self, argumentString):
-        path = os.path.join(self.fileChooser.get_current_folder(), argumentString)
+        path = os.path.join(self.widget.get_current_folder(), argumentString)
         if os.path.exists(path):
             return path
         else:
@@ -116,10 +110,6 @@ class FileChooserEntryEvent(FileChooserFileEvent):
     # There is no such signal on FileChooser, but we can pretend...
     # We record by waiting for the dialog to be closed, but we don't want to store that
     signalName = "current-name-changed"
-    dialogInfo = {}
-    def __init__(self, name, fileChooser, *args):
-        FileChooserFileEvent.__init__(self, name, fileChooser)
-
     @staticmethod
     def widgetHasSignal(widget, signalName):
         return widget.isInstanceOf(gtk.FileChooser) # not a real signal, so we fake it
@@ -129,21 +119,10 @@ class FileChooserEntryEvent(FileChooserFileEvent):
         # We must therefore be first among the handlers so we can record
         # before the dialog close event gets recorded...
         dialog = widget.get_toplevel()
-        if dialog is not widget:
-            otherHandlers = ResponseEvent.dialogInfo.get(dialog, [])
-            for event, handler, args in otherHandlers:
-                dialog.disconnect(handler)
-        dialog.connect("response", method, self)
-        if dialog is not self.widget:
-            ResponseEvent.dialogInfo[dialog] = []
-            for event, handler, args in otherHandlers:
-                if event:
-                    event.connectRecord(method)
-                else:
-                    dialog.connect("response", *args)
-
+        dialog.connect_for_real("response", method, self)
+        
     def getChangeMethod(self):
-        return self.fileChooser.set_current_name
+        return self.widget.set_current_name
     
     @classmethod
     def getAssociatedSignatures(cls, widget):

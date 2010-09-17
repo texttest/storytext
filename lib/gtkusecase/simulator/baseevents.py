@@ -31,7 +31,10 @@ class GtkEvent(GuiEvent):
         # We go for the brute force approach : actually do it and remove it again and see if we succeed...
         try:
             def nullFunc(*args) : pass
-            handler = widget.connect(signalName, nullFunc)
+            if hasattr(widget, "connect_for_real"): # convention for when we intercept connect, as with dialogs
+                handler = widget.connect_for_real(signalName, nullFunc)
+            else:
+                handler = widget.connect(signalName, nullFunc)
             widget.disconnect(handler)
             return True
         except TypeError:
