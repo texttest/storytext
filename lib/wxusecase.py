@@ -1,4 +1,3 @@
-import pdb
 
 # Experimental and rather basic support for wx
 
@@ -16,7 +15,9 @@ class App(origApp):
         for idle_method in self.idle_methods:
             self.GetTopWindow().Bind(wx.EVT_IDLE, idle_method)
         for milliseconds, timeout_method in self.timeout_methods:
-            wx.CallLater(milliseconds, timeout_method)
+            def _timeout_method():
+                self.GetTopWindow().Bind(wx.EVT_IDLE, timeout_method)
+            wx.CallLater(milliseconds, _timeout_method)
 
     def MainLoop(self):
         self.setUpHandlers()
@@ -67,8 +68,11 @@ class DialogEvent(SignalEvent):
     event = wx.EVT_CLOSE
     signal = 'DialogClose'
             
+    def getChangeMethod(self):
+        return self.widget.Close
+
     def generate(self, *args):
-        self.widget.EndModal(0)
+        self.changeMethod()
 
 class ButtonEvent(SignalEvent):
     event = wx.EVT_BUTTON
@@ -332,3 +336,6 @@ class Describer:
         if title:
             text += " '" + title + "'"
         return text
+
+    def getDialogState(self, widget):
+        return widget.GetTitle()
