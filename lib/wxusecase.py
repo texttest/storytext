@@ -1,3 +1,4 @@
+import pdb
 
 # Experimental and rather basic support for wx
 
@@ -289,9 +290,6 @@ class Describer:
 
     def getWindowDescription(self, widget):
         return ""
-
-    def getWindowState(self, widget):
-        return widget.GetTitle()
 
     def getListCtrlState(self, widget):
         text = ".................\n"
