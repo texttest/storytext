@@ -15,9 +15,7 @@ class App(origApp):
         for idle_method in self.idle_methods:
             self.GetTopWindow().Bind(wx.EVT_IDLE, idle_method)
         for milliseconds, timeout_method in self.timeout_methods:
-            def _timeout_method():
-                self.GetTopWindow().Bind(wx.EVT_IDLE, timeout_method)
-            wx.CallLater(milliseconds, _timeout_method)
+            wx.CallLater(milliseconds, timeout_method)
 
     def MainLoop(self):
         self.setUpHandlers()
@@ -79,7 +77,7 @@ class ButtonEvent(SignalEvent):
     signal = 'Press'
             
     def generate(self, *args):
-        self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
+        wx.CallAfter(self.widget.Command, wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
 
 class TextCtrlEvent(SignalEvent):
     event = wx.EVT_TEXT
