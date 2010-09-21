@@ -315,5 +315,7 @@ class Describer:
         return text
 
     def getTextCtrlState(self, widget):
-        text = widget.GetValue()
-        return text
+        return widget.GetValue()
+
+    def getFrameState(self, widget):
+        return widget.GetTitle()
