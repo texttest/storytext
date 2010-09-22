@@ -82,6 +82,8 @@ class UserEvent:
         self.name = name
     def shouldRecord(self, *args): # pragma: no cover - just documenting interface
         return True
+    def shouldDelay(self):
+        return False
     def outputForScript(self, *args): # pragma: no cover - just documenting interface
         return self.name
     def generate(self, argumentString): # pragma: no cover - just documenting interface
@@ -422,6 +424,7 @@ class UseCaseRecorder:
         self.origSignal = signal.signal
         self.signalNames = {}
         self.stateChangeEventInfo = None
+        self.delayedEvents = []
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
@@ -510,10 +513,16 @@ class UseCaseRecorder:
         if event.isStateChange():
             self.logger.debug("Storing up state change event " + repr(scriptOutput))
             self.stateChangeEventInfo = scriptOutput, event
+        elif event.shouldDelay():
+            self.logger.debug("Delaying event " + repr(scriptOutput))
+            self.delayedEvents.append((scriptOutput, event))
         else:
             self.logger.debug("Recording  " + repr(scriptOutput))
             self.stateChangeEventInfo = None
             self.record(scriptOutput, event)
+            for eventInfo in self.delayedEvents:
+                self.record(*eventInfo)
+            self.delayedEvents = []
 
     def record(self, line, event=None):
         for script in self.getScriptsToRecord(event):
