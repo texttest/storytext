@@ -336,4 +336,7 @@ class Describer:
         return text
 
     def getDialogState(self, widget):
+        return widget.GetValue()
+
+    def getFrameState(self, widget):
         return widget.GetTitle()
