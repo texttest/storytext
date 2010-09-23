@@ -545,3 +545,68 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
             return self.callReplayHandlerAgain()
         else:
             return False
+
+
+# Base class for tkinter and wx only right now, should be developed further and bring in gtk also
+class Describer:
+    def __init__(self):
+        self.logger = logging.getLogger("gui log")
+        self.windows = set()
+        self.widgetsWithState = seqdict()
+
+    def describe(self, window):
+        if window in self.windows:
+            return
+        self.windows.add(window)
+        title = self.getSpecificState(window)
+        message = "-" * 10 + " " + self.getWindowString() + " '" + title + "' " + "-" * 10
+        self.widgetsWithState[window] = title
+        self.logger.info("\n" + message)
+        self.logger.info(self.getChildrenDescription(window))
+        footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
+        self.logger.info("-" * footerLength)
+
+    def getWindowString(self):
+        return "Window"
+
+    def describeUpdates(self):
+        defunctWidgets = []
+        for widget, oldState in self.widgetsWithState.items():
+            try:
+                state = self.getState(widget)
+                if state != oldState:
+                    self.logger.info(self.getStateChangeDescription(widget, oldState, state))
+                    self.widgetsWithState[widget] = state
+            except:
+                # If the frame where it existed has been removed, for example...
+                defunctWidgets.append(widget)
+        for widget in defunctWidgets:
+            del self.widgetsWithState[widget]
+
+    def addToDescription(self, desc, newText):
+        if newText:
+            if desc:
+                desc += "\n"
+            desc += newText.rstrip() + "\n"
+        return desc
+
+    def getDescription(self, widget):
+        desc = ""
+        desc = self.addToDescription(desc, self.getWidgetDescription(widget))
+        desc = self.addToDescription(desc, self.getChildrenDescription(widget))
+        return desc.rstrip()
+    
+    def getWidgetDescription(self, widget):
+        for widgetClass in self.stateWidgets + self.statelessWidgets:
+            if isinstance(widget, widgetClass):
+                methodName = "get" + widgetClass.__name__ + "Description"
+                return getattr(self, methodName)(widget)
+        
+        return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
+
+    def getSpecificState(self, widget):
+        for widgetClass in self.stateWidgets:
+            if isinstance(widget, widgetClass):
+                methodName = "get" + widgetClass.__name__ + "State"
+                return getattr(self, methodName)(widget)
+        return ""
