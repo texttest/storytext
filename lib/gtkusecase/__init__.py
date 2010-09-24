@@ -23,7 +23,7 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import guiusecase, usecase, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys
+import guiusecase, usecase, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys, time
 from ndict import seqdict
 
 
@@ -332,3 +332,11 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def callReplayHandlerAgain(self):
         return True # GTK's way of saying the handle should come again
+
+    def runMainLoopWithReplay(self):
+        while gtk.events_pending():
+            gtk.main_iteration()
+        if self.delay:
+            time.sleep(self.delay)
+        if self.isActive():
+            self.describeAndRun()

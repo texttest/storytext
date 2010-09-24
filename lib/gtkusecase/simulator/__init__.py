@@ -29,10 +29,8 @@ class DialogHelper:
         self.show_all()
         self.response_received = None
         while self.response_received is None:
-            while gtk.events_pending():
-                gtk.main_iteration()
-            if self.uiMap.scriptEngine.replayerActive():
-                self.uiMap.scriptEngine.replayer.describeAndRun()
+            self.uiMap.scriptEngine.replayer.runMainLoopWithReplay()
+
         self.dialogRunLevel -= 1
         self.set_modal(origModal)
         return self.response_received
