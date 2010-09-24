@@ -225,7 +225,18 @@ class Describer(guiusecase.Describer):
         return "Frame" # wx has different terminology
 
     def getStateChangeDescription(self, widget, oldState, state):
-        return 'updated with new state:\n' + state
+        if isinstance(widget, (wx.Frame, wx.Dialog)):
+            return "Changed title of frame to '" + state + "'"
+        else:
+            return self.getUpdatePrefix(widget, oldState, state) + self.getDescription(widget)
+
+    def getUpdatePrefix(self, widget, oldState, state):
+        if isinstance(widget, wx.TextCtrl):
+            return "Updated "
+        elif isinstance(widget, wx.ListCtrl):
+            return "Updated state\n"
+        else:
+            return "\n"
 
     def getState(self, widget):
         state = self.getSpecificState(widget)
@@ -260,11 +271,11 @@ class Describer(guiusecase.Describer):
         return state
 
     def getTextCtrlDescription(self, widget):
-        text = "Text Control"
+        text = "TextCtrl"
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         if state:
-            text += " (preset to '" + state + "')"
+            text += " value '" + state + "'"
         return text
 
     def getTextCtrlState(self, widget):
@@ -279,7 +290,7 @@ class Describer(guiusecase.Describer):
         return text
 
     def getDialogState(self, widget):
-        return widget.GetValue()
+        return widget.GetTitle()
 
     def getFrameState(self, widget):
         return widget.GetTitle()
