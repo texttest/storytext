@@ -260,3 +260,34 @@ PyGTK Bugfixes:
     - Don't stack trace on gtk.TreeView with no model attached, even if there is a matching entry in the UI map.
     - Window closure now recorded correctly if application close handler hides the window
     - Don't try to monitor combo box popup windows, also if they aren't menus
+
+Version 3.4
+-----------
+General:
+    - Now requires at least Python 2.6 (PyUseCase 3.3 supported back to Python 2.4)
+    - New mechanism to plug in support for your own custom widgets
+	See the website for more information about this
+    - Old instrumentation-based interface from PyUseCase 2.x is now removed
+	Anyone still using it will need to use PyUseCase 3.3 to migrate before going to 3.4 or later
+
+General bug fixes:
+    - Don't try to record SIGBUS or SIGSEGV : these generally signify internal errors
+	
+Basic wxPython support added:
+    - Somewhat alpha status right now. 
+	Supports a handful of widget types: wx.Button, wx.TextCtrl, wx.ListCtrl, wx.Frame.
+	Many thanks to Cliff Xuan who is driving this forward.
+
+Tkinter bugfixes:
+    - Don't stacktrace if idle handlers get called when application is already destroyed
+	
+PyGTK Record/Playback:
+    - Now support gtk.Dialog.run directly.
+	It's previously been documented as not working and required changing code to avoid calling it.
+    - No longer assume that gtk.Dialog response IDs will be the standard ones, i.e. gtk.RESPONSE*
+	Should now work with anything as response IDs.
+PyGTK Autologging:
+    - Now logs when a window is maximized programatically
+    - Now lists entry completions shown when text is entered in a gtk.Entry
+    - gtk.TreeView description now includes selections, marked by '*'
+    - gtk.Label descriptions now include markup, if any.
