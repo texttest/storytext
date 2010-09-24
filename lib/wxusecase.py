@@ -209,54 +209,9 @@ class ScriptEngine(guiusecase.ScriptEngine):
     def getSupportedLogWidgets(self):
         return Describer.statelessWidgets + Describer.stateWidgets
 
-class Describer:
+class Describer(guiusecase.Describer):
     statelessWidgets = [ wx.Button, wx.ScrolledWindow, wx.Window ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
-    def __init__(self):
-        self.logger = logging.getLogger("gui log")
-        self.frames = set()
-        self.widgetsWithState = seqdict()
-
-    def describe(self, frame):
-        if frame in self.frames:
-            return
-        self.frames.add(frame)
-        message = "-" * 10 + " Frame '" + frame.GetTitle() + "' " + "-" * 10
-        self.widgetsWithState[frame] = frame.GetTitle()
-        self.logger.info("\n" + message)
-        self.logger.info(self.getChildrenDescription(frame))
-        footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
-        self.logger.info("-" * footerLength)
-
-    # TODO factoring out a parent class for the describers of wx and tkinter
-    # this is exactly the same code from tkinterusecase.py
-    def describeUpdates(self):
-        defunctWidgets = []
-        for widget, oldState in self.widgetsWithState.items():
-            try:
-                state = self.getState(widget)
-                if state != oldState:
-                    self.logger.info(self.getStateChangeDescription(widget, oldState, state))
-                    self.widgetsWithState[widget] = state
-            except:
-                # If the frame where it existed has been removed, for example...
-                defunctWidgets.append(widget)
-        for widget in defunctWidgets:
-            del self.widgetsWithState[widget]
-
-    def addToDescription(self, desc, newText):
-        if newText:
-            if desc:
-                desc += "\n"
-            desc += newText.rstrip() + "\n"
-        return desc
-
-    def getDescription(self, widget):
-        desc = ""
-        desc = self.addToDescription(desc, self.getWidgetDescription(widget))
-        desc = self.addToDescription(desc, self.getChildrenDescription(widget))
-        return desc.rstrip()
-    
     def getChildrenDescription(self, widget):
         slaves = set()
         children = widget.GetChildren()
@@ -266,13 +221,8 @@ class Describer:
         
         return desc.rstrip()
 
-    def getWidgetDescription(self, widget):
-        for widgetClass in self.stateWidgets + self.statelessWidgets:
-            if isinstance(widget, widgetClass):
-                methodName = "get" + widgetClass.__name__ + "Description"
-                return getattr(self, methodName)(widget)
-        
-        return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
+    def getWindowString(self):
+        return "Frame" # wx has different terminology
 
     def getStateChangeDescription(self, widget, oldState, state):
         return 'updated with new state:\n' + state
@@ -280,13 +230,6 @@ class Describer:
     def getState(self, widget):
         state = self.getSpecificState(widget)
         return state.strip()
-
-    def getSpecificState(self, widget):
-        for widgetClass in self.stateWidgets:
-            if isinstance(widget, widgetClass):
-                methodName = "get" + widgetClass.__name__ + "State"
-                return getattr(self, methodName)(widget)
-        return "Widget state unknown for type '" + widget.__class__.__name__ + "'" # pragma: no cover - unreachable
 
     def getButtonDescription(self, widget):
         text = "Button"

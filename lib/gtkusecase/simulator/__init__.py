@@ -15,12 +15,37 @@ class DialogHelper:
             
     def store_connect(self, signalName, *args):
         windowevents.ResponseEvent.storeApplicationConnect(self, signalName, *args)
+
+    def run(self):
+        if gtk.main_level() == 0:
+            # Dialog.run can be used instead of the mainloop, don't interfere then
+            return origDialog.run(self)
+        
+        origModal = self.get_modal()
+        self.set_modal(True)
+        self.dialogRunLevel += 1
+        self.uiMap.monitorAndStoreWindow(self)
+        self.connect_for_real("response", self.runResponse)
+        self.show_all()
+        self.response_received = None
+        while self.response_received is None:
+            while gtk.events_pending():
+                gtk.main_iteration()
+            if self.uiMap.scriptEngine.replayerActive():
+                self.uiMap.scriptEngine.replayer.describeAndRun()
+        self.dialogRunLevel -= 1
+        self.set_modal(origModal)
+        return self.response_received
+
+    def runResponse(self, dialog, response):
+        self.response_received = response
         
 
 class Dialog(DialogHelper, origDialog):
     uiMap = None
     def __init__(self, *args, **kw):
         origDialog.__init__(self, *args, **kw)
+        self.dialogRunLevel = 0
         self.tryMonitor()
 
 
@@ -28,6 +53,7 @@ class FileChooserDialog(DialogHelper, origFileChooserDialog):
     uiMap = None
     def __init__(self, *args, **kw):
         origFileChooserDialog.__init__(self, *args, **kw)
+        self.dialogRunLevel = 0
         self.tryMonitor()
 
 

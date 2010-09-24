@@ -534,28 +534,15 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         guiusecase.UseCaseReplayer.describeAndRun(self)
         
 
-class Describer:
+class Describer(guiusecase.Describer):
     statelessWidgets = [ Tkinter.Button, Tkinter.Menubutton, Tkinter.Frame,
                          Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Label, Tkinter.Menu ]
     stateWidgets = [  Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
                       Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
-        self.logger = logging.getLogger("gui log")
-        self.windows = set()
-        self.widgetsWithState = seqdict()
+        guiusecase.Describer.__init__(self)
         self.canvasWindows = set()
         self.defaultLabelBackground = None
-
-    def describe(self, window):
-        if window in self.windows:
-            return
-        self.windows.add(window)
-        message = "-" * 10 + " Window '" + window.title() + "' " + "-" * 10
-        self.widgetsWithState[window] = window.title()
-        self.logger.info("\n" + message)
-        self.logger.info(self.getChildrenDescription(window))
-        footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
-        self.logger.info("-" * footerLength)
 
     def getTkState(self, window):
         return window.title()
@@ -563,33 +550,6 @@ class Describer:
     def getToplevelState(self, window):
         return window.title()
 
-    def describeUpdates(self):
-        defunctWidgets = []
-        for widget, oldState in self.widgetsWithState.items():
-            try:
-                state = self.getState(widget)
-                if state != oldState:
-                    self.logger.info(self.getStateChangeDescription(widget, oldState, state))
-                    self.widgetsWithState[widget] = state
-            except:
-                # If the window where it existed has been removed, for example...
-                defunctWidgets.append(widget)
-        for widget in defunctWidgets:
-            del self.widgetsWithState[widget]
-
-    def addToDescription(self, desc, newText):
-        if newText:
-            if desc:
-                desc += "\n"
-            desc += newText.rstrip() + "\n"
-        return desc
-
-    def getDescription(self, widget):
-        desc = ""
-        desc = self.addToDescription(desc, self.getWidgetDescription(widget))
-        desc = self.addToDescription(desc, self.getChildrenDescription(widget))
-        return desc.rstrip()
-    
     def getPackSlavesDescription(self, widget, slaves):
         packSlaves = widget.pack_slaves()
         if len(packSlaves) == 0:
@@ -684,14 +644,6 @@ class Describer:
             state = state.rstrip() + " " + sensitivity
         return state.strip()
 
-    def getSpecificState(self, widget):
-        for widgetClass in self.stateWidgets:
-            if isinstance(widget, widgetClass):
-                methodName = "get" + widgetClass.__name__ + "State"
-                return getattr(self, methodName)(widget)
-        
-        return ""
-
     def getSensitivityState(self, widget):
         state = getWidgetOption(widget, "state")
         if state == Tkinter.DISABLED:
@@ -699,14 +651,6 @@ class Describer:
         else:
             return ""
         
-    def getWidgetDescription(self, widget):
-        for widgetClass in self.statelessWidgets + self.stateWidgets:
-            if isinstance(widget, widgetClass):
-                methodName = "get" + widgetClass.__name__ + "Description"
-                return getattr(self, methodName)(widget)
-        
-        return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
-
     def getFrameDescription(self, widget):
         if getWidgetOption(widget, "bd"):
             return ".................."
