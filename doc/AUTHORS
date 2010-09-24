@@ -1,8 +1,10 @@
-Code Maintainer:
+Code Maintainers:
 
-    Geoff Bache
+    Geoff Bache (PyGTK/Tkinter/Console)
+    Cliff Xuan  (wxPython)
 
 Developers:
 
     Geoff Bache
+    Cliff Xuan
     Mattias Grönkvist
