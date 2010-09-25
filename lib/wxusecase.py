@@ -23,6 +23,15 @@ class App(origApp):
 
 wx.App = App
         
+origDialog = wx.Dialog
+class DialogHelper:
+    def ShowModal(self):
+        self.uiMap.scriptEngine.replayer.runMainLoopWithReplay()
+        origDialog.ShowModal(self)
+
+class Dialog(DialogHelper, origDialog):
+    pass
+
 class WidgetAdapter(guiusecase.WidgetAdapter):
     def getChildWidgets(self):
         return self.widget.GetChildren()
@@ -77,7 +86,7 @@ class ButtonEvent(SignalEvent):
     signal = 'Press'
             
     def generate(self, *args):
-        wx.CallAfter(self.widget.Command, wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
+        self.widget.Command(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, self.widget.GetId())) 
 
 class TextCtrlEvent(SignalEvent):
     event = wx.EVT_TEXT
@@ -139,6 +148,12 @@ class ListCtrlEvent(SignalEvent):
         return self.name + " " + ",".join(texts)
                 
 
+class UIMap(guiusecase.UIMap):
+    def __init__(self, *args):
+        guiusecase.UIMap.__init__(self, *args)
+        wx.Dialog = Dialog
+        Dialog.uiMap = self
+
 class UseCaseReplayer(guiusecase.UseCaseReplayer):
     def __init__(self, *args, **kw):
         guiusecase.UseCaseReplayer.__init__(self, *args, **kw)
@@ -172,6 +187,12 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
             wx.App.timeout_methods.append((milliseconds, method))
             return True
 
+    def runMainLoopWithReplay(self):
+        if self.delay:
+            wx.CallLater(self.delay * 1000, self.describeAndRun)
+        elif self.isActive(): 
+            self.describeAndRun()
+
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (wx.Frame       , [ FrameEvent ]),
@@ -184,6 +205,10 @@ class ScriptEngine(guiusecase.ScriptEngine):
         "<<ListCtrlSelect>>": "select item",
         }
     columnSignalDescs = {} 
+
+    def createUIMap(self, uiMapFiles):
+        return UIMap(self, uiMapFiles)
+
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
 
