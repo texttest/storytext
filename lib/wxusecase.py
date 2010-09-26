@@ -13,7 +13,7 @@ class App(origApp):
 
     def setUpHandlers(self):
         for idle_method in self.idle_methods:
-            self.GetTopWindow().Bind(wx.EVT_IDLE, idle_method)
+            wx.CallLater(0, idle_method)
         for milliseconds, timeout_method in self.timeout_methods:
             wx.CallLater(milliseconds, timeout_method)
 
@@ -161,7 +161,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def makeIdleHandler(self, method):
         if wx.GetApp():
-            return wx.GetApp().Bind(wx.EVT_IDLE, method)
+            return wx.CallLater(0, method)
         else:
             wx.App.idle_methods.append(method)
             return True # anything to show we've got something
@@ -188,11 +188,9 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
             return True
 
     def runMainLoopWithReplay(self):
-        if self.delay:
+        if self.isActive():
             wx.CallLater(self.delay * 1000, self.describeAndRun)
-        elif self.isActive(): 
-            self.describeAndRun()
-
+        
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
         (wx.Frame       , [ FrameEvent ]),
