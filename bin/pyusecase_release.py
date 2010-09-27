@@ -46,7 +46,7 @@ def exportFromBzr(dest, tagName):
 def createSource(reldir):
     versionFile = os.path.join(reldir, "source", "lib", "usecase.py")
     updateVersionFile(versionFile, releaseName)
-    os.rename(os.path.join(reldir, "source", "readme.txt"), os.path.join(reldir, "readme.txt"))
+    os.rename(os.path.join(reldir, "source", "README.txt"), os.path.join(reldir, "README.txt"))
     
 def updateVersionFile(versionFile, releaseName):
     newFileName = versionFile + ".new"
