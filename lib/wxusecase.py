@@ -236,19 +236,17 @@ class Describer(guiusecase.Describer):
     def getWindowString(self):
         return "Frame" # wx has different terminology
 
-    def getStateChangeDescription(self, widget, oldState, state):
-        if isinstance(widget, (wx.Frame, wx.Dialog)):
-            return "Changed title of frame to '" + state + "'"
-        else:
-            return self.getUpdatePrefix(widget, oldState, state) + self.getDescription(widget)
+    def getWindowClasses(self):
+        return wx.Frame, wx.Dialog
 
-    def getUpdatePrefix(self, widget, oldState, state):
-        if isinstance(widget, wx.TextCtrl):
-            return "Updated "
-        elif isinstance(widget, wx.ListCtrl):
+    def getTextEntryClass(self):
+        return wx.TextCtrl
+
+    def getUpdatePrefix(self, widget, *args):
+        if isinstance(widget, wx.ListCtrl):
             return "Updated state\n"
         else:
-            return "\n"
+            return guiusecase.Describer.getUpdatePrefix(self, widget, *args)
 
     def getState(self, widget):
         state = self.getSpecificState(widget)

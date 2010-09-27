@@ -618,16 +618,14 @@ class Describer(guiusecase.Describer):
             self.defaultLabelBackground = Tkinter.Label(widget.master).cget("bg")
         return self.defaultLabelBackground
 
-    def getStateChangeDescription(self, widget, oldState, state):
-        if isinstance(widget, (Tkinter.Tk, Tkinter.Toplevel)):
-            return "Changing title for window '" + state + "'"
-        else:
-            return self.getUpdatePrefix(widget, oldState, state) + self.getDescription(widget)
+    def getWindowClasses(self):
+        return Tkinter.Tk, Tkinter.Toplevel
+
+    def getTextEntryClass(self):
+        return Tkinter.Entry
 
     def getUpdatePrefix(self, widget, oldState, state):
-        if isinstance(widget, Tkinter.Entry):
-            return "Updated "
-        elif isinstance(widget, Tkinter.Checkbutton):
+        if isinstance(widget, Tkinter.Checkbutton):
             if "(checked)" in oldState == "(checked)" in state:
                 return "Changed state of "
             else:
@@ -635,7 +633,7 @@ class Describer(guiusecase.Describer):
         elif isinstance(widget, Tkinter.Button):
             return "Changed state of "
         else:
-            return "\n"
+            return guiusecase.Describer.getUpdatePrefix(self, widget, oldState, state)
     
     def getState(self, widget):
         state = self.getSpecificState(widget)

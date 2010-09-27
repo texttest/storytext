@@ -583,6 +583,18 @@ class Describer:
         for widget in defunctWidgets:
             del self.widgetsWithState[widget]
 
+    def getStateChangeDescription(self, widget, oldState, state):
+        if isinstance(widget, self.getWindowClasses()):
+            return "Changed title of " + self.getWindowString().lower() + " to '" + state + "'"
+        else:
+            return self.getUpdatePrefix(widget, oldState, state) + self.getDescription(widget)
+
+    def getUpdatePrefix(self, widget, oldState, state):
+        if isinstance(widget, self.getTextEntryClass()):
+            return "Updated "
+        else:
+            return "\n"
+
     def addToDescription(self, desc, newText):
         if newText:
             if desc:
