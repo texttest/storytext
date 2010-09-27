@@ -120,10 +120,9 @@ class ListCtrlEvent(SignalEvent):
         return self.widget.Select
 
     def generate(self, argumentString):
+        index_list = map(self._findIndex, argumentString.split(','))
         self._clearSelection()
-        label_list = argumentString.split(',')
-        for label in label_list:
-            index = self._findIndex(label)
+        for index in index_list:
             self.changeMethod(index, 1)
 
     def _clearSelection(self):
