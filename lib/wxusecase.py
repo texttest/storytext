@@ -10,15 +10,12 @@ origApp = wx.App
 class App(origApp):
     idle_methods = []
     timeout_methods = []
-    handlers_setup_done = False
 
     def setUpHandlers(self):
-        if not self.handlers_setup_done:
-            for idle_method in self.idle_methods:
-                wx.GetApp().Bind(wx.EVT_IDLE, idle_method)
-            for milliseconds, timeout_method in self.timeout_methods:
-                wx.CallLater(milliseconds, timeout_method)
-            self.handlers_setup_done = True
+        for idle_method in self.idle_methods:
+            wx.GetApp().Bind(wx.EVT_IDLE, idle_method)
+        for milliseconds, timeout_method in self.timeout_methods:
+            wx.CallLater(milliseconds, timeout_method)
 
     def MainLoop(self):
         self.setUpHandlers()
@@ -192,9 +189,12 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def runMainLoopWithReplay(self):
         # if it's called before App.MainLoop() the handler needs to be set up here.
-        wx.GetApp().setUpHandlers()
-        if self.isActive():
-            self.enableReplayHandler()
+        app = wx.GetApp()
+        if app.IsMainLoopRunning():
+            if self.isActive() and app.IsMainLoopRunning():
+                self.enableReplayHandler()
+        else:
+            app.setUpHandlers()
         
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
