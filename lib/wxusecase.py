@@ -15,7 +15,7 @@ class App(origApp):
     def setUpHandlers(self):
         if not self.handlers_setup_done:
             for idle_method in self.idle_methods:
-                wx.CallLater(0, idle_method)
+                wx.GetApp().Bind(wx.EVT_IDLE, idle_method)
             for milliseconds, timeout_method in self.timeout_methods:
                 wx.CallLater(milliseconds, timeout_method)
             self.handlers_setup_done = True
@@ -194,10 +194,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         # if it's called before App.MainLoop() the handler needs to be set up here.
         wx.GetApp().setUpHandlers()
         if self.isActive():
-            #TODO 2 defects of this line of code:
-            # 1. during replaying it only does slow motion for the first action.
-            # 2. during recording it would not run until the Dialog is closed. Hence no action in the dialog is recorded.
-            wx.CallLater(self.delay * 1000, self.describeAndRun)
+            self.enableReplayHandler()
         
 class ScriptEngine(guiusecase.ScriptEngine):
     eventTypes = [
