@@ -30,13 +30,14 @@ def getTextExtractor(column, renderer):
         if markupExtractor:
             return MarkupRemover(markupExtractor)
 
-
+origTreeView = gtk.TreeView
 origTreeViewColumn = gtk.TreeViewColumn
 origCellRendererText = gtk.CellRendererText
 origCellRendererPixbuf = gtk.CellRendererPixbuf
 origCellRendererToggle = gtk.CellRendererToggle
 
 def performInterceptions():
+    gtk.TreeView = TreeView
     gtk.TreeViewColumn = TreeViewColumn
     gtk.CellRendererText = CellRendererText
     gtk.CellRendererPixbuf = CellRendererPixbuf
@@ -109,6 +110,15 @@ class TreeViewColumn(origTreeViewColumn):
         else:
             orig_func(column, cell, model, iter)
         cell.set_property = orig_set_property
+
+
+# Have to patch these methods, because otherwise they don't find the patch of
+# gtk.TreeViewColumn
+class TreeView(origTreeView):
+    def insert_column_with_data_func(self, position, title, cell, func, data=None):
+        column = TreeViewColumn(title, cell)
+        column.set_cell_data_func(cell, func, func_data=data)
+        return self.insert_column(column, position)
 
 
 class PropertySetter:
