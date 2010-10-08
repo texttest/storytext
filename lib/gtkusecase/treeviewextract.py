@@ -120,6 +120,11 @@ class TreeView(origTreeView):
         column.set_cell_data_func(cell, func, func_data=data)
         return self.insert_column(column, position)
 
+    def insert_column_with_attributes(self, position, title, cell, **kwargs):
+        column = TreeViewColumn(title, cell)
+        column.set_attributes(cell, **kwargs)
+        return self.insert_column(column, position)
+
 
 class PropertySetter:
     def __init__(self, cell, column, model, iter):
