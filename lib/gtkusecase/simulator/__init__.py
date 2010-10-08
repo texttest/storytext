@@ -111,7 +111,6 @@ eventTypes = [
                                   windowevents.DeletionEvent ]),
         (gtk.Window           , [ windowevents.DeletionEvent ]),
         (gtk.Notebook         , [ miscevents.NotebookPageChangeEvent ]),
-        (gtk.Paned            , [ miscevents.PaneDragEvent ]),
         (gtk.TreeView         , [ treeviewevents.RowActivationEvent, 
                                   treeviewevents.TreeSelectionEvent, 
                                   treeviewevents.RowExpandEvent, 

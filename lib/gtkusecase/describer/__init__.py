@@ -158,18 +158,13 @@ class Describer:
 
     def getPanedSeparator(self, paned):
         panedSeparator = "-" * 30
-        maxPos =  paned.get_property("max-position")
-        proportion = 0.0
-        if maxPos:
-            proportion = float(paned.get_position()) / maxPos
-        roundedProportion = str(int(round(100 * proportion, 0)))
         name = paned.get_name()
         if name.startswith("Gtk"):
             name = "pane separator"
         if isinstance(paned, gtk.VPaned):
-            panedSeparator += " (horizontal " + name + ", " + roundedProportion + "% from the top)"
+            panedSeparator += " (horizontal " + name + ")"
         else:
-            panedSeparator += " (vertical " + name + ", " + roundedProportion + "% from the left edge)"
+            panedSeparator += " (vertical " + name + ")"
         return "\n\n" + panedSeparator + "\n"
 
     def getVisibleChildren(self, container):
