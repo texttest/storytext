@@ -115,7 +115,7 @@ class EntryEvent(StateChangeEvent):
 class TextViewEvent(StateChangeEvent):
     def getStateDescription(self, *args):
         buffer = self.widget.get_buffer()
-        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
+        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter()).replace("\n", "\\n")
 
     @staticmethod
     def widgetHasSignal(widget, signalName):
@@ -123,6 +123,9 @@ class TextViewEvent(StateChangeEvent):
 
     def getChangeMethod(self):
         return self.widget.get_buffer().set_text
+
+    def getGenerationArguments(self, text):
+        return [ text.replace("\\n", "\n") ]
 
     def connectRecord(self, method):
         self._connectRecord(self.widget.get_buffer(), method)
