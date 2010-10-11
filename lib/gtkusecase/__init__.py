@@ -83,7 +83,6 @@ class ScriptEngine(guiusecase.ScriptEngine):
         "row-activated" : "double-clicked row",
         "changed.selection" : "clicked on row",
         "delete-event": "closed",
-        "notify::position": "dragged separator", 
         "toggled.true": "checked",
         "toggled.false": "unchecked",
         "button-press-event": "right-clicked row",
@@ -99,9 +98,8 @@ class ScriptEngine(guiusecase.ScriptEngine):
         guiusecase.ScriptEngine.__init__(self, universalLogging=universalLogging, **kw)
         describer.setMonitoring(universalLogging)
         if self.uiMap or describer.isEnabled():
-            treeviewextract.performInterceptions()
-            simulator.performInterceptions()
-
+            self.performInterceptions()
+            
     def createUIMap(self, uiMapFiles):
         if uiMapFiles:
             return simulator.UIMap(self, uiMapFiles)
@@ -114,8 +112,15 @@ class ScriptEngine(guiusecase.ScriptEngine):
         if self.replayer:
             self.replayer.addUiMap(self.uiMap)
         if not describer.isEnabled():
-            treeviewextract.performInterceptions()
-                     
+            self.performInterceptions()
+
+    def performInterceptions(self):
+        simulator.performInterceptions()
+        eventTypeReplacements = treeviewextract.performInterceptions()
+        for index, (widgetClass, currEventClasses) in enumerate(self.eventTypes):
+            if widgetClass in eventTypeReplacements:
+                self.eventTypes[index] = eventTypeReplacements[widgetClass], currEventClasses
+                
     def createShortcutBar(self):
         # Standard thing to add at the bottom of the GUI...
         buttonbox = gtk.HBox()

@@ -42,6 +42,7 @@ def performInterceptions():
     gtk.CellRendererText = CellRendererText
     gtk.CellRendererPixbuf = CellRendererPixbuf
     gtk.CellRendererToggle = CellRendererToggle
+    return { origTreeView: TreeView }
 
 class CellRendererText(origCellRendererText):
     orig_set_property = origCellRendererText.set_property

@@ -64,10 +64,6 @@ class UIMap(guiusecase.UIMap):
         gtk.FileChooserDialog = FileChooserDialog
         FileChooserDialog.uiMap = self
         gtk.quit_add(1, self.fileHandler.write) # Write changes to the GUI map when the application exits
-                                     
-    def tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args):
-        signature = signature.replace("notify-", "notify::")
-        return guiusecase.UIMap.tryAutoInstrument(self, eventName, signature, signaturesInstrumented, *args)
     
     def monitorChildren(self, widget, *args, **kw):
         if widget.getName() != "Shortcut bar" and \
