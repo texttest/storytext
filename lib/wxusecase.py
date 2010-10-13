@@ -181,7 +181,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         # if it's called before App.MainLoop() the handler needs to be set up here.
         app = wx.GetApp()
         if app.IsMainLoopRunning():
-            if self.isActive() and app.IsMainLoopRunning():
+            if self.isActive():
                 self.enableReplayHandler()
         else:
             app.setUpHandlers()
