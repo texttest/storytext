@@ -128,7 +128,7 @@ def set_up_environment(options):
 
 def check_python_version():
     major, minor = sys.version_info[:2]
-    reqMajor, reqMinor = (2, 6)
+    reqMajor, reqMinor = (2, 5)
     if (major, minor) < (reqMajor, reqMinor):
         strVersion = str(major) + "." + str(minor)
         reqVersion = str(reqMajor) + "." + str(reqMinor)

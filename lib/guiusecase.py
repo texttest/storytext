@@ -4,7 +4,12 @@ stuff also applicable even without this """
 
 import usecase, os, sys, logging, subprocess
 from ndict import seqdict
-from ConfigParser import ConfigParser
+
+# We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
+if sys.version_info[:2] >= (2, 6):
+    from ConfigParser import ConfigParser
+else:
+    from ConfigParser26 import ConfigParser
 
 class WidgetAdapter:
     adapterClass = None
