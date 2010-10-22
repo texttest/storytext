@@ -48,9 +48,12 @@ class ImageDescriber:
 
     def getDescription(self, image):
         try:
-            stock, size = image.get_stock()
-            if stock:
-                return self.getStockDescription(stock)
+            if hasattr(image, "get_stock"):
+                stock, size = image.get_stock()
+                if stock:
+                    return self.getStockDescription(stock)
+            else:
+                return "" # it's not really an image type, it's just been put there...
 
             if image.get_storage_type() == gtk.IMAGE_EMPTY:
                 return ""
