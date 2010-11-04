@@ -14,8 +14,6 @@ PRIORITY_PYUSECASE_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
 PRIORITY_PYUSECASE_REPLAY_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 15
 PRIORITY_PYUSECASE_LOG_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 10
 
-idleScheduler = None
-
 origEntryCompletion = gtk.EntryCompletion
 
 class EntryCompletion(origEntryCompletion):
@@ -58,7 +56,7 @@ def isEnabled():
 def describe(widget, prefix="Showing "):
     if isEnabled():
         setMonitoring()
-        describer = Describer(prefix)
+        describer = describerClass(prefix)
         describer(widget)
 
 def setMonitoring(loggingEnabled=False):
@@ -203,23 +201,29 @@ class Describer:
                 texts.append("'" + renderer.get_property("text") + "'")
         return " , ".join(texts)
 
+    def getToggleButtonType(self, button):
+        if isinstance(button, gtk.RadioButton):
+            return "Radio"
+        elif self.isCheckWidget(button):
+            return "Check"
+        else:
+            return "Toggle"
+
     def getToggleButtonDescription(self, button):
         idleScheduler.monitor(button, [ "toggled" ], "Toggled ")
         text = ""
         if self.prefix != "Showing ":
             text += self.prefix
-        if isinstance(button, gtk.RadioButton):
-            text += "Radio"
-        elif isinstance(button, gtk.CheckButton):
-            text += "Check"
-        else:
-            text += "Toggle"
+        text += self.getToggleButtonType(button)
         text += " button '" + button.get_label() + "'" + self.getActivePostfix(button)
         return text
 
+    def isCheckWidget(self, widget):
+        return isinstance(widget, gtk.CheckButton) or isinstance(widget, gtk.CheckMenuItem)
+               
     def getActivePostfix(self, widget):
         if widget.get_active():
-            if isinstance(widget, gtk.CheckButton) or isinstance(widget, gtk.CheckMenuItem):
+            if self.isCheckWidget(widget):
                 return " (checked)"
             else:
                 return " (depressed)"
@@ -672,3 +676,7 @@ class IdleScheduler:
 
         self.reset()
         return False
+
+idleScheduler = None
+
+describerClass = Describer # Will get overridden if hildon is being used
