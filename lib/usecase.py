@@ -501,6 +501,14 @@ class UseCaseRecorder:
             self.logger.debug("Told we should not record it : args were " + repr(args))
             return
 
+        if event.shouldDelay():
+            self.logger.debug("Delaying event " + repr(event.name))
+            self.delayedEvents.append((event, args))
+        else:
+            self.processWriteEvent(event, args)
+            self.processDelayedEvents()
+
+    def processWriteEvent(self, event, args):
         if self.stateChangeEventInfo:
             if event.implies(*(self.stateChangeEventInfo + args)):
                 self.logger.debug("Implies previous state change event, ignoring previous")
@@ -513,16 +521,15 @@ class UseCaseRecorder:
         if event.isStateChange():
             self.logger.debug("Storing up state change event " + repr(scriptOutput))
             self.stateChangeEventInfo = scriptOutput, event
-        elif event.shouldDelay():
-            self.logger.debug("Delaying event " + repr(scriptOutput))
-            self.delayedEvents.append((scriptOutput, event))
         else:
             self.logger.debug("Recording  " + repr(scriptOutput))
             self.stateChangeEventInfo = None
             self.record(scriptOutput, event)
-            for eventInfo in self.delayedEvents:
-                self.record(*eventInfo)
-            self.delayedEvents = []
+
+    def processDelayedEvents(self):
+        for eventInfo in self.delayedEvents:
+            self.processWriteEvent(*eventInfo)
+        self.delayedEvents = []
 
     def record(self, line, event=None):
         for script in self.getScriptsToRecord(event):
