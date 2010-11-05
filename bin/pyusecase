@@ -5,7 +5,7 @@
 # just be used to run programs directly
 
 # Usage pyusecase [ -r <record_file> ] [ -p <playback_file> ] <program>
-import os, imp, sys, logging.config, optparse
+import os, sys, logging.config, optparse
 
 install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath(os.path.abspath(sys.argv[0])))))
 # Find our own "lib" directory
@@ -13,47 +13,6 @@ sys.path.insert(0, os.path.join(install_root, "lib"))
         
 import usecase
 
-try:
-    # In Py 2.x, the builtins were in __builtin__
-    BUILTINS = sys.modules['__builtin__']
-except KeyError: # pragma: no cover - not worried about Python 3 yet...
-    # In Py 3.x, they're in builtins
-    BUILTINS = sys.modules['builtins']
-
-
-def run_python_file(args):
-    """Run a python file as if it were the main program on the command line.
-    
-    `args` is the argument array to present as sys.argv, including the first
-    element representing the file being executed.
-
-    Lifted straight from coverage.py by Ned Batchelder
-    
-    """
-    filename = args[0]
-    # Create a module to serve as __main__
-    old_main_mod = sys.modules['__main__']
-    main_mod = imp.new_module('__main__')
-    sys.modules['__main__'] = main_mod
-    main_mod.__file__ = filename
-    main_mod.__builtins__ = BUILTINS
-
-    # Set sys.argv and the first path element properly.
-    old_argv = sys.argv
-    old_path0 = sys.path[0]
-    sys.argv = args
-    sys.path[0] = os.path.dirname(filename)
-
-    try:
-        source = open(filename, 'rU').read()
-        exec compile(source, filename, "exec") in main_mod.__dict__
-    finally:
-        # Restore the old __main__
-        sys.modules['__main__'] = old_main_mod
-        
-        # Restore the old argv and path
-        sys.argv = old_argv
-        sys.path[0] = old_path0
 
 def create_option_parser():
     usage = """usage: %prog [options] <program> <program_args> ...
@@ -142,18 +101,8 @@ if __name__ == "__main__":
     try:
         check_python_version()
         usecase.scriptEngine = create_script_engine(options)
-        if options.supported:
-            usecase.scriptEngine.describeSupportedWidgets()
-        elif options.supported_html:
-            usecase.scriptEngine.describeSupportedWidgets(html=True)
-        elif len(args) == 0:
+        if not usecase.scriptEngine.run(options, args):
             parser.print_help()
-        else:
-            try:
-                run_python_file(args)
-            finally:
-                if options.interface != "console" and not options.disable_usecase_names:
-                    usecase.scriptEngine.replaceAutoRecordingForUsecase(options.interface)
     except usecase.UseCaseScriptError, e:
         sys.stderr.write(str(e) + "\n")
 

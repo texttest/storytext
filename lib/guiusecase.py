@@ -234,6 +234,21 @@ class ScriptEngine(usecase.ScriptEngine):
         else:
             return text
 
+    def run(self, options, args):
+        if options.supported:
+            self.describeSupportedWidgets()
+        elif options.supported_html:
+            self.describeSupportedWidgets(html=True)
+        elif len(args) == 0:
+            return False
+        else:
+            try:
+                self.run_python_file(args)
+            finally:
+                if not options.disable_usecase_names:
+                    self.replaceAutoRecordingForUsecase(options.interface)
+        return True
+
     def describeSupportedWidgets(self, html=False):
         toolkit, module, actionWord, linkPrefix = self.getDescriptionInfo()
         intro = """The following lists the %s widget types and the associated %s on them which 
