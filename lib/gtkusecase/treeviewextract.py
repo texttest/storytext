@@ -166,7 +166,7 @@ class HistoryExtractor:
     def getValue(self, model, iter):
         toRemove = []
         retVal = None
-        for value, rowRef in self.history:
+        for value, rowRef in reversed(self.history):
             path = rowRef.get_path()
             currModel = rowRef.get_model()
             if path is None or currModel is not model:
