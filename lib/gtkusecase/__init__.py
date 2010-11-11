@@ -26,11 +26,13 @@ To see this in action, try out the video store example.
 import guiusecase, usecase, widgetadapter, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys, time
 from ndict import seqdict
 
+interceptionModules = [ simulator, treeviewextract ]
 # If hildon can be imported at all, chances are we want to use it...
 # Add in the support for hildon widgets
 try:
     import hildonusecase
     hildonusecase.addHildonSupport()
+    interceptionModules.append(hildonusecase)
 except ImportError:
     pass
 
@@ -87,8 +89,9 @@ class ScriptEngine(guiusecase.ScriptEngine):
             self.performInterceptions()
 
     def performInterceptions(self):
-        simulator.performInterceptions()
-        eventTypeReplacements = treeviewextract.performInterceptions()
+        eventTypeReplacements = {}
+        for mod in interceptionModules:
+            eventTypeReplacements.update(mod.performInterceptions())
         for index, (widgetClass, currEventClasses) in enumerate(self.eventTypes):
             if widgetClass in eventTypeReplacements:
                 self.eventTypes[index] = eventTypeReplacements[widgetClass], currEventClasses

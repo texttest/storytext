@@ -112,10 +112,7 @@ class TreeViewColumn(origTreeViewColumn):
             orig_func(column, cell, model, iter)
         cell.set_property = orig_set_property
 
-
-# Have to patch these methods, because otherwise they don't find the patch of
-# gtk.TreeViewColumn
-class TreeView(origTreeView):
+class TreeViewHelper:
     def insert_column_with_data_func(self, position, title, cell, func, data=None):
         column = TreeViewColumn(title, cell)
         column.set_cell_data_func(cell, func, func_data=data)
@@ -125,6 +122,12 @@ class TreeView(origTreeView):
         column = TreeViewColumn(title, cell)
         column.set_attributes(cell, **kwargs)
         return self.insert_column(column, position)
+
+
+# Have to patch these methods, because otherwise they don't find the patch of
+# gtk.TreeViewColumn
+class TreeView(TreeViewHelper, origTreeView):
+    pass
 
 
 class PropertySetter:

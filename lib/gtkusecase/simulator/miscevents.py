@@ -11,6 +11,7 @@ origRadioAction = gtk.RadioAction
 def performInterceptions():
     gtk.ToggleAction = ToggleAction
     gtk.RadioAction = RadioAction
+    return {}
 
 toggleActionProxies = {}
 
