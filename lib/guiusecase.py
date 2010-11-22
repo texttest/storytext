@@ -8,7 +8,7 @@ from ndict import seqdict
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
 if sys.version_info[:2] >= (2, 6):
     from ConfigParser import ConfigParser
-else:
+else: # pragma: no cover - not currently running older than 2.5 in regular tests
     from ConfigParser26 import ConfigParser
 
 class WidgetAdapter:

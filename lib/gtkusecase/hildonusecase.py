@@ -54,10 +54,10 @@ class StackableWindow(origStackableWindow):
         origStackableWindow.set_edit_toolbar(self, toolbar)
         
     def get_children(self):
+        children = origStackableWindow.get_children(self)
         if self.toolbar:
-            return [ self.toolbar ] + origStackableWindow.get_children(self)
-        else:
-            return origStackableWindow.get_children(self)
+            children = [ self.toolbar ] + children
+        return children
 
 class GtkTreeView(treeviewextract.TreeViewHelper, origGtkTreeView):
     pass
