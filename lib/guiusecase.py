@@ -236,18 +236,15 @@ class ScriptEngine(usecase.ScriptEngine):
 
     def run(self, options, args):
         if options.supported:
-            self.describeSupportedWidgets()
+            return self.describeSupportedWidgets()
         elif options.supported_html:
-            self.describeSupportedWidgets(html=True)
-        elif len(args) == 0:
-            return False
+            return self.describeSupportedWidgets(html=True)
         else:
             try:
-                self.run_python_file(args)
+                return usecase.ScriptEngine.run(self, options, args)
             finally:
                 if not options.disable_usecase_names:
                     self.replaceAutoRecordingForUsecase(options.interface)
-        return True
 
     def describeSupportedWidgets(self, html=False):
         toolkit, module, actionWord, linkPrefix = self.getDescriptionInfo()
@@ -279,6 +276,7 @@ is also supported but will only have features of the listed type described.
         else:
             for className in classNames:
                 print className
+        return True
 
     def writeAsciiTable(self, classNames, classes):
         for className in classNames:
