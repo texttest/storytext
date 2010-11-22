@@ -44,7 +44,6 @@ import os, string, sys, signal, time, stat, logging, imp
 from threading import Thread
 from ndict import seqdict
 from shutil import copyfile
-from jobprocess import JobProcess
 
 try:
     # In Py 2.x, the builtins were in __builtin__
@@ -237,6 +236,8 @@ class UseCaseReplayer:
         self.replayThread = None
         self.timeDelayNextCommand = 0
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
+        if os.name == "posix":
+            os.setpgrp() # Makes it easier to kill subprocesses
         if replayScript:
             self.addScript(ReplayScript(replayScript))
     
@@ -386,10 +387,10 @@ class UseCaseReplayer:
         return allHappened
 
     def processSignalCommand(self, signalArg):
-        exec "signalNum = signal." + signalArg
+        signalNum = getattr(signal, signalArg)
         self.write("")
         self.write("Generating signal " + signalArg)
-        JobProcess(os.getpid()).killAll(signalNum) # So we can generate signals for ourselves...
+        os.killpg(os.getpgid(0), signalNum) # So we can generate signals for ourselves...
         self.logger.debug("Signal " + signalArg + " has been sent")
 
 
