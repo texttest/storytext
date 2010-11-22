@@ -24,7 +24,7 @@ To see this in action, try out the video store example.
 """
 
 import guiusecase, usecase, widgetadapter, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys, time
-from ndict import seqdict
+from ordereddict import OrderedDict
 
 interceptionModules = [ simulator, treeviewextract ]
 # If hildon can be imported at all, chances are we want to use it...

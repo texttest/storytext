@@ -3,7 +3,7 @@
 stuff also applicable even without this """
 
 import usecase, os, sys, logging, subprocess
-from ndict import seqdict
+from ordereddict import OrderedDict
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
 if sys.version_info[:2] >= (2, 6):
@@ -315,7 +315,7 @@ is also supported but will only have features of the listed type described.
 class WriteParserHandler:
     def __init__(self, fileName):
         self.fileName = fileName
-        self.parser = ConfigParser(dict_type=seqdict)
+        self.parser = ConfigParser(dict_type=OrderedDict)
         self.parser.optionxform = str # don't automatically lower-case everything
         self.parser.read([ self.fileName ])
         self.changed = False
@@ -350,7 +350,7 @@ class UIMapFileHandler:
         if len(self.writeParsers) == 1:
             self.readParser = self.writeParsers[0]
         else:
-            self.readParser = ConfigParser(dict_type=seqdict)
+            self.readParser = ConfigParser(dict_type=OrderedDict)
             self.readParser.optionxform = str # don't automatically lower-case everything
             self.readParser.read(uiMapFiles)
 
@@ -570,7 +570,7 @@ class Describer:
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
-        self.widgetsWithState = seqdict()
+        self.widgetsWithState = OrderedDict()
 
     def describe(self, window):
         if window in self.windows:

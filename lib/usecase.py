@@ -42,7 +42,7 @@ The functionality present here is therefore
 
 import os, string, sys, signal, time, stat, logging, imp
 from threading import Thread
-from ndict import seqdict
+from ordereddict import OrderedDict
 from shutil import copyfile
 
 try:
@@ -468,7 +468,7 @@ class UseCaseRecorder:
         self.eventsBlockedTopLevel = []
         self.scripts = []
         self.processId = os.getpid()
-        self.applicationEvents = seqdict()
+        self.applicationEvents = OrderedDict()
         self.supercededAppEventCategories = {}
         self.suspended = 0
         self.realSignalHandlers = {}
@@ -609,7 +609,7 @@ class UseCaseRecorder:
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
         else:
             # Non-categorised event makes all previous ones irrelevant
-            self.applicationEvents = seqdict()
+            self.applicationEvents = OrderedDict()
             self.supercededAppEventCategories = {}
             self.applicationEvents["gtkscript_DEFAULT"] = eventName
 
@@ -632,7 +632,7 @@ class UseCaseRecorder:
             eventString = ", ".join(sorted(self.applicationEvents.values()))
             self.record(waitCommandName + " " + eventString)
             self.logger.debug("Recording wait for " + repr(eventString))
-            self.applicationEvents = seqdict()
+            self.applicationEvents = OrderedDict()
 
     def registerShortcut(self, replayScript):
         for script in self.scripts:

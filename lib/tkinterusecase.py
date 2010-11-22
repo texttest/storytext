@@ -3,7 +3,7 @@
 
 import guiusecase, os, time, Tkinter, logging, re
 from usecase import UseCaseScriptError
-from ndict import seqdict
+from ordereddict import OrderedDict
 
 def getWidgetOption(widget, optionName):
     try:

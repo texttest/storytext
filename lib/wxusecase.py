@@ -3,7 +3,7 @@
 
 import guiusecase, os, time, wx, logging
 from usecase import UseCaseScriptError
-from ndict import seqdict
+from ordereddict import OrderedDict
 
 origApp = wx.App
 

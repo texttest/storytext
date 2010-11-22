@@ -10,7 +10,7 @@ install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath
 # Find our own "lib" directory
 sys.path.insert(0, os.path.join(install_root, "lib"))
 
-from ndict import seqdict
+from ordereddict import OrderedDict
 import usecase, gtkusecase
 from guiusecase import UIMapFileHandler
 
@@ -21,7 +21,7 @@ class UseCaseNameChooser:
         self.interface = interface
         self.uiMapFileHandler = UIMapFileHandler(mapFiles)
         self.scriptEngine = gtkusecase.ScriptEngine(uiMapFiles=[])
-        self.allEntries = seqdict()
+        self.allEntries = OrderedDict()
 
     def collectNames(self):
         commands = [ line.strip() for line in open(self.fileName) ]
