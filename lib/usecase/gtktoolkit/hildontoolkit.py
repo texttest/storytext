@@ -4,11 +4,11 @@ Support for the Hildon widget set, used in touchscreen phones on Nokia's Maemo p
 For now highly experimental and not regularly tested.
 """
 
-import hildon, gtk, describer, simulator, guiusecase, widgetadapter, treeviewextract
+import hildon, gtk, describer, simulator, usecase.guishared, widgetadapter, treeviewextract
 
 def addHildonSupport():
     describer.describerClass = Describer
-    guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
+    usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter
     Describer.addHildonWidgets()
     simulator.eventTypes += [(hildon.CheckButton , [ simulator.miscevents.ActivateEvent ]),
                              (hildon.AppMenu     , [ AppMenuEvent ])] 

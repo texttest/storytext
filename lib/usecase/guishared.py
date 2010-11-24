@@ -1,8 +1,8 @@
 
-""" Generic module for any kind of Python UI, as distinct from usecase.py which contains 
+""" Generic module for any kind of Python UI, as distinct from the classes these derive from which contains 
 stuff also applicable even without this """
 
-import usecase, os, sys, logging, subprocess
+import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess
 from ordereddict import OrderedDict
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
@@ -63,9 +63,9 @@ class WidgetAdapter:
                  "Label=" + str(self.getLabel()), "Type=" + self.getType() ]
 
 
-class GuiEvent(usecase.UserEvent):
+class GuiEvent(definitions.UserEvent):
     def __init__(self, name, widget, *args):
-        usecase.UserEvent.__init__(self, name)
+        definitions.UserEvent.__init__(self, name)
         self.widget = widget
         self.programmaticChange = False
         self.changeMethod = self.getRealMethod(self.getChangeMethod())
@@ -130,15 +130,15 @@ class ProgrammaticChangeIntercept(MethodIntercept):
 
 
 
-class ScriptEngine(usecase.ScriptEngine):
-    defaultMapFile = os.path.join(usecase.ScriptEngine.usecaseHome, "ui_map.conf")
+class ScriptEngine(scriptengine.ScriptEngine):
+    defaultMapFile = os.path.join(scriptengine.ScriptEngine.usecaseHome, "ui_map.conf")
     def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ],
                  customEventTypes=[], universalLogging=True, binDir=""):
         self.uiMap = self.createUIMap(uiMapFiles)
         self.binDir = binDir
         self.addCustomEventTypes(customEventTypes)
         self.importCustomEventTypes()
-        usecase.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
+        scriptengine.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
 
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
@@ -241,7 +241,7 @@ class ScriptEngine(usecase.ScriptEngine):
             return self.describeSupportedWidgets(html=True)
         else:
             try:
-                return usecase.ScriptEngine.run(self, options, args)
+                return scriptengine.ScriptEngine.run(self, options, args)
             finally:
                 if not options.disable_usecase_names:
                     self.replaceAutoRecordingForUsecase(options.interface)
@@ -251,7 +251,7 @@ class ScriptEngine(usecase.ScriptEngine):
         intro = """The following lists the %s widget types and the associated %s on them which 
 PyUseCase %s is currently capable of recording and replaying. Any type derived from the listed
 types is also supported.
-""" % (toolkit, actionWord, usecase.version)
+""" % (toolkit, actionWord, definitions.__version__)
         print self.getFormatted(intro, html, toolkit + " Widgets and " + actionWord + " supported for record/replay")
         classes = {}
         for widgetClass, currEventClasses in self.eventTypes:
@@ -267,7 +267,7 @@ types is also supported.
 The following lists the %s widget types whose status and changes PyUseCase %s is 
 currently capable of monitoring and logging. Any type derived from the listed types 
 is also supported but will only have features of the listed type described.
-""" % (toolkit, usecase.version)
+""" % (toolkit, definitions.__version__)
         print self.getFormatted(logIntro, html, toolkit + " Widgets supported for automatic logging")
         classNames = [ self.getClassName(w, module) for w in self.getSupportedLogWidgets() ]
         classNames.sort()
@@ -456,7 +456,7 @@ class UIMap:
             if self.autoInstrument(eventName, signalName, widget, argumentParseData, widgetType):
                 signaturesInstrumented.add(signature)
                 return True
-        except usecase.UseCaseScriptError, e:
+        except definitions.UseCaseScriptError, e:
             sys.stderr.write("ERROR in UI map file: " + str(e) + "\n")
         return False
 
@@ -490,7 +490,7 @@ class UIMap:
         
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
-class UseCaseReplayer(usecase.UseCaseReplayer):
+class UseCaseReplayer(replayer.UseCaseReplayer):
     def __init__(self, uiMap, universalLogging, recorder):
         self.readingEnabled = False
         self.uiMap = uiMap
@@ -499,7 +499,7 @@ class UseCaseReplayer(usecase.UseCaseReplayer):
         self.recorder = recorder
         self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
         self.tryAddDescribeHandler()
-        usecase.UseCaseReplayer.__init__(self)
+        replayer.UseCaseReplayer.__init__(self)
 
     def isMonitoring(self):
         return self.loggerActive or (self.recorder.isActive() and self.uiMap)

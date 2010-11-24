@@ -1,8 +1,8 @@
 
 # Experimental and rather basic support for Tkinter
 
-import guiusecase, os, time, Tkinter, logging, re
-from usecase import UseCaseScriptError
+import guishared, os, time, Tkinter, logging, re
+from definitions import UseCaseScriptError
 from ordereddict import OrderedDict
 
 def getWidgetOption(widget, optionName):
@@ -33,7 +33,7 @@ def getMenuParentLabel(widget, defaultLabel=""):
         return defaultLabel
 
 
-class WidgetAdapter(guiusecase.WidgetAdapter):
+class WidgetAdapter(guishared.WidgetAdapter):
     def getChildWidgets(self):
         return self.widget.winfo_children()
         
@@ -54,7 +54,7 @@ class WidgetAdapter(guiusecase.WidgetAdapter):
     def getName(self):
         return self.widget.winfo_name()
 
-guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
+guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
 origTk = Tkinter.Tk
 origToplevel = Tkinter.Toplevel
@@ -193,7 +193,7 @@ class Button(origButton):
 Tkinter.Button = Button
 
 
-class SignalEvent(guiusecase.GuiEvent):
+class SignalEvent(guishared.GuiEvent):
     class RecordHandler:
         def __init__(self, index, event, method):
             self.index = index
@@ -206,7 +206,7 @@ class SignalEvent(guiusecase.GuiEvent):
                 self.event.handleNext(tkEvent, self.method)
                 
     def __init__(self, eventName, eventDescriptor, widget, *args):
-        guiusecase.GuiEvent.__init__(self, eventName, widget)
+        guishared.GuiEvent.__init__(self, eventName, widget)
         self.eventDescriptors = eventDescriptor.split(",")
         self.logger = logging.getLogger("gui log")
         self.recordIndex = 0
@@ -263,9 +263,9 @@ class CanvasEvent(SignalEvent):
         raise UseCaseScriptError, "Could not find canvas item '" + tagOrId + "'"
 
 
-class WindowManagerDeleteEvent(guiusecase.GuiEvent):
+class WindowManagerDeleteEvent(guishared.GuiEvent):
     def __init__(self, eventName, eventDescriptor, widget, *args):
-        guiusecase.GuiEvent.__init__(self, eventName, widget)
+        guishared.GuiEvent.__init__(self, eventName, widget)
         self.recordMethod = None
         
     @classmethod
@@ -365,7 +365,7 @@ class EntryEvent(SignalEvent):
         return self.name + " " + self.widget.get()
 
 
-class MenuEvent(guiusecase.GuiEvent):
+class MenuEvent(guishared.GuiEvent):
     class CommandWithRecord:
         def __init__(self, index, event, command, method):
             self.index = index
@@ -378,7 +378,7 @@ class MenuEvent(guiusecase.GuiEvent):
             self.command()
                 
     def __init__(self, eventName, eventDescriptor, widget, *args):
-        guiusecase.GuiEvent.__init__(self, eventName, widget)
+        guishared.GuiEvent.__init__(self, eventName, widget)
 
     @classmethod
     def getAssociatedSignatures(cls, widget):
@@ -438,7 +438,7 @@ class ListboxEvent(SignalEvent):
         raise UseCaseScriptError, "Could not find item '" + label + "' in Listbox."
         
 
-class ScriptEngine(guiusecase.ScriptEngine):
+class ScriptEngine(guishared.ScriptEngine):
     eventTypes = [
         (Tkinter.Button      , [ ButtonEvent ]),
         (Tkinter.Checkbutton , [ CheckEvent, UncheckEvent ]),
@@ -461,7 +461,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         }
     columnSignalDescs = {}
     def __init__(self, *args, **kw):
-        guiusecase.ScriptEngine.__init__(self, *args, **kw)
+        guishared.ScriptEngine.__init__(self, *args, **kw)
         Menu.replayActive = self.replayerActive()
          
     def createReplayer(self, universalLogging=False):
@@ -490,9 +490,9 @@ class ScriptEngine(guiusecase.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 
-class UseCaseReplayer(guiusecase.UseCaseReplayer):
+class UseCaseReplayer(guishared.UseCaseReplayer):
     def __init__(self, *args, **kw):
-        guiusecase.UseCaseReplayer.__init__(self, *args, **kw)
+        guishared.UseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
 
     def makeIdleHandler(self, method):
@@ -507,7 +507,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def handleNewWindows(self):
         self.describer.describeUpdates()
-        guiusecase.UseCaseReplayer.handleNewWindows(self)
+        guishared.UseCaseReplayer.handleNewWindows(self)
 
     def describeNewWindow(self, window):
         self.describer.describe(window)
@@ -531,16 +531,16 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
             # Seems to occasionally get called by Tkinter even after application is terminated.
             # That causes a TclError here. We should ignore it and just terminate
             return
-        guiusecase.UseCaseReplayer.describeAndRun(self)
+        guishared.UseCaseReplayer.describeAndRun(self)
         
 
-class Describer(guiusecase.Describer):
+class Describer(guishared.Describer):
     statelessWidgets = [ Tkinter.Button, Tkinter.Menubutton, Tkinter.Frame,
                          Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Label, Tkinter.Menu ]
     stateWidgets = [  Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
                       Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
-        guiusecase.Describer.__init__(self)
+        guishared.Describer.__init__(self)
         self.canvasWindows = set()
         self.defaultLabelBackground = None
 
@@ -633,7 +633,7 @@ class Describer(guiusecase.Describer):
         elif isinstance(widget, Tkinter.Button):
             return "Changed state of "
         else:
-            return guiusecase.Describer.getUpdatePrefix(self, widget, oldState, state)
+            return guishared.Describer.getUpdatePrefix(self, widget, oldState, state)
     
     def getState(self, widget):
         state = self.getSpecificState(widget)

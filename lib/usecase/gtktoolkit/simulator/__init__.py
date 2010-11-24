@@ -1,7 +1,7 @@
 
 """ Main entry point for simulator functionality """
 
-import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, guiusecase
+import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, usecase.guishared
 
 performInterceptions = miscevents.performInterceptions
 origDialog = gtk.Dialog
@@ -55,10 +55,10 @@ class FileChooserDialog(DialogHelper, origFileChooserDialog):
         self.tryMonitor()
 
 
-class UIMap(guiusecase.UIMap):
+class UIMap(usecase.guishared.UIMap):
     ignoreWidgetTypes = [ "Label" ]
     def __init__(self, *args): 
-        guiusecase.UIMap.__init__(self, *args)
+        usecase.guishared.UIMap.__init__(self, *args)
         gtk.Dialog = Dialog
         Dialog.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
@@ -68,7 +68,7 @@ class UIMap(guiusecase.UIMap):
     def monitorChildren(self, widget, *args, **kw):
         if widget.getName() != "Shortcut bar" and \
                not widget.isInstanceOf(gtk.FileChooser) and not widget.isInstanceOf(gtk.ToolItem):
-            guiusecase.UIMap.monitorChildren(self, widget, *args, **kw)
+            usecase.guishared.UIMap.monitorChildren(self, widget, *args, **kw)
 
     def monitorWindow(self, window):
         if window.isInstanceOf(origDialog):
@@ -79,7 +79,7 @@ class UIMap(guiusecase.UIMap):
             self.monitorWidget(window)
             windowevents.ResponseEvent.connectStored(window)
         else:
-            guiusecase.UIMap.monitorWindow(self, window)
+            usecase.guishared.UIMap.monitorWindow(self, window)
 
     def getResponseWidgets(self, dialog, widget):
         widgets = []

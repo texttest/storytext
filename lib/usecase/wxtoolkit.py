@@ -1,8 +1,8 @@
 
 # Experimental and rather basic support for wx
 
-import guiusecase, os, time, wx, logging
-from usecase import UseCaseScriptError
+import guishared, os, time, wx, logging
+from definitions import UseCaseScriptError
 from ordereddict import OrderedDict
 
 origApp = wx.App
@@ -32,7 +32,7 @@ class DialogHelper:
 class Dialog(DialogHelper, origDialog):
     pass
 
-class WidgetAdapter(guiusecase.WidgetAdapter):
+class WidgetAdapter(guishared.WidgetAdapter):
     def getChildWidgets(self):
         return self.widget.GetChildren()
         
@@ -48,9 +48,9 @@ class WidgetAdapter(guiusecase.WidgetAdapter):
     def getName(self):
         return self.widget.GetName()
 
-guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
+guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
-class SignalEvent(guiusecase.GuiEvent):
+class SignalEvent(guishared.GuiEvent):
     def connectRecord(self, method):
         def handler(event):
             method(event, self)
@@ -138,15 +138,15 @@ class ListCtrlEvent(SignalEvent):
         return self.name + " " + ",".join(texts)
                 
 
-class UIMap(guiusecase.UIMap):
+class UIMap(guishared.UIMap):
     def __init__(self, *args):
-        guiusecase.UIMap.__init__(self, *args)
+        guishared.UIMap.__init__(self, *args)
         wx.Dialog = Dialog
         Dialog.uiMap = self
 
-class UseCaseReplayer(guiusecase.UseCaseReplayer):
+class UseCaseReplayer(guishared.UseCaseReplayer):
     def __init__(self, *args, **kw):
-        guiusecase.UseCaseReplayer.__init__(self, *args, **kw)
+        guishared.UseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
 
     def makeIdleHandler(self, method):
@@ -161,7 +161,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
 
     def handleNewWindows(self, *args):
         self.describer.describeUpdates()
-        guiusecase.UseCaseReplayer.handleNewWindows(self)
+        guishared.UseCaseReplayer.handleNewWindows(self)
 
     def describeNewWindow(self, window):
         self.describer.describe(window)
@@ -186,7 +186,7 @@ class UseCaseReplayer(guiusecase.UseCaseReplayer):
         else:
             app.setUpHandlers()
         
-class ScriptEngine(guiusecase.ScriptEngine):
+class ScriptEngine(guishared.ScriptEngine):
     eventTypes = [
         (wx.Frame       , [ FrameEvent ]),
         (wx.Button      , [ ButtonEvent ]),
@@ -226,7 +226,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
     def getSupportedLogWidgets(self):
         return Describer.statelessWidgets + Describer.stateWidgets
 
-class Describer(guiusecase.Describer):
+class Describer(guishared.Describer):
     statelessWidgets = [ wx.Button, wx.ScrolledWindow, wx.Window ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     def getChildrenDescription(self, widget):
@@ -251,7 +251,7 @@ class Describer(guiusecase.Describer):
         if isinstance(widget, wx.ListCtrl):
             return "Updated state\n"
         else:
-            return guiusecase.Describer.getUpdatePrefix(self, widget, *args)
+            return guishared.Describer.getUpdatePrefix(self, widget, *args)
 
     def getState(self, widget):
         state = self.getSpecificState(widget)

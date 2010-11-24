@@ -1,8 +1,8 @@
 
 """ The base classes from which widget record/replay classes are derived"""
 
-from guiusecase import GuiEvent, MethodIntercept
-from usecase import UseCaseScriptError
+from usecase.guishared import GuiEvent, MethodIntercept
+from usecase.definitions import UseCaseScriptError
 import gtk
 
 # Abstract Base class for all GTK events

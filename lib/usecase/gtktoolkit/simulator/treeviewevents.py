@@ -3,7 +3,7 @@
 
 import baseevents, gtk, logging
 from .. import treeviewextract
-from usecase import UseCaseScriptError
+from usecase.definitions import UseCaseScriptError
 
 class TreeColumnHelper:
     @classmethod

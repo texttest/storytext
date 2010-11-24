@@ -2,8 +2,7 @@
 from distutils.core import setup
 import sys
 sys.path.insert(0, "lib")
-from usecase import version
-from glob import glob
+from usecase import __version__
 import os
 
 def make_windows_script(src):
@@ -11,7 +10,10 @@ def make_windows_script(src):
     outFile.write("#!python.exe\nimport site\n\n")
     outFile.write(open(src).read())
 
-mod_files = [ os.path.basename(f[:-3]) for f in glob("lib/*.py") ]
+mod_files = [ "ordereddict" ]
+if sys.version_info[:2] < (2, 6):
+    mod_files.append("ConfigParser26")
+    
 if os.name == "nt":
     make_windows_script("bin/pyusecase")
     make_windows_script("bin/usecase_name_chooser")
@@ -21,13 +23,13 @@ else:
 
 
 setup(name='PyUseCase',
-      version=version,
+      version=__version__,
       author="Geoff Bache",
       author_email="geoff.bache@pobox.com",
       url="http://www.texttest.org/index.php?page=ui_testing",
       description="An unconvential GUI-testing tool for UIs written with PyGTK or Tkinter",
       long_description='PyUseCase is an unconventional GUI testing tool for PyGTK and Tkinter. Instead of recording GUI mechanics directly, it asks the user for descriptive names and hence builds up a "domain language" along with a "UI map file" that translates it into the current GUI layout. The point is to reduce coupling, allow very expressive tests, and ensure that GUI changes mean changing the UI map file but not all the tests. Instead of an "assertion" mechanism, it auto-generates a log of the GUI appearance and changes to it. The point is then to use that as a baseline for text-based testing, using e.g. TextTest. It also includes support for instrumenting code so that "waits" can be recorded, making it far easier for a tester to record correctly synchronized tests without having to explicitly plan for this.',
-      packages=["gtkusecase", "gtkusecase.simulator", "gtkusecase.describer"],
+      packages=["usecase", "usecase.gtktoolkit", "usecase.gtktoolkit.simulator", "usecase.gtktoolkit.describer"],
       package_dir={ "" : "lib"},
       py_modules=mod_files,
       classifiers=[ "Programming Language :: Python",

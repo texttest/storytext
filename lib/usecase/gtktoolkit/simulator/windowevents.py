@@ -2,7 +2,7 @@
 """ Events for gtk.Windows of various types, including dialogs """
 
 from baseevents import SignalEvent
-from guiusecase import WidgetAdapter
+from usecase.guishared import WidgetAdapter
 import gtk, types
 
 class DeletionEvent(SignalEvent):

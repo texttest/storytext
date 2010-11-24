@@ -2,7 +2,7 @@
 """ Event-handling around gtk.FileChoosers of various sorts """
 
 from baseevents import StateChangeEvent
-from usecase import UseCaseScriptError
+from usecase.definitions import UseCaseScriptError
 import gtk, os
 
 # At least on Windows this doesn't seem to happen immediately, but takes effect some time afterwards

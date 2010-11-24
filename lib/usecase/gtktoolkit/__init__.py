@@ -23,35 +23,25 @@ an existing shortcut, this will be recorded as the shortcut name.
 To see this in action, try out the video store example.
 """
 
-import guiusecase, usecase, widgetadapter, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys, time
+import usecase.guishared, usecase.replayer
+import widgetadapter, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys, time
 from ordereddict import OrderedDict
 
 interceptionModules = [ simulator, treeviewextract ]
 # If hildon can be imported at all, chances are we want to use it...
 # Add in the support for hildon widgets
 try:
-    import hildonusecase
-    hildonusecase.addHildonSupport()
-    interceptionModules.append(hildonusecase)
+    import hildontoolkit
+    hildontoolkit.addHildonSupport()
+    interceptionModules.append(hildontoolkit)
 except ImportError:
     pass
 
 
 PRIORITY_PYUSECASE_IDLE = describer.PRIORITY_PYUSECASE_IDLE
-version = usecase.version
 
-# Useful to have at module level as can't really be done externally
-def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
-    if not usecase.scriptEngine: # pragma: no cover - cannot test with replayer disabled
-        usecase.scriptEngine = ScriptEngine(universalLogging=False,
-                                            uiMapFiles=uiMapFiles, customEventTypes=customEventTypes)
-    elif uiMapFiles:
-        usecase.scriptEngine.addUiMapFiles(uiMapFiles)
-        usecase.scriptEngine.addCustomEventTypes(customEventTypes)
-    return usecase.scriptEngine.createShortcutBar()
-        
 
-class ScriptEngine(guiusecase.ScriptEngine):
+class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = simulator.eventTypes
     signalDescs = { 
         "row-activated" : "double-clicked row",
@@ -69,7 +59,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         "clicked": "clicked column header"
         }
     def __init__(self, universalLogging=True, **kw):
-        guiusecase.ScriptEngine.__init__(self, universalLogging=universalLogging, **kw)
+        usecase.guishared.ScriptEngine.__init__(self, universalLogging=universalLogging, **kw)
         describer.setMonitoring(universalLogging)
         if self.uiMap or describer.isEnabled():
             self.performInterceptions()
@@ -127,7 +117,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
         label = gtk.Label("Shortcuts:")
         buttonbox.pack_start(label, expand=False, fill=False)
         for fileName in files:
-            replayScript = usecase.ReplayScript(fileName)
+            replayScript = usecase.replayer.ReplayScript(fileName)
             self.addShortcutButton(buttonbox, replayScript)
         label.show()
         return buttonbox
@@ -191,7 +181,7 @@ class ScriptEngine(guiusecase.ScriptEngine):
             scriptExistedPreviously = os.path.isfile(newScriptName)
             script.rename(newScriptName)
             if not scriptExistedPreviously:
-                replayScript = usecase.ReplayScript(newScriptName)
+                replayScript = usecase.replayer.ReplayScript(newScriptName)
                 self.addShortcutButton(existingbox, replayScript)
             self.replaceAutoRecordingForShortcut(script)
 
@@ -249,9 +239,9 @@ class ScriptEngine(guiusecase.ScriptEngine):
 
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
-class UseCaseReplayer(guiusecase.UseCaseReplayer):
+class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
     def __init__(self, *args):
-        guiusecase.UseCaseReplayer.__init__(self, *args)
+        usecase.guishared.UseCaseReplayer.__init__(self, *args)
         # Anyone calling events_pending doesn't mean to include our logging events
         # so we intercept it and return the right answer for them...
         self.orig_events_pending = gtk.events_pending

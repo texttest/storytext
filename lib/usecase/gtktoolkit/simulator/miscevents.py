@@ -2,7 +2,7 @@
 """ All the remaining widget events that didn't fit anywhere else """
 
 from baseevents import StateChangeEvent, SignalEvent
-from usecase import UseCaseScriptError
+from usecase.definitions import UseCaseScriptError
 import gtk, types
 
 origToggleAction = gtk.ToggleAction

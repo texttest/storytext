@@ -1,7 +1,7 @@
 
-import guiusecase, gtk
+import usecase.guishared, gtk
 
-class WidgetAdapter(guiusecase.WidgetAdapter):
+class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getChildWidgets(self):
         if hasattr(self.widget, "get_children"):
             return self.widget.get_children()
@@ -34,4 +34,4 @@ class WidgetAdapter(guiusecase.WidgetAdapter):
         return self.widget.get_name()
      
 
-guiusecase.WidgetAdapter.adapterClass = WidgetAdapter
+usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter
