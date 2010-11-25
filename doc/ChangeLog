@@ -291,3 +291,31 @@ PyGTK Autologging:
     - Now lists entry completions shown when text is entered in a gtk.Entry
     - gtk.TreeView description now includes selections, marked by '*'
     - gtk.Label descriptions now include markup, if any.
+
+Version 3.4.1
+-------------
+General:
+    - Support restored for Python 2.5 (otherwise it wasn't usable under either Maemo or Jython, both of which are becoming interesting)
+
+Internal:
+    - Tidied up everything to be under a single "usecase" package and added to PyPI
+	Means "createShortcutBar" should be called from this module instead of "gtkusecase".
+    - Migrated from ndict to ordereddict which is part of Python 2.7
+
+Proof of concept support for hildon widget set added:
+    - GUI platform based on GTK and used on Nokia's Maemo platform for smartphones.
+	Not much more than a proof of concept and a basis to build on. Currently supports
+	hildon.AppMenu, hildon.EditToolbar, hildon.GtkTreeView and hildon.CheckButton.
+
+PyGTK bugfixes:
+    - Fixed autologging bug in gtk.TreeView when updating information created through data_func interfaces
+    - Fixed record/playback bug when using gtk.Dialog.run on dialogs containing widgets with state 
+	(e.g. gtk.CheckButton, gtk.Entry)
+    - Fixed stacktrace when gtk.Button.get_image() returns something that isn't a gtk.Image
+    - Now handle gtk.TreeViews that are set up using insert_column_with* methods
+    - Recording / playing back now works when editing multiline text in a gtk.TextView
+    - Removed buggy support for recording and playing back dragging of gtk.Paned 
+	Was more trouble than it was worth.
+
+wxPython improvements:
+    - Basic support for wx.Dialog added (thanks Cliff Xuan)

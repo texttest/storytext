@@ -1,14 +1,6 @@
 #!/usr/bin/env python
 
-# Test GUI for 'PyUseCase'. Illustrates use of
-#  (a) simple signal connection, as in buttons
-#  (b) text entries and
-#  (c) the shortcut bar
-#  (d) menus
-#  (e) notebooks
-
-# Has universal logging enabled, via the first line, printed on standard output
-
+# Test GUI for 'PyUseCase'. Primarily exists to illustrate usage of the shortcut bar.
 # Also illustrates an idiom for making sure nothing happens if PyUseCase isn't available.
 
 import gtk, gobject, logging, sys
@@ -36,7 +28,7 @@ class VideoStore:
         vbox.pack_start(self.getTaskBar(), expand=False, fill=False)
         vbox.pack_start(self.getNotebook(), expand=True, fill=True)
         try:
-            from gtkusecase import createShortcutBar
+            from usecase import createShortcutBar
             shortcutBar = createShortcutBar()
             if shortcutBar:
                 vbox.pack_start(shortcutBar, expand=False, fill=False)

@@ -3,9 +3,10 @@ Summary of what it is:
         The full documentation is present at http://www.texttest.org/index.php?page=ui_testing
         What follows is just a brief summary.
 
-        PyUseCase is a record/replay layer for Python GUIs. It currently has extensive support for PyGTK GUIs,
-        basic support for Tkinter GUIs, and alpha status support for wxPython. Besides providing a mechanism 
-        for recording and playing back UI interaction, it also generates a log of the UI appearance. 
+        PyUseCase is a record/replay layer for Python GUIs. It currently has extensive support for PyGTK GUIs
+        (including a proof of concept for the hildon extension), basic support for Tkinter GUIs, and alpha 
+        status support for wxPython. Besides providing a mechanism for recording and playing back UI interaction, 
+        it also generates a log of the UI appearance. 
         On UNIX-based systems it can also be useful on console programs to record and simulate signals 
         received by the process.
 
@@ -41,12 +42,12 @@ Summary of what it is:
 
 System requirements:
 
-    At least Python 2.6
+    At least Python 2.5
     At least PyGTK 2.12 for the PyGTK part
 
 Other Open Source Software packaged with it/used by it:
 
-    ndict.py  : sequential dictionaries. (Wolfgang Grafen, v0.3.2)
+    ordereddict.py  : sequential dictionaries. (Raymond Hettinger, v1.1)
 
 Installation:
 
