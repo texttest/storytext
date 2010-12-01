@@ -580,9 +580,12 @@ class Describer:
         message = "-" * 10 + " " + self.getWindowString() + " '" + title + "' " + "-" * 10
         self.widgetsWithState[window] = title
         self.logger.info("\n" + message)
-        self.logger.info(self.getChildrenDescription(window))
+        self.logger.info(self.getWindowContentDescription(window))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
+
+    def getWindowContentDescription(self, window):
+        return self.getChildrenDescription(window)
 
     def getWindowString(self):
         return "Window"
@@ -620,10 +623,10 @@ class Describer:
             desc += newText.rstrip() + "\n"
         return desc
 
-    def getDescription(self, widget):
+    def getDescription(self, widget, **kw):
         desc = ""
         desc = self.addToDescription(desc, self.getWidgetDescription(widget))
-        desc = self.addToDescription(desc, self.getChildrenDescription(widget))
+        desc = self.addToDescription(desc, self.getChildrenDescription(widget, **kw))
         return desc.rstrip()
     
     def getWidgetDescription(self, widget):
