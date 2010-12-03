@@ -1,10 +1,10 @@
 
 import usecase.guishared
 from org.eclipse import swt
+from org.eclipse.swtbot.swt.finder import SWTBot
 from org.eclipse.swtbot.swt.finder.widgets import SWTBotMenu
 from org.eclipse.swtbot.swt.finder.results import VoidResult
 from org.eclipse.swtbot.swt.finder.finders import UIThreadRunnable
-from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
 from org.hamcrest.core import IsAnything
 from java.lang import IndexOutOfBoundsException
 
@@ -58,8 +58,12 @@ class MenuItemEvent(usecase.guishared.GuiEvent):
 
 
 class WidgetMonitor:
+    botClass = SWTBot
     def __init__(self):
-        self.bot = SWTWorkbenchBot()
+        self.bot = self.botClass()
+
+    def forceShellActive(self):
+        runOnUIThread(self.bot.getFinder().getShells()[0].forceActive)
 
     def findAllWidgets(self):
         matcher = IsAnything()
