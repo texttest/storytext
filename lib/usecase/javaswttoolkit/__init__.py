@@ -1,7 +1,7 @@
 
 """ Don't load any Java stuff at global scope, needs to be importable by CPython also """
 
-import usecase.guishared, os
+import usecase.guishared, os, time
 from threading import Thread
 
 class ScriptEngine(usecase.guishared.ScriptEngine):
@@ -62,5 +62,7 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         theDescriber = Describer()
         while True:
             monitor.describe(theDescriber)
+            if self.delay:
+                time.sleep(self.delay)
             if not self.runNextCommand():
                 break
