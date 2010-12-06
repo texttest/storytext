@@ -53,7 +53,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
             return False
 
 
-class MenuItemEvent(SignalEvent):    
+class ItemEvent(SignalEvent):    
     def generate(self, *args):
         self.widget.click()
 
@@ -84,7 +84,8 @@ class ShellCloseEvent(SignalEvent):
 class WidgetMonitor:
     botClass = swtbot.SWTBot
     swtbotMap = { swt.widgets.MenuItem : swtbot.widgets.SWTBotMenu,
-                  swt.widgets.Shell    : swtbot.widgets.SWTBotShell }
+                  swt.widgets.Shell    : swtbot.widgets.SWTBotShell,
+                  swt.widgets.ToolItem : swtbot.widgets.SWTBotToolbarPushButton }
     def __init__(self):
         self.bot = self.botClass()
 
@@ -107,7 +108,7 @@ class WidgetMonitor:
                     try:
                         adapters.append(WidgetAdapter(swtbotClass(widget)))
                     except:
-                        pass # Get 'widget is disposed' sometimes, don't know why
+                        raise
         return adapters
 
     def describe(self, describer):
@@ -118,6 +119,6 @@ class WidgetMonitor:
             pass # probably we have already exited, don't bother with a description
 
 
-eventTypes =  [ (swtbot.widgets.SWTBotMenu,  [ MenuItemEvent ]),
-                (swtbot.widgets.SWTBotShell, [ ShellCloseEvent ])]
-
+eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
+                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
+                (swtbot.widgets.SWTBotToolbarPushButton , [ ItemEvent ])]
