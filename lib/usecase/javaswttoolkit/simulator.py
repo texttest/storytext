@@ -1,10 +1,7 @@
 
 import usecase.guishared
 from org.eclipse import swt
-from org.eclipse.swtbot.swt.finder import SWTBot
-from org.eclipse.swtbot.swt.finder.widgets import SWTBotMenu
-from org.eclipse.swtbot.swt.finder.results import VoidResult
-from org.eclipse.swtbot.swt.finder.finders import UIThreadRunnable
+import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
 from java.lang import IndexOutOfBoundsException
 
@@ -30,13 +27,13 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
 
 def runOnUIThread(method, *args):
-    class PythonVoidResult(VoidResult):
+    class PythonVoidResult(swtbot.results.VoidResult):
         def run(self):
             method(*args)
 
-    UIThreadRunnable.syncExec(PythonVoidResult())
-        
-class MenuItemEvent(usecase.guishared.GuiEvent):
+    swtbot.finders.UIThreadRunnable.syncExec(PythonVoidResult())
+
+class SignalEvent(usecase.guishared.GuiEvent):
     def connectRecord(self, method):
         class RecordListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
@@ -48,7 +45,15 @@ class MenuItemEvent(usecase.guishared.GuiEvent):
             runOnUIThread(self.widget.widget.widget.addListener, eventType, RecordListener())
         except: # Get 'widget is disposed' sometimes, don't know why...
             pass
-    
+
+    def implies(self, scriptOutput, otherEvent, *args):
+        if isinstance(otherEvent, ShellCloseEvent):
+            return not otherEvent.shouldRecord() # A close event when the window is closed shouldn't be used
+        else:
+            return False
+
+
+class MenuItemEvent(SignalEvent):    
     def generate(self, *args):
         self.widget.click()
 
@@ -57,8 +62,29 @@ class MenuItemEvent(usecase.guishared.GuiEvent):
         return "Selection"
 
 
+class ShellCloseEvent(SignalEvent):    
+    def generate(self, *args):
+        self.widget.close()
+
+    def shouldDelay(self):
+        # Often triggered programmatically, so delay it and examine whether to record it after the next event
+        return True
+
+    def shouldRecord(self, *args):
+        try:
+            return self.widget.isOpen()
+        except IndexOutOfBoundsException: # seems to throw this if it's all finished
+            return False
+        
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Close"
+
+
 class WidgetMonitor:
-    botClass = SWTBot
+    botClass = swtbot.SWTBot
+    swtbotMap = { swt.widgets.MenuItem : swtbot.widgets.SWTBotMenu,
+                  swt.widgets.Shell    : swtbot.widgets.SWTBotShell }
     def __init__(self):
         self.bot = self.botClass()
 
@@ -75,11 +101,13 @@ class WidgetMonitor:
     def makeAdapters(self, widgets):
         adapters = []
         for widget in widgets:
-            if isinstance(widget, swt.widgets.MenuItem):
-                try:
-                    adapters.append(WidgetAdapter(SWTBotMenu(widget)))
-                except:
-                    pass # Get 'widget is disposed' sometimes, don't know why
+            for widgetClass in self.swtbotMap.keys():
+                if isinstance(widget, widgetClass):
+                    swtbotClass = self.swtbotMap.get(widgetClass)
+                    try:
+                        adapters.append(WidgetAdapter(swtbotClass(widget)))
+                    except:
+                        pass # Get 'widget is disposed' sometimes, don't know why
         return adapters
 
     def describe(self, describer):
@@ -89,5 +117,7 @@ class WidgetMonitor:
         except IndexOutOfBoundsException:
             pass # probably we have already exited, don't bother with a description
 
-eventTypes =  [ (SWTBotMenu,  [ MenuItemEvent ]) ]
+
+eventTypes =  [ (swtbot.widgets.SWTBotMenu,  [ MenuItemEvent ]),
+                (swtbot.widgets.SWTBotShell, [ ShellCloseEvent ])]
 
