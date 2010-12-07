@@ -5,21 +5,33 @@ sys.path.insert(0, "lib")
 from usecase import __version__
 import os
 
-def make_windows_script(src):
+def make_windows_script(src, exefile):
     outFile = open(src + ".py", "w")
-    outFile.write("#!python.exe\nimport site\n\n")
+    outFile.write("#!" + exefile + "\nimport site\n\n")
     outFile.write(open(src).read())
 
 mod_files = [ "ordereddict" ]
 if sys.version_info[:2] < (2, 6):
     mod_files.append("ConfigParser26")
-    
-if os.name == "nt":
-    make_windows_script("bin/pyusecase")
-    make_windows_script("bin/usecase_name_chooser")
-    scripts=["bin/pyusecase.py", "bin/pyusecase.exe", "bin/usecase_name_chooser.py", "bin/usecase_name_chooser.exe"]
+
+scripts = ["bin/pyusecase"]
+if os.name == "java":
+    # Revolting way to check if we're on Windows! Neither os.name nor sys.platform help when using Jython
+    windows = os.pathsep == ";"
+    exefile = "jython.bat"
 else:
-    scripts=["bin/pyusecase","bin/usecase_name_chooser"]
+    # Does not run under Jython, uses GTK
+    scripts.append("bin/usecase_name_chooser")
+    windows = os.name == "nt"
+    exefile = "python.exe"
+
+if windows:     
+    newscripts = []
+    for script in scripts:
+        make_windows_script(script, exefile)
+        newscripts.append(script + ".py")
+        newscripts.append(script + ".exe")
+    scripts = newscripts
 
 
 setup(name='PyUseCase',
