@@ -119,7 +119,8 @@ class WidgetMonitor:
                         try:
                             adapters.append(WidgetAdapter(swtbotClass(widget)))
                             break
-                        except swtbot.exceptions.AssertionFailedException:
+                        except (swtbot.exceptions.AssertionFailedException, swtbot.exceptions.WidgetNotFoundException), e:
+                            # Sometimes widgets are already disposed, sometimes they aren't the right type
                             pass
         return adapters
 
