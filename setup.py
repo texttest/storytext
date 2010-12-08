@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 from distutils.core import setup
+from distutils.command.install_scripts import install_scripts
 import sys
 sys.path.insert(0, "lib")
 from usecase import __version__
 import os
 
-def make_windows_script(src, exefile):
-    outFile = open(src + ".py", "w")
-    outFile.write("#!" + exefile + "\nimport site\n\n")
-    outFile.write(open(src).read())
 
 mod_files = [ "ordereddict" ]
 if sys.version_info[:2] < (2, 6):
@@ -18,21 +15,45 @@ scripts = ["bin/pyusecase"]
 if os.name == "java":
     # Revolting way to check if we're on Windows! Neither os.name nor sys.platform help when using Jython
     windows = os.pathsep == ";"
-    exefile = "jython.bat"
 else:
     # Does not run under Jython, uses GTK
     scripts.append("bin/usecase_name_chooser")
     windows = os.name == "nt"
-    exefile = "python.exe"
+
 
 if windows:     
-    newscripts = []
-    for script in scripts:
-        make_windows_script(script, exefile)
-        newscripts.append(script + ".py")
-        newscripts.append(script + ".exe")
-    scripts = newscripts
+    command_classes = {'install_scripts': windows_install_scripts}
+else:
+    command_classes = {}
 
+# Lifted from bzr setup.py
+class windows_install_scripts(install_scripts):
+    """ Customized install_scripts distutils action.
+    Create pyusecase.bat for win32.
+    """
+    def run(self):
+        install_scripts.run(self)   # standard action
+        for script in scripts:
+            localName = os.path.basename(script)
+            try:
+                scripts_dir = os.path.join(sys.prefix, 'Scripts')
+                script_path = self._quoted_path(os.path.join(scripts_dir, localName))
+                python_exe = self._quoted_path(sys.executable)
+                args = '%*'
+                batch_str = "@%s %s %s" % (python_exe, script_path, args)
+                batch_path = os.path.join(self.install_dir, localName + ".bat")
+                f = file(batch_path, "w")
+                f.write(batch_str)
+                f.close()
+                print "Created:", batch_path
+            except Exception, e:
+                print "ERROR: Unable to create %s: %s" % (batch_path, e)
+
+    def _quoted_path(self, path):
+        if ' ' in path:
+            return '"' + path + '"'
+        else:
+            return path
 
 setup(name='PyUseCase',
       version=__version__,
@@ -55,5 +76,6 @@ setup(name='PyUseCase',
                     "Intended Audience :: Information Technology",
                     "Topic :: Software Development :: Testing",
                     "Topic :: Software Development :: Libraries :: Python Modules" ],
-      scripts=scripts
+      scripts=scripts,
+      cmdclass=command_classes
       )
