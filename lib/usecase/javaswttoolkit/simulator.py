@@ -90,9 +90,13 @@ class ShellCloseEvent(SignalEvent):
 
 class WidgetMonitor:
     botClass = swtbot.SWTBot
-    swtbotMap = { swt.widgets.MenuItem : swtbot.widgets.SWTBotMenu,
-                  swt.widgets.Shell    : swtbot.widgets.SWTBotShell,
-                  swt.widgets.ToolItem : swtbot.widgets.SWTBotToolbarPushButton }
+    swtbotMap = { swt.widgets.MenuItem : [ swtbot.widgets.SWTBotMenu ],
+                  swt.widgets.Shell    : [ swtbot.widgets.SWTBotShell ],
+                  swt.widgets.ToolItem : [ swtbot.widgets.SWTBotToolbarPushButton,
+                                           swtbot.widgets.SWTBotToolbarDropDownButton,
+                                           swtbot.widgets.SWTBotToolbarRadioButton,
+                                           swtbot.widgets.SWTBotToolbarSeparatorButton,
+                                           swtbot.widgets.SWTBotToolbarToggleButton ]}
     def __init__(self):
         self.bot = self.botClass()
 
@@ -111,11 +115,12 @@ class WidgetMonitor:
         for widget in widgets:
             for widgetClass in self.swtbotMap.keys():
                 if isinstance(widget, widgetClass):
-                    swtbotClass = self.swtbotMap.get(widgetClass)
-                    try:
-                        adapters.append(WidgetAdapter(swtbotClass(widget)))
-                    except:
-                        raise
+                    for swtbotClass in self.swtbotMap.get(widgetClass):
+                        try:
+                            adapters.append(WidgetAdapter(swtbotClass(widget)))
+                            break
+                        except swtbot.exceptions.AssertionFailedException:
+                            pass
         return adapters
 
     def describe(self, describer):
