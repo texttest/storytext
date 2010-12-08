@@ -25,8 +25,8 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         if os.path.isfile(args[0]):
             usecase.guishared.ScriptEngine.run_python_file(self, args)
         else:
-            exec "from " + args[0] + " import Main"
-            Main.main(args)
+            exec "import " + args[0] + " as _className"
+            _className.main(args)
 
     def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
         for eventClass in self.findEventClassesFor(widget):
