@@ -3,7 +3,7 @@ import usecase.guishared
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IndexOutOfBoundsException
+from java.lang import IndexOutOfBoundsException, IllegalStateException
 
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getChildWidgets(self):
@@ -52,9 +52,16 @@ class SignalEvent(usecase.guishared.GuiEvent):
         else:
             return False
 
+    def generate(self, *args):
+        try:
+            self._generate(*args)
+        except IllegalStateException:
+            pass # get this on Windows for actions that close the UI. But only after the action is done :)
+        
+
 
 class ItemEvent(SignalEvent):    
-    def generate(self, *args):
+    def _generate(self, *args):
         self.widget.click()
 
     @classmethod
@@ -63,7 +70,7 @@ class ItemEvent(SignalEvent):
 
 
 class ShellCloseEvent(SignalEvent):    
-    def generate(self, *args):
+    def _generate(self, *args):
         self.widget.close()
 
     def shouldDelay(self):

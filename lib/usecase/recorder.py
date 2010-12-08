@@ -91,7 +91,7 @@ class UseCaseRecorder:
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
-            if os.name != "nt":
+            if os.pathsep != ";": # Not windows! os.name and sys.platform don't give this information if using Jython
                 self.addSignalHandlers()
 
         for entry in dir(signal):
