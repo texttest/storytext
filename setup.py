@@ -6,13 +6,13 @@ sys.path.insert(0, "lib")
 from usecase import __version__
 import os
 
-
 mod_files = [ "ordereddict" ]
 if sys.version_info[:2] < (2, 6):
     mod_files.append("ConfigParser26")
 
 scripts = ["bin/pyusecase"]
-if os.name == "java":
+jython = os.name == "java"
+if jython:
     # Revolting way to check if we're on Windows! Neither os.name nor sys.platform help when using Jython
     windows = os.pathsep == ";"
 else:
@@ -20,13 +20,7 @@ else:
     scripts.append("bin/usecase_name_chooser")
     windows = os.name == "nt"
 
-
-if windows:     
-    command_classes = {'install_scripts': windows_install_scripts}
-else:
-    command_classes = {}
-
-# Lifted from bzr setup.py
+# Lifted from bzr setup.py, use for Jython on Windows which has no native installer
 class windows_install_scripts(install_scripts):
     """ Customized install_scripts distutils action.
     Create pyusecase.bat for win32.
@@ -36,8 +30,7 @@ class windows_install_scripts(install_scripts):
         for script in scripts:
             localName = os.path.basename(script)
             try:
-                scripts_dir = os.path.join(sys.prefix, 'Scripts')
-                script_path = self._quoted_path(os.path.join(scripts_dir, localName))
+                script_path = self._quoted_path(os.path.join(self.install_dir, localName))
                 python_exe = self._quoted_path(sys.executable)
                 args = '%*'
                 batch_str = "@%s %s %s" % (python_exe, script_path, args)
@@ -54,6 +47,24 @@ class windows_install_scripts(install_scripts):
             return '"' + path + '"'
         else:
             return path
+
+def make_windows_script(src):
+    outFile = open(src + ".py", "w")
+    outFile.write("#!python.exe\nimport site\n\n")
+    outFile.write(open(src).read())
+			
+command_classes = {}
+if windows:
+	if jython:
+		command_classes = {'install_scripts': windows_install_scripts}
+	else:
+		newscripts = []
+		for script in scripts:
+			make_windows_script(script)
+			newscripts.append(script + ".py")
+			newscripts.append(script + ".exe")
+		scripts = newscripts
+
 
 setup(name='PyUseCase',
       version=__version__,
