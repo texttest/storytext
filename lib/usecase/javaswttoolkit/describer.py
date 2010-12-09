@@ -84,7 +84,8 @@ class Describer(usecase.guishared.Describer):
         
         desc = ""
         for child in widget.getChildren():
-            desc = self.addToDescription(desc, " " * indent * 2 + self.getDescription(child, indent=indent+1))
+            if child.isVisible():
+                desc = self.addToDescription(desc, " " * indent * 2 + self.getDescription(child, indent=indent+1))
         
         return desc.rstrip()
 
