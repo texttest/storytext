@@ -4,11 +4,12 @@ from org.eclipse import swt
         
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
-    imageTypeNames = filter(lambda x: x.startswith("IMAGE_"), dir(swt.SWT))
     def __init__(self):
         self.statelessWidgets = [ swt.widgets.Menu, swt.widgets.Label,
                                   swt.widgets.ToolBar, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell ]
+        self.imageNumbers = {}
+        self.nextImageNumber = 1
         usecase.guishared.Describer.__init__(self)
 
     def getNoneTypeDescription(self, *args):
@@ -43,11 +44,14 @@ class Describer(usecase.guishared.Describer):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=1)
 
     def getImageDescription(self, image):
-        imageType = image.getImageData().type
-        for tryType in self.imageTypeNames:
-            if imageType == getattr(swt.SWT, tryType):
-                return tryType.lower().replace("image_", "") + " image"
-        return "unknown image type (" + str(imageType) + ")" # pragma: no cover - for completeness and robustness only
+        # Seems difficult to get any sensible image information out, there is
+        # basically no query API for this in SWT
+        number = self.imageNumbers.get(image)
+        if not number:
+            number = self.nextImageNumber
+            self.imageNumbers[image] = self.nextImageNumber
+            self.nextImageNumber += 1
+        return "Image " + str(number)
 
     def getStyleDescription(self, style):
         for tryStyle in self.styleNames:
