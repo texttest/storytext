@@ -16,29 +16,42 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
 
 
 class TestRunner(Runnable):
-    def __init__(self, method, *args):
+    def __init__(self, method):
         self.method = method
-        self.args = args
             
     def run(self):
         # Eclipse uses a different class loader, set Jython's class loader
         # to use the same one, or things won't work
         sys.classLoader = Thread.currentThread().getContextClassLoader()
-        self.method(*self.args)
+        self.method()
 
         
 class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def tryAddDescribeHandler(self):
         # Set up used for recording
         runner = TestRunner(self.setUpMonitoring)
-        recordExitRunner = TestRunner(self.uiMap.scriptEngine.replaceAutoRecordingForUsecase, "javaswt")
+        recordExitRunner = TestRunner(self.runOnRecordExit)
         self.setTestRunnables(runner, recordExitRunner)
+
+    def runOnRecordExit(self):
+        self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt")
+        self.tryTerminateCoverage()
+
+    def tryTerminateCoverage(self):
+        # Eclipse doesn't return control to the python interpreter
+        # So we terminate coverage manually at this point if we're measuring it
+        try:
+            import coverage
+            coverage.process_shutdown()
+        except: # pragma: no cover - Obviously can't measure coverage here!
+            pass
     
     def enableReading(self):
         runner = TestRunner(self.runReplay)
-        self.setTestRunnables(runner)
+        replayExitRunner = TestRunner(self.tryTerminateCoverage)
+        self.setTestRunnables(runner, replayExitRunner)
 
-    def setTestRunnables(self, runner, exitRunner=None):
+    def setTestRunnables(self, runner, exitRunner):
         from org.eclipse.swtbot.testscript import TestRunnableStore
         TestRunnableStore.setTestRunnables(runner, exitRunner)
 
