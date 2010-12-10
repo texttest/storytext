@@ -107,46 +107,22 @@ class Describer(usecase.guishared.Describer):
     def getCTabFolderDescription(self, widget):
         return "TabFolder with tabs " + self.getItemBarDescription(widget, separator=" , ")
 
-    def getVisibleChildren(self, widget):
-        return filter(lambda c: c.getVisible(), widget.getChildren())
-
-    def isRcpView(self, widget):
-        try:
-            return widget.getData().getElementType() == "view"
-        except:
-            return False
-        
-    def sortChildren(self, children):
-        rcpViews = filter(self.isRcpView, children)
-        if len(rcpViews) == 0:
-            return children
-
-        # The Eclipse RCP Composite has no layout associated and the children seem to be in random order
-        # Don't know how it works it out
-        # We do a "best-guess" based on observation. This is probably brittle :)
-        nonViews = []
-        sash = None
-        for child in children:
-            if isinstance(child, swt.widgets.Sash):
-                sash = child
-            elif child not in rcpViews:
-                nonViews.append(child)
-        newOrder = []
-        for i in range(len(rcpViews)):
-            if i < len(nonViews):
-                newOrder.append(nonViews[i])
-            newOrder.append(rcpViews[-1 -i])
-        if sash:
-            newOrder.insert(len(newOrder) / 2, sash)
-        return newOrder
+    def sortChildren(self, widget):
+        tabList = filter(lambda c: c.getVisible(), widget.getTabList())
+        nonTabList = filter(lambda c: c.getVisible() and c not in tabList, widget.getChildren())
+        if len(tabList):
+            # Hack for "RCP composite, based on observation only :)
+            nonTabList.reverse()
+            return tabList + nonTabList
+        else:
+            return nonTabList
     
     def getChildrenDescription(self, widget):
         if not isinstance(widget, swt.widgets.Composite):
             return ""
         
         desc = ""
-        children = self.getVisibleChildren(widget)
-        for child in self.sortChildren(children):
+        for child in self.sortChildren(widget):
             desc = self.addToDescription(desc, self.getDescription(child))
         
         return desc.rstrip()
@@ -154,3 +130,17 @@ class Describer(usecase.guishared.Describer):
     def checkInstance(self, widget, widgetClass):
         # Classloader problems with the custom module ?
         return isinstance(widget, widgetClass) or widget.__class__.__name__ == widgetClass.__name__
+
+    ### Debug code
+    ## def getRawData(self, widget):
+    ##     return widget.__class__.__name__ + " " + str(id(widget)) + self.getData(widget)
+
+    ## def getData(self, widget):
+    ##     if widget.getData():
+    ##         try:
+    ##             return " " + widget.getData().getBundleId() + " " + widget.getData().getElementType() + " " + repr(widget.getData().getConfigurationElement())
+    ##         except:
+    ##             return " " + widget.getData().toString()
+    ##     else:
+    ##         return ""
+        
