@@ -95,6 +95,8 @@ class Describer(usecase.guishared.Describer):
             elements.append(styleDesc)
         if item.getImage():
             elements.append(self.getImageDescription(item.getImage()))
+        if hasattr(item, "getEnabled") and not item.getEnabled():
+            elements.append("greyed out")
         return self.combineElements(elements)
 
     def combineElements(self, elements):
