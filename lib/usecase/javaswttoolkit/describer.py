@@ -6,7 +6,7 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
         self.statelessWidgets = [ swt.widgets.Menu, swt.widgets.Label, swt.widgets.Text, swt.widgets.Tree,
-                                  swt.widgets.ToolBar, swt.custom.CTabFolder,  
+                                  swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.custom.CTabFolder, 
                                   swt.widgets.Composite, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell ]
         self.imageNumbers = {}
@@ -82,6 +82,15 @@ class Describer(usecase.guishared.Describer):
         else:
             return elements[0] + " (" + ", ".join(elements[1:]) + ")"
 
+    def getSashDescription(self, widget):
+        orientation = "Horizontal"
+        if widget.getStyle() & swt.SWT.VERTICAL:
+            orientation = "Vertical"
+        return "-" * 15 + " " + orientation + " sash " + "-" * 15
+
+    def getLinkDescription(self, widget):
+        return "Link '" + widget.getText() + "'"
+        
     def getLabelDescription(self, label):
         return "'" + label.getText() + "'"
     
