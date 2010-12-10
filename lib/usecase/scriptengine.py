@@ -51,8 +51,6 @@ class ScriptEngine:
             return False
         else:
             self.run_python_file(args)
-            if self.recorderActive():
-                self.recorder.terminate()
             return True
 
     def run_python_file(self, args):

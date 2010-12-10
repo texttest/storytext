@@ -61,7 +61,9 @@ class SignalEvent(usecase.guishared.GuiEvent):
             self._generate(*args)
         except IllegalStateException:
             pass # get this on Windows for actions that close the UI. But only after the action is done :)
-        
+
+    def shouldRecord(self, event, *args):
+        return DisplayFilter.getEventFromUser(event)
 
 
 class ItemEvent(SignalEvent):    
@@ -75,21 +77,39 @@ class ItemEvent(SignalEvent):
 
 class ShellCloseEvent(SignalEvent):    
     def _generate(self, *args):
-        self.widget.close()
-
-    def shouldDelay(self):
-        # Often triggered programmatically, so delay it and examine whether to record it after the next event
-        return True
-
-    def shouldRecord(self, *args):
-        try:
-            return self.widget.isOpen()
-        except IndexOutOfBoundsException: # seems to throw this if it's all finished
-            return False
+        # SWTBotShell.close appears to close things twice, just use the ordinary one for now...
+        runOnUIThread(self.widget.widget.widget.close)
         
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Close"
+
+
+class DisplayFilter:
+    eventFromUser = None
+    @classmethod
+    def getEventFromUser(cls, event):
+        if event is cls.eventFromUser:
+            cls.eventFromUser = None
+            return True
+        else:
+            return False
+        
+    def addFilters(self, display):
+        class DisplayListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                if DisplayFilter.eventFromUser is None:
+                    DisplayFilter.eventFromUser = e
+        for eventType in self.getAllEventTypes():
+            runOnUIThread(display.addFilter, eventType, DisplayListener())
+
+    def getAllEventTypes(self):
+        eventTypeSet = set()
+        for swtbotClass, eventClasses in eventTypes:
+            for eventClass in eventClasses:
+                eventTypeSet.add(getattr(swt.SWT, eventClass.getAssociatedSignal(None)))
+        return eventTypeSet
+        
 
 
 class WidgetMonitor:
@@ -103,9 +123,13 @@ class WidgetMonitor:
                                            swtbot.widgets.SWTBotToolbarToggleButton ]}
     def __init__(self):
         self.bot = self.botClass()
-
+        self.displayFilter = DisplayFilter()
+        
     def forceShellActive(self):
         runOnUIThread(self.bot.getFinder().getShells()[0].forceActive)
+
+    def setUpDisplayFilter(self):
+        self.displayFilter.addFilters(self.bot.getDisplay())
 
     def findAllWidgets(self):
         matcher = IsAnything()

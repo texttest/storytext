@@ -168,11 +168,10 @@ class UseCaseRecorder:
             self.logger.debug("Delaying event " + repr(event.name))
             self.delayedEvents.append((event, args))
         else:
-            scriptOutput = event.outputForScript(*args)
-            self.processWriteEvent(scriptOutput, event, args)
-            self.processDelayedEvents(event, args)
+            self.processWriteEvent(event, args)
+            self.processDelayedEvents()
 
-    def processWriteEvent(self, scriptOutput, event, args):
+    def processWriteEvent(self, event, args):
         if self.stateChangeEventInfo:
             if event.implies(*(self.stateChangeEventInfo + args)):
                 self.logger.debug("Implies previous state change event, ignoring previous")
@@ -180,6 +179,7 @@ class UseCaseRecorder:
                 self.logger.debug("Recording previous state change " + repr(self.stateChangeEventInfo[0]))
                 self.record(*self.stateChangeEventInfo)
 
+        scriptOutput = event.outputForScript(*args)
         self.writeApplicationEventDetails()
         if event.isStateChange():
             self.logger.debug("Storing up state change event " + repr(scriptOutput))
@@ -189,21 +189,10 @@ class UseCaseRecorder:
             self.stateChangeEventInfo = None
             self.record(scriptOutput, event)
 
-    def processDelayedEvents(self, origEvent, origArgs):
-        for event, args in self.delayedEvents:
-            scriptOutput = event.outputForScript(*args)
-            if not origEvent.implies(scriptOutput, event, *origArgs):
-                self.processWriteEvent(scriptOutput, event, args)
+    def processDelayedEvents(self):
+        for eventInfo in self.delayedEvents:
+            self.processWriteEvent(*eventInfo)
         self.delayedEvents = []
-
-    def terminate(self):
-        if len(self.delayedEvents):
-            # We take the first one without re-checking:
-            # nothing has happened since it would have been recorded so it must have been valid then
-            firstEvent, firstArgs = self.delayedEvents.pop(0)
-            scriptOutput = firstEvent.outputForScript(*firstArgs)
-            self.processWriteEvent(scriptOutput, firstEvent, firstArgs)
-            self.processDelayedEvents(firstEvent, firstArgs)
 
     def record(self, line, event=None):
         for script in self.getScriptsToRecord(event):

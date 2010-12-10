@@ -48,6 +48,7 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         from simulator import WidgetMonitor, eventTypes
         monitor = WidgetMonitor()
         monitor.forceShellActive()
+        monitor.setUpDisplayFilter()
         self.uiMap.scriptEngine.eventTypes = eventTypes
         for widget in monitor.findAllWidgets():
             self.uiMap.monitorWidget(widget)
