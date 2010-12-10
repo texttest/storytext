@@ -431,7 +431,8 @@ class UIMap:
         if self.scriptEngine.recorderActive():
             widgetType = widget.getType()
             for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
-                autoEventName = "Auto." + widgetType + "." + signature + ".'" + widget.getUIMapIdentifier() + "'"
+                identifier = widget.getUIMapIdentifier().replace("'", "<APOSTROPHE>")
+                autoEventName = "Auto." + widgetType + "." + signature + ".'" + identifier + "'"
                 signalName, argumentParseData = self.parseSignature(signature)
                 self.autoInstrument(autoEventName, signalName, widget, argumentParseData, widgetType)
         return autoInstrumented
