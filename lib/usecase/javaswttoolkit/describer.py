@@ -5,7 +5,7 @@ from org.eclipse import swt
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Menu, swt.widgets.Label, swt.widgets.Text, swt.widgets.Tree,
+        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Text, swt.widgets.Tree,
                                   swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.custom.CTabFolder, 
                                   swt.widgets.Composite, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell ]
@@ -21,9 +21,6 @@ class Describer(usecase.guishared.Describer):
 
     def getShellState(self, shell):
         return shell.getText()
-
-    def getMenuDescription(self, menu, indent=0):
-        return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescription)
 
     def getItemBarDescription(self, itemBar, indent=0, subItemMethod=None, prefix="", separator="\n"):
         desc = ""
@@ -45,6 +42,15 @@ class Describer(usecase.guishared.Describer):
         subDesc = self.getItemBarDescription(item, indent+1, subItemMethod=self.getSubTreeDescription, prefix=prefix)
         if subDesc:
             return "\n" + subDesc.rstrip()
+        else:
+            return ""
+
+    def getMenuDescription(self, menu, indent=1):
+        return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescription)
+
+    def getMenuBarDescription(self, menubar):
+        if menubar:
+            return "Menu Bar:\n" + self.getMenuDescription(menubar)
         else:
             return ""
 
@@ -96,7 +102,7 @@ class Describer(usecase.guishared.Describer):
     
     def getWindowContentDescription(self, shell):
         desc = ""
-        desc = self.addToDescription(desc, self.getDescription(shell.getMenuBar()))
+        desc = self.addToDescription(desc, self.getMenuBarDescription(shell.getMenuBar()))
         return self.addToDescription(desc, self.getChildrenDescription(shell))
 
     def getCompositeDescription(self, widget):
