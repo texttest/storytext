@@ -56,11 +56,19 @@ class WidgetAdapter:
         label = self.getLabel()
         if label:
             return "Label=" + label
+
+        tooltip = self.getTooltip()
+        if tooltip:
+            return "Tooltip=" + tooltip
         return "Type=" + self.getType()
+
+    def getTooltip(self):
+        return ""
 
     def findPossibleUIMapIdentifiers(self):
         return [ "Name=" + self.getName(), "Title=" + str(self.getTitle()), 
-                 "Label=" + str(self.getLabel()), "Type=" + self.getType() ]
+                 "Label=" + str(self.getLabel()), "Tooltip=" + self.getTooltip(),
+                 "Type=" + self.getType() ]
 
 
 class GuiEvent(definitions.UserEvent):
