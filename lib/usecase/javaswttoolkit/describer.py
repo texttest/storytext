@@ -5,7 +5,7 @@ from org.eclipse import swt
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Text, swt.widgets.Tree,
+        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Text, swt.widgets.Tree, swt.widgets.CoolBar,
                                   swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.custom.CTabFolder, 
                                   swt.widgets.Composite, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell ]
@@ -45,6 +45,15 @@ class Describer(usecase.guishared.Describer):
         else:
             return ""
 
+    def getCoolItemDescription(self, item, indent, prefix):
+        control = item.getControl()
+        if control:
+            descLines = self.getDescription(control).splitlines()
+            paddedLines = [ "  " + line for line in descLines ]
+            return " " + "\n".join(paddedLines).strip() + "\n"
+        else:
+            return ""
+
     def getMenuDescription(self, menu, indent=1):
         return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescription)
 
@@ -54,8 +63,11 @@ class Describer(usecase.guishared.Describer):
         else:
             return ""
 
-    def getToolBarDescription(self, toolbar):
-        return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=1)
+    def getToolBarDescription(self, toolbar, indent=1):
+        return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
+
+    def getCoolBarDescription(self, coolbar):
+        return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescription)
 
     def getImageDescription(self, image):
         # Seems difficult to get any sensible image information out, there is
@@ -133,7 +145,8 @@ class Describer(usecase.guishared.Describer):
             return nonTabList
     
     def getChildrenDescription(self, widget):
-        if not isinstance(widget, swt.widgets.Composite):
+        # Coolbars describe their children directly : they have two parallel children structures
+        if not isinstance(widget, swt.widgets.Composite) or isinstance(widget, swt.widgets.CoolBar):
             return ""
         
         desc = ""
