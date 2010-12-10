@@ -95,6 +95,9 @@ class Describer(usecase.guishared.Describer):
             elements.append(styleDesc)
         if item.getImage():
             elements.append(self.getImageDescription(item.getImage()))
+        return self.combineElements(elements)
+
+    def combineElements(self, elements):
         if len(elements) <= 1:
             return "".join(elements)
         else:
@@ -110,7 +113,13 @@ class Describer(usecase.guishared.Describer):
         return "Link '" + widget.getText() + "'"
         
     def getLabelDescription(self, label):
-        return "'" + label.getText() + "'"
+        elements = [ "'" + label.getText() + "'" ]
+        for fontData in label.getFont().getFontData():
+            fontStyle = fontData.getStyle()
+            for fontAttr in [ "BOLD", "ITALIC" ]:
+                if fontStyle & getattr(swt.SWT, fontAttr):
+                    elements.append(fontAttr.lower())
+        return self.combineElements(elements)
     
     def getWindowContentDescription(self, shell):
         desc = ""
@@ -148,11 +157,50 @@ class Describer(usecase.guishared.Describer):
         # Coolbars describe their children directly : they have two parallel children structures
         if not isinstance(widget, swt.widgets.Composite) or isinstance(widget, swt.widgets.CoolBar):
             return ""
-        
+
+        childDescriptions = map(self.getDescription, self.sortChildren(widget))
+        columns = self.getLayoutColumns(widget)
+        if columns > 1 and len(childDescriptions) > 1:
+            return self.formatInGrid(childDescriptions, widget.getLayout().numColumns)
+        else:
+            return self.formatInColumn(childDescriptions)
+
+    def formatInColumn(self, childDescriptions):
         desc = ""
-        for child in self.sortChildren(widget):
-            desc = self.addToDescription(desc, self.getDescription(child))
+        for childDesc in childDescriptions:
+            desc = self.addToDescription(desc, childDesc)
         
+        return desc.rstrip()
+
+    def getLayoutColumns(self, widget):
+        try:
+            return widget.getLayout().numColumns
+        except AttributeError:
+            return 1
+
+    def getCellWidth(self, row, colNum):
+        if len(row) > colNum:
+            return len(row[colNum])
+        else:
+            return 0
+
+    def formatInGrid(self, childDescriptions, numColumns):
+        desc = ""
+        grid = []
+        for i, childDesc in enumerate(childDescriptions):
+            if i % numColumns == 0:
+                grid.append([])
+            grid[-1].append(childDesc)
+
+        colWidths = []
+        for colNum in range(numColumns):
+            maxWidth = max((self.getCellWidth(row, colNum) for row in grid))
+            colWidths.append(maxWidth + 2)
+
+        for row in grid:
+            for colNum, childDesc in enumerate(row):
+                desc += childDesc.ljust(colWidths[colNum])
+            desc += "\n"        
         return desc.rstrip()
 
     def checkInstance(self, widget, widgetClass):
