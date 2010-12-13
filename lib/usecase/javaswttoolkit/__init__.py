@@ -46,12 +46,8 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils
         SWTUtils.waitForDisplayToAppear()
         from simulator import WidgetMonitor, eventTypes
-        monitor = WidgetMonitor()
-        monitor.forceShellActive()
-        monitor.setUpDisplayFilter()
-        self.uiMap.scriptEngine.eventTypes = eventTypes
-        for widget in monitor.findAllWidgets():
-            self.uiMap.monitorWidget(widget)
+        monitor = WidgetMonitor(self.uiMap)
+        monitor.setUp()
         return monitor
     
     def runReplay(self):

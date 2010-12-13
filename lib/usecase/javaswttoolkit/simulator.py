@@ -141,18 +141,39 @@ class WidgetMonitor:
                                            swtbot.widgets.SWTBotToolbarSeparatorButton,
                                            swtbot.widgets.SWTBotToolbarToggleButton ],
                   swt.widgets.Text     : [ swtbot.widgets.SWTBotText ]}
-    def __init__(self):
+    def __init__(self, uiMap):
         self.bot = self.botClass()
+        self.uiMap = uiMap
+        self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = DisplayFilter()
+        self.widgetsShown = set()
+
+    def setUp(self):
+        self.forceShellActive()
+        self.setUpDisplayFilter()
+        for widget in self.findAllWidgets():
+            self.uiMap.monitorWidget(widget)
         
     def forceShellActive(self):
         runOnUIThread(self.bot.getFinder().getShells()[0].forceActive)
 
     def setUpDisplayFilter(self):
-        self.displayFilter.addFilters(self.bot.getDisplay())
+        display = self.bot.getDisplay()
+        self.displayFilter.addFilters(display)
+        self.addMonitorFilter(display)
+
+    def addMonitorFilter(self, display):
+        class MonitorListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                self.bot.getFinder().setShouldFindInvisibleControls(True)
+                widgets = [ e.widget ] + self.bot.widgets(IsAnything(), e.widget)
+                self.widgetsShown.update(widgets)
+                for widget in self.makeAdapters(widgets):
+                    self.uiMap.monitorWidget(widget)
+                
+        runOnUIThread(display.addFilter, swt.SWT.Show, MonitorListener())
 
     def findAllWidgets(self):
-        self.bot.getFinder().setShouldFindInvisibleControls(True)
         matcher = IsAnything()
         widgets = self.bot.widgets(matcher)
         menus = self.bot.getFinder().findMenus(matcher)
