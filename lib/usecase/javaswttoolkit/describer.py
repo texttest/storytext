@@ -1,5 +1,5 @@
 
-import usecase.guishared, types
+import usecase.guishared, types, os
 from org.eclipse import swt
         
 class Describer(usecase.guishared.Describer):
@@ -130,10 +130,17 @@ class Describer(usecase.guishared.Describer):
 
     def getCompositeDescription(self, widget):
         return ""
-        
+
+    def fixLineEndings(self, text):
+        # Methods return text 'raw' with Windows line endings
+        if os.linesep != "\n":
+            return text.replace(os.linesep, "\n")
+        else:
+            return text
+
     def getTextDescription(self, widget):
         header = "=" * 10 + " Text " + "=" * 10        
-        return "\n" + header + "\n" + widget.getText().rstrip() + "\n" + "=" * len(header)    
+        return "\n" + header + "\n" + self.fixLineEndings(widget.getText().rstrip()) + "\n" + "=" * len(header)    
 
     def getTreeDescription(self, widget):
         columns = widget.getColumns()
@@ -145,11 +152,20 @@ class Describer(usecase.guishared.Describer):
     def getCTabFolderDescription(self, widget):
         return "TabFolder with tabs " + self.getItemBarDescription(widget, separator=" , ")
 
+    def hasCTabFolder(self, widget):
+        for child in widget.getChildren():
+            if self.checkInstance(child, swt.custom.CTabFolder):
+                 return True
+        return False
+		
     def sortChildren(self, widget):
+        # Only sort for the RCP composite which seems incapable of it...
+        if not self.hasCTabFolder(widget):
+            return filter(lambda c: c.getVisible(), widget.getChildren())
         tabList = filter(lambda c: c.getVisible(), widget.getTabList())
         nonTabList = filter(lambda c: c.getVisible() and c not in tabList, widget.getChildren())
         if len(tabList):
-            # Hack for "RCP composite, based on observation only :)
+            # Hack for "RCP composite", based on observation only :)
             nonTabList.reverse()
             return tabList + nonTabList
         else:
