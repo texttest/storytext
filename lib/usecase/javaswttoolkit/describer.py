@@ -5,10 +5,10 @@ from org.eclipse import swt
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Text, swt.widgets.CoolBar,
+        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar,
                                   swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.custom.CTabFolder, 
                                   swt.widgets.Composite, types.NoneType ]
-        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Tree ]
+        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree ]
         self.imageNumbers = {}
         self.nextImageNumber = 1
         self.displays = []
@@ -182,9 +182,20 @@ class Describer(usecase.guishared.Describer):
         else:
             return text
 
+    def getUpdatePrefix(self, widget, oldState, state):
+        if isinstance(widget, self.getTextEntryClass()):
+            return "Updated " + widget.getData("org.eclipse.swtbot.widget.key") or "Text Field"
+        else:
+            return "\n"
+
+    def getTextState(self, widget):
+        return widget.getText()
+
     def getTextDescription(self, widget):
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
         header = "=" * 10 + " Text " + "=" * 10        
-        return "\n" + header + "\n" + self.fixLineEndings(widget.getText().rstrip()) + "\n" + "=" * len(header)    
+        return "\n" + header + "\n" + self.fixLineEndings(state.rstrip()) + "\n" + "=" * len(header)    
 
     def getTreeDescription(self, widget):
         state = self.getState(widget)
@@ -208,7 +219,8 @@ class Describer(usecase.guishared.Describer):
 		
     def sortChildren(self, widget):
         visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
-        if len(visibleChildren) <= 1:
+        if len(visibleChildren) <= 1 or widget.getLayout() is not None:
+            # Trust in the layout, if there is one
             return visibleChildren
         
         xDivide = self.getVerticalDividePosition(visibleChildren)
