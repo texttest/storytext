@@ -184,7 +184,7 @@ class Describer(usecase.guishared.Describer):
 
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, self.getTextEntryClass()):
-            return "Updated " + widget.getData("org.eclipse.swtbot.widget.key") or "Text Field"
+            return "Updated " + (widget.getData("org.eclipse.swtbot.widget.key") or "Text Field")
         else:
             return "\n"
 

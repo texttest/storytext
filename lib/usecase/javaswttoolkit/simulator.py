@@ -152,6 +152,7 @@ class WidgetMonitor:
         self.displayFilter.addFilters(self.bot.getDisplay())
 
     def findAllWidgets(self):
+        self.bot.getFinder().setShouldFindInvisibleControls(True)
         matcher = IsAnything()
         widgets = self.bot.widgets(matcher)
         menus = self.bot.getFinder().findMenus(matcher)
