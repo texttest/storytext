@@ -11,12 +11,40 @@ class Describer(usecase.guishared.Describer):
         self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Tree ]
         self.imageNumbers = {}
         self.nextImageNumber = 1
+        self.displays = []
+        self.widgetsBecomeVisible = []
         usecase.guishared.Describer.__init__(self)
 
+    def addVisibilityFilter(self, display):
+        if display not in self.displays:
+            self.displays.append(display)
+            class StoreListener(swt.widgets.Listener):
+                def handleEvent(listenerSelf, e):
+                    self.widgetsBecomeVisible.append(e.widget)
+            display.addFilter(swt.SWT.Show, StoreListener())
+            
     def describeWithUpdates(self, shell):
+        self.addVisibilityFilter(shell.getDisplay())
+        self.describeNewlyShown()
         self.describeUpdates()
         self.describe(shell)
 
+    def parentMarked(self, widget):
+        if widget in self.widgetsBecomeVisible:
+            return True
+        elif widget.getParent():
+            return self.parentMarked(widget.getParent())
+        else:
+            return False
+
+    def describeNewlyShown(self):
+        for widget in self.widgetsBecomeVisible:
+            parent = widget.getParent()
+            if not self.parentMarked(parent):
+                self.logger.info("New widgets have become visible: describing common parent :\n")
+                self.logger.info(self.getChildrenDescription(parent))
+        self.widgetsBecomeVisible = []
+        
     def getNoneTypeDescription(self, *args):
         return ""
 
