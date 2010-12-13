@@ -79,10 +79,16 @@ class Describer(usecase.guishared.Describer):
     def getCoolBarDescription(self, coolbar):
         return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescription)
 
+    def getImageNumber(self, image):
+        for currImage, number in self.imageNumbers.items():
+            if image.getImageData().data == currImage.getImageData().data:
+                return number
+        return 0
+
     def getImageDescription(self, image):
         # Seems difficult to get any sensible image information out, there is
         # basically no query API for this in SWT
-        number = self.imageNumbers.get(image)
+        number = self.getImageNumber(image)
         if not number:
             number = self.nextImageNumber
             self.imageNumbers[image] = self.nextImageNumber
