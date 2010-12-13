@@ -5,16 +5,26 @@ from org.eclipse import swt
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Text, swt.widgets.Tree, swt.widgets.CoolBar,
+        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Text, swt.widgets.CoolBar,
                                   swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.custom.CTabFolder, 
                                   swt.widgets.Composite, types.NoneType ]
-        self.stateWidgets = [ swt.widgets.Shell ]
+        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Tree ]
         self.imageNumbers = {}
         self.nextImageNumber = 1
         usecase.guishared.Describer.__init__(self)
 
+    def describeWithUpdates(self, shell):
+        self.describeUpdates()
+        self.describe(shell)
+
     def getNoneTypeDescription(self, *args):
         return ""
+
+    def getWindowClasses(self):
+        return swt.widgets.Shell, swt.widgets.Dialog
+
+    def getTextEntryClass(self):
+        return swt.widgets.Text
 
     def getWindowString(self):
         return "Shell"
@@ -143,6 +153,11 @@ class Describer(usecase.guishared.Describer):
         return "\n" + header + "\n" + self.fixLineEndings(widget.getText().rstrip()) + "\n" + "=" * len(header)    
 
     def getTreeDescription(self, widget):
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        return state
+
+    def getTreeState(self, widget):
         columns = widget.getColumns()
         text = "Tree with " + str(len(columns)) + " columns : "
         text += " , ".join((c.getText() for c in columns)) + "\n"

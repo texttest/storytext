@@ -253,10 +253,6 @@ class Describer(guishared.Describer):
         else:
             return guishared.Describer.getUpdatePrefix(self, widget, *args)
 
-    def getState(self, widget):
-        state = self.getSpecificState(widget)
-        return state.strip()
-
     def getButtonDescription(self, widget):
         text = "Button"
         labelText = widget.GetLabel()

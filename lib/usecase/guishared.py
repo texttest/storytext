@@ -649,6 +649,10 @@ class Describer:
     def checkInstance(self, widget, widgetClass):
         return isinstance(widget, widgetClass) # SWT has classloader trouble, override this
 
+    def getState(self, widget):
+        state = self.getSpecificState(widget)
+        return state.strip()
+
     def getSpecificState(self, widget):
         for widgetClass in self.stateWidgets:
             if isinstance(widget, widgetClass):

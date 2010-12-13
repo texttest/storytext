@@ -161,7 +161,7 @@ class WidgetMonitor:
     def describe(self, describer):
         try:
             activeShell = self.bot.getFinder().activeShell()
-            runOnUIThread(describer.describe, activeShell)
+            runOnUIThread(describer.describeWithUpdates, activeShell)
         except IndexOutOfBoundsException:
             pass # probably we have already exited, don't bother with a description
 
