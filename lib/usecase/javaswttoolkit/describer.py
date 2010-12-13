@@ -173,24 +173,28 @@ class Describer(usecase.guishared.Describer):
     def getCTabFolderDescription(self, widget):
         return "TabFolder with tabs " + self.getItemBarDescription(widget, separator=" , ")
 
-    def hasCTabFolder(self, widget):
-        for child in widget.getChildren():
-            if self.checkInstance(child, swt.custom.CTabFolder):
-                 return True
-        return False
+    def getVerticalDividePosition(self, children):
+        for child in children:
+            if self.checkInstance(child, swt.widgets.Sash) and child.getStyle() & swt.SWT.VERTICAL:
+                 return child.getLocation().x
 		
     def sortChildren(self, widget):
-        # Only sort for the RCP composite which seems incapable of it...
-        if not self.hasCTabFolder(widget):
-            return filter(lambda c: c.getVisible(), widget.getChildren())
-        tabList = filter(lambda c: c.getVisible(), widget.getTabList())
-        nonTabList = filter(lambda c: c.getVisible() and c not in tabList, widget.getChildren())
-        if len(tabList):
-            # Hack for "RCP composite", based on observation only :)
-            nonTabList.reverse()
-            return tabList + nonTabList
-        else:
-            return nonTabList
+        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
+        if len(visibleChildren) <= 1:
+            return visibleChildren
+        
+        xDivide = self.getVerticalDividePosition(visibleChildren)
+        # Children don't always come in order, sort them...
+        def getChildPosition(child):
+            loc = child.getLocation()
+            if xDivide:
+                # With a divider, want to make sure everything ends up on the correct side of it
+                return int(loc.x >= xDivide), loc.y, loc.x
+            else:
+                return loc.y, loc.x # Reverse the order, we want to go left-to-right and then top-to-bottom
+
+        visibleChildren.sort(key=getChildPosition)
+        return visibleChildren
     
     def getChildrenDescription(self, widget):
         # Coolbars describe their children directly : they have two parallel children structures
