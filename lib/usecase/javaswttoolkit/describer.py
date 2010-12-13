@@ -270,7 +270,11 @@ class Describer(usecase.guishared.Describer):
 
         for row in grid:
             for colNum, childDesc in enumerate(row):
-                desc += childDesc.ljust(colWidths[colNum])
+                cellDesc = childDesc.ljust(colWidths[colNum])
+                if "\n" in childDesc and colNum > 0:
+                    indent = sum((colWidths[i] for i in range(colNum)))
+                    cellDesc = cellDesc.strip().replace("\n", "\n" + " " * indent)
+                desc += cellDesc
             desc += "\n"        
         return desc.rstrip()
 
