@@ -108,6 +108,45 @@ class TextEvent(SignalEvent):
         return ' '.join([self.name, text])
 
 
+class TreeEvent(SignalEvent):
+    def _generate(self, argumentString):
+        item = self.widget.getTreeItem(argumentString)
+        self.generateItem(item)
+        
+    def outputForScript(self, event, *args):
+        text = event.item.getText()
+        return ' '.join([self.name, text])
+
+
+class TreeClickEvent(TreeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Selection"
+
+    def generateItem(self, item):
+        item.click()
+
+    def isStateChange(self):
+        return True
+
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        return currOutput.startswith(stateChangeOutput)
+
+
+class TreeDoubleClickEvent(TreeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "DefaultSelection"
+
+    def generateItem(self, item):
+        item.doubleClick()
+
+    def implies(self, stateChangeLine, stateChangeEvent, swtEvent, *args):
+        return isinstance(stateChangeEvent, TreeClickEvent) and \
+               stateChangeLine == stateChangeEvent.name + " " + swtEvent.item.getText()
+
+
 class DisplayFilter:
     eventFromUser = None
     @classmethod
@@ -117,14 +156,23 @@ class DisplayFilter:
             return True
         else:
             return False
+
+    def __init__(self, monitorClasses):
+        self.monitorClasses = monitorClasses
         
     def addFilters(self, display):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                if DisplayFilter.eventFromUser is None:
+                if DisplayFilter.eventFromUser is None and self.shouldCheckWidget(e.widget):
                     DisplayFilter.eventFromUser = e
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
+
+    def shouldCheckWidget(self, widget):
+        for cls in self.monitorClasses:
+            if isinstance(widget, cls):
+                return True
+        return False
 
     def getAllEventTypes(self):
         eventTypeSet = set()
@@ -144,12 +192,13 @@ class WidgetMonitor:
                                            swtbot.widgets.SWTBotToolbarRadioButton,
                                            swtbot.widgets.SWTBotToolbarSeparatorButton,
                                            swtbot.widgets.SWTBotToolbarToggleButton ],
-                  swt.widgets.Text     : [ swtbot.widgets.SWTBotText ]}
+                  swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
+                  swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ]}
     def __init__(self, uiMap):
         self.bot = self.botClass()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
-        self.displayFilter = DisplayFilter()
+        self.displayFilter = DisplayFilter(self.swtbotMap.keys())
         self.widgetsShown = set()
 
     def setUp(self):
@@ -209,4 +258,5 @@ class WidgetMonitor:
 eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ ItemEvent ]),
-                (swtbot.widgets.SWTBotText              , [ TextEvent ])]
+                (swtbot.widgets.SWTBotText              , [ TextEvent ]),
+                (swtbot.widgets.SWTBotTree              , [ TreeClickEvent, TreeDoubleClickEvent ])]
