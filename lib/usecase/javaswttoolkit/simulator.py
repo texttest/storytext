@@ -1,5 +1,5 @@
 
-import usecase.guishared
+import usecase.guishared, util
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
@@ -13,6 +13,8 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return ""
         
     def getLabel(self):
+        if isinstance(self.widget, swtbot.widgets.SWTBotText):
+            return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
             return self.widget.getText().replace("&", "").split("\t")[0]
         except:
@@ -32,10 +34,13 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             return ""
 
     def getName(self):
-        class NameResult(swtbot.results.StringResult):
-            def run(*args):
-                return self.widget.widget.getData("org.eclipse.swtbot.widget.key") or ""
-        return swtbot.finders.UIThreadRunnable.syncExec(NameResult())
+        return self.getFromUIThread(self.widget.widget.getData, "org.eclipse.swtbot.widget.key") or ""
+
+    def getFromUIThread(self, method, *args):
+        class StringResult(swtbot.results.StringResult):
+            def run(resultSelf):
+                return method(*args)
+        return swtbot.finders.UIThreadRunnable.syncExec(StringResult())
 
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
 

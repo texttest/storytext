@@ -1,5 +1,5 @@
 
-import usecase.guishared, types, os
+import usecase.guishared, util, types, os
 from org.eclipse import swt
         
 class Describer(usecase.guishared.Describer):
@@ -184,7 +184,7 @@ class Describer(usecase.guishared.Describer):
 
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, self.getTextEntryClass()):
-            return "Updated " + (widget.getData("org.eclipse.swtbot.widget.key") or "Text Field")
+            return "Updated " + (util.getTextLabel(widget) or "Text") +  " Field"
         else:
             return "\n"
 
