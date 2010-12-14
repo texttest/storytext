@@ -20,7 +20,8 @@ class Describer(usecase.guishared.Describer):
             self.displays.append(display)
             class StoreListener(swt.widgets.Listener):
                 def handleEvent(listenerSelf, e):
-                    self.widgetsBecomeVisible.append(e.widget)
+                    if not isinstance(e.widget, swt.widgets.Menu): # ignore these for now, they aren't really shown at this point
+                        self.widgetsBecomeVisible.append(e.widget)
             display.addFilter(swt.SWT.Show, StoreListener())
             
     def describeWithUpdates(self, shell):
