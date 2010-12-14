@@ -6,9 +6,9 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
         self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar,
-                                  swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.custom.CTabFolder, 
+                                  swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, 
                                   swt.widgets.Composite, types.NoneType ]
-        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree ]
+        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree, swt.custom.CTabFolder ]
         self.imageNumbers = {}
         self.nextImageNumber = 1
         self.displays = []
@@ -184,9 +184,9 @@ class Describer(usecase.guishared.Describer):
 
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, self.getTextEntryClass()):
-            return "Updated " + (util.getTextLabel(widget) or "Text") +  " Field"
+            return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
         else:
-            return "\n"
+            return "\nUpdated "
 
     def getTextState(self, widget):
         return widget.getText()
@@ -195,7 +195,7 @@ class Describer(usecase.guishared.Describer):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         header = "=" * 10 + " Text " + "=" * 10        
-        return "\n" + header + "\n" + self.fixLineEndings(state.rstrip()) + "\n" + "=" * len(header)    
+        return header + "\n" + self.fixLineEndings(state.rstrip()) + "\n" + "=" * len(header)    
 
     def getTreeDescription(self, widget):
         state = self.getState(widget)
@@ -210,7 +210,12 @@ class Describer(usecase.guishared.Describer):
         return text
 
     def getCTabFolderDescription(self, widget):
-        return "TabFolder with tabs " + self.getItemBarDescription(widget, separator=" , ")
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        return "TabFolder with tabs " + state
+
+    def getCTabFolderState(self, widget):
+        return self.getItemBarDescription(widget, separator=" , ")
 
     def getVerticalDividePosition(self, children):
         for child in children:

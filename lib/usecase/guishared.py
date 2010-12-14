@@ -655,7 +655,7 @@ class Describer:
 
     def getSpecificState(self, widget):
         for widgetClass in self.stateWidgets:
-            if isinstance(widget, widgetClass):
+            if self.checkInstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
         return ""
