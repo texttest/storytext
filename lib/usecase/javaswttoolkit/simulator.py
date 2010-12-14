@@ -96,8 +96,7 @@ class TextEvent(SignalEvent):
         return "Modify"
 
     def _generate(self, argumentString):
-        self.widget.setText("")
-        self.widget.typeText(argumentString)
+        self.widget.setText(argumentString)
 
     def outputForScript(self, *args):
         text = self.widget.getText()
