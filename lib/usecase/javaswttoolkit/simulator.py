@@ -3,7 +3,7 @@ import usecase.guishared, util
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IndexOutOfBoundsException, IllegalStateException
+from java.lang import IllegalStateException
 
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getChildWidgets(self):
@@ -248,12 +248,9 @@ class WidgetMonitor:
         return adapters
 
     def describe(self, describer):
-        try:
-            activeShell = self.bot.getFinder().activeShell()
-            runOnUIThread(describer.describeWithUpdates, activeShell)
-        except IndexOutOfBoundsException:
-            pass # probably we have already exited, don't bother with a description
-
+        activeShell = self.bot.getFinder().activeShell()
+        runOnUIThread(describer.describeWithUpdates, activeShell)
+        
 
 eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),

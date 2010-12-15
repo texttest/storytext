@@ -24,14 +24,21 @@ class ReplayScript:
     def getShortcutName(self):
         return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
 
-    def getCommand(self, name=""):
-        if self.pointer >= len(self.commands):
-            if len(name) == 0:
-                # reset the script and notify exit only if we weren't trying for a specific command
-                self.pointer = 0
-                for observer in self.exitObservers:
-                    observer.notifyExit()
+    def hasTerminated(self):
+        return self.pointer >= len(self.commands)
+
+    def checkTermination(self):
+        if self.hasTerminated():
+            # reset the script and notify exit only if we weren't trying for a specific command
+            self.pointer = 0
+            for observer in self.exitObservers:
+                observer.notifyExit()
+            return True
         else:
+            return False
+
+    def getCommand(self, name=""):
+        if not self.hasTerminated():
             nextCommand = self.commands[self.pointer]
             if len(name) == 0 or nextCommand.startswith(name):
                 # Filter blank lines and comments
@@ -130,6 +137,15 @@ class UseCaseReplayer:
             return self.getCommands()
         else:
             return []
+
+    def checkTermination(self):
+        if len(self.scripts) == 0:
+            return True
+        if self.scripts[-1].checkTermination():
+            del self.scripts[-1]
+            return self.checkTermination()
+        else:
+            return False
         
     def runNextCommand(self):
         if len(self.waitingForEvents):
@@ -154,10 +170,10 @@ class UseCaseReplayer:
                 else:
                     self.processCommand(commandName, argumentString)
             except UseCaseScriptError:
+                # We don't terminate scripts if they contain errors
                 type, value, traceback = sys.exc_info()
                 self.write("ERROR: " + str(value))
-            # We don't terminate scripts if they contain errors
-        return True
+        return not self.checkTermination()
     
     def write(self, line):
         try:
