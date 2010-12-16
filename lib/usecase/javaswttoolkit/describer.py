@@ -6,7 +6,7 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
         self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar,
-                                  swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, 
+                                  swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.browser.Browser,
                                   swt.widgets.Composite, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree, swt.custom.CTabFolder ]
         self.imageNumbers = {}
@@ -175,6 +175,9 @@ class Describer(usecase.guishared.Describer):
 
     def getCompositeDescription(self, widget):
         return ""
+
+    def getBrowserDescription(self, widget):
+        return "Browser browsing '" + widget.getUrl() + "'"
 
     def fixLineEndings(self, text):
         # Methods return text 'raw' with Windows line endings
