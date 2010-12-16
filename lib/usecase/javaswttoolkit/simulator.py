@@ -194,7 +194,7 @@ class DisplayFilter:
 
     def shouldCheckWidget(self, widget, eventType):
         for cls, types in self.widgetEventTypes:
-            if isinstance(widget, cls) and eventType in types:
+            if util.checkInstance(widget, cls) and eventType in types:
                 return True
         return False
 
@@ -272,7 +272,7 @@ class WidgetMonitor:
         adapters = []
         for widget in widgets:
             for widgetClass in self.swtbotMap.keys():
-                if isinstance(widget, widgetClass):
+                if util.checkInstance(widget, widgetClass):
                     for swtbotClass in self.swtbotMap.get(widgetClass):
                         try:
                             adapters.append(WidgetAdapter(swtbotClass(widget)))

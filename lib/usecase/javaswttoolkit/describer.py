@@ -301,9 +301,8 @@ class Describer(usecase.guishared.Describer):
             desc += "\n"        
         return desc.rstrip()
 
-    def checkInstance(self, widget, widgetClass):
-        # Classloader problems with the custom module ?
-        return isinstance(widget, widgetClass) or widget.__class__.__name__ == widgetClass.__name__
+    def checkInstance(self, *args):
+        return util.checkInstance(*args)
 
     ### Debug code
     ## def getRawData(self, widget):
