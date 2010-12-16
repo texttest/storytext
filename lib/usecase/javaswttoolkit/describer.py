@@ -36,7 +36,7 @@ class Describer(usecase.guishared.Describer):
         if widget in self.widgetsBecomeVisible or widget in stateChangeWidgets:
             return True
         elif widget.getParent():
-            return self.parentMarked(widget.getParent())
+            return self.parentMarked(widget.getParent(), stateChangeWidgets)
         else:
             return False
 
