@@ -10,7 +10,7 @@ class Describer(usecase.guishared.Describer):
                                   swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.browser.Browser,
                                   swt.widgets.Composite, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree, swt.custom.CTabFolder ]
-        self.imageNumbers = {}
+        self.imageNumbers = []
         self.nextImageNumber = 1
         self.displays = []
         self.widgetsBecomeVisible = []
@@ -112,8 +112,8 @@ class Describer(usecase.guishared.Describer):
         return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescription)
 
     def getImageNumber(self, image):
-        for currImage, number in self.imageNumbers.items():
-            if image.getImageData().data == currImage.getImageData().data:
+        for currImage, number in self.imageNumbers:
+            if not currImage.isDisposed() and image.getImageData().data == currImage.getImageData().data:
                 return number
         return 0
 
@@ -123,7 +123,7 @@ class Describer(usecase.guishared.Describer):
         number = self.getImageNumber(image)
         if not number:
             number = self.nextImageNumber
-            self.imageNumbers[image] = self.nextImageNumber
+            self.imageNumbers.append((image, self.nextImageNumber))
             self.nextImageNumber += 1
         return "Image " + str(number)
 
