@@ -1,5 +1,5 @@
 
-import usecase.guishared, util
+import usecase.guishared, util, logging
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
@@ -30,17 +30,20 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getTooltip(self):
         try:
             return self.widget.getToolTipText()
-        except AttributeError:
+        except:
             return ""
 
     def getName(self):
         return self.getFromUIThread(self.widget.widget.getData, "org.eclipse.swtbot.widget.key") or ""
 
     def getFromUIThread(self, method, *args):
-        class StringResult(swtbot.results.StringResult):
-            def run(resultSelf):
-                return method(*args)
-        return swtbot.finders.UIThreadRunnable.syncExec(StringResult())
+        try:
+            class StringResult(swtbot.results.StringResult):
+                def run(resultSelf):
+                    return method(*args)
+            return swtbot.finders.UIThreadRunnable.syncExec(StringResult())
+        except:
+            return ""
 
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
 
@@ -73,6 +76,10 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def shouldRecord(self, event, *args):
         return DisplayFilter.getEventFromUser(event)
 
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ getattr(swt.SWT, cls.getAssociatedSignal(None)) ]
+
 
 class ItemEvent(SignalEvent):    
     def _generate(self, *args):
@@ -91,6 +98,10 @@ class ShellCloseEvent(SignalEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Close"
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ swt.SWT.Close, swt.SWT.Dispose ]
 
 
 class TabCloseEvent(SignalEvent):
@@ -159,36 +170,38 @@ class TreeDoubleClickEvent(TreeEvent):
 
 class DisplayFilter:
     eventFromUser = None
+    logger = None
     @classmethod
     def getEventFromUser(cls, event):
         if event is cls.eventFromUser:
             cls.eventFromUser = None
             return True
         else:
+            cls.logger.debug("Rejecting event, not yet processed " + cls.eventFromUser.toString())
             return False
 
-    def __init__(self, monitorClasses):
-        self.monitorClasses = monitorClasses
+    def __init__(self, widgetEventTypes):
+        DisplayFilter.logger = logging.getLogger("usecase record")
+        self.widgetEventTypes = widgetEventTypes
         
     def addFilters(self, display):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                if DisplayFilter.eventFromUser is None and self.shouldCheckWidget(e.widget):
+                if DisplayFilter.eventFromUser is None and self.shouldCheckWidget(e.widget, e.type):
                     DisplayFilter.eventFromUser = e
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
 
-    def shouldCheckWidget(self, widget):
-        for cls in self.monitorClasses:
-            if isinstance(widget, cls):
+    def shouldCheckWidget(self, widget, eventType):
+        for cls, types in self.widgetEventTypes:
+            if isinstance(widget, cls) and eventType in types:
                 return True
         return False
 
     def getAllEventTypes(self):
         eventTypeSet = set()
-        for swtbotClass, eventClasses in eventTypes:
-            for eventClass in eventClasses:
-                eventTypeSet.add(getattr(swt.SWT, eventClass.getAssociatedSignal(None)))
+        for swtbotClass, eventTypes in self.widgetEventTypes:
+            eventTypeSet.update(eventTypes)
         return eventTypeSet
         
 
@@ -209,9 +222,20 @@ class WidgetMonitor:
         self.bot = self.botClass()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
-        self.displayFilter = DisplayFilter(self.swtbotMap.keys())
+        self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
         self.widgetsShown = set()
 
+    def getWidgetEventTypes(self):
+        allEventTypes = []
+        eventTypeDict = dict(eventTypes)
+        for widgetClass, swtBotClasses in self.swtbotMap.items():
+            currEventTypes = set()
+            for swtBotClass in swtBotClasses:
+                for eventClass in eventTypeDict.get(swtBotClass, []):
+                    currEventTypes.update(eventClass.getSignalsToFilter())
+            allEventTypes.append((widgetClass, currEventTypes))
+        return allEventTypes
+    
     def setUp(self):
         self.forceShellActive()
         self.setUpDisplayFilter()
