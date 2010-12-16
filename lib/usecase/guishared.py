@@ -599,19 +599,32 @@ class Describer:
     def getWindowString(self):
         return "Window"
 
-    def describeUpdates(self):
+    def findStateChanges(self):
         defunctWidgets = []
+        stateChanges = []
         for widget, oldState in self.widgetsWithState.items():
             try:
                 state = self.getState(widget)
-                if state != oldState:
-                    self.logger.info(self.getStateChangeDescription(widget, oldState, state))
-                    self.widgetsWithState[widget] = state
             except:
                 # If the frame where it existed has been removed, for example...
                 defunctWidgets.append(widget)
+                continue
+
+            if state != oldState:
+                stateChanges.append((widget, oldState, state))
+                self.widgetsWithState[widget] = state
+            
         for widget in defunctWidgets:
             del self.widgetsWithState[widget]
+        return stateChanges
+
+    def describeStateChanges(self, stateChanges):
+        for widget, oldState, state in stateChanges:
+            self.logger.info(self.getStateChangeDescription(widget, oldState, state))
+
+    def describeUpdates(self):
+        stateChanges = self.findStateChanges()
+        self.describeStateChanges(stateChanges)
 
     def getStateChangeDescription(self, widget, oldState, state):
         if isinstance(widget, self.getWindowClasses()):

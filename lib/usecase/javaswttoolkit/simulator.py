@@ -92,6 +92,16 @@ class ShellCloseEvent(SignalEvent):
     def getAssociatedSignal(cls, widget):
         return "Close"
 
+
+class TabCloseEvent(SignalEvent):
+    def _generate(self, *args):
+        self.widget.close()
+
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Dispose"
+    
+
 class TextEvent(SignalEvent):
     def isStateChange(self, *args):
         return True
@@ -193,7 +203,8 @@ class WidgetMonitor:
                                            swtbot.widgets.SWTBotToolbarSeparatorButton,
                                            swtbot.widgets.SWTBotToolbarToggleButton ],
                   swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
-                  swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ]}
+                  swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ],
+                  swt.custom.CTabItem  : [ swtbot.widgets.SWTBotCTabItem ]}
     def __init__(self, uiMap):
         self.bot = self.botClass()
         self.uiMap = uiMap
@@ -256,4 +267,5 @@ eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
-                (swtbot.widgets.SWTBotTree              , [ TreeClickEvent, TreeDoubleClickEvent ])]
+                (swtbot.widgets.SWTBotTree              , [ TreeClickEvent, TreeDoubleClickEvent ]),
+                (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ])]

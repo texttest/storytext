@@ -26,22 +26,24 @@ class Describer(usecase.guishared.Describer):
             
     def describeWithUpdates(self, shell):
         self.addVisibilityFilter(shell.getDisplay())
-        self.describeNewlyShown()
-        self.describeUpdates()
+        stateChanges = self.findStateChanges()
+        self.describeNewlyShown(stateChanges)
+        self.describeStateChanges(stateChanges)
         self.describe(shell)
 
-    def parentMarked(self, widget):
-        if widget in self.widgetsBecomeVisible:
+    def parentMarked(self, widget, stateChangeWidgets):
+        if widget in self.widgetsBecomeVisible or widget in stateChangeWidgets:
             return True
         elif widget.getParent():
             return self.parentMarked(widget.getParent())
         else:
             return False
 
-    def describeNewlyShown(self):
+    def describeNewlyShown(self, stateChanges):
+        stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
         for widget in self.widgetsBecomeVisible:
             parent = widget.getParent()
-            if not self.parentMarked(parent):
+            if not self.parentMarked(parent, stateChangeWidgets):
                 self.logger.info("New widgets have become visible: describing common parent :\n")
                 self.logger.info(self.getChildrenDescription(parent))
         self.widgetsBecomeVisible = []
