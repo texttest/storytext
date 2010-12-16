@@ -1,5 +1,6 @@
 
 import usecase.guishared, util, types, os
+from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
         
 class Describer(usecase.guishared.Describer):
@@ -194,6 +195,13 @@ class Describer(usecase.guishared.Describer):
         else:
             return "\nUpdated "
 
+    def getState(self, widget):
+        if widget.isDisposed():
+            # Will be caught, and the widget cleaned up
+            raise UseCaseScriptError, "Widget is Disposed"
+        else:
+            return usecase.guishared.Describer.getState(self, widget)
+    
     def getTextState(self, widget):
         return widget.getText()
 
