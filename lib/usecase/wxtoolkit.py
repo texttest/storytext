@@ -231,7 +231,11 @@ class Describer(guishared.Describer):
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     def getChildrenDescription(self, widget):
         slaves = set()
-        children = widget.GetChildren()
+        try:
+            children = widget.GetChildren()
+        except wx._core.PyDeadObjectError:
+            # Gets thrown on Windows intermittently, don't know why
+            return ""
         desc = ""
         for child in children:
             desc = self.addToDescription(desc, self.getDescription(child))
