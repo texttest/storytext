@@ -175,6 +175,10 @@ class TreeClickEvent(TreeEvent):
     def getAssociatedSignal(cls, widget):
         return "Selection"
 
+    def shouldRecord(self, event, *args):
+        # Seem to get selection events even when nothing has been selected...
+        return DisplayFilter.getEventFromUser(event) and event.item in event.widget.getSelection()
+
     def generateItem(self, item):
         item.select()
 
