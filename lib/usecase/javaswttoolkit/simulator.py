@@ -176,7 +176,7 @@ class TreeClickEvent(TreeEvent):
         return "Selection"
 
     def generateItem(self, item):
-        item.click()
+        item.select()
 
     def isStateChange(self):
         return True
@@ -222,6 +222,7 @@ class DisplayFilter:
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
                 if DisplayFilter.eventFromUser is None and self.shouldCheckWidget(e.widget, e.type):
+                    self.logger.debug("Filter for event " + e.toString())
                     DisplayFilter.eventFromUser = e
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
