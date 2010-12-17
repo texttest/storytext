@@ -1,5 +1,6 @@
 
 import usecase.guishared, util, logging
+from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
@@ -131,13 +132,34 @@ class TextEvent(SignalEvent):
 
 class TreeEvent(SignalEvent):
     def _generate(self, argumentString):
-        item = self.widget.getTreeItem(argumentString)
-        self.generateItem(item)
+        item = self.findItem(argumentString, self.widget.getAllItems())
+        if item:
+            self.generateItem(item)
+        else:
+            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in tree."
+
+    def findItem(self, text, items):
+        for item in items:
+            if item.getText() == text:
+                return item
+            if item.isExpanded():
+                subItem = self.findItem(text, item.getItems())
+                if subItem:
+                    return subItem
         
     def outputForScript(self, event, *args):
         text = event.item.getText()
         return ' '.join([self.name, text])
 
+
+class TreeExpandEvent(TreeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Expand"
+
+    def generateItem(self, item):
+        item.expand()
+        
 
 class TreeClickEvent(TreeEvent):
     @classmethod
@@ -294,5 +316,5 @@ eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
-                (swtbot.widgets.SWTBotTree              , [ TreeClickEvent, TreeDoubleClickEvent ]),
+                (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ])]

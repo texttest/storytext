@@ -83,11 +83,11 @@ class Describer(usecase.guishared.Describer):
             return ""
 
     def getSubTreeDescription(self, item, indent, prefix):
-        subDesc = self.getItemBarDescription(item, indent+1, subItemMethod=self.getSubTreeDescription, prefix=prefix)
-        if subDesc:
-            return "\n" + subDesc.rstrip()
-        else:
-            return ""
+        if item.getExpanded():
+            subDesc = self.getItemBarDescription(item, indent+1, subItemMethod=self.getSubTreeDescription, prefix=prefix)
+            if subDesc:
+                return "\n" + subDesc.rstrip()
+        return ""
 
     def getCoolItemDescription(self, item, indent, prefix):
         control = item.getControl()
