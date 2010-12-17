@@ -66,30 +66,31 @@ class Describer(usecase.guishared.Describer):
     def getShellState(self, shell):
         return shell.getText()
 
-    def getItemBarDescription(self, itemBar, indent=0, subItemMethod=None, prefix="", separator="\n"):
+    def getItemBarDescription(self, itemBar, indent=0, subItemMethod=None,
+                              prefix="", separator="\n", selection=[]):
         desc = ""
         for item in itemBar.getItems():
-            desc += prefix + " " * indent * 2 + self.getItemDescription(item)
+            desc += prefix + " " * indent * 2 + self.getItemDescription(item, item in selection)
             if subItemMethod:
-                desc += subItemMethod(item, indent, prefix)
+                desc += subItemMethod(item, indent, prefix=prefix, selection=selection)
             desc += separator
         return desc
 
-    def getCascadeMenuDescription(self, item, indent, prefix=""):
+    def getCascadeMenuDescription(self, item, indent, **kw):
         cascadeMenu = item.getMenu()
         if cascadeMenu:
             return " :\n" + self.getMenuDescription(cascadeMenu, indent + 1).rstrip()
         else:
             return ""
 
-    def getSubTreeDescription(self, item, indent, prefix):
+    def getSubTreeDescription(self, item, indent, **kw):
         if item.getExpanded():
-            subDesc = self.getItemBarDescription(item, indent+1, subItemMethod=self.getSubTreeDescription, prefix=prefix)
+            subDesc = self.getItemBarDescription(item, indent+1, subItemMethod=self.getSubTreeDescription, **kw)
             if subDesc:
                 return "\n" + subDesc.rstrip()
         return ""
 
-    def getCoolItemDescription(self, item, indent, prefix):
+    def getCoolItemDescription(self, item, *args, **kw):
         control = item.getControl()
         if control:
             descLines = self.getDescription(control).splitlines()
@@ -134,7 +135,7 @@ class Describer(usecase.guishared.Describer):
             if style & getattr(swt.SWT, tryStyle) != 0:
                 return tryStyle.lower().replace("_", " ").replace("push", "").replace("separator", "---")
         
-    def getItemDescription(self, item):
+    def getItemDescription(self, item, selected):
         elements = []
         if item.getText():
             elements.append(item.getText())
@@ -147,6 +148,8 @@ class Describer(usecase.guishared.Describer):
             elements.append(self.getImageDescription(item.getImage()))
         if hasattr(item, "getEnabled") and not item.getEnabled():
             elements.append("greyed out")
+        if selected:
+            elements.append("selected")
         return self.combineElements(elements)
 
     def combineElements(self, elements):
@@ -222,7 +225,8 @@ class Describer(usecase.guishared.Describer):
         columns = widget.getColumns()
         text = "Tree with " + str(len(columns)) + " columns : "
         text += " , ".join((c.getText() for c in columns)) + "\n"
-        text += self.getItemBarDescription(widget, indent=0, subItemMethod=self.getSubTreeDescription, prefix="-> ")
+        text += self.getItemBarDescription(widget, indent=0, subItemMethod=self.getSubTreeDescription,
+                                           prefix="-> ", selection=widget.getSelection())
         return text
 
     def getCTabFolderDescription(self, widget):
@@ -231,7 +235,8 @@ class Describer(usecase.guishared.Describer):
         return "TabFolder with tabs " + state
 
     def getCTabFolderState(self, widget):
-        return self.getItemBarDescription(widget, separator=" , ")
+        return self.getItemBarDescription(widget, separator=" , ",
+                                          selection=[ widget.getSelection() ])
 
     def getVerticalDividePositions(self, children):
         positions = []
