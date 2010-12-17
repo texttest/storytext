@@ -177,7 +177,10 @@ class DisplayFilter:
             cls.eventFromUser = None
             return True
         else:
-            cls.logger.debug("Rejecting event, not yet processed " + cls.eventFromUser.toString())
+            if cls.eventFromUser is None:
+                cls.logger.debug("Rejecting event, it has not yet been seen in the display filter")
+            else:
+                cls.logger.debug("Rejecting event, not yet processed " + cls.eventFromUser.toString())
             return False
 
     def __init__(self, widgetEventTypes):

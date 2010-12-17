@@ -32,20 +32,21 @@ class Describer(usecase.guishared.Describer):
         self.describeStateChanges(stateChanges)
         self.describe(shell)
 
-    def parentMarked(self, widget, stateChangeWidgets):
-        if widget in self.widgetsBecomeVisible or widget in stateChangeWidgets:
+    def parentMarked(self, widget, markedWidgets):
+        if widget in markedWidgets:
             return True
         elif widget.getParent():
-            return self.parentMarked(widget.getParent(), stateChangeWidgets)
+            return self.parentMarked(widget.getParent(), markedWidgets)
         else:
             return False
 
     def describeNewlyShown(self, stateChanges):
-        stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
+        markedWidgets = self.widgetsBecomeVisible + [ widget for widget, old, new in stateChanges ]
         for widget in self.widgetsBecomeVisible:
             if not widget.isDisposed():
                 parent = widget.getParent()
-                if not self.parentMarked(parent, stateChangeWidgets):
+                if not self.parentMarked(parent, markedWidgets):
+                    markedWidgets.append(parent)
                     self.logger.info("New widgets have become visible: describing common parent :\n")
                     self.logger.info(self.getChildrenDescription(parent))
         self.widgetsBecomeVisible = []
@@ -313,16 +314,16 @@ class Describer(usecase.guishared.Describer):
     def checkInstance(self, *args):
         return util.checkInstance(*args)
 
-    ### Debug code
-    ## def getRawData(self, widget):
-    ##     return widget.__class__.__name__ + " " + str(id(widget)) + self.getData(widget)
+    ##Debug code
+    def getRawData(self, widget):
+        return widget.__class__.__name__ + " " + str(id(widget)) + self.getData(widget)
 
-    ## def getData(self, widget):
-    ##     if widget.getData():
-    ##         try:
-    ##             return " " + widget.getData().getBundleId() + " " + widget.getData().getElementType() + " " + repr(widget.getData().getConfigurationElement())
-    ##         except:
-    ##             return " " + widget.getData().toString()
-    ##     else:
-    ##         return ""
+    def getData(self, widget):
+        if widget.getData():
+            try:
+                return " " + widget.getData().getBundleId() + " " + widget.getData().getElementType() + " " + repr(widget.getData().getConfigurationElement())
+            except:
+                return " " + widget.getData().toString()
+        else:
+            return ""
         
