@@ -233,10 +233,18 @@ class Describer(usecase.guishared.Describer):
     def getCTabFolderState(self, widget):
         return self.getItemBarDescription(widget, separator=" , ")
 
-    def getVerticalDividePosition(self, children):
+    def getVerticalDividePositions(self, children):
+        positions = []
         for child in children:
             if self.checkInstance(child, swt.widgets.Sash) and child.getStyle() & swt.SWT.VERTICAL:
-                 return child.getLocation().x
+                 positions.append(child.getLocation().x)
+        return sorted(positions)
+
+    def getDividerIndex(self, pos, dividers):
+        for i, dividePos in enumerate(dividers):
+            if pos < dividePos:
+                return i
+        return len(dividers)
 		
     def sortChildren(self, widget):
         visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
@@ -244,16 +252,13 @@ class Describer(usecase.guishared.Describer):
             # Trust in the layout, if there is one
             return visibleChildren
         
-        xDivide = self.getVerticalDividePosition(visibleChildren)
+        xDivides = self.getVerticalDividePositions(visibleChildren)
         # Children don't always come in order, sort them...
         def getChildPosition(child):
             loc = child.getLocation()
-            if xDivide:
-                # With a divider, want to make sure everything ends up on the correct side of it
-                return int(loc.x >= xDivide), loc.y, loc.x
-            else:
-                return loc.y, loc.x # Reverse the order, we want to go left-to-right and then top-to-bottom
-
+            # With a divider, want to make sure everything ends up on the correct side of it
+            return self.getDividerIndex(loc.x, xDivides), loc.y, loc.x
+            
         visibleChildren.sort(key=getChildPosition)
         return visibleChildren
     
