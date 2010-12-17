@@ -159,6 +159,15 @@ class TreeExpandEvent(TreeEvent):
 
     def generateItem(self, item):
         item.expand()
+
+
+class TreeCollapseEvent(TreeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Collapse"
+
+    def generateItem(self, item):
+        item.collapse()
         
 
 class TreeClickEvent(TreeEvent):
@@ -316,5 +325,6 @@ eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ ItemEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
-                (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeClickEvent, TreeDoubleClickEvent ]),
+                (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
+                                                            TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ])]
