@@ -4,7 +4,7 @@ from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IllegalStateException
+from java.lang import IllegalStateException, IndexOutOfBoundsException
 
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getChildWidgets(self):
@@ -71,8 +71,8 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def generate(self, *args):
         try:
             self._generate(*args)
-        except IllegalStateException:
-            pass # get this on Windows for actions that close the UI. But only after the action is done :)
+        except (IllegalStateException, IndexOutOfBoundsException), e:
+            pass # get these for actions that close the UI. But only after the action is done :)
 
     def shouldRecord(self, event, *args):
         return DisplayFilter.getEventFromUser(event)
@@ -82,7 +82,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
         return [ getattr(swt.SWT, cls.getAssociatedSignal(None)) ]
 
 
-class ItemEvent(SignalEvent):    
+class SelectEvent(SignalEvent):    
     def _generate(self, *args):
         self.widget.click()
 
@@ -250,7 +250,8 @@ class DisplayFilter:
 
 class WidgetMonitor:
     botClass = swtbot.SWTBot
-    swtbotMap = { swt.widgets.MenuItem : [ swtbot.widgets.SWTBotMenu ],
+    swtbotMap = { swt.widgets.Button   : [ swtbot.widgets.SWTBotButton ],
+                  swt.widgets.MenuItem : [ swtbot.widgets.SWTBotMenu ],
                   swt.widgets.Shell    : [ swtbot.widgets.SWTBotShell ],
                   swt.widgets.ToolItem : [ swtbot.widgets.SWTBotToolbarPushButton,
                                            swtbot.widgets.SWTBotToolbarDropDownButton,
@@ -329,9 +330,10 @@ class WidgetMonitor:
         runOnUIThread(describer.describeWithUpdates, activeShell)
         
 
-eventTypes =  [ (swtbot.widgets.SWTBotMenu              , [ ItemEvent ]),
+eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
-                (swtbot.widgets.SWTBotToolbarPushButton , [ ItemEvent ]),
+                (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),

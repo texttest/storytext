@@ -6,7 +6,7 @@ from org.eclipse import swt
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar,
+        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar, swt.widgets.Button,
                                   swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.browser.Browser,
                                   swt.widgets.Composite, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree, swt.custom.CTabFolder ]
@@ -151,6 +151,9 @@ class Describer(usecase.guishared.Describer):
         if selected:
             elements.append("selected")
         return self.combineElements(elements)
+
+    def getButtonDescription(self, widget):
+        return "Button " + self.getItemDescription(widget, selected=False)
 
     def combineElements(self, elements):
         if len(elements) <= 1:
