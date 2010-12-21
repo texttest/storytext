@@ -77,6 +77,10 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def shouldRecord(self, event, *args):
         return DisplayFilter.getEventFromUser(event)
 
+    def shouldDelay(self):
+        # If there are events for other shells, implies we should delay as we're in a dialog
+        return len(DisplayFilter.eventsFromUser) > 0
+
     @classmethod
     def getSignalsToFilter(cls):
         return [ getattr(swt.SWT, cls.getAssociatedSignal(None)) ]
@@ -94,7 +98,11 @@ class SelectEvent(SignalEvent):
 class ShellCloseEvent(SignalEvent):    
     def _generate(self, *args):
         # SWTBotShell.close appears to close things twice, just use the ordinary one for now...
-        runOnUIThread(self.widget.widget.widget.close)
+        class CloseRunnable(swtbot.results.VoidResult):
+            def run(resultSelf):
+                self.widget.widget.widget.close()
+                
+        swtbot.finders.UIThreadRunnable.asyncExec(CloseRunnable())
         
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -204,31 +212,50 @@ class TreeDoubleClickEvent(TreeEvent):
 
 
 class DisplayFilter:
-    eventFromUser = None
+    eventsFromUser = []
     disposedShells = []    
     logger = None
     @classmethod
     def getEventFromUser(cls, event):
-        if event is cls.eventFromUser:
-            cls.eventFromUser = None
+        if event in cls.eventsFromUser:
+            cls.eventsFromUser.remove(event)
             return True
         else:
-            if cls.eventFromUser is None:
+            if len(cls.eventsFromUser) == 0:
                 cls.logger.debug("Rejecting event, it has not yet been seen in the display filter")
             else:
-                cls.logger.debug("Rejecting event, not yet processed " + cls.eventFromUser.toString())
+                cls.logger.debug("Received event " + event.toString())
+                cls.logger.debug("Rejecting event, not yet processed " + repr([ e.toString() for e in cls.eventsFromUser ]))
             return False
 
     def __init__(self, widgetEventTypes):
         DisplayFilter.logger = logging.getLogger("usecase record")
         self.widgetEventTypes = widgetEventTypes
+
+    def getShell(self, widget):
+        # Note : widget might be an Item rather than a widget!
+        if widget is not None and not widget.isDisposed():
+            if hasattr(widget, "getShell"):
+                return widget.getShell()
+            elif hasattr(widget, "getParent"):
+                return self.getShell(widget.getParent())
+
+    def hasEventOnShell(self, widget):
+        currShell = self.getShell(widget)
+        if not currShell:
+            return False
+
+        for event in self.eventsFromUser:
+            if self.getShell(event.widget) is currShell:
+                return True
+        return False
         
     def addFilters(self, display):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                if DisplayFilter.eventFromUser is None and self.shouldCheckWidget(e.widget, e.type):
+                if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
-                    DisplayFilter.eventFromUser = e
+                    DisplayFilter.eventsFromUser.append(e)
                 elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
                     self.disposedShells.append(e.widget)
         for eventType in self.getAllEventTypes():
@@ -329,7 +356,6 @@ class WidgetMonitor:
         activeShell = self.bot.getFinder().activeShell()
         runOnUIThread(describer.describeWithUpdates, activeShell)
         
-
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
