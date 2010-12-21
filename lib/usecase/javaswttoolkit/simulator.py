@@ -100,10 +100,6 @@ class ShellCloseEvent(SignalEvent):
     def getAssociatedSignal(cls, widget):
         return "Close"
     
-    @classmethod
-    def getSignalsToFilter(cls):
-        return [ swt.SWT.Close, swt.SWT.Dispose ]
-
 
 class TabCloseEvent(SignalEvent):
     def _generate(self, *args):
@@ -112,7 +108,11 @@ class TabCloseEvent(SignalEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Dispose"
-    
+
+    def shouldRecord(self, event, *args):
+        shell = event.widget.getParent().getShell()
+        return DisplayFilter.getEventFromUser(event) and shell not in DisplayFilter.disposedShells
+
 
 class TextEvent(SignalEvent):
     def isStateChange(self, *args):
@@ -205,6 +205,7 @@ class TreeDoubleClickEvent(TreeEvent):
 
 class DisplayFilter:
     eventFromUser = None
+    disposedShells = []    
     logger = None
     @classmethod
     def getEventFromUser(cls, event):
@@ -228,6 +229,8 @@ class DisplayFilter:
                 if DisplayFilter.eventFromUser is None and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
                     DisplayFilter.eventFromUser = e
+                elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
+                    self.disposedShells.append(e.widget)
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
 
