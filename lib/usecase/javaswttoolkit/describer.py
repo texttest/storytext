@@ -274,7 +274,7 @@ class Describer(usecase.guishared.Describer):
         return len(dividers)
 		
     def sortChildren(self, widget):
-        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
+        visibleChildren = util.getVisibleChildren(widget)
         if len(visibleChildren) <= 1 or widget.getLayout() is not None:
             # Trust in the layout, if there is one
             return visibleChildren
@@ -295,9 +295,9 @@ class Describer(usecase.guishared.Describer):
             return ""
 
         childDescriptions = map(self.getDescription, self.sortChildren(widget))
-        columns = self.getLayoutColumns(widget)
-        if columns > 1 and len(childDescriptions) > 1:
-            return self.formatInGrid(childDescriptions, widget.getLayout().numColumns)
+        columns = self.getLayoutColumns(widget, childDescriptions)
+        if columns > 1:
+            return self.formatInGrid(childDescriptions, columns)
         else:
             return self.formatInColumn(childDescriptions)
 
@@ -308,17 +308,22 @@ class Describer(usecase.guishared.Describer):
         
         return desc.rstrip()
 
-    def getLayoutColumns(self, widget):
-        try:
-            return widget.getLayout().numColumns
-        except AttributeError:
-            return 1
+    def getLayoutColumns(self, widget, childDescriptions):
+        if len(childDescriptions) > 1:
+            layout = widget.getLayout()
+            if hasattr(layout, "numColumns"):
+                return layout.numColumns
+            elif hasattr(layout, "type"):
+                if layout.type == swt.SWT.HORIZONTAL:
+                    return len(childDescriptions)
+        return 1
 
     def getCellWidth(self, row, colNum):
         if len(row) > colNum:
-            return len(row[colNum])
-        else:
-            return 0
+            lines = row[colNum].splitlines()
+            if lines:
+                return max((len(line) for line in lines))
+        return 0
 
     def formatInGrid(self, childDescriptions, numColumns):
         desc = ""
@@ -331,16 +336,23 @@ class Describer(usecase.guishared.Describer):
         colWidths = []
         for colNum in range(numColumns):
             maxWidth = max((self.getCellWidth(row, colNum) for row in grid))
-            colWidths.append(maxWidth + 2)
+            if colNum == numColumns - 1:
+                colWidths.append(maxWidth)
+            else:
+                # Pad two spaces between each column
+                colWidths.append(maxWidth + 2)
 
         for row in grid:
-            for colNum, childDesc in enumerate(row):
-                cellDesc = childDesc.ljust(colWidths[colNum])
-                if "\n" in childDesc and colNum > 0:
-                    indent = sum((colWidths[i] for i in range(colNum)))
-                    cellDesc = cellDesc.strip().replace("\n", "\n" + " " * indent)
-                desc += cellDesc
-            desc += "\n"        
+            rowLines = max((desc.count("\n") + 1 for desc in row))
+            for rowLine in range(rowLines):
+                for colNum, childDesc in enumerate(row):
+                    cellLines = childDesc.splitlines()
+                    if rowLine < len(cellLines):
+                        cellRow = cellLines[rowLine]
+                    else:
+                        cellRow = ""
+                    desc += cellRow.ljust(colWidths[colNum])
+                desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
         return desc.rstrip()
 
     def checkInstance(self, *args):

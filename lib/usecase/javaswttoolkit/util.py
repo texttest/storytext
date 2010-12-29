@@ -18,3 +18,11 @@ def getTextLabel(widget):
             if isinstance(prevWidget, swt.widgets.Label):
                 return prevWidget.getText()
     return ""
+
+def getVisibleChildren(widget):
+    layout = widget.getLayout()
+    # For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible
+    if hasattr(layout, "topControl"):
+        return [ layout.topControl ]
+    else:
+        return filter(lambda c: c.getVisible(), widget.getChildren())
