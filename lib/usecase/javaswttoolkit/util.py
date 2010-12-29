@@ -19,10 +19,31 @@ def getTextLabel(widget):
                 return prevWidget.getText()
     return ""
 
-def getVisibleChildren(widget):
+# For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible
+# Workaround these things
+def getTopControl(widget):
     layout = widget.getLayout()
-    # For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible
     if hasattr(layout, "topControl"):
-        return [ layout.topControl ]
+        return layout.topControl
+
+def getVisibleChildren(widget):
+    topControl = getTopControl(widget)
+    if topControl:
+        return [ topControl ]
     else:
         return filter(lambda c: c.getVisible(), widget.getChildren())
+
+def isVisible(widget):
+    if not hasattr(widget, "getVisible"):
+        return True
+    if not widget.getVisible():
+        return False
+
+    parent = widget.getParent()
+    if not parent:
+        return True
+    topControl = getTopControl(parent)
+    if topControl and topControl is not widget:
+        return False
+    else:
+        return isVisible(parent)

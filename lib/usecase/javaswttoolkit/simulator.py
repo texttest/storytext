@@ -262,6 +262,8 @@ class DisplayFilter:
             runOnUIThread(display.addFilter, eventType, DisplayListener())
 
     def shouldCheckWidget(self, widget, eventType):
+        if not util.isVisible(widget):
+            return False
         for cls, types in self.widgetEventTypes:
             if util.checkInstance(widget, cls) and eventType in types:
                 return True
