@@ -45,11 +45,14 @@ class Describer(usecase.guishared.Describer):
         markedWidgets = self.widgetsBecomeVisible + [ widget for widget, old, new in stateChanges ]
         for widget in self.widgetsBecomeVisible:
             if not widget.isDisposed():
-                parent = widget.getParent()
-                if not self.parentMarked(parent, markedWidgets):
-                    markedWidgets.append(parent)
-                    self.logger.info("New widgets have become visible: describing common parent :\n")
-                    self.logger.info(self.getChildrenDescription(parent))
+                if isinstance(widget, swt.widgets.Shell):
+                    self.describe(widget)
+                else:
+                    parent = widget.getParent()
+                    if not self.parentMarked(parent, markedWidgets):
+                        markedWidgets.append(parent)
+                        self.logger.info("New widgets have become visible: describing common parent :\n")
+                        self.logger.info(self.getChildrenDescription(parent))
         self.widgetsBecomeVisible = []
         
     def getNoneTypeDescription(self, *args):
