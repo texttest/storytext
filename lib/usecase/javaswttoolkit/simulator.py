@@ -4,7 +4,7 @@ from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IllegalStateException, IndexOutOfBoundsException
+from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException
 
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getChildWidgets(self):
@@ -347,7 +347,7 @@ class WidgetMonitor:
                         try:
                             adapters.append(WidgetAdapter(swtbotClass(widget)))
                             break
-                        except (swtbot.exceptions.AssertionFailedException, swtbot.exceptions.WidgetNotFoundException), e:
+                        except RuntimeException:
                             # Sometimes widgets are already disposed, sometimes they aren't the right type
                             pass
         return adapters
