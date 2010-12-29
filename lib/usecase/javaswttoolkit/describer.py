@@ -7,8 +7,9 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
         self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar, swt.widgets.Button,
-                                  swt.widgets.ToolBar, swt.widgets.Sash, swt.widgets.Link, swt.browser.Browser,
-                                  swt.widgets.Composite, types.NoneType ]
+                                  swt.widgets.ToolBar, swt.widgets.ExpandBar, swt.widgets.Sash,
+                                  swt.widgets.Link, swt.browser.Browser, swt.widgets.Composite,
+                                  types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree, swt.custom.CTabFolder ]
         self.imageNumbers = []
         self.nextImageNumber = 1
@@ -90,12 +91,25 @@ class Describer(usecase.guishared.Describer):
                 return "\n" + subDesc.rstrip()
         return ""
 
+    def getExpandItemDescription(self, item, indent, *args, **kw):
+        if item.getExpanded():
+            return "\n" + self.getItemControlDescription(item, indent + 1, *args, **kw)
+        else:
+            return ""
+
     def getCoolItemDescription(self, item, *args, **kw):
+        itemDesc = self.getItemControlDescription(item, *args, **kw)
+        if itemDesc:
+            return " " + itemDesc.lstrip() # put on same line, coolitems are invariably just style descriptions
+        else:
+            return ""
+
+    def getItemControlDescription(self, item, indent, **kw):
         control = item.getControl()
         if control:
             descLines = self.getDescription(control).splitlines()
-            paddedLines = [ "  " + line for line in descLines ]
-            return " " + "\n".join(paddedLines).strip() + "\n"
+            paddedLines = [ " " * indent * 2 + line for line in descLines ]
+            return "\n".join(paddedLines) + "\n"
         else:
             return ""
 
@@ -108,9 +122,12 @@ class Describer(usecase.guishared.Describer):
         else:
             return ""
 
+    def getExpandBarDescription(self, expandbar):
+        return "Expand Bar:\n" + self.getItemBarDescription(expandbar, indent=1, subItemMethod=self.getExpandItemDescription)
+
     def getToolBarDescription(self, toolbar, indent=1):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
-
+    
     def getCoolBarDescription(self, coolbar):
         return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescription)
 
@@ -152,6 +169,17 @@ class Describer(usecase.guishared.Describer):
             elements.append("selected")
         return self.combineElements(elements)
 
+    def getLabelDescription(self, label):
+        elements = [ "'" + label.getText() + "'" ]
+        for fontData in label.getFont().getFontData():
+            fontStyle = fontData.getStyle()
+            for fontAttr in [ "BOLD", "ITALIC" ]:
+                if fontStyle & getattr(swt.SWT, fontAttr):
+                    elements.append(fontAttr.lower())
+        if label.getImage():
+            elements.append(self.getImageDescription(label.getImage()))
+        return self.combineElements(elements)
+
     def getButtonDescription(self, widget):
         return "Button " + self.getItemDescription(widget, selected=False)
 
@@ -170,15 +198,6 @@ class Describer(usecase.guishared.Describer):
     def getLinkDescription(self, widget):
         return "Link '" + widget.getText() + "'"
         
-    def getLabelDescription(self, label):
-        elements = [ "'" + label.getText() + "'" ]
-        for fontData in label.getFont().getFontData():
-            fontStyle = fontData.getStyle()
-            for fontAttr in [ "BOLD", "ITALIC" ]:
-                if fontStyle & getattr(swt.SWT, fontAttr):
-                    elements.append(fontAttr.lower())
-        return self.combineElements(elements)
-    
     def getWindowContentDescription(self, shell):
         desc = ""
         desc = self.addToDescription(desc, self.getMenuBarDescription(shell.getMenuBar()))
@@ -271,8 +290,8 @@ class Describer(usecase.guishared.Describer):
         return visibleChildren
     
     def getChildrenDescription(self, widget):
-        # Coolbars describe their children directly : they have two parallel children structures
-        if not isinstance(widget, swt.widgets.Composite) or isinstance(widget, swt.widgets.CoolBar):
+        # Coolbars and Expandbars describe their children directly : they have two parallel children structures
+        if not isinstance(widget, swt.widgets.Composite) or isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar)):
             return ""
 
         childDescriptions = map(self.getDescription, self.sortChildren(widget))
