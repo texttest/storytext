@@ -230,7 +230,6 @@ class Describer(guishared.Describer):
     statelessWidgets = [ wx.Button, wx.ScrolledWindow, wx.Window ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     def getChildrenDescription(self, widget):
-        slaves = set()
         try:
             children = widget.GetChildren()
         except wx._core.PyDeadObjectError:
@@ -241,6 +240,12 @@ class Describer(guishared.Describer):
             desc = self.addToDescription(desc, self.getDescription(child))
         
         return desc.rstrip()
+
+    def widgetTypeDescription(self, typeName): # pragma: no cover - should be unreachable
+        if "DeadObject" in typeName: # mystery guests on Windows occasionally
+            return ""
+        else:
+            return "A widget of type '" + typeName + "'" 
 
     def getWindowString(self):
         return "Frame" # wx has different terminology

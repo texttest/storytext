@@ -620,7 +620,9 @@ class Describer:
 
     def describeStateChanges(self, stateChanges):
         for widget, oldState, state in stateChanges:
-            self.logger.info(self.getStateChangeDescription(widget, oldState, state))
+            changeDesc = self.getStateChangeDescription(widget, oldState, state).rstrip()
+            if changeDesc:
+                self.logger.info(changeDesc)
 
     def describeUpdates(self):
         stateChanges = self.findStateChanges()
@@ -657,7 +659,10 @@ class Describer:
                 methodName = "get" + widgetClass.__name__ + "Description"
                 return getattr(self, methodName)(widget)
         
-        return "A widget of type '" + widget.__class__.__name__ + "'" # pragma: no cover - should be unreachable
+        return self.widgetTypeDescription(widget.__class__.__name__) # pragma: no cover - should be unreachable
+
+    def widgetTypeDescription(self, typeName): # pragma: no cover - should be unreachable
+        return "A widget of type '" + typeName + "'" 
 
     def checkInstance(self, widget, widgetClass):
         return isinstance(widget, widgetClass) # SWT has classloader trouble, override this
