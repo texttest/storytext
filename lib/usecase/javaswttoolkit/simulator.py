@@ -322,16 +322,24 @@ class WidgetMonitor:
         self.displayFilter.addFilters(display)
         self.addMonitorFilter(display)
 
+    def findDescendants(self, widget):
+        return self.bot.widgets(IsAnything(), widget)
+
     def addMonitorFilter(self, display):
         class MonitorListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
+                if e.widget in self.widgetsShown:
+                    return
                 self.bot.getFinder().setShouldFindInvisibleControls(True)
-                widgets = [ e.widget ] + self.bot.widgets(IsAnything(), e.widget)
+                self.uiMap.logger.debug("Showing/painting widget of type " +
+                                        e.widget.__class__.__name__ + ", monitoring found widgets")
+                widgets = self.findDescendants(e.widget)
                 self.widgetsShown.update(widgets)
                 for widget in self.makeAdapters(widgets):
                     self.uiMap.monitorWidget(widget)
                 
         runOnUIThread(display.addFilter, swt.SWT.Show, MonitorListener())
+        runOnUIThread(display.addFilter, swt.SWT.Paint, MonitorListener())
 
     def findAllWidgets(self):
         matcher = IsAnything()
