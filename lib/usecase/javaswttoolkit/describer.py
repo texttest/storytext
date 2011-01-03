@@ -22,7 +22,9 @@ class Describer(usecase.guishared.Describer):
             self.displays.append(display)
             class StoreListener(swt.widgets.Listener):
                 def handleEvent(listenerSelf, e):
-                    if not isinstance(e.widget, swt.widgets.Menu): # ignore these for now, they aren't really shown at this point
+                    if not isinstance(e.widget, (swt.widgets.Menu, swt.widgets.ScrollBar)):
+                        # Menu show events seem a bit spurious, they aren't really shown at this point
+                        # ScrollBar shows are not relevant to anything
                         self.widgetsBecomeVisible.append(e.widget)
             display.addFilter(swt.SWT.Show, StoreListener())
             
