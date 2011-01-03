@@ -277,10 +277,15 @@ class Describer(usecase.guishared.Describer):
             if pos < dividePos:
                 return i
         return len(dividers)
+
+    def layoutSortsChildren(self, widget):
+        layout = widget.getLayout()
+        return layout is not None and not util.checkInstance(layout, swt.layout.FormLayout) and \
+               not util.checkInstance(widget, swt.custom.SashForm)
 		
     def sortChildren(self, widget):
         visibleChildren = util.getVisibleChildren(widget)
-        if len(visibleChildren) <= 1 or widget.getLayout() is not None:
+        if len(visibleChildren) <= 1 or self.layoutSortsChildren(widget):
             # Trust in the layout, if there is one
             return visibleChildren
         
