@@ -164,20 +164,12 @@ class UseCaseRecorder:
             self.logger.debug("Told we should not record it : args were " + repr(args))
             return
 
-        if event.shouldDelay():
-            self.logger.debug("Delaying event " + repr(event.name))
-            self.delayedEvents.append((event, args))
-        else:
-            self.processWriteEvent(event, args)
-            self.processDelayedEvents()
-
-    def processWriteEvent(self, event, args):
         if self.stateChangeEventInfo:
             if event.implies(*(self.stateChangeEventInfo + args)):
                 self.logger.debug("Implies previous state change event, ignoring previous")
             else:
-                self.logger.debug("Recording previous state change " + repr(self.stateChangeEventInfo[0]))
-                self.record(*self.stateChangeEventInfo)
+                self.recordOrDelay(*self.stateChangeEventInfo)
+            self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
         self.writeApplicationEventDetails()
@@ -185,16 +177,26 @@ class UseCaseRecorder:
             self.logger.debug("Storing up state change event " + repr(scriptOutput))
             self.stateChangeEventInfo = scriptOutput, event
         else:
-            self.logger.debug("Recording  " + repr(scriptOutput))
-            self.stateChangeEventInfo = None
+            if self.recordOrDelay(scriptOutput, event):
+                self.processDelayedEvents()
+                
+    def recordOrDelay(self, scriptOutput, event):
+        if event.shouldDelay():
+            self.logger.debug("Delaying event " + repr(scriptOutput))
+            self.delayedEvents.append((scriptOutput, event))
+            return False
+        else:
             self.record(scriptOutput, event)
+            return True
 
     def processDelayedEvents(self):
+        self.logger.debug("Processing delayed events...")
         for eventInfo in self.delayedEvents:
-            self.processWriteEvent(*eventInfo)
+            self.record(*eventInfo)
         self.delayedEvents = []
 
     def record(self, line, event=None):
+        self.logger.debug("Recording " + repr(line))
         for script in self.getScriptsToRecord(event):
             script.record(line)
 
@@ -243,7 +245,6 @@ class UseCaseRecorder:
         if len(self.applicationEvents) > 0:
             eventString = ", ".join(sorted(self.applicationEvents.values()))
             self.record(waitCommandName + " " + eventString)
-            self.logger.debug("Recording wait for " + repr(eventString))
             self.applicationEvents = OrderedDict()
 
     def registerShortcut(self, replayScript):
