@@ -127,8 +127,13 @@ class Describer(usecase.guishared.Describer):
         else:
             return ""
 
-    def getExpandBarDescription(self, expandbar):
-        return "Expand Bar:\n" + self.getItemBarDescription(expandbar, indent=1, subItemMethod=self.getExpandItemDescription)
+    def getExpandBarDescription(self, widget):
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        return "Expand Bar:\n" + state
+
+    def getExpandBarState(self, expandbar):
+        return self.getItemBarDescription(expandbar, indent=1, subItemMethod=self.getExpandItemDescription)
 
     def getToolBarDescription(self, toolbar, indent=1):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
