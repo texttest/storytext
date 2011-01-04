@@ -181,7 +181,11 @@ class Describer(usecase.guishared.Describer):
         return self.combineElements(elements)
 
     def getLabelDescription(self, label):
-        elements = [ "'" + label.getText() + "'" ]
+        if label.getStyle() & swt.SWT.SEPARATOR:
+            return "-" * 10
+        elements = []
+        if label.getText():
+            elements.append("'" + label.getText() + "'")
         for fontData in label.getFont().getFontData():
             fontStyle = fontData.getStyle()
             for fontAttr in [ "BOLD", "ITALIC" ]:
