@@ -365,15 +365,15 @@ class Describer(usecase.guishared.Describer):
                     return len(childDescriptions)
         return 1
 
-    def getCellWidth(self, row, colNum):
-        if len(row) > colNum:
+    def getCellWidth(self, row, colNum, numColumns):
+        # Don't include rows which span several columns
+        if len(row) == numColumns:
             lines = row[colNum].splitlines()
             if lines:
                 return max((len(line) for line in lines))
         return 0
 
-    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
-        desc = ""
+    def makeGrid(self, childDescriptions, numColumns, horizontalSpans):
         grid = []
         index = 0
         for childDesc, span in izip(childDescriptions, horizontalSpans):
@@ -381,16 +381,33 @@ class Describer(usecase.guishared.Describer):
                 grid.append([])
             grid[-1].append(childDesc)
             index += span
+        return grid
 
+    def findColumnWidths(self, grid, numColumns):
         colWidths = []
         for colNum in range(numColumns):
-            maxWidth = max((self.getCellWidth(row, colNum) for row in grid))
+            maxWidth = max((self.getCellWidth(row, colNum, numColumns) for row in grid))
             if colNum == numColumns - 1:
                 colWidths.append(maxWidth)
             else:
                 # Pad two spaces between each column
                 colWidths.append(maxWidth + 2)
+        return colWidths
+    
+    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
+        grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
+        colWidths = self.findColumnWidths(grid, numColumns)
+        totalWidth = sum(colWidths)
+        if totalWidth > 120: # After a while, excessively wide grids just get too hard to read
+            header = "." * 6 + " " + str(numColumns) + "-Column Layout " + "." * 6
+            desc = self.formatColumnsInGrid(grid, numColumns)
+            footer = "." * len(header)
+            return header + "\n" + desc + "\n" + footer
+        else:
+            return self.formatCellsInGrid(grid, colWidths)
 
+    def formatCellsInGrid(self, grid, colWidths):
+        desc = ""
         for row in grid:
             rowLines = max((desc.count("\n") + 1 for desc in row))
             for rowLine in range(rowLines):
@@ -402,6 +419,15 @@ class Describer(usecase.guishared.Describer):
                         cellRow = ""
                     desc += cellRow.ljust(colWidths[colNum])
                 desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
+        return desc.rstrip()
+
+    def formatColumnsInGrid(self, grid, numColumns):
+        desc = ""
+        for colNum in range(numColumns):
+            for row in grid:
+                if colNum < len(row):
+                    desc += row[colNum] + "\n"
+            desc += "\n"
         return desc.rstrip()
 
     def checkInstance(self, *args):
