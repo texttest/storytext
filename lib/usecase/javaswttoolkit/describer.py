@@ -1,5 +1,6 @@
 
 import usecase.guishared, util, types, os
+from itertools import izip
 from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
         
@@ -326,13 +327,22 @@ class Describer(usecase.guishared.Describer):
                isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar)) or \
                util.getTopControl(widget):
             return ""
-        
-        childDescriptions = map(self.getDescription, self.sortChildren(widget))
+
+        children = self.sortChildren(widget)
+        childDescriptions = map(self.getDescription, children)
         columns = self.getLayoutColumns(widget, childDescriptions)
         if columns > 1:
-            return self.formatInGrid(childDescriptions, columns)
+            horizontalSpans = map(self.getHorizontalSpan, children)
+            return self.formatInGrid(childDescriptions, columns, horizontalSpans)
         else:
             return self.formatInColumn(childDescriptions)
+
+    def getHorizontalSpan(self, widget):
+        layout = widget.getLayoutData()
+        if hasattr(layout, "horizontalSpan"):
+            return layout.horizontalSpan
+        else:
+            return 1
 
     def formatInColumn(self, childDescriptions):
         desc = ""
@@ -358,13 +368,15 @@ class Describer(usecase.guishared.Describer):
                 return max((len(line) for line in lines))
         return 0
 
-    def formatInGrid(self, childDescriptions, numColumns):
+    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
         desc = ""
         grid = []
-        for i, childDesc in enumerate(childDescriptions):
-            if i % numColumns == 0:
+        index = 0
+        for childDesc, span in izip(childDescriptions, horizontalSpans):
+            if index % numColumns == 0:
                 grid.append([])
             grid[-1].append(childDesc)
+            index += span
 
         colWidths = []
         for colNum in range(numColumns):
