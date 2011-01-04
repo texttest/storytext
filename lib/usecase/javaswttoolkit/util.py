@@ -26,13 +26,6 @@ def getTopControl(widget):
     if hasattr(layout, "topControl"):
         return layout.topControl
 
-def getVisibleChildren(widget):
-    topControl = getTopControl(widget)
-    if topControl:
-        return [ topControl ]
-    else:
-        return filter(lambda c: c.getVisible(), widget.getChildren())
-
 def isVisible(widget):
     if not hasattr(widget, "getVisible"):
         return True

@@ -6,11 +6,11 @@ from org.eclipse import swt
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.CoolBar, swt.widgets.Button,
-                                  swt.widgets.ToolBar, swt.widgets.ExpandBar, swt.widgets.Sash,
-                                  swt.widgets.Link, swt.browser.Browser, swt.widgets.Composite,
-                                  types.NoneType ]
-        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.Text, swt.widgets.Tree, swt.custom.CTabFolder ]
+        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
+                                  swt.widgets.Link, types.NoneType ]
+        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
+                              swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
+                              swt.custom.CTabFolder, swt.browser.Browser, swt.widgets.Composite ]
         self.imageNumbers = []
         self.nextImageNumber = 1
         self.displays = []
@@ -46,7 +46,7 @@ class Describer(usecase.guishared.Describer):
     def describeNewlyShown(self, stateChanges):
         markedWidgets = self.widgetsBecomeVisible + [ widget for widget, old, new in stateChanges ]
         for widget in self.widgetsBecomeVisible:
-            if not widget.isDisposed():
+            if not widget.isDisposed() and util.isVisible(widget):
                 if isinstance(widget, swt.widgets.Shell):
                     self.describe(widget)
                 else:
@@ -208,9 +208,6 @@ class Describer(usecase.guishared.Describer):
         desc = self.addToDescription(desc, self.getMenuBarDescription(shell.getMenuBar()))
         return self.addToDescription(desc, self.getChildrenDescription(shell))
 
-    def getCompositeDescription(self, widget):
-        return ""
-
     def getBrowserDescription(self, widget):
         return "Browser browsing '" + widget.getUrl() + "'"
 
@@ -220,10 +217,12 @@ class Describer(usecase.guishared.Describer):
             return text.replace(os.linesep, "\n")
         else:
             return text
-
+    
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, self.getTextEntryClass()):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
+        elif util.getTopControl(widget):
+            return "\n"
         else:
             return "\nUpdated "
 
@@ -232,8 +231,8 @@ class Describer(usecase.guishared.Describer):
             # Will be caught, and the widget cleaned up
             raise UseCaseScriptError, "Widget is Disposed"
         else:
-            return usecase.guishared.Describer.getState(self, widget)
-    
+            return self.getSpecificState(widget)
+
     def getTextState(self, widget):
         return widget.getText()
 
@@ -265,6 +264,22 @@ class Describer(usecase.guishared.Describer):
         return self.getItemBarDescription(widget, separator=" , ",
                                           selection=[ widget.getSelection() ])
 
+    def getCompositeState(self, widget):
+        return util.getTopControl(widget)
+
+    def getCompositeDescription(self, widget):
+        stateControl = self.getState(widget)
+        if stateControl:
+            self.widgetsWithState[widget] = stateControl
+            if len(widget.getChildren()) > 1:
+                header = "+" * 6 + " Stacked Layout " + "+" * 6
+                footer = "+" * len(header)
+                return header + "\n" + self.getDescription(stateControl) + "\n" + footer
+            else:
+                return self.getDescription(stateControl)
+        else:
+            return ""
+
     def getVerticalDividePositions(self, children):
         positions = []
         for child in children:
@@ -282,9 +297,9 @@ class Describer(usecase.guishared.Describer):
         layout = widget.getLayout()
         return layout is not None and not util.checkInstance(layout, swt.layout.FormLayout) and \
                not util.checkInstance(widget, swt.custom.SashForm)
-		
+
     def sortChildren(self, widget):
-        visibleChildren = util.getVisibleChildren(widget)
+        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
         if len(visibleChildren) <= 1 or self.layoutSortsChildren(widget):
             # Trust in the layout, if there is one
             return visibleChildren
@@ -301,9 +316,12 @@ class Describer(usecase.guishared.Describer):
     
     def getChildrenDescription(self, widget):
         # Coolbars and Expandbars describe their children directly : they have two parallel children structures
-        if not isinstance(widget, swt.widgets.Composite) or isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar)):
+        # Composites with StackLayout use the topControl rather than the children
+        if not isinstance(widget, swt.widgets.Composite) or \
+               isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar)) or \
+               util.getTopControl(widget):
             return ""
-
+        
         childDescriptions = map(self.getDescription, self.sortChildren(widget))
         columns = self.getLayoutColumns(widget, childDescriptions)
         if columns > 1:
