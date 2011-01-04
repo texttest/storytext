@@ -167,6 +167,11 @@ class Describer(usecase.guishared.Describer):
         elements = []
         if item.getText():
             elements.append(item.getText())
+        elements += self.getPropertyElements(item, selected)
+        return self.combineElements(elements)
+
+    def getPropertyElements(self, item, selected):
+        elements = []
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
         styleDesc = self.getStyleDescription(item.getStyle())
@@ -178,7 +183,7 @@ class Describer(usecase.guishared.Describer):
             elements.append("greyed out")
         if selected:
             elements.append("selected")
-        return self.combineElements(elements)
+        return elements
 
     def getLabelDescription(self, label):
         if label.getStyle() & swt.SWT.SEPARATOR:
@@ -196,7 +201,11 @@ class Describer(usecase.guishared.Describer):
         return self.combineElements(elements)
 
     def getButtonDescription(self, widget):
-        return "Button " + self.getItemDescription(widget, selected=False)
+        desc = "Button"
+        if widget.getText():
+            desc += " '" + widget.getText() + "'"
+        elements = [ desc ] + self.getPropertyElements(widget, selected=False)
+        return self.combineElements(elements)
 
     def combineElements(self, elements):
         if len(elements) <= 1:
