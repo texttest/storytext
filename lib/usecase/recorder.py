@@ -165,36 +165,45 @@ class UseCaseRecorder:
             return
 
         if self.stateChangeEventInfo:
-            if event.implies(*(self.stateChangeEventInfo + args)):
+            stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
+            if event.implies(stateChangeOutput, stateChangeEvent, *args):
                 self.logger.debug("Implies previous state change event, ignoring previous")
             else:
-                self.recordOrDelay(*self.stateChangeEventInfo)
+                self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
             self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
         self.writeApplicationEventDetails()
+        delayLevel = event.delayLevel()
         if event.isStateChange():
             self.logger.debug("Storing up state change event " + repr(scriptOutput))
-            self.stateChangeEventInfo = scriptOutput, event
+            self.stateChangeEventInfo = scriptOutput, event, delayLevel
         else:
-            if self.recordOrDelay(scriptOutput, event):
-                self.processDelayedEvents()
-                
-    def recordOrDelay(self, scriptOutput, event):
-        if event.shouldDelay():
-            self.logger.debug("Delaying event " + repr(scriptOutput))
-            self.delayedEvents.append((scriptOutput, event))
+            if self.recordOrDelay(scriptOutput, event, delayLevel):
+                self.processDelayedEvents(self.delayedEvents)
+                self.delayedEvents = []
+
+    def recordOrDelay(self, scriptOutput, event, delayLevel):
+        if delayLevel:
+            self.logger.debug("Delaying event " + repr(scriptOutput) + " at level " + repr(delayLevel))
+            self.delayedEvents.append((scriptOutput, event, delayLevel))
             return False
         else:
             self.record(scriptOutput, event)
             return True
 
-    def processDelayedEvents(self):
-        self.logger.debug("Processing delayed events...")
-        for eventInfo in self.delayedEvents:
-            self.record(*eventInfo)
-        self.delayedEvents = []
-
+    def processDelayedEvents(self, events, level=1):
+        if len(events):
+            self.logger.debug("Processing delayed events at level " + str(level))
+            nextLevelEvents = []
+            for scriptOutput, event, delayLevel in events:
+                if delayLevel == level:
+                    self.record(scriptOutput, event)
+                    self.processDelayedEvents(nextLevelEvents, level + 1)
+                    nextLevelEvents = []
+                else:
+                    nextLevelEvents.append((scriptOutput, event, delayLevel))
+                
     def record(self, line, event=None):
         self.logger.debug("Recording " + repr(line))
         for script in self.getScriptsToRecord(event):

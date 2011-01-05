@@ -77,9 +77,9 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def shouldRecord(self, event, *args):
         return DisplayFilter.getEventFromUser(event)
 
-    def shouldDelay(self):
+    def delayLevel(self):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return len(DisplayFilter.eventsFromUser) > 0
+        return len(DisplayFilter.eventsFromUser)
 
     @classmethod
     def getSignalsToFilter(cls):

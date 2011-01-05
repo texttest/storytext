@@ -40,11 +40,11 @@ class GtkEvent(GuiEvent):
         except TypeError:
             return False
 
-    def shouldDelay(self):
+    def delayLevel(self):
         # If we get this when in dialog.run, the event that cause us has not yet been
         # recorded, so we should delay
         topLevel = self.widget.get_toplevel()
-        return hasattr(topLevel, "dialogRunLevel") and topLevel.dialogRunLevel > 0
+        return int(hasattr(topLevel, "dialogRunLevel") and topLevel.dialogRunLevel > 0)
 
     def getRecordSignal(self):
         return self.signalName
