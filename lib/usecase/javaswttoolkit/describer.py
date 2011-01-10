@@ -3,6 +3,33 @@ import usecase.guishared, util, types, os
 from itertools import izip
 from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
+
+class WidgetCounter:
+    def __init__(self, equalityMethod=None):
+        self.widgetNumbers = []
+        self.nextWidgetNumber = 1
+        self.customEqualityMethod = equalityMethod
+
+    def widgetsEqual(self, widget1, widget2):
+        if self.customEqualityMethod:
+            return self.customEqualityMethod(widget1, widget2)
+        else:
+            return widget1 is widget2
+
+    def getWidgetNumber(self, widget):
+        for currWidget, number in self.widgetNumbers:
+            if not currWidget.isDisposed() and self.widgetsEqual(widget, currWidget):
+                return number
+        return 0
+
+    def getId(self, widget):
+        number = self.getWidgetNumber(widget)
+        if not number:
+            number = self.nextWidgetNumber
+            self.widgetNumbers.append((widget, self.nextWidgetNumber))
+            self.nextWidgetNumber += 1
+        return str(number)
+        
         
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
@@ -11,11 +38,12 @@ class Describer(usecase.guishared.Describer):
                                   swt.widgets.Link, types.NoneType ]
         self.stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
                               swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
-                              swt.custom.CTabFolder, swt.browser.Browser, swt.widgets.Composite ]
-        self.imageNumbers = []
-        self.nextImageNumber = 1
+                              swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
         self.displays = []
+        self.imageCounter = WidgetCounter(self.imagesEqual)
+        self.canvasCounter = WidgetCounter()
         self.widgetsBecomeVisible = []
+        self.widgetsRepainted = []
         usecase.guishared.Describer.__init__(self)
 
     def addVisibilityFilter(self, display):
@@ -28,13 +56,21 @@ class Describer(usecase.guishared.Describer):
                         # ScrollBar shows are not relevant to anything
                         self.widgetsBecomeVisible.append(e.widget)
             display.addFilter(swt.SWT.Show, StoreListener())
-            
+            class PaintListener(swt.widgets.Listener):
+                def handleEvent(listenerSelf, e):
+                    if isinstance(e.widget, swt.widgets.Canvas):
+                        self.widgetsRepainted.append(e.widget)
+            display.addFilter(swt.SWT.Paint, PaintListener())
+
     def describeWithUpdates(self, shell):
         self.addVisibilityFilter(shell.getDisplay())
         stateChanges = self.findStateChanges()
-        self.describeNewlyShown(stateChanges)
+        self.describeVisibilityChanges(stateChanges, self.widgetsBecomeVisible, "New widgets have become visible")
+        self.describeVisibilityChanges(stateChanges, self.widgetsRepainted, "Widgets have been repainted")
         self.describeStateChanges(stateChanges)
         self.describe(shell)
+        self.widgetsBecomeVisible = []
+        self.widgetsRepainted = []
 
     def parentMarked(self, widget, markedWidgets):
         if widget in markedWidgets:
@@ -44,9 +80,9 @@ class Describer(usecase.guishared.Describer):
         else:
             return False
 
-    def describeNewlyShown(self, stateChanges):
-        markedWidgets = self.widgetsBecomeVisible + [ widget for widget, old, new in stateChanges ]
-        for widget in self.widgetsBecomeVisible:
+    def describeVisibilityChanges(self, stateChanges, changedWidgets, headline):
+        markedWidgets = changedWidgets + [ widget for widget, old, new in stateChanges ]
+        for widget in changedWidgets:
             if not widget.isDisposed() and util.isVisible(widget):
                 if isinstance(widget, swt.widgets.Shell):
                     self.describe(widget)
@@ -54,9 +90,8 @@ class Describer(usecase.guishared.Describer):
                     parent = widget.getParent()
                     if not self.parentMarked(parent, markedWidgets):
                         markedWidgets.append(parent)
-                        self.logger.info("New widgets have become visible: describing common parent :\n")
+                        self.logger.info(headline + ": describing common parent :\n")
                         self.logger.info(self.getChildrenDescription(parent))
-        self.widgetsBecomeVisible = []
         
     def getNoneTypeDescription(self, *args):
         return ""
@@ -142,21 +177,16 @@ class Describer(usecase.guishared.Describer):
     def getCoolBarDescription(self, coolbar):
         return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescription)
 
-    def getImageNumber(self, image):
-        for currImage, number in self.imageNumbers:
-            if not currImage.isDisposed() and image.getImageData().data == currImage.getImageData().data:
-                return number
-        return 0
+    def imagesEqual(self, image1, image2):
+        return image1.getImageData().data == image2.getImageData().data
 
     def getImageDescription(self, image):
         # Seems difficult to get any sensible image information out, there is
         # basically no query API for this in SWT
-        number = self.getImageNumber(image)
-        if not number:
-            number = self.nextImageNumber
-            self.imageNumbers.append((image, self.nextImageNumber))
-            self.nextImageNumber += 1
-        return "Image " + str(number)
+        return "Image " + self.imageCounter.getId(image)
+
+    def getCanvasDescription(self, widget):
+        return "Canvas " + self.canvasCounter.getId(widget)
 
     def getStyleDescription(self, style):
         for tryStyle in self.styleNames:
