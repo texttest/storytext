@@ -1,5 +1,5 @@
 
-import usecase.guishared, util, logging
+import usecase.guishared, util, logging, os
 from usecase.definitions import UseCaseScriptError
 from usecase import applicationEvent
 from org.eclipse import swt
