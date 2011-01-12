@@ -46,7 +46,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
         except: # pragma: no cover - Obviously can't measure coverage here!
             pass
     
-    def enableReading(self):
+    def enableReplayInitially(self):
         runner = TestRunner(self.runReplay)
         replayExitRunner = TestRunner(self.tryTerminateCoverage)
         self.setTestRunnables(runner, replayExitRunner)

@@ -1,10 +1,13 @@
 
 import usecase.guishared, util, logging
 from usecase.definitions import UseCaseScriptError
+from usecase import applicationEvent
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
 from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException
+
+applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getChildWidgets(self):
@@ -260,7 +263,11 @@ class DisplayFilter:
                     self.disposedShells.append(e.widget)
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
-
+        class ApplicationEventListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                applicationEvent(e.text)
+        runOnUIThread(display.addFilter, applicationEventType, ApplicationEventListener())
+        
     def shouldCheckWidget(self, widget, eventType):
         if not util.isVisible(widget):
             return False

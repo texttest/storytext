@@ -35,11 +35,27 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
 
         
 class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
+    def __init__(self, *args, **kw):
+        self.waiting = False
+        usecase.guishared.UseCaseReplayer.__init__(self, *args, **kw)
+        
     def tryAddDescribeHandler(self):
         # Set up used for recording
         self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
-    
+
+    def addScript(self, script):
+        # Don't process initial application events any differently
+        # We need to make sure the replay thread actually hangs around to do something
+        self.scripts.append(script)
+        self.enableReading()
+            
     def enableReading(self):
+        if self.waiting:
+            self.waiting = False
+        else:
+            self.enableReplayInitially()
+
+    def enableReplayInitially(self):
         self.uiMap.scriptEngine.setTestThreadAction(self.runReplay)
 
     def setUpMonitoring(self):
@@ -62,4 +78,13 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
             if self.delay:
                 time.sleep(self.delay)
             if not self.runNextCommand():
-                break
+                if self.waitingCompleted():
+                    break
+                else:
+                    self.logger.debug("Waiting for replaying to be re-enabled...")
+                    self.waitForReenable()
+
+    def waitForReenable(self):
+        self.waiting = True
+        while self.waiting:
+            time.sleep(0.1) # don't use the whole CPU while waiting
