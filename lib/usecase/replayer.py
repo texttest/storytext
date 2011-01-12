@@ -98,11 +98,11 @@ class UseCaseReplayer:
         self.applicationEventNames.append(eventName)
         self.logger.debug("Replayer got application event " + repr(eventName))
         self.timeDelayNextCommand = timeDelay
-        if self.waitingCompleted():
+        if len(self.waitingForEvents) > 0 and self.waitingCompleted():
+            self.logger.debug("Waiting completed, proceeding...")
             if self.replayThread:
                 self.replayThread.join()
-            for eventName in self.waitingForEvents:
-                self.applicationEventNames.remove(eventName)
+            self.applicationEventNames = []
             self.enableReading()
             
     def applicationEventRename(self, oldName, newName):
@@ -116,8 +116,6 @@ class UseCaseReplayer:
         self.logger.debug("Finished renaming")
 
     def waitingCompleted(self):
-        if len(self.waitingForEvents) == 0:
-            return False
         for eventName in self.waitingForEvents:
             if not eventName in self.applicationEventNames:
                 return False
