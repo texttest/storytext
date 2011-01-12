@@ -322,7 +322,10 @@ class WidgetMonitor:
             self.uiMap.monitorWidget(widget)
         
     def forceShellActive(self):
-        runOnUIThread(self.bot.getFinder().getShells()[0].forceActive)
+        if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
+            # Need to do this for running under Xvfb on UNIX
+            # Seems to throw exceptions occasionally on Windows, so don't bother
+            runOnUIThread(self.bot.getFinder().getShells()[0].forceActive)
 
     def setUpDisplayFilter(self):
         display = self.bot.getDisplay()
