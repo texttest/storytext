@@ -33,12 +33,12 @@ class WidgetCounter:
         
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
+    statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
+                         swt.widgets.Link, types.NoneType ]
+    stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
+                     swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
+                     swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
-        self.statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
-                                  swt.widgets.Link, types.NoneType ]
-        self.stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
-                              swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
-                              swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
         self.displays = []
         self.imageCounter = WidgetCounter(self.imagesEqual)
         self.canvasCounter = WidgetCounter()

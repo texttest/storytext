@@ -265,10 +265,7 @@ PyUseCase %s is currently capable of recording and replaying. Any type derived f
 types is also supported.
 """ % (toolkit, actionWord, definitions.__version__)
         print self.getFormatted(intro, html, toolkit + " Widgets and " + actionWord + " supported for record/replay")
-        classes = {}
-        for widgetClass, currEventClasses in self.eventTypes:
-            if len(currEventClasses):
-                self.addSignals(classes, widgetClass, currEventClasses, module)
+        classes = self.getRecordReplayInfo(module)
         classNames = sorted(classes.keys())
         if html:
             self.writeHtmlTable(classNames, classes, linkPrefix)
@@ -290,9 +287,19 @@ is also supported but will only have features of the listed type described.
                 print className
         return True
 
+    def getRecordReplayInfo(self, module):
+        classes = {}
+        for widgetClass, currEventClasses in self.eventTypes:
+            if len(currEventClasses):
+                self.addSignals(classes, widgetClass, currEventClasses, module)
+        return classes
+
     def writeAsciiTable(self, classNames, classes):
         for className in classNames:
-            print className.ljust(25) + ":", " , ".join(classes[className])
+            print className.ljust(self.getClassNameColumnSize()) + ":", " , ".join(classes[className])
+
+    def getClassNameColumnSize(self):
+        return 25 # seems to work, mostly
 
     def writeHtmlTable(self, classNames, classes, linkPrefix):
         print '<div class="Text_Normal"><table border=1 cellpadding=1 cellspacing=1>'

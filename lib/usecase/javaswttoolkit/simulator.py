@@ -304,14 +304,23 @@ class WidgetMonitor:
         self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
         self.widgetsShown = set()
 
-    def getWidgetEventTypes(self):
+    @classmethod
+    def getWidgetEventTypes(cls):
+        return cls.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())
+
+    @classmethod
+    def getWidgetEventTypeNames(cls):
+        return cls.getWidgetEventInfo(lambda eventClass: [ eventClass.getAssociatedSignal(None) ])
+
+    @classmethod
+    def getWidgetEventInfo(cls, method):
         allEventTypes = []
         eventTypeDict = dict(eventTypes)
-        for widgetClass, swtBotClasses in self.swtbotMap.items():
+        for widgetClass, swtBotClasses in cls.swtbotMap.items():
             currEventTypes = set()
             for swtBotClass in swtBotClasses:
                 for eventClass in eventTypeDict.get(swtBotClass, []):
-                    currEventTypes.update(eventClass.getSignalsToFilter())
+                    currEventTypes.update(method(eventClass))
             allEventTypes.append((widgetClass, currEventTypes))
         return allEventTypes
     

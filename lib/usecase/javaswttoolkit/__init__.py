@@ -1,7 +1,7 @@
 
 """ Don't load any Java stuff at global scope, needs to be importable by CPython also """
 
-import usecase.guishared, os, time
+import usecase.guishared, os, time, types
 from threading import Thread
 
 class ScriptEngine(usecase.guishared.ScriptEngine):
@@ -32,6 +32,33 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         for eventClass in self.findEventClassesFor(widget):
             if eventDescriptor in eventClass.getAssociatedSignatures(widget):
                 return eventClass(eventName, widget, argumentParseData)
+
+    def getDescriptionInfo(self):
+        return "SWT", "javaswt", "event types", \
+               "http://help.eclipse.org/helios/index.jsp?topic=/org.eclipse.platform.doc.isv/reference/api/"
+
+    def getDocName(self, className):
+        return className.replace(".", "/")
+    
+    def getRecordReplayInfo(self, module):
+        from simulator import WidgetMonitor
+        info = {}
+        for widgetClass, eventTypes in WidgetMonitor.getWidgetEventTypeNames():
+            className = self.getClassName(widgetClass, module)
+            info[className] = sorted(eventTypes)
+        return info
+
+    def getClassName(self, widgetClass, *args):
+        return widgetClass.__module__ + "." + widgetClass.__name__
+
+    def getClassNameColumnSize(self):
+        return 40 # seems to work, mostly
+
+    def getSupportedLogWidgets(self):
+        from describer import Describer
+        widgets = Describer.statelessWidgets + Describer.stateWidgets
+        widgets.remove(types.NoneType)
+        return widgets
 
         
 class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
