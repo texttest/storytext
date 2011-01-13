@@ -58,11 +58,14 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
     def enableReplayInitially(self):
         self.uiMap.scriptEngine.setTestThreadAction(self.runReplay)
 
-    def setUpMonitoring(self):
+    def createMonitor(self, botClass=None):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils
         SWTUtils.waitForDisplayToAppear()
-        from simulator import WidgetMonitor, eventTypes
-        monitor = WidgetMonitor(self.uiMap)
+        from simulator import WidgetMonitor
+        return WidgetMonitor(self.uiMap, botClass)
+
+    def setUpMonitoring(self):
+        monitor = self.createMonitor()
         monitor.setUp()
         return monitor
     

@@ -285,7 +285,6 @@ class DisplayFilter:
 
 
 class WidgetMonitor:
-    botClass = swtbot.SWTBot
     swtbotMap = { swt.widgets.Button   : [ swtbot.widgets.SWTBotButton ],
                   swt.widgets.MenuItem : [ swtbot.widgets.SWTBotMenu ],
                   swt.widgets.Shell    : [ swtbot.widgets.SWTBotShell ],
@@ -297,8 +296,9 @@ class WidgetMonitor:
                   swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
                   swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ],
                   swt.custom.CTabItem  : [ swtbot.widgets.SWTBotCTabItem ]}
-    def __init__(self, uiMap):
-        self.bot = self.botClass()
+    def __init__(self, uiMap, botClass=None):
+        botClassToUse = botClass or swtbot.SWTBot
+        self.bot = botClassToUse()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
@@ -365,7 +365,7 @@ class WidgetMonitor:
                 if util.checkInstance(widget, widgetClass):
                     for swtbotClass in self.swtbotMap.get(widgetClass):
                         try:
-                            adapters.append(WidgetAdapter(swtbotClass(widget)))
+                            adapters.append(WidgetAdapter.adapt(swtbotClass(widget)))
                             break
                         except RuntimeException:
                             # Sometimes widgets are already disposed, sometimes they aren't the right type

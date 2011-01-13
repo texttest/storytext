@@ -13,6 +13,10 @@ else: # pragma: no cover - not currently running older than 2.5 in regular tests
 
 class WidgetAdapter:
     adapterClass = None
+    @staticmethod
+    def setAdapterClass(adapterCls):
+        WidgetAdapter.adapterClass = adapterCls
+        
     @classmethod
     def adapt(cls, widget):
         return cls.adapterClass(widget)
