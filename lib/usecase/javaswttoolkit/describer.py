@@ -34,7 +34,7 @@ class WidgetCounter:
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
-                         swt.widgets.Link, types.NoneType ]
+                         swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
                      swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
