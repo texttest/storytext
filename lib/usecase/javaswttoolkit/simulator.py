@@ -10,6 +10,8 @@ from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeE
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
+    # All the standard message box texts
+    dialogTexts = [ "OK", "Cancel", "Yes", "No", "Abort", "Retry", "Ignore" ]
     def getChildWidgets(self):
         return [] # don't use this...
         
@@ -20,9 +22,18 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         if isinstance(self.widget, swtbot.widgets.SWTBotText):
             return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
-            return self.widget.getText().replace("&", "").split("\t")[0]
+            text = self.widget.getText()
         except:
             return ""
+        text = text.replace("&", "").split("\t")[0]
+        if text in self.dialogTexts:
+            dialogTitle = self.getDialogTitle()
+            if dialogTitle:
+                return text + ",Dialog=" + dialogTitle
+        return text
+
+    def getDialogTitle(self):
+        return self.widget.widget.getShell().getText()
 
     def getType(self):
         # SWT name, not the SWTBot name
