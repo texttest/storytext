@@ -5,7 +5,7 @@ from usecase import applicationEvent
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException
+from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
@@ -67,7 +67,14 @@ def runOnUIThread(method, *args):
         def run(self):
             method(*args)
 
-    swtbot.finders.UIThreadRunnable.syncExec(PythonVoidResult())
+    try:
+        swtbot.finders.UIThreadRunnable.syncExec(PythonVoidResult())
+    except NullPointerException, e:
+        # Temporary code to try to find intermittent Windows error
+        print "Caught intermittent Windows NullPointerException!"
+        e.printStackTrace()
+        raise
+
 
 class SignalEvent(usecase.guishared.GuiEvent):
     def connectRecord(self, method):
