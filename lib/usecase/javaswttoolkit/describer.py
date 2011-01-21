@@ -112,14 +112,21 @@ class Describer(usecase.guishared.Describer):
         return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
-                              prefix="", selection=[], defaultStyle="push"):
+                               prefix="", selection=[], defaultStyle="push",
+                               columnCount=0):
         descs = []
         for item in itemBar.getItems():
-            itemDesc = self.getItemDescription(item, item in selection, defaultStyle)
-            if itemDesc:
-                descs.append(prefix + " " * indent * 2 + itemDesc)
+            currPrefix = prefix + " " * indent * 2
+            itemDesc = self.getItemDescription(item, currPrefix, item in selection, defaultStyle)
+            if columnCount:
+                row = [ itemDesc ]
+                for colIndex in range(1, columnCount):
+                    row.append(self.getItemColumnDescription(item, colIndex))
+                descs.append(row)
+            elif itemDesc:
+                descs.append(itemDesc)
             if subItemMethod:
-                descs += subItemMethod(item, indent, prefix=prefix, selection=selection)
+                descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount)
         return descs
 
     def getCascadeMenuDescriptions(self, item, indent, **kw):
@@ -197,11 +204,21 @@ class Describer(usecase.guishared.Describer):
             if style & getattr(swt.SWT, tryStyle) != 0:
                 return tryStyle.lower().replace("_", " ").replace(defaultStyle, "").replace("separator", "---")
         
-    def getItemDescription(self, item, *args):
+    def getItemDescription(self, item, prefix, *args):
         elements = []
         if item.getText():
             elements.append(item.getText())
         elements += self.getPropertyElements(item, *args)
+        desc = self.combineElements(elements)
+        if desc:
+            return prefix + desc
+
+    def getItemColumnDescription(self, item, colIndex):
+        elements = []
+        if item.getText(colIndex):
+            elements.append(item.getText(colIndex))
+        if item.getImage(colIndex):
+            elements.append(self.getImageDescription(item.getImage(colIndex)))
         return self.combineElements(elements)
 
     def getPropertyElements(self, item, selected, defaultStyle):
@@ -302,10 +319,17 @@ class Describer(usecase.guishared.Describer):
 
     def getTreeState(self, widget):
         columns = widget.getColumns()
-        text = "Tree with " + str(len(columns)) + " columns : "
-        text += " , ".join((c.getText() for c in columns)) + "\n"
-        text += self.getItemBarDescription(widget, indent=0, subItemMethod=self.getSubTreeDescriptions,
-                                           prefix="-> ", selection=widget.getSelection())
+        columnCount = len(columns)
+        text = "Tree :\n"
+        rows = self.getAllItemDescriptions(widget, indent=0, subItemMethod=self.getSubTreeDescriptions,
+                                           prefix="-> ", selection=widget.getSelection(),
+                                           columnCount=columnCount)
+        if columnCount > 0:
+            rows.insert(0, [ c.getText() for c in columns ])
+            colWidths = self.findColumnWidths(rows, columnCount)
+            text += self.formatCellsInGrid(rows, colWidths)
+        else:
+            text += "\n".join(rows)
         return text
 
     def getCTabFolderDescription(self, widget):
