@@ -108,42 +108,45 @@ class Describer(usecase.guishared.Describer):
     def getShellState(self, shell):
         return shell.getText()
 
-    def getItemBarDescription(self, itemBar, indent=0, subItemMethod=None,
-                              prefix="", separator="\n", selection=[]):
-        desc = ""
-        for item in itemBar.getItems():
-            desc += prefix + " " * indent * 2 + self.getItemDescription(item, item in selection)
-            if subItemMethod:
-                desc += subItemMethod(item, indent, prefix=prefix, selection=selection)
-            desc += separator
-        return desc
+    def getItemBarDescription(self, *args, **kw):
+        return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
-    def getCascadeMenuDescription(self, item, indent, **kw):
+    def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
+                              prefix="", selection=[], defaultStyle="push"):
+        descs = []
+        for item in itemBar.getItems():
+            itemDesc = self.getItemDescription(item, item in selection, defaultStyle)
+            if itemDesc:
+                descs.append(prefix + " " * indent * 2 + itemDesc)
+            if subItemMethod:
+                descs += subItemMethod(item, indent, prefix=prefix, selection=selection)
+        return descs
+
+    def getCascadeMenuDescriptions(self, item, indent, **kw):
         cascadeMenu = item.getMenu()
         if cascadeMenu:
-            return " :\n" + self.getMenuDescription(cascadeMenu, indent + 1).rstrip()
+            return self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, **kw)
         else:
-            return ""
+            return []
 
-    def getSubTreeDescription(self, item, indent, **kw):
+    def getSubTreeDescriptions(self, item, indent, **kw):
         if item.getExpanded():
-            subDesc = self.getItemBarDescription(item, indent+1, subItemMethod=self.getSubTreeDescription, **kw)
-            if subDesc:
-                return "\n" + subDesc.rstrip()
-        return ""
-
-    def getExpandItemDescription(self, item, indent, *args, **kw):
-        if item.getExpanded():
-            return "\n" + self.getItemControlDescription(item, indent + 1, *args, **kw)
+            return self.getAllItemDescriptions(item, indent+1, subItemMethod=self.getSubTreeDescriptions, **kw)
         else:
-            return ""
+            return []
 
-    def getCoolItemDescription(self, item, *args, **kw):
+    def getExpandItemDescriptions(self, item, indent, *args, **kw):
+        if item.getExpanded():
+            return [ self.getItemControlDescription(item, indent + 1, *args, **kw) ]
+        else:
+            return []
+
+    def getCoolItemDescriptions(self, item, *args, **kw):
         itemDesc = self.getItemControlDescription(item, *args, **kw)
         if itemDesc:
-            return " " + itemDesc.lstrip() # put on same line, coolitems are invariably just style descriptions
+            return [ itemDesc ] 
         else:
-            return ""
+            return []
 
     def getItemControlDescription(self, item, indent, **kw):
         control = item.getControl()
@@ -155,7 +158,7 @@ class Describer(usecase.guishared.Describer):
             return ""
 
     def getMenuDescription(self, menu, indent=1):
-        return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescription)
+        return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions)
 
     def getMenuBarDescription(self, menubar):
         if menubar:
@@ -169,13 +172,14 @@ class Describer(usecase.guishared.Describer):
         return "Expand Bar:\n" + state
 
     def getExpandBarState(self, expandbar):
-        return self.getItemBarDescription(expandbar, indent=1, subItemMethod=self.getExpandItemDescription)
+        return self.getItemBarDescription(expandbar, indent=1, subItemMethod=self.getExpandItemDescriptions)
 
     def getToolBarDescription(self, toolbar, indent=1):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
     
     def getCoolBarDescription(self, coolbar):
-        return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescription)
+        return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, defaultStyle="drop down",
+                                                          subItemMethod=self.getCoolItemDescriptions)
 
     def imagesEqual(self, image1, image2):
         return image1.getImageData().data == image2.getImageData().data
@@ -188,23 +192,23 @@ class Describer(usecase.guishared.Describer):
     def getCanvasDescription(self, widget):
         return "Canvas " + self.canvasCounter.getId(widget)
 
-    def getStyleDescription(self, style):
+    def getStyleDescription(self, style, defaultStyle):
         for tryStyle in self.styleNames:
             if style & getattr(swt.SWT, tryStyle) != 0:
-                return tryStyle.lower().replace("_", " ").replace("push", "").replace("separator", "---")
+                return tryStyle.lower().replace("_", " ").replace(defaultStyle, "").replace("separator", "---")
         
-    def getItemDescription(self, item, selected):
+    def getItemDescription(self, item, *args):
         elements = []
         if item.getText():
             elements.append(item.getText())
-        elements += self.getPropertyElements(item, selected)
+        elements += self.getPropertyElements(item, *args)
         return self.combineElements(elements)
 
-    def getPropertyElements(self, item, selected):
+    def getPropertyElements(self, item, selected, defaultStyle):
         elements = []
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
-        styleDesc = self.getStyleDescription(item.getStyle())
+        styleDesc = self.getStyleDescription(item.getStyle(), defaultStyle)
         if styleDesc:
             elements.append(styleDesc)
         if item.getImage():
@@ -234,7 +238,7 @@ class Describer(usecase.guishared.Describer):
         desc = "Button"
         if widget.getText():
             desc += " '" + widget.getText() + "'"
-        elements = [ desc ] + self.getPropertyElements(widget, selected=False)
+        elements = [ desc ] + self.getPropertyElements(widget, selected=False, defaultStyle="push")
         return self.combineElements(elements)
 
     def combineElements(self, elements):
@@ -300,7 +304,7 @@ class Describer(usecase.guishared.Describer):
         columns = widget.getColumns()
         text = "Tree with " + str(len(columns)) + " columns : "
         text += " , ".join((c.getText() for c in columns)) + "\n"
-        text += self.getItemBarDescription(widget, indent=0, subItemMethod=self.getSubTreeDescription,
+        text += self.getItemBarDescription(widget, indent=0, subItemMethod=self.getSubTreeDescriptions,
                                            prefix="-> ", selection=widget.getSelection())
         return text
 
@@ -310,8 +314,7 @@ class Describer(usecase.guishared.Describer):
         return "TabFolder with tabs " + state
 
     def getCTabFolderState(self, widget):
-        return self.getItemBarDescription(widget, separator=" , ",
-                                          selection=[ widget.getSelection() ])
+        return " , ".join(self.getAllItemDescriptions(widget, selection=[ widget.getSelection() ]))
 
     def getCompositeState(self, widget):
         return util.getTopControl(widget)
