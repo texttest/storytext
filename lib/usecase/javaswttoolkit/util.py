@@ -13,10 +13,16 @@ def getTextLabel(widget):
     if isinstance(parent, swt.widgets.Composite):
         children = parent.getChildren()
         textPos = children.index(widget)
-        if textPos > 0:
+        while textPos > 0:
             prevWidget = children[textPos -1]
             if isinstance(prevWidget, swt.widgets.Label):
-                return prevWidget.getText()
+                text = prevWidget.getText()
+                if text:
+                    return text
+                else:
+                    textPos -= 1
+            else:
+                break
     return ""
 
 # For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible
