@@ -130,6 +130,29 @@ class ShellCloseEvent(SignalEvent):
         return "Close"
     
 
+class ResizeEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Resize"
+
+    def isStateChange(self, *args):
+        return True
+
+    def _generate(self, argumentString):
+        words = argumentString.split()
+        width = int(words[1])
+        height = int(words[-1])
+        runOnUIThread(self.widget.widget.widget.setSize, width, height)
+
+    def dimensionText(self, dimension):
+        return str((dimension / 10) * 10)
+        
+    def outputForScript(self, *args):
+        size = self.widget.widget.widget.getSize()
+        sizeDesc = "width " + self.dimensionText(size.x) + " and height " + self.dimensionText(size.y)
+        return ' '.join([self.name, sizeDesc ])
+
+
 class TabCloseEvent(SignalEvent):
     def _generate(self, *args):
         self.widget.close()
@@ -405,7 +428,7 @@ class WidgetMonitor:
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent ]),
+                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
