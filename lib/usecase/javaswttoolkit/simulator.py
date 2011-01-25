@@ -343,8 +343,7 @@ class WidgetMonitor:
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
-        self.widgetsShown = set()
-
+        
     @classmethod
     def getWidgetEventTypes(cls):
         return cls.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())
@@ -367,9 +366,10 @@ class WidgetMonitor:
     
     def setUp(self):
         self.forceShellActive()
-        self.setUpDisplayFilter()
-        for widget in self.findAllWidgets():
-            self.uiMap.monitorWidget(widget)
+        monitorListener = self.setUpDisplayFilter()
+        allWidgets = self.findAllWidgets()
+        monitorListener.addToCache(allWidgets)
+        self.monitorAllWidgets(self.bot.getFinder().activeShell(), allWidgets)
         
     def forceShellActive(self):
         if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
@@ -380,33 +380,28 @@ class WidgetMonitor:
     def setUpDisplayFilter(self):
         display = self.bot.getDisplay()
         self.displayFilter.addFilters(display)
-        self.addMonitorFilter(display)
-
-    def findDescendants(self, widget):
-        return self.bot.widgets(IsAnything(), widget)
+        return self.addMonitorFilter(display)
 
     def addMonitorFilter(self, display):
-        class MonitorListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
-                if e.widget in self.widgetsShown:
-                    return
-                self.bot.getFinder().setShouldFindInvisibleControls(True)
-                self.uiMap.logger.debug("Showing/painting widget of type " +
-                                        e.widget.__class__.__name__ + ", monitoring found widgets")
-                widgets = self.findDescendants(e.widget)
-                self.widgetsShown.update(widgets)
-                for widget in self.makeAdapters(widgets):
-                    self.uiMap.monitorWidget(widget)
-                
-        runOnUIThread(display.addFilter, swt.SWT.Show, MonitorListener())
-        runOnUIThread(display.addFilter, swt.SWT.Paint, MonitorListener())
+        monitorListener = util.MonitorListener(self.bot, IsAnything())
+        monitorListener.addCallback(self.monitorAllWidgets)
+        runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
+        runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
+        return monitorListener
+
+    def monitorAllWidgets(self, parent, widgets, eventType=None, seenBefore=False):
+        if not seenBefore:
+            self.uiMap.logger.debug("Showing/painting widget of type " +
+                                    parent.__class__.__name__ + ", monitoring found widgets")
+            for widget in self.makeAdapters(widgets):
+                self.uiMap.monitorWidget(widget)
 
     def findAllWidgets(self):
         matcher = IsAnything()
         widgets = self.bot.widgets(matcher)
         menus = self.bot.getFinder().findMenus(matcher)
         widgets.addAll(menus)
-        return self.makeAdapters(widgets)
+        return widgets
 
     def makeAdapters(self, widgets):
         adapters = []

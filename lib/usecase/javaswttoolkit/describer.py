@@ -39,38 +39,24 @@ class Describer(usecase.guishared.Describer):
                      swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
-        self.displays = []
         self.imageCounter = WidgetCounter(self.imagesEqual)
         self.canvasCounter = WidgetCounter()
-        self.widgetsBecomeVisible = []
-        self.widgetsRepainted = []
+        self.widgetsAppeared = []
         usecase.guishared.Describer.__init__(self)
 
-    def addVisibilityFilter(self, display):
-        if display not in self.displays:
-            self.displays.append(display)
-            class StoreListener(swt.widgets.Listener):
-                def handleEvent(listenerSelf, e):
-                    if not isinstance(e.widget, (swt.widgets.Menu, swt.widgets.ScrollBar)):
-                        # Menu show events seem a bit spurious, they aren't really shown at this point
-                        # ScrollBar shows are not relevant to anything
-                        self.widgetsBecomeVisible.append(e.widget)
-            display.addFilter(swt.SWT.Show, StoreListener())
-            class PaintListener(swt.widgets.Listener):
-                def handleEvent(listenerSelf, e):
-                    if isinstance(e.widget, swt.widgets.Canvas):
-                        self.widgetsRepainted.append(e.widget)
-            display.addFilter(swt.SWT.Paint, PaintListener())
-
+    def storeShowsAndPaints(self, parent, widgets, eventType, seenBefore):
+        if eventType == swt.SWT.Paint or not isinstance(parent, (swt.widgets.Menu, swt.widgets.ScrollBar)):
+            # Menu show events seem a bit spurious, they aren't really shown at this point:
+            # ScrollBar shows are not relevant to anything
+            self.widgetsAppeared.append((parent, seenBefore))
+            
     def describeWithUpdates(self, shell):
-        self.addVisibilityFilter(shell.getDisplay())
+        util.MonitorListener.addCallback(self.storeShowsAndPaints)
         stateChanges = self.findStateChanges()
-        self.describeVisibilityChanges(stateChanges, self.widgetsBecomeVisible, "New widgets have become visible")
-        self.describeVisibilityChanges(stateChanges, self.widgetsRepainted, "Widgets have been repainted")
+        self.describeVisibilityChanges(stateChanges)
         self.describeStateChanges(stateChanges)
         self.describe(shell)
-        self.widgetsBecomeVisible = []
-        self.widgetsRepainted = []
+        self.widgetsAppeared = []
 
     def parentMarked(self, widget, markedWidgets):
         if widget in markedWidgets:
@@ -80,9 +66,10 @@ class Describer(usecase.guishared.Describer):
         else:
             return False
 
-    def describeVisibilityChanges(self, stateChanges, changedWidgets, headline):
-        markedWidgets = changedWidgets + [ widget for widget, old, new in stateChanges ]
-        for widget in changedWidgets:
+    def describeVisibilityChanges(self, stateChanges):
+        markedWidgets = [ widget for widget, repaint in self.widgetsAppeared ] + \
+                        [ widget for widget, old, new in stateChanges ]
+        for widget, repaint in self.widgetsAppeared:
             if not widget.isDisposed() and util.isVisible(widget):
                 if isinstance(widget, swt.widgets.Shell):
                     self.describe(widget)
@@ -90,7 +77,10 @@ class Describer(usecase.guishared.Describer):
                     parent = widget.getParent()
                     if not self.parentMarked(parent, markedWidgets):
                         markedWidgets.append(parent)
-                        self.logger.info(headline + ": describing common parent :\n")
+                        if repaint:
+                            self.logger.info("Widgets have been repainted: describing common parent :\n")
+                        else:
+                            self.logger.info("New widgets have appeared: describing common parent :\n")
                         self.logger.info(self.getChildrenDescription(parent))
         
     def getNoneTypeDescription(self, *args):

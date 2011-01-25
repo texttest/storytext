@@ -46,3 +46,34 @@ def isVisible(widget):
         return False
     else:
         return isVisible(parent)
+
+# Picks up all initial show and paint events, used in both simulator and describer
+class MonitorListener(swt.widgets.Listener):
+    callbacks = []
+    def __init__(self, bot, matcher):
+        self.bot = bot
+        self.matcher = matcher
+        self.widgetsShown = set()
+
+    @classmethod
+    def addCallback(cls, callback):
+        if callback not in cls.callbacks:
+            cls.callbacks.append(callback)
+
+    def addToCache(self, widgets):
+        self.widgetsShown.update(widgets)
+        
+    def handleEvent(self, e):
+        seenBefore = e.widget in self.widgetsShown
+        if seenBefore and not isinstance(e.widget, swt.widgets.Canvas):
+            return
+
+        self.bot.getFinder().setShouldFindInvisibleControls(True)
+        widgets = self.findDescendants(e.widget)
+        self.addToCache(widgets)
+        for callback in self.callbacks:
+            callback(e.widget, widgets, e.type, seenBefore)
+                
+    def findDescendants(self, widget):
+        return self.bot.widgets(self.matcher, widget)
+
