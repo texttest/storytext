@@ -19,7 +19,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return ""
         
     def getLabel(self):
-        if isinstance(self.widget, swtbot.widgets.SWTBotText):
+        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo)):
             return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
             text = self.widget.getText()
@@ -181,6 +181,16 @@ class TextEvent(SignalEvent):
         text = self.widget.getText()
         return ' '.join([self.name, text])
 
+
+class ComboTextEvent(TextEvent):
+    def _generate(self, argumentString):
+        try:
+            self.widget.setText(argumentString)
+        except RuntimeException: # if it's readonly...
+            try:
+                self.widget.setSelection(argumentString)
+            except RuntimeException, e:
+                raise UseCaseScriptError, e.getMessage()
 
 class TreeEvent(SignalEvent):
     def _generate(self, argumentString):
@@ -359,6 +369,7 @@ class WidgetMonitor:
                                            swtbot.widgets.SWTBotToolbarToggleButton ],
                   swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
                   swt.widgets.List     : [ swtbot.widgets.SWTBotList ],
+                  swt.widgets.Combo    : [ swtbot.widgets.SWTBotCombo ],
                   swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ],
                   swt.custom.CTabItem  : [ swtbot.widgets.SWTBotCTabItem ]}
     def __init__(self, uiMap):
@@ -455,4 +466,5 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
+                (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ])]

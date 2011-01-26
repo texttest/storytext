@@ -35,7 +35,7 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
                          swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
-    stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
+    stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Combo,
                      swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List, swt.widgets.Tree,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
@@ -281,6 +281,8 @@ class Describer(usecase.guishared.Describer):
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, self.getTextEntryClass()):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
+        elif isinstance(widget, swt.widgets.Combo):
+            return "\nUpdated " + util.getTextLabel(widget) + " Combo Box\n"
         elif util.getTopControl(widget):
             return "\n"
         else:
@@ -296,11 +298,17 @@ class Describer(usecase.guishared.Describer):
     def getTextState(self, widget):
         return widget.getText()
 
+    def getComboState(self, widget):
+        return widget.getText()
+
     def getTextDescription(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
-        header = "=" * 10 + " Text " + "=" * 10        
+        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10        
         return header + "\n" + self.fixLineEndings(state.rstrip()) + "\n" + "=" * len(header)    
+
+    def getComboDescription(self, widget):
+        return self.getTextDescription(widget)
 
     def getAndStoreState(self, widget):
         state = self.getState(widget)
@@ -470,7 +478,7 @@ class Describer(usecase.guishared.Describer):
         grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
         colWidths = self.findColumnWidths(grid, numColumns)
         totalWidth = sum(colWidths)
-        if totalWidth > 120: # After a while, excessively wide grids just get too hard to read
+        if totalWidth > 130: # After a while, excessively wide grids just get too hard to read
             header = "." * 6 + " " + str(numColumns) + "-Column Layout " + "." * 6
             desc = self.formatColumnsInGrid(grid, numColumns)
             footer = "." * len(header)
