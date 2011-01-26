@@ -36,7 +36,7 @@ class Describer(usecase.guishared.Describer):
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
                          swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar,
-                     swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.Tree,
+                     swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List, swt.widgets.Tree,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
         self.imageCounter = WidgetCounter(self.imagesEqual)
@@ -302,10 +302,26 @@ class Describer(usecase.guishared.Describer):
         header = "=" * 10 + " Text " + "=" * 10        
         return header + "\n" + self.fixLineEndings(state.rstrip()) + "\n" + "=" * len(header)    
 
-    def getTreeDescription(self, widget):
+    def getAndStoreState(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         return state
+
+    def getTreeDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getListDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getListState(self, widget):
+        text = "List :\n"
+        selection = widget.getSelection()
+        for item in widget.getItems():
+            text += "-> " + item
+            if item in selection:
+                text += " (selected)"
+            text += "\n"
+        return text
 
     def getTreeState(self, widget):
         columns = widget.getColumns()

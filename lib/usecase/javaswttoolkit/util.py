@@ -28,9 +28,10 @@ def getTextLabel(widget):
 # For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible
 # Workaround these things
 def getTopControl(widget):
-    layout = widget.getLayout()
-    if hasattr(layout, "topControl"):
-        return layout.topControl
+    if hasattr(widget, "getLayout"):
+        layout = widget.getLayout()
+        if hasattr(layout, "topControl"):
+            return layout.topControl
 
 def isVisible(widget):
     if not hasattr(widget, "getVisible"):

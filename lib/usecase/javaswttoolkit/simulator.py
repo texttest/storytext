@@ -220,7 +220,7 @@ class TreeCollapseEvent(TreeEvent):
 
     def generateItem(self, item):
         item.collapse()
-        
+
 
 class TreeClickEvent(TreeEvent):
     @classmethod
@@ -253,6 +253,29 @@ class TreeDoubleClickEvent(TreeEvent):
     def implies(self, stateChangeLine, stateChangeEvent, swtEvent, *args):
         return isinstance(stateChangeEvent, TreeClickEvent) and \
                stateChangeLine == stateChangeEvent.name + " " + swtEvent.item.getText()
+
+class ListClickEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Selection"
+    
+    def isStateChange(self):
+        return True
+
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        return currOutput.startswith(stateChangeOutput)
+
+    def outputForScript(self, event, *args):
+        text = ",".join(self.widget.selection())
+        return ' '.join([self.name, text])
+
+    def _generate(self, argumentString):
+        index = self.widget.indexOf(argumentString)
+        if index >= 0:
+            self.widget.select(index)
+        else:
+            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in list."
 
 
 class DisplayFilter:
@@ -335,6 +358,7 @@ class WidgetMonitor:
                                            swtbot.widgets.SWTBotToolbarSeparatorButton,
                                            swtbot.widgets.SWTBotToolbarToggleButton ],
                   swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
+                  swt.widgets.List     : [ swtbot.widgets.SWTBotList ],
                   swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ],
                   swt.custom.CTabItem  : [ swtbot.widgets.SWTBotCTabItem ]}
     def __init__(self, uiMap):
@@ -430,4 +454,5 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
+                (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ])]
