@@ -337,13 +337,15 @@ class WidgetMonitor:
                   swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
                   swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ],
                   swt.custom.CTabItem  : [ swtbot.widgets.SWTBotCTabItem ]}
-    def __init__(self, uiMap, botClass=None):
-        botClassToUse = botClass or swtbot.SWTBot
-        self.bot = botClassToUse()
+    def __init__(self, uiMap):
+        self.bot = self.createSwtBot()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
-        
+
+    def createSwtBot(self):
+        return swtbot.SWTBot()
+    
     @classmethod
     def getWidgetEventTypes(cls):
         return cls.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())

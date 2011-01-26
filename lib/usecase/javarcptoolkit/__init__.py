@@ -1,7 +1,8 @@
 
 """ Don't load any Eclipse stuff at global scope, needs to be importable previous to Eclipse starting """
 
-import javaswttoolkit, sys
+import sys
+from usecase import javaswttoolkit
 from java.lang import Runnable, Thread
 
 class ScriptEngine(javaswttoolkit.ScriptEngine):
@@ -27,10 +28,6 @@ class TestRunner(Runnable):
 
         
 class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
-    def __init__(self, *args, **kw):
-        self.widgetViewIds = {}
-        javaswttoolkit.UseCaseReplayer.__init__(self, *args, **kw)
-
     def tryAddDescribeHandler(self):
         # Set up used for recording
         runner = TestRunner(self.setUpMonitoring)
@@ -59,44 +56,6 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
         from org.eclipse.swtbot.testscript import TestRunnableStore
         TestRunnableStore.setTestRunnables(runner, exitRunner)
 
-    def setUpMonitoring(self):
-        from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
-        from javaswttoolkit.simulator import WidgetAdapter, runOnUIThread
-        monitor = self.createMonitor(SWTWorkbenchBot)
-        runOnUIThread(self.cacheViewIds, monitor)
-        class RcpWidgetAdapter(WidgetAdapter):
-            def getUIMapIdentifier(adapterSelf):
-                orig = WidgetAdapter.getUIMapIdentifier(adapterSelf)
-                if orig.startswith("Type="):
-                    return self.addViewId(adapterSelf.widget.widget, orig)
-                else:
-                    return orig
-
-            def findPossibleUIMapIdentifiers(adapterSelf):
-                orig = WidgetAdapter.findPossibleUIMapIdentifiers(adapterSelf)
-                orig[-1] = self.addViewId(adapterSelf.widget.widget, orig[-1])
-                return orig
-            
-        WidgetAdapter.setAdapterClass(RcpWidgetAdapter)
-        monitor.setUp()
-        return monitor
-
-    def cacheViewIds(self, monitor):
-        for swtbotView in monitor.bot.views():
-            ref = swtbotView.getViewReference()
-            viewparent = ref.getPane().getControl()
-            if viewparent:
-                self.storeIdWithChildren(viewparent, ref.getId())
-
-    def storeIdWithChildren(self, widget, viewId):
-        self.widgetViewIds[widget] = viewId
-        if hasattr(widget, "getChildren"):
-            for child in widget.getChildren():
-                self.storeIdWithChildren(child, viewId)
-
-    def addViewId(self, widget, text):
-        viewId = self.widgetViewIds.get(widget)
-        if viewId:
-            return "View=" + viewId + "," + text
-        else:
-            return text
+    def getMonitorClass(self):
+        from simulator import WidgetMonitor
+        return WidgetMonitor
