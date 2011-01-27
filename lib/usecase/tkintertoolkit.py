@@ -35,7 +35,7 @@ def getMenuParentLabel(widget, defaultLabel=""):
 
 class WidgetAdapter(guishared.WidgetAdapter):
     def getChildWidgets(self):
-        return self.widget.winfo_children()
+        return filter(lambda c: not isinstance(c, Tkinter.Toplevel), self.widget.winfo_children())
         
     def getWidgetTitle(self):
         return self.widget.title()
@@ -605,7 +605,8 @@ class Describer(guishared.Describer):
         packDesc = self.getPackSlavesDescription(widget, slaves)
         childDesc = ""
         for child in children:
-            if child not in slaves and not self.isPopupMenu(child, widget) and not child in self.canvasWindows:
+            if child not in slaves and not isinstance(child, Tkinter.Toplevel) and \
+                   not self.isPopupMenu(child, widget) and not child in self.canvasWindows:
                 childDesc = self.addToDescription(childDesc, self.getDescription(child))
         
         desc = self.addToDescription(desc, packDesc)
