@@ -440,9 +440,17 @@ class WidgetMonitor:
         widgets.addAll(menus)
         return widgets
 
+    def getPopupMenus(self, widgets):
+        menus = []
+        for widget in widgets:
+            if isinstance(widget, swt.widgets.Control):
+                menuFinder = swtbot.finders.ContextMenuFinder(widget)
+                menus += menuFinder.findMenus(IsAnything())
+        return menus
+
     def makeAdapters(self, widgets):
         adapters = []
-        for widget in widgets:
+        for widget in widgets + self.getPopupMenus(widgets):
             for widgetClass in self.swtbotMap.keys():
                 if util.checkInstance(widget, widgetClass):
                     for swtbotClass in self.swtbotMap.get(widgetClass):
