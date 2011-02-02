@@ -4,6 +4,7 @@ stuff also applicable even without this """
 
 import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess
 from ordereddict import OrderedDict
+from locale import getdefaultlocale
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
 if sys.version_info[:2] >= (2, 6):
@@ -55,11 +56,11 @@ class WidgetAdapter:
 
         title = self.getTitle()
         if title:
-            return "Title=" + title
+            return self.encodeToLocale("Title=" + title)
        
         label = self.getLabel()
         if label:
-            return "Label=" + label
+            return self.encodeToLocale("Label=" + label)
 
         tooltip = self.getTooltip()
         if tooltip:
@@ -69,9 +70,16 @@ class WidgetAdapter:
     def getTooltip(self):
         return ""
 
+    def encodeToLocale(self, unicodeText):
+        if unicodeText:
+            encoding = getdefaultlocale()[1] or "utf-8"
+            return unicodeText.encode(encoding, 'replace')
+        else:
+            return ""
+
     def findPossibleUIMapIdentifiers(self):
-        return [ "Name=" + self.getName(), "Title=" + str(self.getTitle()), 
-                 "Label=" + str(self.getLabel()), "Tooltip=" + self.getTooltip(),
+        return [ "Name=" + self.getName(), "Title=" + self.encodeToLocale(self.getTitle()), 
+                 "Label=" + self.encodeToLocale(self.getLabel()), "Tooltip=" + self.getTooltip(),
                  "Type=" + self.getType() ]
 
 
