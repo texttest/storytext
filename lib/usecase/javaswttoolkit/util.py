@@ -69,12 +69,16 @@ class MonitorListener(swt.widgets.Listener):
         if seenBefore and not isinstance(e.widget, swt.widgets.Canvas):
             return
 
-        self.bot.getFinder().setShouldFindInvisibleControls(True)
+        if e.type == swt.SWT.Show:
+            self.bot.getFinder().setShouldFindInvisibleControls(True)
         widgets = self.findDescendants(e.widget)
+        if e.type == swt.SWT.Show:
+            self.bot.getFinder().setShouldFindInvisibleControls(False)
+
         self.addToCache(widgets)
         for callback in self.callbacks:
             callback(e.widget, widgets, e.type, seenBefore)
-                
+
     def findDescendants(self, widget):
         return self.bot.widgets(self.matcher, widget)
 
