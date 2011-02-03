@@ -512,7 +512,7 @@ class UIMap:
             return signalName, None
 
     def autoInstrument(self, eventName, signalName, widget, argumentParseData, *args):
-        self.logger.debug("Monitor " + eventName + ", " + signalName + ", " + str(widget.__class__) + ", " + str(argumentParseData))
+        self.logger.debug("Monitor " + eventName + ", " + signalName + ", " + widget.getType() + ", " + str(argumentParseData))
         self.scriptEngine._monitorSignal(eventName, signalName, widget, argumentParseData)
         return True
         
