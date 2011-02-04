@@ -100,9 +100,12 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         monitor = self.setUpMonitoring()
         self.runCommands(monitor)
 
-    def runCommands(self, monitor):
+    def getDescriberClass(self):
         from describer import Describer
-        theDescriber = Describer()
+        return Describer
+
+    def runCommands(self, monitor):
+        theDescriber = self.getDescriberClass()()
         while True:
             monitor.describe(theDescriber)
             if self.delay:

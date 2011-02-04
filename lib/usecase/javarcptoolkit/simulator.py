@@ -2,6 +2,7 @@
 """ Simulation stuff specific to using Eclipse RCP. For example View IDs and Editor IDs etc."""
 
 from usecase.javaswttoolkit import simulator as swtsimulator
+from usecase.javaswttoolkit import describer as swtdescriber
 from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
@@ -55,3 +56,9 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                 if viewparent:
                     self.uiMap.logger.debug("Caching View with ID " + ref.getId())
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
+
+class Describer(swtdescriber.Describer):
+    def getClipboardText(self, display):
+        # Unfortunately we have classloader problems here, disable this functionality for now
+        # Otherwise maybe implement in Java?
+        pass

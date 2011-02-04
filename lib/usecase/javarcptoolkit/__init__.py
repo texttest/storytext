@@ -59,3 +59,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def getMonitorClass(self):
         from simulator import WidgetMonitor
         return WidgetMonitor
+
+    def getDescriberClass(self):
+        from simulator import Describer
+        return Describer

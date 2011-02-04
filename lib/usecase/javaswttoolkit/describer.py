@@ -43,6 +43,7 @@ class Describer(usecase.guishared.Describer):
         self.canvasCounter = WidgetCounter()
         self.contextMenuCounter = WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
+        self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
     def storeShowsAndPaints(self, parent, widgets, eventType, seenBefore):
@@ -57,6 +58,7 @@ class Describer(usecase.guishared.Describer):
         stateChanges = self.findStateChanges()
         self.describeVisibilityChanges(stateChanges)
         self.describeStateChanges(stateChanges)
+        self.describeClipboardChanges(shell.getDisplay())
         self.describe(shell)
         self.widgetsAppeared = []
 
@@ -84,6 +86,20 @@ class Describer(usecase.guishared.Describer):
                         else:
                             self.logger.info("New widgets have appeared: describing common parent :\n")
                         self.logger.info(self.getChildrenDescription(parent))
+
+    def getClipboardText(self, display):
+        clipboard = swt.dnd.Clipboard(display)
+        textTransfer = swt.dnd.TextTransfer.getInstance()
+        textData = clipboard.getContents(textTransfer)
+        clipboard.dispose()
+        return textData or ""
+
+    def describeClipboardChanges(self, display):
+        newText = self.getClipboardText(display)
+        if newText != self.clipboardText:
+            if self.clipboardText is not None:
+                self.logger.info("Copied following to clipboard :\n" + newText)
+            self.clipboardText = newText
         
     def getNoneTypeDescription(self, *args):
         return ""
