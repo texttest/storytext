@@ -79,6 +79,14 @@ class MonitorListener(swt.widgets.Listener):
         for callback in self.callbacks:
             callback(e.widget, widgets, e.type, seenBefore)
 
+    def recordableEvent(self, e):
+        # Called from a filter - basic point is to be a failsafe against
+        # unexpected things requiring recording immanently.
+        if e.widget not in self.widgetsShown:
+            self.widgetsShown.add(e.widget)
+            for callback in self.callbacks:
+                callback(e.widget, [ e.widget ], e.type, False)
+
     def findDescendants(self, widget):
         return self.bot.widgets(self.matcher, widget)
 

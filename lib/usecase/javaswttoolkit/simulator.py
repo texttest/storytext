@@ -327,12 +327,16 @@ class DisplayFilter:
                 return True
         return False
         
-    def addFilters(self, display):
+    def addFilters(self, display, monitorListener):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
                 if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
                     DisplayFilter.eventsFromUser.append(e)
+                    # This is basically a failsafe - shouldn't be needed but in case
+                    # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
+                    # this is a safeguard against never recording anything again.
+                    monitorListener.recordableEvent(e)
                 elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
                     self.disposedShells.append(e.widget)
         for eventType in self.getAllEventTypes():
@@ -416,8 +420,9 @@ class WidgetMonitor:
 
     def setUpDisplayFilter(self):
         display = self.bot.getDisplay()
-        self.displayFilter.addFilters(display)
-        return self.addMonitorFilter(display)
+        monitorListener = self.addMonitorFilter(display)
+        self.displayFilter.addFilters(display, monitorListener)
+        return monitorListener
 
     def addMonitorFilter(self, display):
         monitorListener = util.MonitorListener(self.bot, IsAnything())

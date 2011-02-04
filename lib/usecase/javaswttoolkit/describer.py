@@ -46,7 +46,8 @@ class Describer(usecase.guishared.Describer):
         usecase.guishared.Describer.__init__(self)
 
     def storeShowsAndPaints(self, parent, widgets, eventType, seenBefore):
-        if eventType == swt.SWT.Paint or not isinstance(parent, (swt.widgets.Menu, swt.widgets.ScrollBar)):
+        if eventType == swt.SWT.Paint or \
+           (eventType == swt.SWT.Show and not isinstance(parent, (swt.widgets.Menu, swt.widgets.ScrollBar))):
             # Menu show events seem a bit spurious, they aren't really shown at this point:
             # ScrollBar shows are not relevant to anything
             self.widgetsAppeared.append((parent, seenBefore))
