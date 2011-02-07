@@ -88,8 +88,9 @@ class Describer(usecase.guishared.Describer):
                         self.logger.info(self.getChildrenDescription(parent))
 
     def getClipboardText(self, display):
-        clipboard = swt.dnd.Clipboard(display)
-        textTransfer = swt.dnd.TextTransfer.getInstance()
+        from org.eclipse.swt.dnd import Clipboard, TextTransfer
+        clipboard = Clipboard(display)
+        textTransfer = TextTransfer.getInstance()
         textData = clipboard.getContents(textTransfer)
         clipboard.dispose()
         return textData or ""

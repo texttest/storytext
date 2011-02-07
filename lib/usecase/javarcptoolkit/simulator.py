@@ -1,6 +1,7 @@
 
 """ Simulation stuff specific to using Eclipse RCP. For example View IDs and Editor IDs etc."""
 
+import sys
 from usecase.javaswttoolkit import simulator as swtsimulator
 from usecase.javaswttoolkit import describer as swtdescriber
 from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
@@ -59,6 +60,11 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
 
 class Describer(swtdescriber.Describer):
     def getClipboardText(self, display):
-        # Unfortunately we have classloader problems here, disable this functionality for now
-        # Otherwise maybe implement in Java?
-        pass
+        # Unfortunately we have classloader problems here
+        # Temporarily set and reset the classloader so we can get the information
+        currClassLoader = sys.classLoader
+        sys.classLoader = display.getClass().getClassLoader()
+        try:
+            return swtdescriber.Describer.getClipboardText(self, display)
+        finally:
+            sys.classLoader = currClassLoader
