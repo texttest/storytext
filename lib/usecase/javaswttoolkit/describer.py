@@ -87,30 +87,21 @@ class Describer(usecase.guishared.Describer):
                             self.logger.info("New widgets have appeared: describing common parent :\n")
                         self.logger.info(self.getChildrenDescription(parent))
 
-    def clearClipboard(self, display):
-        from org.eclipse.swt.dnd import Clipboard
-        clipboard = Clipboard(display)
-        clipboard.clearContents()
-        clipboard.dispose()
-        
-    def getClipboardText(self, display):
+    def describeClipboardChanges(self, display):
         from org.eclipse.swt.dnd import Clipboard, TextTransfer
         clipboard = Clipboard(display)
         textTransfer = TextTransfer.getInstance()
-        textData = clipboard.getContents(textTransfer)
-        clipboard.dispose()
-        return textData or ""
-
-    def describeClipboardChanges(self, display):
         if self.clipboardText is None:
-            # Initially
-            self.clearClipboard(display)
-            self.clipboardText = ""
+            # Initially. For some reason it doesn't let us set empty strings here
+            # clearContents seemed the way to go, but seems not to work on Windows
+            self.clipboardText = "dummy text for PyUseCase tests"
+            clipboard.setContents([ self.clipboardText ], [ textTransfer ])
         else:
-            newText = self.getClipboardText(display)
+            newText = clipboard.getContents(textTransfer) or ""
             if newText != self.clipboardText:
                 self.logger.info("Copied following to clipboard :\n" + newText)
                 self.clipboardText = newText
+        clipboard.dispose()
         
     def getNoneTypeDescription(self, *args):
         return ""
