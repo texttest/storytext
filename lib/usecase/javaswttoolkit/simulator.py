@@ -75,7 +75,13 @@ def runOnUIThread(method, *args):
         e.printStackTrace()
         raise
 
+def getIntFromUIThread(method, *args):
+    class PythonIntResult(swtbot.results.IntResult):
+        def run(self):
+            return method(*args)
 
+    return swtbot.finders.UIThreadRunnable.syncExec(PythonIntResult())
+        
 class SignalEvent(usecase.guishared.GuiEvent):
     def connectRecord(self, method):
         class RecordListener(swt.widgets.Listener):
@@ -114,6 +120,11 @@ class SelectEvent(SignalEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
+
+
+class RadioSelectEvent(SelectEvent):
+    def shouldRecord(self, event, *args):
+        return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
 
 
 class ShellCloseEvent(SignalEvent):    
@@ -363,19 +374,20 @@ class DisplayFilter:
 
 
 class WidgetMonitor:
-    swtbotMap = { swt.widgets.Button   : [ swtbot.widgets.SWTBotButton ],
-                  swt.widgets.MenuItem : [ swtbot.widgets.SWTBotMenu ],
-                  swt.widgets.Shell    : [ swtbot.widgets.SWTBotShell ],
-                  swt.widgets.ToolItem : [ swtbot.widgets.SWTBotToolbarPushButton,
-                                           swtbot.widgets.SWTBotToolbarDropDownButton,
-                                           swtbot.widgets.SWTBotToolbarRadioButton,
-                                           swtbot.widgets.SWTBotToolbarSeparatorButton,
-                                           swtbot.widgets.SWTBotToolbarToggleButton ],
-                  swt.widgets.Text     : [ swtbot.widgets.SWTBotText ],
-                  swt.widgets.List     : [ swtbot.widgets.SWTBotList ],
-                  swt.widgets.Combo    : [ swtbot.widgets.SWTBotCombo ],
-                  swt.widgets.Tree     : [ swtbot.widgets.SWTBotTree ],
-                  swt.custom.CTabItem  : [ swtbot.widgets.SWTBotCTabItem ]}
+    swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
+                                         [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio) ]),
+                  swt.widgets.MenuItem : (swtbot.widgets.SWTBotMenu, []),
+                  swt.widgets.Shell    : (swtbot.widgets.SWTBotShell, []),
+                  swt.widgets.ToolItem : ( swtbot.widgets.SWTBotToolbarPushButton,
+                                         [ (swt.SWT.DROP_DOWN, swtbot.widgets.SWTBotToolbarDropDownButton),
+                                           (swt.SWT.RADIO    , swtbot.widgets.SWTBotToolbarRadioButton),
+                                           (swt.SWT.SEPARATOR, swtbot.widgets.SWTBotToolbarSeparatorButton),
+                                           (swt.SWT.TOGGLE   , swtbot.widgets.SWTBotToolbarToggleButton) ]),
+                  swt.widgets.Text     : (swtbot.widgets.SWTBotText, []),
+                  swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
+                  swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
+                  swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
+                  swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []) }
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
         self.uiMap = uiMap
@@ -397,9 +409,9 @@ class WidgetMonitor:
     def getWidgetEventInfo(cls, method):
         allEventTypes = []
         eventTypeDict = dict(eventTypes)
-        for widgetClass, swtBotClasses in cls.swtbotMap.items():
+        for widgetClass, (defaultSwtbotClass, styleSwtbotInfo) in cls.swtbotMap.items():
             currEventTypes = set()
-            for swtBotClass in swtBotClasses:
+            for swtBotClass in [ defaultSwtbotClass] + [ cls for x, cls in styleSwtbotInfo ]:
                 for eventClass in eventTypeDict.get(swtBotClass, []):
                     currEventTypes.update(method(eventClass))
             allEventTypes.append((widgetClass, currEventTypes))
@@ -453,18 +465,25 @@ class WidgetMonitor:
                 menus += menuFinder.findMenus(IsAnything())
         return menus
 
+    def findSwtbotClass(self, widget, widgetClass):
+        defaultClass, styleClasses = self.swtbotMap.get(widgetClass)
+        for currStyle, styleClass in styleClasses:
+            if getIntFromUIThread(widget.getStyle) & currStyle:
+                return styleClass
+        return defaultClass
+
     def makeAdapters(self, widgets):
         adapters = []
         for widget in widgets + self.getPopupMenus(widgets):
             for widgetClass in self.swtbotMap.keys():
                 if util.checkInstance(widget, widgetClass):
-                    for swtbotClass in self.swtbotMap.get(widgetClass):
-                        try:
-                            adapters.append(WidgetAdapter.adapt(swtbotClass(widget)))
-                            break
-                        except RuntimeException:
-                            # Sometimes widgets are already disposed, sometimes they aren't the right type
-                            pass
+                    swtbotClass = self.findSwtbotClass(widget, widgetClass)
+                    try:
+                        adapters.append(WidgetAdapter.adapt(swtbotClass(widget)))
+                        break
+                    except RuntimeException:
+                        # Sometimes widgets are already disposed
+                        pass
         return adapters
 
     def describe(self, describer):
@@ -472,6 +491,7 @@ class WidgetMonitor:
         runOnUIThread(describer.describeWithUpdates, activeShell)
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),

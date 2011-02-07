@@ -33,9 +33,9 @@ class WidgetCounter:
         
 class Describer(usecase.guishared.Describer):
     styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
-    statelessWidgets = [ swt.widgets.Label, swt.widgets.Button, swt.widgets.Sash,
+    statelessWidgets = [ swt.widgets.Label, swt.widgets.Sash,
                          swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
-    stateWidgets = [ swt.widgets.Shell, swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Combo,
+    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Combo,
                      swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List, swt.widgets.Tree,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
@@ -268,11 +268,16 @@ class Describer(usecase.guishared.Describer):
 
     def getButtonDescription(self, widget):
         desc = "Button"
+        selected = self.getButtonState(widget)
+        self.widgetsWithState[widget] = selected
         if widget.getText():
             desc += " '" + widget.getText() + "'"
-        elements = [ desc ] + self.getPropertyElements(widget, selected=False, defaultStyle="push")
+        elements = [ desc ] + self.getPropertyElements(widget, selected=selected, defaultStyle="push")
         elements.append(self.getContextMenuReference(widget))
         return self.combineElements(elements)
+
+    def getButtonState(self, widget):
+        return widget.getSelection()
 
     def combineElements(self, elements):
         elements = filter(len, elements)
