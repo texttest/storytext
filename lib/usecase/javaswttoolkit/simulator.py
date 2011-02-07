@@ -9,6 +9,20 @@ from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeE
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
+
+def runOnUIThread(method, *args):
+    class PythonResult(swtbot.results.Result):
+        def run(self):
+            return method(*args)
+
+    try:
+        return swtbot.finders.UIThreadRunnable.syncExec(PythonResult())
+    except NullPointerException, e:
+        # Temporary code to try to find intermittent Windows error
+        print "Caught intermittent Windows NullPointerException!"
+        e.printStackTrace()
+        raise
+
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     # All the standard message box texts
     dialogTexts = [ "OK", "Cancel", "Yes", "No", "Abort", "Retry", "Ignore" ]
@@ -53,34 +67,11 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
 
     def getFromUIThread(self, method, *args):
         try:
-            class StringResult(swtbot.results.StringResult):
-                def run(resultSelf):
-                    return method(*args)
-            return swtbot.finders.UIThreadRunnable.syncExec(StringResult())
+            return runOnUIThread(method, *args)
         except:
             return ""
 
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
-
-def runOnUIThread(method, *args):
-    class PythonVoidResult(swtbot.results.VoidResult):
-        def run(self):
-            method(*args)
-
-    try:
-        swtbot.finders.UIThreadRunnable.syncExec(PythonVoidResult())
-    except NullPointerException, e:
-        # Temporary code to try to find intermittent Windows error
-        print "Caught intermittent Windows NullPointerException!"
-        e.printStackTrace()
-        raise
-
-def getIntFromUIThread(method, *args):
-    class PythonIntResult(swtbot.results.IntResult):
-        def run(self):
-            return method(*args)
-
-    return swtbot.finders.UIThreadRunnable.syncExec(PythonIntResult())
         
 class SignalEvent(usecase.guishared.GuiEvent):
     def connectRecord(self, method):
@@ -468,7 +459,7 @@ class WidgetMonitor:
     def findSwtbotClass(self, widget, widgetClass):
         defaultClass, styleClasses = self.swtbotMap.get(widgetClass)
         for currStyle, styleClass in styleClasses:
-            if getIntFromUIThread(widget.getStyle) & currStyle:
+            if runOnUIThread(widget.getStyle) & currStyle:
                 return styleClass
         return defaultClass
 
