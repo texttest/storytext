@@ -59,12 +59,12 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
 
 class Describer(swtdescriber.Describer):
-    def getClipboardText(self, display):
+    def describeClipboardChanges(self, display):
         # Unfortunately we have classloader problems here
         # Temporarily set and reset the classloader so we can get the information
         currClassLoader = sys.classLoader
         sys.classLoader = display.getClass().getClassLoader()
         try:
-            return swtdescriber.Describer.getClipboardText(self, display)
+            swtdescriber.Describer.describeClipboardChanges(self, display)
         finally:
             sys.classLoader = currClassLoader

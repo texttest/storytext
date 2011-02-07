@@ -87,6 +87,12 @@ class Describer(usecase.guishared.Describer):
                             self.logger.info("New widgets have appeared: describing common parent :\n")
                         self.logger.info(self.getChildrenDescription(parent))
 
+    def clearClipboard(self, display):
+        from org.eclipse.swt.dnd import Clipboard
+        clipboard = Clipboard(display)
+        clipboard.clearContents()
+        clipboard.dispose()
+        
     def getClipboardText(self, display):
         from org.eclipse.swt.dnd import Clipboard, TextTransfer
         clipboard = Clipboard(display)
@@ -96,11 +102,15 @@ class Describer(usecase.guishared.Describer):
         return textData or ""
 
     def describeClipboardChanges(self, display):
-        newText = self.getClipboardText(display)
-        if newText != self.clipboardText:
-            if self.clipboardText is not None:
+        if self.clipboardText is None:
+            # Initially
+            self.clearClipboard(display)
+            self.clipboardText = ""
+        else:
+            newText = self.getClipboardText(display)
+            if newText != self.clipboardText:
                 self.logger.info("Copied following to clipboard :\n" + newText)
-            self.clipboardText = newText
+                self.clipboardText = newText
         
     def getNoneTypeDescription(self, *args):
         return ""
