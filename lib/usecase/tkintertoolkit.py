@@ -391,13 +391,16 @@ class MenuEvent(guishared.GuiEvent):
                 command = self.widget.commands[i]
                 self.widget.entryconfigure(i, command=self.CommandWithRecord(i, self, command, method))
 
+    def getItemText(self, index):
+        return self.widget.encodeToLocale(self.widget.entrycget(index, "label"))
+
     def outputForScript(self, index, *args):
-        return self.name + " " + self.widget.entrycget(index, "label")
+        return self.name + " " + self.getItemText(index)
 
     def findIndex(self, label):
         endIndex = self.widget.index(Tkinter.END)
         for i in range(endIndex + 1):
-            if self.widget.type(i) == "command" and self.widget.entrycget(i, "label") == label:
+            if self.widget.type(i) == "command" and self.getItemText(i) == label:
                 return i
         raise UseCaseScriptError, "Could not find item '" + label + "' in menu."
 
