@@ -34,7 +34,7 @@ class WidgetCounter:
 class Describer(usecase.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
                    (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
-                   (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE" ]),
+                   (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE", "ARROW", "UP", "DOWN" ]),
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Sash,
