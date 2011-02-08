@@ -32,7 +32,11 @@ class WidgetCounter:
         
         
 class Describer(usecase.guishared.Describer):
-    styleNames = [ "PUSH", "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]
+    styleNames = [ (swt.widgets.CoolItem, []),
+                   (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
+                   (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE" ]),
+                   (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
+                   (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Sash,
                          swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Combo,
@@ -122,12 +126,11 @@ class Describer(usecase.guishared.Describer):
         return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
-                               prefix="", selection=[], defaultStyle="push",
-                               columnCount=0):
+                               prefix="", selection=[], columnCount=0):
         descs = []
         for item in itemBar.getItems():
             currPrefix = prefix + " " * indent * 2
-            itemDesc = self.getItemDescription(item, currPrefix, item in selection, defaultStyle)
+            itemDesc = self.getItemDescription(item, currPrefix, item in selection)
             if columnCount:
                 row = [ itemDesc ]
                 for colIndex in range(1, columnCount):
@@ -198,7 +201,7 @@ class Describer(usecase.guishared.Describer):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
     
     def getCoolBarDescription(self, coolbar):
-        return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1, defaultStyle="drop down",
+        return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1,
                                                           subItemMethod=self.getCoolItemDescriptions)
 
     def contextMenusEqual(self, menu1, menu2):
@@ -215,10 +218,20 @@ class Describer(usecase.guishared.Describer):
     def getCanvasDescription(self, widget):
         return "Canvas " + self.canvasCounter.getId(widget)
 
-    def getStyleDescription(self, style, defaultStyle):
-        for tryStyle in self.styleNames:
+    def findStyleList(self, item):
+        for widgetClass, styleList in self.styleNames:
+            if isinstance(item, widgetClass):
+                return styleList
+        return []
+
+    def getStyleDescriptions(self, item):
+        styleList = self.findStyleList(item)
+        style = item.getStyle()
+        descs = []
+        for tryStyle in styleList:
             if style & getattr(swt.SWT, tryStyle) != 0:
-                return tryStyle.lower().replace("_", " ").replace(defaultStyle, "").replace("separator", "---")
+                descs.append(tryStyle.lower().replace("_", " ").replace("separator", "---"))
+        return descs
         
     def getItemDescription(self, item, prefix, *args):
         elements = []
@@ -235,14 +248,12 @@ class Describer(usecase.guishared.Describer):
             elements.append(self.getImageDescription(item.getImage(colIndex)))
         return self.combineElements(elements)
 
-    def getPropertyElements(self, item, selected, defaultStyle):
+    def getPropertyElements(self, item, selected=False):
         elements = []
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
-        styleDesc = self.getStyleDescription(item.getStyle(), defaultStyle)
-        if styleDesc:
-            elements.append(styleDesc)
-        if item.getImage():
+        elements += self.getStyleDescriptions(item)
+        if hasattr(item, "getImage") and item.getImage():
             elements.append(self.getImageDescription(item.getImage()))
         if hasattr(item, "getEnabled") and not item.getEnabled():
             elements.append("greyed out")
@@ -268,16 +279,16 @@ class Describer(usecase.guishared.Describer):
 
     def getButtonDescription(self, widget):
         desc = "Button"
-        selected = self.getButtonState(widget)
-        self.widgetsWithState[widget] = selected
         if widget.getText():
             desc += " '" + widget.getText() + "'"
-        elements = [ desc ] + self.getPropertyElements(widget, selected=selected, defaultStyle="push")
+        properties = self.getButtonState(widget)
+        self.widgetsWithState[widget] = properties
+        elements = [ desc ] + properties 
         elements.append(self.getContextMenuReference(widget))
         return self.combineElements(elements)
 
     def getButtonState(self, widget):
-        return widget.getSelection()
+        return self.getPropertyElements(widget, selected=widget.getSelection())
 
     def combineElements(self, elements):
         elements = filter(len, elements)
@@ -328,16 +339,17 @@ class Describer(usecase.guishared.Describer):
             return self.getSpecificState(widget)
 
     def getTextState(self, widget):
-        return widget.getText()
+        return widget.getText(), self.getPropertyElements(widget)
 
     def getComboState(self, widget):
-        return widget.getText()
+        return self.getTextState(widget)
 
     def getTextDescription(self, widget):
-        state = self.getState(widget)
-        self.widgetsWithState[widget] = state
-        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10        
-        return header + "\n" + self.fixLineEndings(state.rstrip()) + "\n" + "=" * len(header)    
+        contents, properties = self.getState(widget)
+        self.widgetsWithState[widget] = contents, properties
+        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
+        fullHeader = self.combineElements([ header ] + properties)
+        return fullHeader + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)    
 
     def getComboDescription(self, widget):
         return self.getTextDescription(widget)
