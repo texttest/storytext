@@ -259,6 +259,7 @@ class Describer(usecase.guishared.Describer):
             elements.append("greyed out")
         if selected:
             elements.append("selected")
+        elements.append(self.getContextMenuReference(item))
         return elements
 
     def getLabelDescription(self, label):
@@ -284,7 +285,6 @@ class Describer(usecase.guishared.Describer):
         properties = self.getButtonState(widget)
         self.widgetsWithState[widget] = properties
         elements = [ desc ] + properties 
-        elements.append(self.getContextMenuReference(widget))
         return self.combineElements(elements)
 
     def getButtonState(self, widget):
@@ -366,7 +366,7 @@ class Describer(usecase.guishared.Describer):
         return self.getAndStoreState(widget)
 
     def getListState(self, widget):
-        text = self.combineElements([ "List", self.getContextMenuReference(widget) ]) + " :\n"
+        text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
         selection = widget.getSelection()
         for item in widget.getItems():
             text += "-> " + item
@@ -376,7 +376,7 @@ class Describer(usecase.guishared.Describer):
         return text
 
     def getContextMenuReference(self, widget):
-        if widget.getMenu():
+        if not isinstance(widget, swt.widgets.MenuItem) and hasattr(widget, "getMenu") and widget.getMenu():
             return "Context Menu " + self.contextMenuCounter.getId(widget.getMenu())
         else:
             return ""
@@ -384,7 +384,7 @@ class Describer(usecase.guishared.Describer):
     def getTreeState(self, widget):
         columns = widget.getColumns()
         columnCount = len(columns)
-        text = self.combineElements([ "Tree", self.getContextMenuReference(widget) ]) + " :\n"
+        text = self.combineElements([ "Tree" ] + self.getPropertyElements(widget)) + " :\n"
         rows = self.getAllItemDescriptions(widget, indent=0, subItemMethod=self.getSubTreeDescriptions,
                                            prefix="-> ", selection=widget.getSelection(),
                                            columnCount=columnCount)
