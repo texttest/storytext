@@ -72,8 +72,13 @@ class WidgetAdapter:
 
     def encodeToLocale(self, unicodeText):
         if unicodeText:
-            encoding = getdefaultlocale()[1] or "utf-8"
-            return unicodeText.encode(encoding, 'replace')
+            try:
+                encoding = getdefaultlocale()[1] or "utf-8"
+                return unicodeText.encode(encoding, 'replace')
+            except ValueError:
+                # Get this if locale is invalid for example
+                # Return the text as-is and hope for the best
+                return unicodeText
         else:
             return ""
 
