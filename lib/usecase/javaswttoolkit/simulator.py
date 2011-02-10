@@ -63,7 +63,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             return ""
 
     def getName(self):
-        return self.getFromUIThread(self.widget.widget.getData, "org.eclipse.swtbot.widget.key") or ""
+        return self.widget.getId() or ""
 
     def getFromUIThread(self, method, *args):
         try:
