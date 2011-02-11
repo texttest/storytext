@@ -6,7 +6,7 @@ from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
 from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException
-from java.text import SimpleDateFormat, ParseException
+from java.text import ParseException
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
@@ -290,28 +290,27 @@ class ListClickEvent(StateChangeEvent):
 class DateTimeEvent(StateChangeEvent):
     def __init__(self, *args, **kw):
         StateChangeEvent.__init__(self, *args, **kw)
-        self.formatter = self.getFormatter()
+        self.dateFormat = self.getDateFormat()
 
-    def getFormatter(self):
+    def getDateFormat(self):
         if runOnUIThread(self.widget.widget.widget.getStyle) & swt.SWT.TIME:
-            return SimpleDateFormat("hh:mm:ss")
+            return util.getDateFormat(swt.SWT.TIME)
         else:
-            return SimpleDateFormat("yyyy-MM-dd")
-        
+            return util.getDateFormat(swt.SWT.DATE)
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
     
     def getStateText(self, *args):
-        return self.formatter.format(self.widget.getDate())
+        return self.dateFormat.format(self.widget.getDate())
 
     def _generate(self, argumentString):
         try:
-            currDate = self.formatter.parse(argumentString)
+            currDate = self.dateFormat.parse(argumentString)
             self.widget.setDate(currDate)
         except ParseException:
             raise UseCaseScriptError, "Could not parse date/time argument '" + argumentString + \
-                  "', not of format '" + self.formatter.toPattern() + "'."
+                  "', not of format '" + self.dateFormat.toPattern() + "'."
 
 class DisplayFilter:
     eventsFromUser = []

@@ -1,8 +1,9 @@
 
-import usecase.guishared, util, types, os, logging, datetime
+import usecase.guishared, util, types, os, logging
 from itertools import izip
 from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
+from java.util import Date
 
 class WidgetCounter:
     def __init__(self, equalityMethod=None):
@@ -35,7 +36,7 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
                    (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
                    (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE", "ARROW", "UP", "DOWN" ]),
-                   (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR" ]),
+                   (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Sash,
@@ -374,12 +375,14 @@ class Describer(usecase.guishared.Describer):
 
     def getDateString(self, widget):
         if widget.getStyle() & swt.SWT.TIME:
-            widgetTime = datetime.time(widget.getHours(), widget.getMinutes(), widget.getSeconds())
-            return widgetTime.strftime("%H:%M:%S")
+            widgetDate = Date()
+            widgetDate.setHours(widget.getHours())
+            widgetDate.setMinutes(widget.getMinutes())
+            widgetDate.setSeconds(widget.getSeconds())
+            return util.getDateFormat(swt.SWT.TIME).format(widgetDate)
         else:
-            # Amazingly, the first month of the year is numbered 0 in SWT :)
-            widgetDate = datetime.date(widget.getYear(), widget.getMonth() + 1, widget.getDay())
-            return widgetDate.strftime("%Y-%m-%d")
+            widgetDate = Date(widget.getYear() - 1900, widget.getMonth(), widget.getDay())
+            return util.getDateFormat(swt.SWT.DATE).format(widgetDate)
 
     def getDateTimeState(self, widget):
         elements = [ "DateTime" ] + self.getPropertyElements(widget) + [ "showing " + self.getDateString(widget) ]

@@ -1,6 +1,7 @@
 
 """ SWT utilities """
 from org.eclipse import swt
+from java.text import SimpleDateFormat
 
 def checkInstance(widget, widgetClass):
     # Classloader problems with the swt.custom module mean isinstance doesn't work from RCP applications
@@ -24,6 +25,14 @@ def getTextLabel(widget):
             else:
                 break
     return ""
+
+def getDateFormat(dateType):
+    if dateType == swt.SWT.TIME:
+        # Default format is locale-dependent, no reason to make tests fail in different locales
+        return SimpleDateFormat("kk:mm:ss")
+    else:
+        # Seems to be default format for swt.SWT.DATE, should be locale-independent
+        return SimpleDateFormat("M/d/yyyy") 
 
 # For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible
 # Workaround these things
