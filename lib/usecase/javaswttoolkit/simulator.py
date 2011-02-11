@@ -6,6 +6,7 @@ from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
 from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException
+from java.text import SimpleDateFormat, ParseException
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
@@ -104,6 +105,14 @@ class SignalEvent(usecase.guishared.GuiEvent):
         return [ getattr(swt.SWT, cls.getAssociatedSignal(None)) ]
 
 
+class StateChangeEvent(SignalEvent):
+    def outputForScript(self, *args):
+        return ' '.join([self.name, self.getStateText(*args) ])
+
+    def isStateChange(self, *args):
+        return True
+
+
 class SelectEvent(SignalEvent):    
     def _generate(self, *args):
         self.widget.click()
@@ -132,13 +141,10 @@ class ShellCloseEvent(SignalEvent):
         return "Close"
     
 
-class ResizeEvent(SignalEvent):
+class ResizeEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Resize"
-
-    def isStateChange(self, *args):
-        return True
 
     def _generate(self, argumentString):
         words = argumentString.split()
@@ -149,10 +155,9 @@ class ResizeEvent(SignalEvent):
     def dimensionText(self, dimension):
         return str((dimension / 10) * 10)
         
-    def outputForScript(self, *args):
+    def getStateText(self, *args):
         size = self.widget.widget.widget.getSize()
-        sizeDesc = "width " + self.dimensionText(size.x) + " and height " + self.dimensionText(size.y)
-        return ' '.join([self.name, sizeDesc ])
+        return "width " + self.dimensionText(size.x) + " and height " + self.dimensionText(size.y)
 
 
 class TabCloseEvent(SignalEvent):
@@ -168,10 +173,7 @@ class TabCloseEvent(SignalEvent):
         return DisplayFilter.getEventFromUser(event) and shell not in DisplayFilter.disposedShells
 
 
-class TextEvent(SignalEvent):
-    def isStateChange(self, *args):
-        return True
-
+class TextEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Modify"
@@ -179,10 +181,9 @@ class TextEvent(SignalEvent):
     def _generate(self, argumentString):
         self.widget.setText(argumentString)
 
-    def outputForScript(self, *args):
-        text = self.widget.getText()
-        return ' '.join([self.name, text])
-
+    def getStateText(self, *args):
+        return self.widget.getText()
+        
 
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
@@ -266,21 +267,17 @@ class TreeDoubleClickEvent(TreeEvent):
         return isinstance(stateChangeEvent, TreeClickEvent) and \
                stateChangeLine == stateChangeEvent.name + " " + swtEvent.item.getText()
 
-class ListClickEvent(SignalEvent):
+class ListClickEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
     
-    def isStateChange(self):
-        return True
-
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return currOutput.startswith(stateChangeOutput)
 
-    def outputForScript(self, event, *args):
-        text = ",".join(self.widget.selection())
-        return ' '.join([self.name, text])
+    def getStateText(self, *args):
+        return ",".join(self.widget.selection())
 
     def _generate(self, argumentString):
         index = self.widget.indexOf(argumentString)
@@ -289,6 +286,32 @@ class ListClickEvent(SignalEvent):
         else:
             raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in list."
 
+
+class DateTimeEvent(StateChangeEvent):
+    def __init__(self, *args, **kw):
+        StateChangeEvent.__init__(self, *args, **kw)
+        self.formatter = self.getFormatter()
+
+    def getFormatter(self):
+        if runOnUIThread(self.widget.widget.widget.getStyle) & swt.SWT.TIME:
+            return SimpleDateFormat("hh:mm:ss")
+        else:
+            return SimpleDateFormat("yyyy-MM-dd")
+        
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Selection"
+    
+    def getStateText(self, *args):
+        return self.formatter.format(self.widget.getDate())
+
+    def _generate(self, argumentString):
+        try:
+            currDate = self.formatter.parse(argumentString)
+            self.widget.setDate(currDate)
+        except ParseException:
+            raise UseCaseScriptError, "Could not parse date/time argument '" + argumentString + \
+                  "', not of format '" + self.formatter.toPattern() + "'."
 
 class DisplayFilter:
     eventsFromUser = []
@@ -352,7 +375,7 @@ class DisplayFilter:
         if not util.isVisible(widget):
             return False
         for cls, types in self.widgetEventTypes:
-            if util.checkInstance(widget, cls) and eventType in types:
+            if util.checkInstance(widget, cls) and eventType in types and not isinstance(widget.getParent(), swt.widgets.DateTime):
                 return True
         return False
 
@@ -378,6 +401,7 @@ class WidgetMonitor:
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
                   swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
+                  swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
                   swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []) }
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
@@ -491,4 +515,5 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
                 (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent ]),
-                (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ])]
+                (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ]),
+                (swtbot.widgets.SWTBotDateTime          , [ DateTimeEvent ]) ]

@@ -1,11 +1,11 @@
 
 [logger_root]
 handlers=root
-level=WARNING
+level=ERROR
 
 [handler_root]
 class=StreamHandler
-level=WARNING
+level=ERROR
 args=(sys.stdout,)
 
 [handler_stdout]
@@ -39,6 +39,18 @@ qualname=usecase replay log
 level=INFO
 
 # ====== The following are disabled by default ======
+# ======= Section for SWT structure ======
+[logger_SWT structure]
+handlers=SWT structure
+qualname=SWT structure
+#level=INFO
+
+[handler_SWT structure]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('swtstructure.sample', 'a')
+
 # ======= Section for TreeModelIndexer ======
 [logger_TreeModelIndexer]
 handlers=TreeModelIndexer
@@ -89,10 +101,10 @@ args=(os.devnull, 'a')
 
 # ====== Cruft that python logging module needs ======
 [loggers]
-keys=root,gui log,usecase replay log,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
+keys=root,gui log,usecase replay log,SWT structure,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
 
 [handlers]
-keys=root,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
+keys=root,SWT structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
 
 [formatters]
 keys=timed,debug

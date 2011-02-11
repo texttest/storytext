@@ -1,5 +1,5 @@
 
-import usecase.guishared, util, types, os
+import usecase.guishared, util, types, os, logging, datetime
 from itertools import izip
 from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
@@ -35,18 +35,20 @@ class Describer(usecase.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
                    (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
                    (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE", "ARROW", "UP", "DOWN" ]),
+                   (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR" ]),
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     statelessWidgets = [ swt.widgets.Label, swt.widgets.Sash,
                          swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Combo,
-                     swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List, swt.widgets.Tree,
+                     swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
         self.imageCounter = WidgetCounter(self.imagesEqual)
         self.canvasCounter = WidgetCounter()
         self.contextMenuCounter = WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
+        self.structureLogger = logging.getLogger("SWT structure")
         self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
@@ -58,6 +60,8 @@ class Describer(usecase.guishared.Describer):
             self.widgetsAppeared.append((parent, seenBefore))
             
     def describeWithUpdates(self, shell):
+        if self.structureLogger.isEnabledFor(logging.DEBUG) and shell not in self.windows:
+            self.describeStructure(shell)
         util.MonitorListener.addCallback(self.storeShowsAndPaints)
         stateChanges = self.findStateChanges()
         self.describeVisibilityChanges(stateChanges)
@@ -365,6 +369,22 @@ class Describer(usecase.guishared.Describer):
     def getListDescription(self, widget):
         return self.getAndStoreState(widget)
 
+    def getDateTimeDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getDateString(self, widget):
+        if widget.getStyle() & swt.SWT.TIME:
+            widgetTime = datetime.time(widget.getHours(), widget.getMinutes(), widget.getSeconds())
+            return widgetTime.strftime("%H:%M:%S")
+        else:
+            # Amazingly, the first month of the year is numbered 0 in SWT :)
+            widgetDate = datetime.date(widget.getYear(), widget.getMonth() + 1, widget.getDay())
+            return widgetDate.strftime("%Y-%m-%d")
+
+    def getDateTimeState(self, widget):
+        elements = [ "DateTime" ] + self.getPropertyElements(widget) + [ "showing " + self.getDateString(widget) ]
+        return self.combineElements(elements)
+
     def getListState(self, widget):
         text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
         selection = widget.getSelection()
@@ -469,7 +489,7 @@ class Describer(usecase.guishared.Describer):
         # Coolbars and Expandbars describe their children directly : they have two parallel children structures
         # Composites with StackLayout use the topControl rather than the children
         if not isinstance(widget, swt.widgets.Composite) or \
-               isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar)) or \
+               isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime)) or \
                util.getTopControl(widget):
             return ""
 
@@ -586,14 +606,15 @@ class Describer(usecase.guishared.Describer):
 
     ##Debug code
     def getRawData(self, widget):
-        return widget.__class__.__name__ + " " + str(id(widget)) + self.getData(widget)
-
-    def getData(self, widget):
-        if widget.getData():
-            try:
-                return " " + widget.getData().getBundleId() + " " + widget.getData().getElementType() + " " + repr(widget.getData().getConfigurationElement())
-            except:
-                return " " + widget.getData().toString()
-        else:
-            return ""
+        basic = widget.__class__.__name__ + " " + str(id(widget))
+        if hasattr(widget, "getLayout"):
+            layout = widget.getLayout()
+            if layout is not None:
+                basic += " (" + layout.__class__.__name__ + ")"
+        return basic
         
+    def describeStructure(self, widget, indent=0):
+        self.structureLogger.info("-" * 2 * indent + self.getRawData(widget))
+        if hasattr(widget, "getChildren"):
+            for child in widget.getChildren():
+                self.describeStructure(child, indent+1)
