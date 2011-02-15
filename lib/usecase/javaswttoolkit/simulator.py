@@ -34,7 +34,8 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return ""
         
     def getLabel(self):
-        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo)):
+        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo)) or \
+               not hasattr(self.widget.widget, "getText"):
             return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
             text = self.widget.getText()
