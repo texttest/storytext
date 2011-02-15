@@ -11,8 +11,11 @@ def checkInstance(widget, widgetClass):
 def getTextLabel(widget):
     """ Text widgets often are preceeded by a label, use this as their text, if it exists """
     parent = widget.getParent()
-    if isinstance(parent, swt.widgets.Composite):
+    if parent:
         children = parent.getChildren()
+        if len(children) == 1:
+            return getTextLabel(parent)
+    
         textPos = children.index(widget)
         while textPos > 0:
             prevWidget = children[textPos -1]
