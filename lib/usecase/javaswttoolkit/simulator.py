@@ -398,6 +398,7 @@ class WidgetMonitor:
                                            (swt.SWT.SEPARATOR, swtbot.widgets.SWTBotToolbarSeparatorButton),
                                            (swt.SWT.TOGGLE   , swtbot.widgets.SWTBotToolbarToggleButton) ]),
                   swt.widgets.Text     : (swtbot.widgets.SWTBotText, []),
+                  swt.widgets.Link     : (swtbot.widgets.SWTBotLink, []),
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
                   swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
@@ -506,11 +507,12 @@ class WidgetMonitor:
         runOnUIThread(describer.describeWithUpdates, activeShell)
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotLink              , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
+                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
