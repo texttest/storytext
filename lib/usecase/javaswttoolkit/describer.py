@@ -67,8 +67,9 @@ class Describer(usecase.guishared.Describer):
         stateChanges = self.findStateChanges()
         self.describeVisibilityChanges(stateChanges)
         self.describeStateChanges(stateChanges)
-        self.describeClipboardChanges(shell.getDisplay())
-        self.describe(shell)
+        if shell is not None:
+            self.describeClipboardChanges(shell.getDisplay())
+            self.describe(shell)
         self.widgetsAppeared = []
 
     def parentMarked(self, widget, markedWidgets):
