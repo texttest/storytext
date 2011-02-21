@@ -115,6 +115,9 @@ class Describer(usecase.guishared.Describer):
                     markedWidgets.append(parent)
                     self.logger.info(header)
                     self.logger.info(self.getChildrenDescription(parent))
+                else:
+                    self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " + \
+                                      repr(map(self.getRawData, markedWidgets)))
 
     def describeAppearedWidgets(self, stateChangeWidgets):
         markedWidgets = self.widgetsAppeared + stateChangeWidgets
