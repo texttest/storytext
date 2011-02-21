@@ -49,24 +49,46 @@ class Describer(usecase.guishared.Describer):
         self.canvasCounter = WidgetCounter()
         self.contextMenuCounter = WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
+        self.widgetsDescribed = set()
         self.structureLogger = logging.getLogger("SWT structure")
         self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
-    def storeShowsAndPaints(self, parent, widgets, eventType, seenBefore):
-        if eventType == swt.SWT.Paint or \
-           (eventType == swt.SWT.Show and not isinstance(parent, (swt.widgets.Menu, swt.widgets.ScrollBar))):
-            # Menu show events seem a bit spurious, they aren't really shown at this point:
-            # ScrollBar shows are not relevant to anything
-            self.widgetsAppeared.append((parent, seenBefore))
-            
+    def setWidgetAppeared(self, widget, checkMethod):
+        seenBefore = widget in self.widgetsDescribed or widget in self.windows
+        if checkMethod(widget, seenBefore):
+            self.widgetsAppeared.append((widget, seenBefore))
+
+    def checkPaint(self, widget, seenBefore):
+        return not seenBefore or self.isCanvas(widget)
+
+    def isCanvas(self, widget):
+        return isinstance(widget, swt.widgets.Canvas) and not isinstance(widget, swt.widgets.Shell)
+
+    def checkShow(self, widget, seenBefore):
+        # Menu show events seem a bit spurious, they aren't really shown at this point:
+        # ScrollBar shows are not relevant to anything
+        return not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar))
+
+    def addFilters(self, display):
+        class ShowListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                self.setWidgetAppeared(e.widget, self.checkShow)
+
+        class PaintListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                self.setWidgetAppeared(e.widget, self.checkPaint)
+
+        display.addFilter(swt.SWT.Show, ShowListener())
+        display.addFilter(swt.SWT.Paint, PaintListener())
+
     def describeWithUpdates(self, shell):
         if self.structureLogger.isEnabledFor(logging.DEBUG) and shell not in self.windows:
             self.describeStructure(shell)
-        util.MonitorListener.addCallback(self.storeShowsAndPaints)
-        stateChanges = self.findStateChanges()
-        self.describeVisibilityChanges(stateChanges)
-        self.describeStateChanges(stateChanges)
+        if shell in self.windows:
+            stateChanges = self.findStateChanges()
+            self.describeVisibilityChanges(stateChanges)
+            self.describeStateChanges(stateChanges)
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)
@@ -96,7 +118,7 @@ class Describer(usecase.guishared.Describer):
                         else:
                             self.logger.info("New widgets have appeared: describing common parent :\n")
                         self.logger.info(self.getChildrenDescription(parent))
-
+        
     def describeClipboardChanges(self, display):
         from org.eclipse.swt.dnd import Clipboard, TextTransfer
         clipboard = Clipboard(display)
@@ -316,6 +338,10 @@ class Describer(usecase.guishared.Describer):
         desc = ""
         desc = self.addToDescription(desc, self.getMenuBarDescription(shell.getMenuBar()))
         return self.addToDescription(desc, self.getChildrenDescription(shell))
+
+    def getWidgetDescription(self, widget):
+        self.widgetsDescribed.add(widget)
+        return usecase.guishared.Describer.getWidgetDescription(self, widget)
 
     def getBrowserDescription(self, widget):
         return "Browser browsing '" + widget.getUrl() + "'"
@@ -614,7 +640,10 @@ class Describer(usecase.guishared.Describer):
         if hasattr(widget, "getLayout"):
             layout = widget.getLayout()
             if layout is not None:
-                basic += " (" + layout.__class__.__name__ + ")"
+                basic += " (" + layout.__class__.__name__
+                if hasattr(layout, "numColumns"):
+                    basic += ", " + str(layout.numColumns) + " columns"
+                basic += ")"
         return basic
         
     def describeStructure(self, widget, indent=0):

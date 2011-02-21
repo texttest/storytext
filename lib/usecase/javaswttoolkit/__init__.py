@@ -106,8 +106,10 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
 
     def runCommands(self, monitor):
         theDescriber = self.getDescriberClass()()
+        from simulator import runOnUIThread
+        runOnUIThread(theDescriber.addFilters, monitor.getDisplay())
         while True:
-            monitor.describe(theDescriber)
+            runOnUIThread(theDescriber.describeWithUpdates, monitor.getActiveShell())
             if self.delay:
                 time.sleep(self.delay)
             if not self.runNextCommand():

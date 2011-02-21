@@ -361,7 +361,7 @@ class DisplayFilter:
                     # This is basically a failsafe - shouldn't be needed but in case
                     # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
                     # this is a safeguard against never recording anything again.
-                    monitorListener.recordableEvent(e)
+                    monitorListener.handleEvent(e)
                 elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
                     self.disposedShells.append(e.widget)
         for eventType in self.getAllEventTypes():
@@ -406,13 +406,14 @@ class WidgetMonitor:
                   swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []) }
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
+        self.widgetsMonitored = set()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
 
     def createSwtBot(self):
         return swtbot.SWTBot()
-    
+        
     @classmethod
     def getWidgetEventTypes(cls):
         return cls.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())
@@ -435,10 +436,10 @@ class WidgetMonitor:
     
     def setUp(self):
         self.forceShellActive()
-        monitorListener = self.setUpDisplayFilter()
+        self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
-        monitorListener.addToCache(allWidgets)
-        self.monitorAllWidgets(self.bot.getFinder().activeShell(), allWidgets)
+        self.widgetsMonitored.update(allWidgets)
+        self.monitorAllWidgets(self.getActiveShell(), allWidgets)
         
     def forceShellActive(self):
         if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
@@ -446,25 +447,45 @@ class WidgetMonitor:
             # Seems to throw exceptions occasionally on Windows, so don't bother
             runOnUIThread(self.bot.getFinder().getShells()[0].forceActive)
 
+    def getDisplay(self):
+        return self.bot.getDisplay()
+
     def setUpDisplayFilter(self):
-        display = self.bot.getDisplay()
+        display = self.getDisplay()
         monitorListener = self.addMonitorFilter(display)
         self.displayFilter.addFilters(display, monitorListener)
-        return monitorListener
 
     def addMonitorFilter(self, display):
-        monitorListener = util.MonitorListener(self.bot, IsAnything())
-        monitorListener.addCallback(self.monitorAllWidgets)
+        class MonitorListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                self.widgetShown(e.widget, e.type)
+
+        monitorListener = MonitorListener()
         runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
         return monitorListener
 
-    def monitorAllWidgets(self, parent, widgets, eventType=None, seenBefore=False):
-        if not seenBefore:
-            self.uiMap.logger.debug("Showing/painting widget of type " +
-                                    parent.__class__.__name__ + ", monitoring found widgets")
-            for widget in self.makeAdapters(widgets):
-                self.uiMap.monitorWidget(widget)
+    def widgetShown(self, parent, eventType):
+        if parent in self.widgetsMonitored:
+            return
+
+        if eventType == swt.SWT.Show:
+            self.bot.getFinder().setShouldFindInvisibleControls(True)
+        widgets = self.findDescendants(parent)
+        if eventType == swt.SWT.Show:
+            self.bot.getFinder().setShouldFindInvisibleControls(False)
+
+        self.widgetsMonitored.update(widgets)
+        self.monitorAllWidgets(parent, widgets)
+        
+    def findDescendants(self, widget):
+        return self.bot.widgets(IsAnything(), widget)
+
+    def monitorAllWidgets(self, parent, widgets):
+        self.uiMap.logger.debug("Showing/painting widget of type " +
+                                parent.__class__.__name__ + ", monitoring found widgets")
+        for widget in self.makeAdapters(widgets):
+            self.uiMap.monitorWidget(widget)
 
     def findAllWidgets(self):
         matcher = IsAnything()
@@ -502,9 +523,9 @@ class WidgetMonitor:
                         pass
         return adapters
 
-    def describe(self, describer):
-        activeShell = self.bot.getFinder().activeShell()
-        runOnUIThread(describer.describeWithUpdates, activeShell)
+    def getActiveShell(self):
+        return self.bot.getFinder().activeShell()
+
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
