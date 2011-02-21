@@ -1,7 +1,7 @@
 
 """ Don't load any Eclipse stuff at global scope, needs to be importable previous to Eclipse starting """
 
-import sys
+import sys, threading
 from usecase import javaswttoolkit
 from java.lang import Runnable, Thread
 
@@ -21,6 +21,10 @@ class TestRunner(Runnable):
         self.method = method
             
     def run(self):
+        # If we have a threading trace, it won't have been set on this thread which was created
+        # by Java. So set it here
+        if hasattr(threading, "_trace_hook") and threading._trace_hook:
+            sys.settrace(threading._trace_hook)
         # Eclipse uses a different class loader, set Jython's class loader
         # to use the same one, or things won't work
         sys.classLoader = Thread.currentThread().getContextClassLoader()
