@@ -49,35 +49,35 @@ class Describer(usecase.guishared.Describer):
         self.canvasCounter = WidgetCounter()
         self.contextMenuCounter = WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
+        self.widgetsRepainted = []
         self.widgetsDescribed = set()
         self.structureLogger = logging.getLogger("SWT structure")
         self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
-    def setWidgetAppeared(self, widget, checkMethod):
-        seenBefore = widget in self.widgetsDescribed or widget in self.windows
-        if checkMethod(widget, seenBefore):
-            self.widgetsAppeared.append((widget, seenBefore))
+    def setWidgetPainted(self, widget):
+        if widget in self.widgetsDescribed or widget in self.windows:
+            self.widgetsRepainted.append(widget)
+        else:
+            self.widgetsAppeared.append(widget)
 
-    def checkPaint(self, widget, seenBefore):
-        return not seenBefore or self.isCanvas(widget)
+    def setWidgetShown(self, widget):
+        # Menu show events seem a bit spurious, they aren't really shown at this point:
+        # ScrollBar shows are not relevant to anything
+        if not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar)):
+            self.widgetsAppeared.append(widget)
 
     def isCanvas(self, widget):
         return isinstance(widget, swt.widgets.Canvas) and not isinstance(widget, swt.widgets.Shell)
 
-    def checkShow(self, widget, seenBefore):
-        # Menu show events seem a bit spurious, they aren't really shown at this point:
-        # ScrollBar shows are not relevant to anything
-        return not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar))
-
     def addFilters(self, display):
         class ShowListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                self.setWidgetAppeared(e.widget, self.checkShow)
+                self.setWidgetShown(e.widget)
 
         class PaintListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                self.setWidgetAppeared(e.widget, self.checkPaint)
+                self.setWidgetPainted(e.widget)
 
         display.addFilter(swt.SWT.Show, ShowListener())
         display.addFilter(swt.SWT.Paint, PaintListener())
@@ -87,12 +87,15 @@ class Describer(usecase.guishared.Describer):
             self.describeStructure(shell)
         if shell in self.windows:
             stateChanges = self.findStateChanges()
-            self.describeVisibilityChanges(stateChanges)
+            stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
+            self.describeAppearedWidgets(stateChangeWidgets)
+            self.describeRepaintedWidgets(stateChangeWidgets)
             self.describeStateChanges(stateChanges)
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)
         self.widgetsAppeared = []
+        self.widgetsRepainted = []
 
     def parentMarked(self, widget, markedWidgets):
         if widget in markedWidgets:
@@ -102,23 +105,29 @@ class Describer(usecase.guishared.Describer):
         else:
             return False
 
-    def describeVisibilityChanges(self, stateChanges):
-        markedWidgets = [ widget for widget, repaint in self.widgetsAppeared ] + \
-                        [ widget for widget, old, new in stateChanges ]
-        for widget, repaint in self.widgetsAppeared:
-            if not widget.isDisposed() and util.isVisible(widget):
-                if isinstance(widget, swt.widgets.Shell):
-                    self.describe(widget)
-                else:
-                    parent = widget.getParent()
-                    if not self.parentMarked(parent, markedWidgets):
-                        markedWidgets.append(parent)
-                        if repaint:
-                            self.logger.info("Widgets have been repainted: describing common parent :\n")
-                        else:
-                            self.logger.info("New widgets have appeared: describing common parent :\n")
-                        self.logger.info(self.getChildrenDescription(parent))
-        
+    def describeVisibilityChange(self, widget, markedWidgets, header):
+        if not widget.isDisposed() and util.isVisible(widget):
+            if isinstance(widget, swt.widgets.Shell):
+                self.describe(widget)
+            else:
+                parent = widget.getParent()
+                if not self.parentMarked(parent, markedWidgets):
+                    markedWidgets.append(parent)
+                    self.logger.info(header)
+                    self.logger.info(self.getChildrenDescription(parent))
+
+    def describeAppearedWidgets(self, stateChangeWidgets):
+        markedWidgets = self.widgetsAppeared + stateChangeWidgets
+        for widget in self.widgetsAppeared:
+            self.describeVisibilityChange(widget, markedWidgets, "New widgets have appeared: describing common parent :\n")
+
+    def describeRepaintedWidgets(self, stateChangeWidgets):
+        markedWidgets = self.widgetsAppeared + self.widgetsRepainted + stateChangeWidgets
+        for widget in self.widgetsRepainted:
+            if self.isCanvas(widget):
+                # Only worry about repainting for canvas objects right now
+                self.describeVisibilityChange(widget, markedWidgets, "Widgets have been repainted: describing common parent :\n")
+
     def describeClipboardChanges(self, display):
         from org.eclipse.swt.dnd import Clipboard, TextTransfer
         clipboard = Clipboard(display)
