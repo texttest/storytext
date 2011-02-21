@@ -213,13 +213,16 @@ class TreeEvent(SignalEvent):
         if item:
             self.generateItem(item)
         else:
-            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in tree."
+            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in " + self.getClassDesc() + "."
+
+    def getClassDesc(self):
+        return self.widget.widget.widget.__class__.__name__.lower()
 
     def findItem(self, text, items):
         for item in items:
             if item.getText() == text:
                 return item
-            if item.isExpanded():
+            if item.isExpanded() and hasattr(item, "getItems"):
                 subItem = self.findItem(text, item.getItems())
                 if subItem:
                     return subItem
@@ -229,7 +232,7 @@ class TreeEvent(SignalEvent):
         return ' '.join([self.name, text])
 
 
-class TreeExpandEvent(TreeEvent):
+class ExpandEvent(TreeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Expand"
@@ -238,7 +241,7 @@ class TreeExpandEvent(TreeEvent):
         item.expand()
 
 
-class TreeCollapseEvent(TreeEvent):
+class CollapseEvent(TreeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Collapse"
@@ -413,6 +416,7 @@ class WidgetMonitor:
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
                   swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
+                  swt.widgets.ExpandBar: (swtbot.widgets.SWTBotExpandBar, []),
                   swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
                   swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []) }
     def __init__(self, uiMap):
@@ -545,8 +549,9 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
-                (swtbot.widgets.SWTBotTree              , [ TreeExpandEvent, TreeCollapseEvent,
+                (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
+                (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
                 (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ]),
