@@ -123,6 +123,17 @@ class SelectEvent(SignalEvent):
         return "Selection"
 
 
+class LinkSelectEvent(SelectEvent):
+    def _generate(self, *args):
+        # There is self.widget.click(), but it is very low level, seizes the mouse pointer,
+        # and fails utterly under KDE. See https://bugs.eclipse.org/bugs/show_bug.cgi?id=337548
+        text = self.widget.getText()
+        startPos = text.find(">") + 1
+        endPos = text.rfind("<")
+        hyperlinkText = text[startPos:endPos]
+        self.widget.click(hyperlinkText)
+        
+
 class RadioSelectEvent(SelectEvent):
     def shouldRecord(self, event, *args):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
@@ -530,7 +541,7 @@ class WidgetMonitor:
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotLink              , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
