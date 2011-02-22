@@ -9,6 +9,7 @@ class WidgetCounter:
     def __init__(self, equalityMethod=None):
         self.widgetNumbers = []
         self.nextWidgetNumber = 1
+        self.describedNumber = 0
         self.customEqualityMethod = equalityMethod
 
     def widgetsEqual(self, widget1, widget2):
@@ -30,6 +31,12 @@ class WidgetCounter:
             self.widgetNumbers.append((widget, self.nextWidgetNumber))
             self.nextWidgetNumber += 1
         return str(number)
+
+    def getWidgetsForDescribe(self):
+        widgets = self.widgetNumbers[self.describedNumber:]
+        self.describedNumber = len(self.widgetNumbers)
+        return widgets
+        
         
         
 class Describer(usecase.guishared.Describer):
@@ -115,7 +122,7 @@ class Describer(usecase.guishared.Describer):
                     markedWidgets.append(parent)
                     self.logger.info(header)
                     self.logger.info(self.getChildrenDescription(parent))
-                else:
+                elif self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " + \
                                       repr(map(self.getRawData, markedWidgets)))
 
@@ -227,12 +234,9 @@ class Describer(usecase.guishared.Describer):
             return ""
 
     def getExpandBarDescription(self, widget):
-        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
-        contextMenus = self.getNewChildContextMenus(visibleChildren)
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
-        return "Expand Bar:\n" + self.getItemBarDescription(widget, indent=1, subItemMethod=self.getExpandItemDescriptions) + \
-               self.formatContextMenuDescriptions(contextMenus)
+        return "Expand Bar:\n" + self.getItemBarDescription(widget, indent=1, subItemMethod=self.getExpandItemDescriptions) 
 
     def getExpandBarState(self, expandbar):
         return expandbar.getChildren(), [ item.getExpanded() for item in expandbar.getItems() ] 
@@ -245,7 +249,8 @@ class Describer(usecase.guishared.Describer):
                                                           subItemMethod=self.getCoolItemDescriptions)
 
     def contextMenusEqual(self, menu1, menu2):
-        return [ item.getText() for item in menu1.getItems() ] == [ item.getText() for item in menu2.getItems() ]
+        return [ (item.getText(), item.getEnabled()) for item in menu1.getItems() ] == \
+               [ (item.getText(), item.getEnabled()) for item in menu2.getItems() ]
 
     def imagesEqual(self, image1, image2):
         return image1.getImageData().data == image2.getImageData().data
@@ -346,15 +351,6 @@ class Describer(usecase.guishared.Describer):
     def getLinkDescription(self, widget):
         return "Link '" + widget.getText() + "'"
         
-    def getWindowContentDescription(self, shell):
-        desc = ""
-        desc = self.addToDescription(desc, self.getMenuBarDescription(shell.getMenuBar()))
-        return self.addToDescription(desc, self.getChildrenDescription(shell))
-
-    def getWidgetDescription(self, widget):
-        self.widgetsDescribed.add(widget)
-        return usecase.guishared.Describer.getWidgetDescription(self, widget)
-
     def getBrowserDescription(self, widget):
         return "Browser browsing '" + widget.getUrl() + "'"
 
@@ -503,14 +499,6 @@ class Describer(usecase.guishared.Describer):
         return layout is not None and not util.checkInstance(layout, swt.layout.FormLayout) and \
                not util.checkInstance(widget, swt.custom.SashForm)
 
-    def getNewChildContextMenus(self, children):
-        menus = []
-        for child in children:
-            menu = child.getMenu()
-            if menu and not self.contextMenuCounter.getWidgetNumber(child.getMenu()):
-                menus.append(menu)
-        return menus
-
     def sortChildren(self, widget):
         visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
         if len(visibleChildren) <= 1 or self.layoutSortsChildren(widget):
@@ -526,8 +514,23 @@ class Describer(usecase.guishared.Describer):
             
         visibleChildren.sort(key=getChildPosition)
         return visibleChildren
+
+    def getDescription(self, widget):
+        self.widgetsDescribed.add(widget)
+        desc = usecase.guishared.Describer.getDescription(self, widget)
+        if desc and isinstance(widget, (swt.widgets.ExpandBar, swt.widgets.Tree, swt.widgets.List)):
+            desc += self.formatContextMenuDescriptions()
+        return desc
+
+    def getWindowContentDescription(self, shell):
+        desc = ""
+        desc = self.addToDescription(desc, self.getMenuBarDescription(shell.getMenuBar()))
+        desc = self.addToDescription(desc, self.getChildrenDescription(shell))
+        desc += self.formatContextMenuDescriptions()
+        return desc
     
     def getChildrenDescription(self, widget):
+        # DateTime children are an implementation detail
         # Coolbars and Expandbars describe their children directly : they have two parallel children structures
         # Composites with StackLayout use the topControl rather than the children
         if not isinstance(widget, swt.widgets.Composite) or \
@@ -536,16 +539,6 @@ class Describer(usecase.guishared.Describer):
             return ""
 
         children = self.sortChildren(widget)
-        contextMenus = self.getNewChildContextMenus(children)
-        return self.formatChildrenDescriptions(widget, children) + self.formatContextMenuDescriptions(contextMenus)
-
-    def formatContextMenuDescriptions(self, contextMenus):
-        text = ""
-        for contextMenu in contextMenus:
-            text += "\n\nContext Menu " + self.contextMenuCounter.getId(contextMenu) + ":\n" + self.getMenuDescription(contextMenu)
-        return text
-
-    def formatChildrenDescriptions(self, widget, children):
         childDescriptions = map(self.getDescription, children)
         columns = self.getLayoutColumns(widget, childDescriptions)
         if columns > 1:
@@ -553,6 +546,13 @@ class Describer(usecase.guishared.Describer):
             return self.formatInGrid(childDescriptions, columns, horizontalSpans)
         else:
             return self.formatInColumn(childDescriptions)
+        return self.formatChildrenDescriptions(widget, children)
+
+    def formatContextMenuDescriptions(self):
+        text = ""
+        for contextMenu, menuId in self.contextMenuCounter.getWidgetsForDescribe():
+            text += "\n\nContext Menu " + str(menuId) + ":\n" + self.getMenuDescription(contextMenu)
+        return text
 
     def getHorizontalSpan(self, widget):
         layout = widget.getLayoutData()
