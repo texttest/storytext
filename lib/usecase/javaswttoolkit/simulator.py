@@ -228,7 +228,8 @@ class TreeEvent(SignalEvent):
                     return subItem
         
     def outputForScript(self, event, *args):
-        text = event.item.getText()
+        # Text may have changed since the application listeners have been applied
+        text = DisplayFilter.itemTextCache.pop(event.item, event.item.getText())
         return ' '.join([self.name, text])
 
 
@@ -329,7 +330,8 @@ class DateTimeEvent(StateChangeEvent):
 
 class DisplayFilter:
     eventsFromUser = []
-    disposedShells = []    
+    disposedShells = []
+    itemTextCache = {}
     logger = None
     @classmethod
     def getEventFromUser(cls, event):
@@ -372,6 +374,9 @@ class DisplayFilter:
                 if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
                     DisplayFilter.eventsFromUser.append(e)
+                    if e.item:
+                        # Safe guard against the application changing the text before we can record
+                        DisplayFilter.itemTextCache[e.item] = e.item.getText()
                     # This is basically a failsafe - shouldn't be needed but in case
                     # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
                     # this is a safeguard against never recording anything again.
