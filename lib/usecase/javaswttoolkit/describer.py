@@ -657,8 +657,13 @@ class Describer(usecase.guishared.Describer):
         return util.checkInstance(*args)
 
     ##Debug code
-    def getRawData(self, widget):
-        basic = widget.__class__.__name__ + " " + str(id(widget))
+    def getRawData(self, widget, useModule=False):
+        basic = ""
+        if useModule:
+            basic = widget.__class__.__module__ + "."
+        basic += widget.__class__.__name__ + " " + str(id(widget))
+        if widget.isDisposed():
+            return basic
         if hasattr(widget, "getLayout"):
             layout = widget.getLayout()
             if layout is not None:
@@ -666,10 +671,12 @@ class Describer(usecase.guishared.Describer):
                 if hasattr(layout, "numColumns"):
                     basic += ", " + str(layout.numColumns) + " columns"
                 basic += ")"
+        if not widget.getVisible():
+            basic += " (invisible)"
         return basic
         
     def describeStructure(self, widget, indent=0):
-        self.structureLogger.info("-" * 2 * indent + self.getRawData(widget))
+        self.structureLogger.info("-" * 2 * indent + self.getRawData(widget, useModule=True))
         if hasattr(widget, "getChildren"):
             for child in widget.getChildren():
                 self.describeStructure(child, indent+1)
