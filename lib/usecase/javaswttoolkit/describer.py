@@ -467,7 +467,10 @@ class Describer(usecase.guishared.Describer):
     def getCTabFolderDescription(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
-        return "TabFolder with tabs " + state
+        if state:
+            return "TabFolder with tabs " + state
+        else:
+            return "TabFolder with no tabs"
 
     def getCTabFolderState(self, widget):
         return " , ".join(self.getAllItemDescriptions(widget, selection=[ widget.getSelection() ]))
