@@ -506,8 +506,10 @@ class Describer(usecase.guishared.Describer):
 
     def layoutSortsChildren(self, widget):
         layout = widget.getLayout()
-        return layout is not None and not util.checkInstance(layout, swt.layout.FormLayout) and \
-               not util.checkInstance(widget, swt.custom.SashForm)
+        return layout is not None and (util.checkInstance(layout, swt.layout.GridLayout) or \
+                                       util.checkInstance(layout, swt.layout.FillLayout) or \
+                                       util.checkInstance(layout, swt.layout.RowLayout) or \
+                                       util.checkInstance(layout, swt.custom.StackLayout))
 
     def sortChildren(self, widget):
         visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
