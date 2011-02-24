@@ -46,10 +46,10 @@ class Describer(usecase.guishared.Describer):
                    (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
-    statelessWidgets = [ swt.widgets.Label, swt.widgets.Sash,
-                         swt.widgets.Link, swt.widgets.Menu, types.NoneType ]
-    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Combo,
-                     swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime,
+    statelessWidgets = [ swt.widgets.Sash, swt.widgets.Menu, types.NoneType ]
+    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Link, swt.widgets.CoolBar, swt.widgets.ToolBar,
+                     swt.widgets.Label, swt.custom.CLabel, swt.widgets.Combo, swt.widgets.ExpandBar,
+                     swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
         self.imageCounter = WidgetCounter(self.imagesEqual)
@@ -75,7 +75,8 @@ class Describer(usecase.guishared.Describer):
             self.widgetsAppeared.append(widget)
 
     def isCanvas(self, widget):
-        return isinstance(widget, swt.widgets.Canvas) and not isinstance(widget, swt.widgets.Shell)
+        # Don't include subclasses which generally have some other way of being handled
+        return widget.__class__ is swt.widgets.Canvas
 
     def addFilters(self, display):
         class ShowListener(swt.widgets.Listener):
@@ -307,7 +308,7 @@ class Describer(usecase.guishared.Describer):
         elements.append(self.getContextMenuReference(item))
         return elements
 
-    def getLabelDescription(self, label):
+    def getLabelState(self, label):
         if label.getStyle() & swt.SWT.SEPARATOR:
             return "-" * 10
         elements = []
@@ -322,6 +323,12 @@ class Describer(usecase.guishared.Describer):
             elements.append(self.getImageDescription(label.getImage()))
         elements.append(self.getContextMenuReference(label))
         return self.combineElements(elements)
+
+    def getLabelDescription(self, label):
+        return self.getAndStoreState(label)
+    
+    getCLabelDescription = getLabelDescription
+    getCLabelState = getLabelState
 
     def getButtonDescription(self, widget):
         desc = "Button"
@@ -349,6 +356,9 @@ class Describer(usecase.guishared.Describer):
         return "-" * 15 + " " + orientation + " sash " + "-" * 15
 
     def getLinkDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getLinkState(self, widget):
         return "Link '" + widget.getText() + "'"
         
     def getBrowserDescription(self, widget):
