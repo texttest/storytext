@@ -71,14 +71,14 @@ class GtkEvent(GuiEvent):
     def _outputForScript(self, *args):
         return self.name
 
-    def checkWidgetStatus(self):
-        if not self.widget.get_property("visible"):
-            raise UseCaseScriptError, "widget '" + self.widget.get_name() + \
-                  "' is not visible at the moment, cannot simulate event " + repr(self.name)
+    def widgetVisible(self):
+        return self.widget.get_property("visible")
 
-        if not self.widget.get_property("sensitive"):
-            raise UseCaseScriptError, "widget '" + self.widget.get_name() + \
-                  "' is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
+    def widgetSensitive(self):
+        return self.widget.get_property("sensitive")
+
+    def describeWidget(self):
+        return repr(self.widget.get_name())
 
     def generate(self, argumentString):
         self.checkWidgetStatus()

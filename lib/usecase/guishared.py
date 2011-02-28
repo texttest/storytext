@@ -134,6 +134,15 @@ class GuiEvent(definitions.UserEvent):
     def getAssociatedSignatures(cls, widget):
         return set([ cls.getAssociatedSignal(widget) ])
 
+    def checkWidgetStatus(self):
+        if not self.widgetVisible():
+            raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
+                  " is not visible at the moment, cannot simulate event " + repr(self.name)
+
+        if not self.widgetSensitive():
+            raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
+                  " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
+
 
 class MethodIntercept:
     def __init__(self, method, event):

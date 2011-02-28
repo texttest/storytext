@@ -89,6 +89,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
             pass
 
     def generate(self, *args):
+        self.checkWidgetStatus()
         try:
             self._generate(*args)
         except (IllegalStateException, IndexOutOfBoundsException), e:
@@ -100,6 +101,15 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def delayLevel(self):
         # If there are events for other shells, implies we should delay as we're in a dialog
         return len(DisplayFilter.eventsFromUser)
+
+    def widgetVisible(self):
+        return self.widget.isVisible()
+
+    def widgetSensitive(self):
+        return self.widget.isEnabled()
+
+    def describeWidget(self):
+        return " of type " + self.widget.getType()
 
     @classmethod
     def getSignalsToFilter(cls):
