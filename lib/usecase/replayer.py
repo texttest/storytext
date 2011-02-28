@@ -62,6 +62,7 @@ class UseCaseReplayer:
     def __init__(self):
         self.logger = logging.getLogger("usecase replay log")
         self.scripts = []
+        self.shortcuts = {}
         self.events = {}
         self.waitingForEvents = []
         self.applicationEventNames = []
@@ -75,6 +76,12 @@ class UseCaseReplayer:
     
     def isActive(self):
         return len(self.scripts) > 0
+
+    def registerShortcut(self, shortcut):
+        self.shortcuts[shortcut.getShortcutName()] = shortcut
+
+    def getShortcuts(self):
+        return sorted(self.shortcuts.items())
     
     def addEvent(self, event):
         self.events[event.name] = event
@@ -159,6 +166,9 @@ class UseCaseReplayer:
         if len(commands) == 0:
             return False
         for command in commands:
+            if command in self.shortcuts:
+                self.addScript(self.shortcuts[command])
+                return self.runNextCommand()
             try:
                 commandName, argumentString = self.parseCommand(command)
                 self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))

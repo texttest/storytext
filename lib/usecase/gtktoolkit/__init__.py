@@ -101,24 +101,12 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         return buttonbox
                         
 #private
-    def getShortcutFiles(self):
-        files = []
-        usecaseDir = os.environ["USECASE_HOME"]
-        if not os.path.isdir(usecaseDir):
-            return files
-        for fileName in os.listdir(usecaseDir):
-            if fileName.endswith(".shortcut"):
-                files.append(os.path.join(usecaseDir, fileName))
-        return files
-
     def createExistingShortcutBox(self):
         buttonbox = gtk.HBox()
-        files = self.getShortcutFiles()
         label = gtk.Label("Shortcuts:")
         buttonbox.pack_start(label, expand=False, fill=False)
-        for fileName in files:
-            replayScript = usecase.replayer.ReplayScript(fileName)
-            self.addShortcutButton(buttonbox, replayScript)
+        for name, script in self.replayer.getShortcuts():
+            self.addShortcutButton(buttonbox, name, script)
         label.show()
         return buttonbox
 
@@ -131,16 +119,13 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         newButton.show()
         buttonbox.pack_start(newButton, expand=False, fill=False)
 
-    def addShortcutButton(self, buttonbox, replayScript):
+    def addShortcutButton(self, buttonbox, name, script):
         button = gtk.Button()
-        buttonName = replayScript.getShortcutName()
         button.set_use_underline(1)
-        button.set_label(buttonName)
-        self.monitorSignal(buttonName.lower(), "clicked", button)
-        button.connect("clicked", self.replayShortcut, replayScript)
-        firstCommand = replayScript.commands[0]
+        button.set_label(name)
+        self.monitorSignal(name, "clicked", button)
+        button.connect("clicked", self.replayShortcut, script)
         button.show()
-        self.recorder.registerShortcut(replayScript)
         buttonbox.add(button)
 
     def addStopControls(self, buttonbox, existingbox):
@@ -182,7 +167,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             script.rename(newScriptName)
             if not scriptExistedPreviously:
                 replayScript = usecase.replayer.ReplayScript(newScriptName)
-                self.addShortcutButton(existingbox, replayScript)
+                self.addShortcutButton(existingbox, buttonName, replayScript)
             self.replaceAutoRecordingForShortcut(script)
 
     def replayShortcut(self, button, script, *args):

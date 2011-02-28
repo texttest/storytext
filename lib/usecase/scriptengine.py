@@ -19,6 +19,7 @@ class ScriptEngine:
         self.enableShortcuts = enableShortcuts
         self.recorder = recorder.UseCaseRecorder()
         self.replayer = self.createReplayer(**kwargs)
+        self.registerShortcuts()
 
     def recorderActive(self):
         return self.enableShortcuts or self.recorder.isActive()
@@ -28,6 +29,23 @@ class ScriptEngine:
 
     def active(self):
         return self.replayerActive() or self.recorderActive()
+
+    def registerShortcuts(self):
+        for shortcut in self.getShortcuts():
+            if self.replayerActive():
+                self.replayer.registerShortcut(shortcut)
+            if self.recorderActive():
+                self.recorder.registerShortcut(shortcut)
+
+    def getShortcuts(self):
+        shortcuts = []
+        if not os.path.isdir(self.usecaseHome):
+            return shortcuts
+        for fileName in os.listdir(self.usecaseHome):
+            if fileName.endswith(".shortcut"):
+                fullPath = os.path.join(self.usecaseHome, fileName)
+                shortcuts.append(replayer.ReplayScript(fullPath))
+        return shortcuts
 
     def createReplayer(self, **kwargs):
         return replayer.UseCaseReplayer()
