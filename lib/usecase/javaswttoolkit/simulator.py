@@ -306,12 +306,18 @@ class ListClickEvent(StateChangeEvent):
         return ",".join(self.widget.selection())
 
     def _generate(self, argumentString):
-        index = self.widget.indexOf(argumentString)
-        if index >= 0:
-            self.widget.select(index)
-        else:
-            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in list."
+        indices = self.getIndices(argumentString)
+        self.widget.select(indices)
 
+    def getIndices(self, argumentString):
+        indices = []
+        for itemText in argumentString.split(","):
+            index = self.widget.indexOf(itemText)
+            if index >= 0:
+                indices.append(index)
+            else:
+                raise UseCaseScriptError, "Could not find item labelled '" + itemText + "' in list."
+        return indices
 
 class DateTimeEvent(StateChangeEvent):
     def __init__(self, *args, **kw):
