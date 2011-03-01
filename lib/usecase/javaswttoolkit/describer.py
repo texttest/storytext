@@ -64,14 +64,15 @@ class Describer(usecase.guishared.Describer):
 
     def setWidgetPainted(self, widget):
         if widget in self.widgetsDescribed or widget in self.windows:
-            self.widgetsRepainted.append(widget)
-        else:
+            if widget not in self.widgetsRepainted:
+                self.widgetsRepainted.append(widget)
+        elif widget not in self.widgetsAppeared:
             self.widgetsAppeared.append(widget)
 
     def setWidgetShown(self, widget):
         # Menu show events seem a bit spurious, they aren't really shown at this point:
         # ScrollBar shows are not relevant to anything
-        if not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar)):
+        if not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar)) and widget not in self.widgetsAppeared:
             self.widgetsAppeared.append(widget)
 
     def isCanvas(self, widget):
