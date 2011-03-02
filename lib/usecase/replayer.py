@@ -84,7 +84,7 @@ class UseCaseReplayer:
         return sorted(self.shortcuts.items())
     
     def addEvent(self, event):
-        self.events[event.name] = event
+        self.events.setdefault(event.name, []).append(event)
     
     def addScript(self, script):
         self.scripts.append(script)
@@ -195,10 +195,20 @@ class UseCaseReplayer:
         if commandName == signalCommandName:
             self.processSignalCommand(argumentString)
         else:
-            event = self.events[commandName]
             self.write("")
             self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
-            event.generate(argumentString)
+            possibleEvents = self.events[commandName]
+            # We may have several plausible events with this name,
+            # but some of them won't work because widgets are disabled, invisible etc
+            # Go backwards to preserve back-compatibility, previously only the last one was considered.
+            # The more recently it was added, the more likely it is to work also
+            for event in reversed(possibleEvents[1:]):
+                try:
+                    event.generate(argumentString)
+                    return
+                except UseCaseScriptError:
+                    pass
+            possibleEvents[0].generate(argumentString)
             
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
