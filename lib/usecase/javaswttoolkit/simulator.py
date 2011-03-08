@@ -219,11 +219,14 @@ class ComboTextEvent(TextEvent):
 
 class TreeEvent(SignalEvent):
     def _generate(self, argumentString):
-        item = self.findItem(argumentString, self.widget.getAllItems())
-        if item:
-            self.generateItem(item)
+        if len(argumentString) == 0:
+            self.widget.unselect()
         else:
-            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in " + self.getClassDesc() + "."
+            item = self.findItem(argumentString, self.widget.getAllItems())
+            if item:
+                self.generateItem(item)
+            else:
+                raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in " + self.getClassDesc() + "."
 
     def getClassDesc(self):
         return self.widget.widget.widget.__class__.__name__.lower()
@@ -306,8 +309,11 @@ class ListClickEvent(StateChangeEvent):
         return ",".join(self.widget.selection())
 
     def _generate(self, argumentString):
-        indices = self.getIndices(argumentString)
-        self.widget.select(indices)
+        if len(argumentString) == 0:
+            self.widget.unselect()
+        else:
+            indices = self.getIndices(argumentString)
+            self.widget.select(indices)
 
     def getIndices(self, argumentString):
         indices = []
