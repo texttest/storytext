@@ -241,9 +241,12 @@ class TreeEvent(SignalEvent):
                     return subItem
         
     def outputForScript(self, event, *args):
-        # Text may have changed since the application listeners have been applied
-        text = DisplayFilter.itemTextCache.pop(event.item, event.item.getText())
-        return ' '.join([self.name, text])
+        if event.item is None:
+            return self.name
+        else:
+            # Text may have changed since the application listeners have been applied
+            text = DisplayFilter.itemTextCache.pop(event.item, event.item.getText())
+            return ' '.join([self.name, text])
 
 
 class ExpandEvent(TreeEvent):
@@ -271,7 +274,7 @@ class TreeClickEvent(TreeEvent):
 
     def shouldRecord(self, event, *args):
         # Seem to get selection events even when nothing has been selected...
-        return DisplayFilter.getEventFromUser(event) and event.item in event.widget.getSelection()
+        return DisplayFilter.getEventFromUser(event) and (event.item is None or event.item in event.widget.getSelection())
 
     def generateItem(self, item):
         item.select()
