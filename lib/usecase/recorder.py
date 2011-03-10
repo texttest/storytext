@@ -152,7 +152,13 @@ class UseCaseRecorder:
             self.origSignal(signum, self.recordSignal)
         elif realHandler is not None and realHandler != signal.SIG_IGN:
             # If there was a handler, just call it
-            realHandler(signum, stackFrame)
+            try:
+                realHandler(signum, stackFrame)
+            except TypeError:
+                if os.name == "java":
+                    from sun.misc import Signal
+                    sigName = self.signalNames[signum].replace("SIG", "")
+                    realHandler.handle(Signal(sigName))
 
     def writeEvent(self, *args):
         if len(self.scripts) == 0 or self.suspended == 1:

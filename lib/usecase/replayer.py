@@ -249,7 +249,11 @@ class UseCaseReplayer:
         signalNum = getattr(signal, signalArg)
         self.write("")
         self.write("Generating signal " + signalArg)
-        os.killpg(os.getpgid(0), signalNum) # So we can generate signals for ourselves...
+        if os.name == "java":
+            # Seems os.killpg doesn't exist under Jython
+            os.kill(os.getpid(), signalNum)
+        else:
+            os.killpg(os.getpgid(0), signalNum) # So we can generate signals for ourselves...
         self.logger.debug("Signal " + signalArg + " has been sent")
 
 
