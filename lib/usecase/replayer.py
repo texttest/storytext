@@ -43,7 +43,10 @@ class ReplayScript:
             if len(name) == 0 or nextCommand.startswith(name):
                 # Filter blank lines and comments
                 self.pointer += 1
-                return nextCommand        
+                return nextCommand
+            
+    def getCommandsSoFar(self):
+        return self.commands[:self.pointer - 1] if self.pointer else []
 
     def getCommands(self):
         command = self.getCommand()

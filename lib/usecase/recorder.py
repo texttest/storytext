@@ -67,6 +67,7 @@ class ShortcutTracker:
             self.currCommand = self.replayScript.getCommand()
             return not self.currCommand
         else:
+            self.unmatchedCommands += self.replayScript.getCommandsSoFar()
             self.unmatchedCommands.append(line)
             self.reset()
             return False
