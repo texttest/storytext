@@ -102,6 +102,9 @@ class SignalEvent(usecase.guishared.GuiEvent):
         # If there are events for other shells, implies we should delay as we're in a dialog
         return len(DisplayFilter.eventsFromUser)
 
+    def widgetDisposed(self):
+        return self.widget.widget.widget.isDisposed()
+
     def widgetVisible(self):
         return self.widget.isVisible()
 

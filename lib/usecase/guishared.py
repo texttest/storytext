@@ -134,7 +134,14 @@ class GuiEvent(definitions.UserEvent):
     def getAssociatedSignatures(cls, widget):
         return set([ cls.getAssociatedSignal(widget) ])
 
+    def widgetDisposed(self):
+        return False
+
     def checkWidgetStatus(self):
+        if self.widgetDisposed():
+            raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
+                  " has already been disposed, cannot simulate event " + repr(self.name)
+
         if not self.widgetVisible():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
                   " is not visible at the moment, cannot simulate event " + repr(self.name)
