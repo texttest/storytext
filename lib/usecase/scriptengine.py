@@ -41,7 +41,7 @@ class ScriptEngine:
         shortcuts = []
         if not os.path.isdir(self.usecaseHome):
             return shortcuts
-        for fileName in os.listdir(self.usecaseHome):
+        for fileName in sorted(os.listdir(self.usecaseHome)):
             if fileName.endswith(".shortcut"):
                 fullPath = os.path.join(self.usecaseHome, fileName)
                 shortcuts.append(replayer.ReplayScript(fullPath))

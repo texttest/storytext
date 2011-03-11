@@ -16,9 +16,13 @@ class RecordScript:
     def record(self, line):
         try:
             self._record(line)
+            bestTracker = None
             for tracker in self.shortcutTrackers:
-                if tracker.updateCompletes(line):
-                    self.rerecord(tracker.getNewCommands())
+                if tracker.updateCompletes(line) and \
+                    (bestTracker is None or tracker.isLongerThan(bestTracker)):
+                    bestTracker = tracker
+            if bestTracker:
+                self.rerecord(bestTracker.getNewCommands())
         except IOError:
             sys.stderr.write("ERROR: Unable to record " + repr(line) + " to file " + repr(self.scriptName) + "\n") 
     
@@ -71,6 +75,9 @@ class ShortcutTracker:
         self.reset()
         self.unmatchedCommands.append(self.replayScript.getShortcutName().lower())
         return self.unmatchedCommands
+    
+    def isLongerThan(self, otherTracker):
+        return len(self.replayScript.commands) > len(otherTracker.replayScript.commands)
 
 
 class UseCaseRecorder:
