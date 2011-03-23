@@ -2,3 +2,6 @@ build
 MANIFEST
 dist
 *.class
+.project
+.pydevproject
+PyUseCase.egg-info
