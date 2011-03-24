@@ -151,6 +151,30 @@ class RadioSelectEvent(SelectEvent):
     def shouldRecord(self, event, *args):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
 
+class TabSelectEvent(SelectEvent):
+    def isStateChange(self):
+        return True
+    
+    def findTab(self, text):
+        for item in self.widget.widget.widget.getItems():
+            # Seems we can only get tab item text in the UI thread (?)
+            if runOnUIThread(item.getText) == text:
+                return item
+        raise UseCaseScriptError, "Could not find tab labelled '" + text + "' in TabFolder."
+    
+    def _generate(self, argumentString):
+        tab = self.findTab(argumentString)
+        swtbot.widgets.SWTBotCTabItem(tab).activate()
+        
+    def outputForScript(self, event, *args):
+        # Text may have changed since the application listeners have been applied
+        return ' '.join([self.name, event.item.getText()])
+    
+    def implies(self, *args):
+        # State change because it can be implied by TabCloseEvents
+        # But don't amalgamate them together, allow several tabs to be selected in sequence
+        return False
+
 
 class ShellCloseEvent(SignalEvent):    
     def _generate(self, *args):
@@ -197,6 +221,9 @@ class TabCloseEvent(SignalEvent):
         shell = event.widget.getParent().getShell()
         return DisplayFilter.getEventFromUser(event) and shell not in DisplayFilter.disposedShells
 
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, TabSelectEvent) and \
+            self.widget.widget.widget.getParent() is stateChangeEvent.widget.widget.widget
 
 class TextEvent(StateChangeEvent):
     @classmethod
@@ -431,8 +458,10 @@ class DisplayFilter:
         for swtbotClass, eventTypes in self.widgetEventTypes:
             eventTypeSet.update(eventTypes)
         return eventTypeSet
-        
-
+    
+# There is no SWTBotCTabFolder, so we make our own. We aren't actually going to use it anyway...    
+class FakeSWTBotCTabFolder(swtbot.widgets.AbstractSWTBot):
+    pass
 
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
@@ -451,7 +480,8 @@ class WidgetMonitor:
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
                   swt.widgets.ExpandBar: (swtbot.widgets.SWTBotExpandBar, []),
                   swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
-                  swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []) }
+                  swt.custom.CTabFolder: (FakeSWTBotCTabFolder, []),
+                  swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, [])}
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
         self.widgetsMonitored = set()
@@ -587,5 +617,6 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
                 (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent ]),
+                (FakeSWTBotCTabFolder                   , [ TabSelectEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ TabCloseEvent ]),
                 (swtbot.widgets.SWTBotDateTime          , [ DateTimeEvent ]) ]
