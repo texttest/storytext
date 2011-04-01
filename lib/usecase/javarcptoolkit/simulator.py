@@ -4,7 +4,9 @@
 import sys
 from usecase.javaswttoolkit import simulator as swtsimulator
 from usecase.javaswttoolkit import describer as swtdescriber
+from usecase import applicationEvent
 from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
+from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -34,6 +36,12 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
             for child in widget.getChildren():
                 cls.storeIdWithChildren(child, viewId)
 
+class JobListener(JobChangeAdapter):
+    def done(self, e):
+        if e.getJob().isUser():
+            jobName = e.getJob().getName()
+            applicationEvent("completion of " + jobName.lower())
+
 
 class WidgetMonitor(swtsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
@@ -47,6 +55,9 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         WidgetAdapter.setAdapterClass(WidgetAdapter)
         swtsimulator.runOnUIThread(self.cacheViewIds)
         swtsimulator.WidgetMonitor.monitorAllWidgets(self, *args, **kw)
+        # Eclipse RCP has its own mechanism for background processing
+        # Hook application events directly into that for synchronisation
+        Job.getJobManager().addJobChangeListener(JobListener())
 
     def cacheViewIds(self):
         for swtbotView in self.bot.views():
