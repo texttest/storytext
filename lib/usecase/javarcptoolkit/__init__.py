@@ -36,7 +36,11 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
         # Set up used for recording
         runner = TestRunner(self.setUpMonitoring)
         recordExitRunner = TestRunner(self.runOnRecordExit)
-        self.setTestRunnables(runner, recordExitRunner)
+        try:
+            self.setTestRunnables(runner, recordExitRunner)
+        except ImportError:
+            sys.stderr.write("ERROR: Could not find SWTBot testscript plugin. Please install it as described at :\n" +
+                             "http://www.texttest.org/index.php?page=ui_testing&n=pyusecase_and_swt\n")
 
     def runOnRecordExit(self):
         self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt")
@@ -54,7 +58,10 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def enableReplayInitially(self):
         runner = TestRunner(self.runReplay)
         replayExitRunner = TestRunner(self.tryTerminateCoverage)
-        self.setTestRunnables(runner, replayExitRunner)
+        try:
+            self.setTestRunnables(runner, replayExitRunner)
+        except ImportError:
+            pass
 
     def setTestRunnables(self, runner, exitRunner):
         from org.eclipse.swtbot.testscript import TestRunnableStore
