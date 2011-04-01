@@ -4,7 +4,8 @@ Summary of what it is:
         What follows is just a brief summary.
 
         PyUseCase is a record/replay layer for Python GUIs. It currently has extensive support for PyGTK GUIs
-        (including a proof of concept for the hildon extension), basic support for Tkinter GUIs, and alpha 
+        (including a proof of concept for the hildon extension), beta status support for SWT/Eclipse RCP GUIs and 
+        Tkinter GUIs, and alpha 
         status support for wxPython. Besides providing a mechanism for recording and playing back UI interaction, 
         it also generates a log of the UI appearance. 
         On UNIX-based systems it can also be useful on console programs to record and simulate signals 
@@ -51,10 +52,8 @@ Other Open Source Software packaged with it/used by it:
 
 Installation:
 
-    Go to the "source" directory and run "python setup.py install".
-    On Windows, this will probably install to C:\Pythonxx\Scripts, which will then need to be in your PATH.
-    Alternatively on UNIX, just leave the directory in place and add its "source/bin" directory to your PATH
-      (and its "source/lib" directory to your PYTHONPATH if you use application events or shortcuts).
+    Go to the "source" directory and run "python setup.py install". To sort out dependencies and so on, read the docs
+    at http://www.texttest.org/index.php?page=ui_testing&n=pyusecase_download
 
 Documentation:
 
@@ -78,5 +77,5 @@ Examples and tests:
 
 Bugs/Support:
     
-    Write to the mailing list at pyusecase-users@lists.sourceforge.net
+    Write to the general mailing list at texttest-users@lists.sourceforge.net
     Report bugs in the Launchpad bugtracker at https://bugs.launchpad.net/pyusecase

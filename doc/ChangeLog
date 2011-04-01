@@ -272,15 +272,15 @@ General:
 
 General bug fixes:
     - Don't try to record SIGBUS or SIGSEGV : these generally signify internal errors
-	
+
 Basic wxPython support added:
-    - Somewhat alpha status right now. 
+    - Somewhat alpha status right now.
 	Supports a handful of widget types: wx.Button, wx.TextCtrl, wx.ListCtrl, wx.Frame.
 	Many thanks to Cliff Xuan who is driving this forward.
 
 Tkinter bugfixes:
     - Don't stacktrace if idle handlers get called when application is already destroyed
-	
+
 PyGTK Record/Playback:
     - Now support gtk.Dialog.run directly.
 	It's previously been documented as not working and required changing code to avoid calling it.
@@ -319,3 +319,30 @@ PyGTK bugfixes:
 
 wxPython improvements:
     - Basic support for wx.Dialog added (thanks Cliff Xuan)
+
+Version 3.5
+-----------
+Support for Java GUIs using SWT/Eclipse RCP added.
+    - Based on the SWTBot tool. (Thanks to them for a great tool!)
+	Regard as Beta status for now. See website for details.
+
+General enhancements:
+    - Shortcut functionality now usable in general
+	Was previously tied to PyGTK plugin
+	GUI is still PyGTK only, but now easy to make your own shortcuts by just editing files. See website for details.
+
+General bugfixes:
+    - Various fixes to shortcuts insertion mechanism
+    - Correctly handle the situation where several widgets have the same identifier but only one is visible/enabled
+    - "Name Chooser" UI now handles encodings other than UTF-8 for unicode.
+    - Apostophes in application labels don't screw up the "Name Chooser" UI or the UI map file any more
+    - No longer crashes with invalid locale
+    - Replayer handles repeated application events in a consistent way with the recorder
+    - State change events (e.g. text box edit) in modal dialogs now handled properly
+
+Tkinter bugfixes:
+    - No longer fails with non-ASCII text in menu item labels
+    - Handle top level windows that are children of other widgets properly
+
+wxPython bugfixes:
+    - Prevent occasional spurious output on Windows
