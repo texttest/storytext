@@ -363,7 +363,7 @@ class Describer(usecase.guishared.Describer):
         return "Link '" + widget.getText() + "'"
         
     def getBrowserDescription(self, widget):
-        return "Browser browsing '" + widget.getUrl() + "'"
+        return "Browser browsing '" + (widget.getUrl() or "about:blank") + "'"
 
     def fixLineEndings(self, text):
         # Methods return text 'raw' with Windows line endings
