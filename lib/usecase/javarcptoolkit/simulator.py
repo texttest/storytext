@@ -1,7 +1,7 @@
 
 """ Simulation stuff specific to using Eclipse RCP. For example View IDs and Editor IDs etc."""
 
-import sys
+import sys, logging
 from usecase.javaswttoolkit import simulator as swtsimulator
 from usecase.javaswttoolkit import describer as swtdescriber
 from usecase import applicationEvent
@@ -37,15 +37,27 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
                 cls.storeIdWithChildren(child, viewId)
 
 class JobListener(JobChangeAdapter):
+    def __init__(self):
+        JobChangeAdapter.__init__(self)
+        self.nonSystemEventName = None
+        self.logger = logging.getLogger("Eclipse RCP jobs")
+        
     def done(self, e):
-        if e.getJob().isUser():
-            jobName = e.getJob().getName()
-            applicationEvent("completion of " + jobName.lower())
+        jobName = e.getJob().getName().lower()
+        self.logger.debug("Completed " + ("system" if e.getJob().isSystem() else "non-system") + " job '" + jobName + "'")
+        if not e.getJob().isSystem():
+            self.nonSystemEventName = jobName
+        elif jobName == "animation start" and self.nonSystemEventName:
+            applicationEvent("completion of " + self.nonSystemEventName)
+            self.nonSystemEventName = None
 
 
 class WidgetMonitor(swtsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allViews = set()
+        # Eclipse RCP has its own mechanism for background processing
+        # Hook application events directly into that for synchronisation
+        Job.getJobManager().addJobChangeListener(JobListener())
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
         
     def createSwtBot(self):
@@ -55,10 +67,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         WidgetAdapter.setAdapterClass(WidgetAdapter)
         swtsimulator.runOnUIThread(self.cacheViewIds)
         swtsimulator.WidgetMonitor.monitorAllWidgets(self, *args, **kw)
-        # Eclipse RCP has its own mechanism for background processing
-        # Hook application events directly into that for synchronisation
-        Job.getJobManager().addJobChangeListener(JobListener())
-
+        
     def cacheViewIds(self):
         for swtbotView in self.bot.views():
             ref = swtbotView.getViewReference()
