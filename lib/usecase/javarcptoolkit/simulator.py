@@ -4,9 +4,11 @@
 import sys, logging
 from usecase.javaswttoolkit import simulator as swtsimulator
 from usecase.javaswttoolkit import describer as swtdescriber
+from usecase.guishared import GuiEvent
 from usecase import applicationEvent
-from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
+import org.eclipse.swtbot.eclipse.finder as swtbot
 from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
+from org.eclipse.ui import IPartListener
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -61,14 +63,14 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
         
     def createSwtBot(self):
-        return SWTWorkbenchBot()
+        return swtbot.SWTWorkbenchBot()
     
     def monitorAllWidgets(self, *args, **kw):
         WidgetAdapter.setAdapterClass(WidgetAdapter)
-        swtsimulator.runOnUIThread(self.cacheViewIds)
+        swtsimulator.runOnUIThread(self.cacheAndMonitorViews)
         swtsimulator.WidgetMonitor.monitorAllWidgets(self, *args, **kw)
         
-    def cacheViewIds(self):
+    def cacheAndMonitorViews(self):
         for swtbotView in self.bot.views():
             ref = swtbotView.getViewReference()
             if ref not in self.allViews:
@@ -77,7 +79,64 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                 if viewparent:
                     self.uiMap.logger.debug("Caching View with ID " + ref.getId())
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
+                adapter = ViewAdapter(swtbotView)
+                self.uiMap.monitorWidget(adapter)
+        
 
+class ViewAdapter(swtsimulator.WidgetAdapter):
+    def getUIMapIdentifier(self):
+        viewId = self.widget.getViewReference().getId()
+        return self.encodeToLocale("View=" + viewId)
+
+    def findPossibleUIMapIdentifiers(self):
+        return [ self.getUIMapIdentifier() ]
+    
+    def getType(self):
+        return "View"
+
+class PartActivateEvent(GuiEvent):
+    def connectRecord(self, method):
+        class RecordListener(IPartListener):
+            def partActivated(listenerSelf, part):
+                method(part, self)
+        page = self.widget.getViewReference().getPage()
+        swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
+
+    def generate(self, *args):
+        # The idea is to just do this, but it seems to cause strange things to happen
+        #internally. So we do it outside SWTBot instead.
+        #self.widget.setFocus()
+        page = self.widget.getViewReference().getPage()
+        view = self.widget.getViewReference().getView(False)
+        swtsimulator.runOnUIThread(page.activate, view)
+
+    def shouldRecord(self, part, *args):
+        # TODO: Need to check no other events are waiting in DisplayFilter 
+        return self.widget.getViewReference().getId() == part.getSite().getId() and not swtsimulator.DisplayFilter.hasEvents()
+
+    def delayLevel(self):
+        # If there are events for other shells, implies we should delay as we're in a dialog
+        return len(swtsimulator.DisplayFilter.eventsFromUser)
+
+    def isStateChange(self):
+        return True
+    
+    def isImpliedByTabClose(self, tab):
+        return True
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, PartActivateEvent)
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return []
+
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "ActivatePart"
+
+swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent ]))
+                
 class Describer(swtdescriber.Describer):
     def describeClipboardChanges(self, display):
         # Unfortunately we have classloader problems here

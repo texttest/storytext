@@ -114,6 +114,9 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def describeWidget(self):
         return " of type " + self.widget.getType()
 
+    def isImpliedByTabClose(self, tab):
+        return False
+    
     @classmethod
     def getSignalsToFilter(cls):
         return [ getattr(swt.SWT, cls.getAssociatedSignal(None)) ]
@@ -175,6 +178,10 @@ class TabSelectEvent(SelectEvent):
         # But don't amalgamate them together, allow several tabs to be selected in sequence
         return False
 
+    def isImpliedByTabClose(self, tab):    
+        return tab.getParent() is self.widget.widget.widget
+
+
 
 class ShellCloseEvent(SignalEvent):    
     def _generate(self, *args):
@@ -222,9 +229,8 @@ class TabCloseEvent(SignalEvent):
         return DisplayFilter.getEventFromUser(event) and shell not in DisplayFilter.disposedShells
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return isinstance(stateChangeEvent, TabSelectEvent) and \
-            self.widget.widget.widget.getParent() is stateChangeEvent.widget.widget.widget
-
+        return stateChangeEvent.isImpliedByTabClose(self.widget.widget.widget)
+    
 class TextEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -400,6 +406,10 @@ class DisplayFilter:
                 cls.logger.debug("Received event " + event.toString())
                 cls.logger.debug("Rejecting event, not yet processed " + repr([ e.toString() for e in cls.eventsFromUser ]))
             return False
+        
+    @classmethod
+    def hasEvents(cls):
+        return len(cls.eventsFromUser) > 0
 
     def __init__(self, widgetEventTypes):
         DisplayFilter.logger = logging.getLogger("usecase record")
@@ -576,8 +586,11 @@ class WidgetMonitor:
         menus = []
         for widget in widgets:
             if isinstance(widget, swt.widgets.Control):
-                menuFinder = swtbot.finders.ContextMenuFinder(widget)
-                menus += menuFinder.findMenus(IsAnything())
+                try:
+                    menuFinder = swtbot.finders.ContextMenuFinder(widget)
+                    menus += menuFinder.findMenus(IsAnything())
+                except TypeError:
+                    print "WARNING, got widget of type", widget.__class__.__name__, " (not a control?) causing TypeError to be thrown"
         return menus
 
     def findSwtbotClass(self, widget, widgetClass):

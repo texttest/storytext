@@ -38,7 +38,7 @@ class WidgetAdapter:
         try:
             return self.getWidgetTitle()
         except AttributeError:
-            pass
+            return ""
 
     def getChildren(self):
         return map(self.adapt, self.getChildWidgets())
