@@ -46,8 +46,8 @@ class Describer(usecase.guishared.Describer):
                    (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
-    statelessWidgets = [ swt.widgets.Sash, swt.widgets.Menu, types.NoneType ]
-    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Link, swt.widgets.CoolBar, swt.widgets.ToolBar,
+    statelessWidgets = [ swt.widgets.Sash, types.NoneType ]
+    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link, swt.widgets.CoolBar, swt.widgets.ToolBar,
                      swt.widgets.Label, swt.custom.CLabel, swt.widgets.Combo, swt.widgets.ExpandBar,
                      swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
@@ -95,7 +95,7 @@ class Describer(usecase.guishared.Describer):
         if self.structureLogger.isEnabledFor(logging.DEBUG) and shell not in self.windows:
             self.describeStructure(shell)
         if shell in self.windows:
-            stateChanges = self.findStateChanges()
+            stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
             self.describeAppearedWidgets(stateChangeWidgets)
             self.describeRepaintedWidgets(stateChangeWidgets)
@@ -105,6 +105,9 @@ class Describer(usecase.guishared.Describer):
             self.describe(shell)
         self.widgetsAppeared = []
         self.widgetsRepainted = []
+        
+    def shouldCheckForUpdates(self, widget, shell):
+        return not isinstance(widget, swt.widgets.Menu) or widget.getShell() == shell
 
     def parentMarked(self, widget, markedWidgets):
         if widget in markedWidgets:
@@ -194,7 +197,10 @@ class Describer(usecase.guishared.Describer):
     def getCascadeMenuDescriptions(self, item, indent, **kw):
         cascadeMenu = item.getMenu()
         if cascadeMenu:
-            return self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, **kw)
+            descs = self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, **kw)
+            if indent == 1:
+                self.widgetsWithState[cascadeMenu] = "\n".join(descs)
+            return descs
         else:
             return []
 
@@ -228,7 +234,10 @@ class Describer(usecase.guishared.Describer):
 
     def getMenuDescription(self, menu, indent=1):
         return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions)
-
+    
+    def getMenuState(self, menu):
+        return self.getMenuDescription(menu, indent=2)
+    
     def getMenuBarDescription(self, menubar):
         if menubar:
             return "Menu Bar:\n" + self.getMenuDescription(menubar)
@@ -379,6 +388,8 @@ class Describer(usecase.guishared.Describer):
             return "\nUpdated " + util.getTextLabel(widget) + " Combo Box\n"
         elif util.getTopControl(widget):
             return "\n"
+        elif isinstance(widget, swt.widgets.Menu):
+            return "\nUpdated " + widget.getParentItem().getText() + " Menu:\n"
         else:
             return "\nUpdated "
 

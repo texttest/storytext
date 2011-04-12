@@ -639,10 +639,12 @@ class Describer:
     def getWindowString(self):
         return "Window"
 
-    def findStateChanges(self):
+    def findStateChanges(self, *args):
         defunctWidgets = []
         stateChanges = []
         for widget, oldState in self.widgetsWithState.items():
+            if not self.shouldCheckForUpdates(widget, *args):
+                continue
             try:
                 state = self.getState(widget)
             except:
@@ -657,6 +659,9 @@ class Describer:
         for widget in defunctWidgets:
             del self.widgetsWithState[widget]
         return stateChanges
+
+    def shouldCheckForUpdates(self, *args):
+        return True
 
     def describeStateChanges(self, stateChanges):
         for widget, oldState, state in stateChanges:
