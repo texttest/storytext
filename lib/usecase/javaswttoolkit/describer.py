@@ -390,6 +390,8 @@ class Describer(usecase.guishared.Describer):
             return "\n"
         elif isinstance(widget, swt.widgets.Menu):
             return "\nUpdated " + widget.getParentItem().getText() + " Menu:\n"
+        elif isinstance(widget, (swt.widgets.Label, swt.custom.CLabel)) and len(state) == 0:
+            return "\nLabel now empty, previously " + oldState
         else:
             return "\nUpdated "
 
