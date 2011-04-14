@@ -58,7 +58,7 @@ class Describer(usecase.guishared.Describer):
         self.widgetsAppeared = []
         self.widgetsRepainted = []
         self.widgetsDescribed = set()
-        self.structureLogger = logging.getLogger("SWT structure")
+        self.diag = logging.getLogger("SWT structure")
         self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
@@ -92,7 +92,7 @@ class Describer(usecase.guishared.Describer):
         display.addFilter(swt.SWT.Paint, PaintListener())
 
     def describeWithUpdates(self, shell):
-        if self.structureLogger.isEnabledFor(logging.DEBUG) and shell not in self.windows:
+        if self.diag.isEnabledFor(logging.DEBUG) and shell not in self.windows:
             self.describeStructure(shell)
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
@@ -695,7 +695,7 @@ class Describer(usecase.guishared.Describer):
         return basic
         
     def describeStructure(self, widget, indent=0):
-        self.structureLogger.info("-" * 2 * indent + self.getRawData(widget, useModule=True))
+        self.diag.info("-" * 2 * indent + self.getRawData(widget, useModule=True))
         if hasattr(widget, "getChildren"):
             for child in widget.getChildren():
                 self.describeStructure(child, indent+1)

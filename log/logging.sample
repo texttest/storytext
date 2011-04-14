@@ -1,11 +1,11 @@
 
 [logger_root]
 handlers=root
-level=ERROR
+level=WARNING
 
 [handler_root]
 class=StreamHandler
-level=ERROR
+level=WARNING
 args=(sys.stdout,)
 
 [handler_stdout]
@@ -39,6 +39,18 @@ qualname=usecase replay log
 level=INFO
 
 # ====== The following are disabled by default ======
+# ======= Section for Eclipse RCP jobs ======
+[logger_Eclipse RCP jobs]
+handlers=Eclipse RCP jobs
+qualname=Eclipse RCP jobs
+#level=INFO
+
+[handler_Eclipse RCP jobs]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('eclipsercpjobs.sample', 'a')
+
 # ======= Section for SWT structure ======
 [logger_SWT structure]
 handlers=SWT structure
@@ -101,10 +113,10 @@ args=(os.devnull, 'a')
 
 # ====== Cruft that python logging module needs ======
 [loggers]
-keys=root,gui log,usecase replay log,SWT structure,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
+keys=root,gui log,usecase replay log,Eclipse RCP jobs,SWT structure,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
 
 [handlers]
-keys=root,SWT structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
+keys=root,Eclipse RCP jobs,SWT structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
 
 [formatters]
 keys=timed,debug
