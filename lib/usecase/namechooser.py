@@ -100,7 +100,11 @@ class UseCaseNameChooser:
         dialog.response(gtk.RESPONSE_ACCEPT)
 
     def getActionDescription(self, signalName, widgetType):
-        exec "from " + self.interface + "toolkit import ScriptEngine"
+        try:
+            exec "from " + self.interface + "toolkit import ScriptEngine"
+        except ImportError:
+            # If we haven't even got any such interface, don't worry about this mechanism
+            return signalName
         desc = ScriptEngine.getDisplayName(signalName)
         if desc:
             return desc
