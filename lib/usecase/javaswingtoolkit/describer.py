@@ -5,9 +5,9 @@ from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, ComponentEvent
 
 class Describer(usecase.guishared.Describer):
-    statelessWidgets = [swing.JSplitPane]
+    statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
-                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JPanel]
+                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane]
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
 #                     swing.JRadioButton, swing.JTable, swing.JTextArea, swing.JTextField, swing.JToggleButton,
@@ -15,6 +15,7 @@ class Describer(usecase.guishared.Describer):
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
         self.widgetsAppeared = []
+        self.described = []
         self.diag = logging.getLogger("Swing structure")
 
     def addFilters(self):
@@ -44,11 +45,10 @@ class Describer(usecase.guishared.Describer):
             return ""
         children = widget.getComponents()
         desc = ""
-        #print "PARENT", widget, len(children)
         for child in children:            
-            #print "CHILD", child
-            desc = self.addToDescription(desc, self.getDescription(child))
-        
+            if child not in self.described:
+                desc = self.addToDescription(desc, self.getDescription(child))
+                self.described.append(child)        
         return desc.rstrip()
         
     def getWindowClasses(self):
@@ -83,14 +83,6 @@ class Describer(usecase.guishared.Describer):
     
     def getJCheckBoxDescription(self, widget):
         return self.getComponentDescription(widget, "JCheckBox")
-    
-    def getJPanelDescription(self, panel):
-#        if not panel.getName() or len(panel.getName()) == 0:
-#            return "P";
-        if len(panel.getComponents())== 0:
-            pass
-        else:
-            return "Panel:\n" + self.getItemBarDescription(panel, indent=1)
         
     def getJTabbedPaneDescription(self, tabbedpane):
         return "Tabbed Pane:\n" + self.getTabsDescription(tabbedpane)
@@ -115,6 +107,21 @@ class Describer(usecase.guishared.Describer):
             #self.widgetsWithState[comp] = properties
         return "".join(descs)
     
+    def getJRootPaneDescription(self, pane):
+        return None
+    
+    def getJLayeredPaneDescription(self, pane):
+        return None
+    
+    def getJPanelDescription(self, panel):
+        return None
+#        if not panel.getName() or len(panel.getName()) == 0:
+#            return "P";
+#        if len(panel.getComponents())== 0:
+#            pass
+#        else:
+#            return "Panel:\n" + self.getChildrenDescription(panel)
+
     #To be moved to super class
     def combineElements(self, elements):
         elements = filter(len, elements)
@@ -154,6 +161,7 @@ class Describer(usecase.guishared.Describer):
         for item in items:
             currPrefix = prefix + " " * indent * 2
             itemDesc = self.getItemDescription(item, currPrefix, item in selection)
+            self.described.append(item)
             if columnCount:
                 row = [ itemDesc ]
                 for colIndex in range(1, columnCount):

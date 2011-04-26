@@ -7,7 +7,7 @@ def runOnEventDispatchThread(method, *args):
         def run(self):
             method(*args)
     
-    if(swing.SwingUtilities.isEventDispatchThread()):
+    if swing.SwingUtilities.isEventDispatchThread():
         method(*args)
     else:
         try:

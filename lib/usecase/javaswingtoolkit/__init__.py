@@ -15,6 +15,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JCheckBox    , [ simulator.SelectEvent]),
         (swing.JMenuItem    , [ simulator.MenuSelectEvent]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
+        (swing.JDialog       , [ simulator.FrameCloseEvent ]),
         ]
     
     def __init__(self, *args, **kw):

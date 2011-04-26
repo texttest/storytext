@@ -102,6 +102,16 @@ class SelectEvent(SignalEvent):
     def getAssociatedSignal(cls, *args):
         return "Click"
 
+    def shouldRecord(self, event, *args):
+        return Filter.getEventFromUser(event) and event.getModifiers() & MouseEvent.BUTTON1_MASK != 0
+
+class StateChangeEvent(SignalEvent):
+    def outputForScript(self, *args):
+        return ' '.join([self.name, self.getStateText(*args) ])
+
+    def isStateChange(self, *args):
+        return True
+    
 class MenuSelectEvent(SelectEvent):                            
     def connectRecord(self, method):
         class ClickListener(MouseAdapter):
@@ -126,12 +136,22 @@ class TabSelectEvent(SelectEvent):
                     
     def _generate(self, argumentString):
         self.setNameIfNeeded()
-        swinglib.runKeyword("seclectTab", [ argumentString ])
+        swinglib.runKeyword("selectTab", [ argumentString ])
+    
+    def outputForScript(self, event, *args):
+        swinglib.runKeyword("selectWindow", [ swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle()])
+        #print "LABEL", self.widget.getName()
+        #swinglib.runKeyword("selectTabPane", [ self.widget.getLabel() ])
+        text = swinglib.runKeyword("getSelectedTabLabel", [])
+        return ' '.join([self.name, text])
      
     def implies(self, *args):
         # State change because it can be implied by TabCloseEvents
         # But don't amalgamate them together, allow several tabs to be selected in sequence
         return False
+
+class TextEvent(StateChangeEvent):
+    pass
        
 class PushButtonEvent(SelectEvent):
     def _generate(self, *args):
@@ -164,7 +184,7 @@ class Filter:
             return False
         
     def getWindow(self, widget):
-        pass
+        return swing.SwingUtilities.getWindowAncestor(widget)
     
     def hasEventOnWindow(self, widget):
         currWindow = self.getWindow(widget)
@@ -172,7 +192,7 @@ class Filter:
             return False
 
         for event in self.eventsFromUser:
-            if self.getWindow(event.widget) is currWindow:
+            if self.getWindow(event.getSource()) is currWindow:
                 return True
         return False
     
@@ -207,7 +227,7 @@ class Filter:
                 self.eventsFromUser.append(event)
             
     def handleMouseEvent(self, event):
-            return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), swing.JMenu)
+        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), swing.JMenu)
             
     def handleKeyEvent(self, event):
         # TODO: to be implemented
