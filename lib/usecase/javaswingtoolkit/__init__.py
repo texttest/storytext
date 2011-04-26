@@ -25,6 +25,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
     
     def run_python_file(self, *args):
+        #TODO: Launch normal java class main maethod
         usecase.guishared.ScriptEngine.run_python_file(self, *args)
         if self.replayerActive():
             simulator.swinglib.runKeyword("selectMainWindow", [])
@@ -41,15 +42,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
                 return eventClass(eventName, widget, argumentParseData)
                 
     def shouldWait(self):
-#        showing = True
-#        fr = Frame.getFrames()
-#        count = len(fr)
         return any((frame.isShowing() for frame in Frame.getFrames()))
-#        for i in range(count):
-#            if not fr[i].isShowing():
-#                showing = False
-#                break
-#        return showing
            
 class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
     def __init__(self, *args, **kw):
@@ -67,7 +60,6 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
     def describeAndRun(self):
         self.handleNewWindows()
         while True:
-            #runOnUIThread(theDescriber.describeWithUpdates, monitor.getActiveShell())
             if self.delay:
                 time.sleep(self.delay)
             if not self.runNextCommand():

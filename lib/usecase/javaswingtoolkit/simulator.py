@@ -48,17 +48,12 @@ usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 class SignalEvent(usecase.guishared.GuiEvent):
                 
     def generate(self, *args):
-        #self.checkWidgetStatus()
         self._generate(*args)
             
     def connectRecord(self, method):
         class ClickListener(MouseAdapter):
             def mousePressed(listenerSelf, event):
                 listenerSelf.pressedEvent = event
-        
-#            def mouseReleased(listenerSelf, event):
-#                if isinstance(event.getSource(), swing.JMenuItem) and not isinstance(event.getSource(), swing.JMenu):
-#                    method(listenerSelf.pressedEvent, self)
             
             def mouseClicked(listenerSelf, event):
                 method(listenerSelf.pressedEvent, self)
@@ -140,8 +135,7 @@ class TabSelectEvent(SelectEvent):
     
     def outputForScript(self, event, *args):
         swinglib.runKeyword("selectWindow", [ swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle()])
-        #print "LABEL", self.widget.getName()
-        #swinglib.runKeyword("selectTabPane", [ self.widget.getLabel() ])
+        #Should be used when more than oene TabbedPane is used: swinglib.runKeyword("selectTabPane", [ self.widget.getLabel() ])
         text = swinglib.runKeyword("getSelectedTabLabel", [])
         return ' '.join([self.name, text])
      
@@ -198,8 +192,10 @@ class Filter:
     
     def startListening(self):
         eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
+        # Should be commented out if we need to listen to these events:
         #| AWTEvent.WINDOW_EVENT_MASK | AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
         #| AWTEvent.ITEM_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASk
+        
         class AllEventListener(AWTEventListener):
             def eventDispatched(listenerSelf, event):
                 self.handleEvent(event)

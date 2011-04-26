@@ -8,6 +8,7 @@ class Describer(usecase.guishared.Describer):
     statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane]
+# Just as a remainder for all J-widgets we may describe:
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
 #                     swing.JRadioButton, swing.JTable, swing.JTextArea, swing.JTextField, swing.JToggleButton,
@@ -37,7 +38,6 @@ class Describer(usecase.guishared.Describer):
             elements.append("greyed out")
         if selected:
             elements.append("selected")
-        #elements.append(self.getContextMenuReference(item))
         return elements
     
     def getChildrenDescription(self, widget):
@@ -102,9 +102,6 @@ class Describer(usecase.guishared.Describer):
         descs = []
         for i in range(pane.getTabCount()):
             descs.append(" '" + pane.getTitleAt(i) + "'")
-            #comp = pane.getTabComponentAt(i)
-            #properties = self.getPropertyElements(comp, selected=False)
-            #self.widgetsWithState[comp] = properties
         return "".join(descs)
     
     def getJRootPaneDescription(self, pane):
@@ -115,14 +112,8 @@ class Describer(usecase.guishared.Describer):
     
     def getJPanelDescription(self, panel):
         return None
-#        if not panel.getName() or len(panel.getName()) == 0:
-#            return "P";
-#        if len(panel.getComponents())== 0:
-#            pass
-#        else:
-#            return "Panel:\n" + self.getChildrenDescription(panel)
-
-    #To be moved to super class
+    
+    #To be moved to super class. TODO: refactoring
     def combineElements(self, elements):
         elements = filter(len, elements)
         if len(elements) <= 1:
@@ -194,8 +185,6 @@ class Filter():
         
     def startListening(self):
         eventMask = AWTEvent.COMPONENT_EVENT_MASK
-        #| AWTEvent.WINDOW_EVENT_MASK | AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
-        #| AWTEvent.ITEM_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASk
         class AllEventListener(AWTEventListener):
             def eventDispatched(listenerSelf, event):
                 self.handleEvent(event)
