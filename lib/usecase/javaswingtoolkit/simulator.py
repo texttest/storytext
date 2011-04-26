@@ -123,7 +123,7 @@ class MenuSelectEvent(SelectEvent):
     def _generate(self, *args):
         self.setNameIfNeeded()
         path = util.getMenuPathString(self.widget)
-        swinglib.runKeyword("selectFromMenu", [ path ])
+        swinglib.runKeyword("selectFromMenuAndWait", [ path ])
 
 class TabSelectEvent(SelectEvent):
     def isStateChange(self):
