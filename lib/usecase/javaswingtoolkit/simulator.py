@@ -1,4 +1,4 @@
-import usecase.guishared, logging, util
+import usecase.guishared, logging, util, sys, threading
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
 WindowEvent, ActionEvent, ActionListener, ComponentEvent
@@ -31,17 +31,6 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         else:
             return ""
 
-#    def getTooltip(self):
-#        try:
-#            return self.widget.getToolTipText()
-#        except:
-#            return ""
-
-#    def getFromUIThread(self, method, *args):
-#        try:
-#            return runOnUIThread(method, *args)
-#        except:
-#            return ""
     
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
@@ -198,6 +187,9 @@ class Filter:
         
         class AllEventListener(AWTEventListener):
             def eventDispatched(listenerSelf, event):
+                # Primarily to make coverage work, it doesn't get enabled in threads made by Java
+                if hasattr(threading, "_trace_hook") and threading._trace_hook:
+                    sys.settrace(threading._trace_hook)
                 self.handleEvent(event)
         
         self.eventListener = AllEventListener()
