@@ -3,7 +3,7 @@
 
 from usecase.guishared import GuiEvent, MethodIntercept
 from usecase.definitions import UseCaseScriptError
-import gtk
+import gtk, gobject
 
 # Abstract Base class for all GTK events
 class GtkEvent(GuiEvent):
@@ -26,21 +26,9 @@ class GtkEvent(GuiEvent):
         if widget.isInstanceOf(gtk.TreeView):
             # Ignore this for treeviews: as they have no title/label they can't really get confused with other stuff
             return widget.get_model() is not None
-
-        # We tried using gobject.type_name and gobject.signal_list_names but couldn't make it work
-        # We go for the brute force approach : actually do it and remove it again and see if we succeed...
-        try:
-            def nullFunc(*args) : pass
-            if hasattr(widget, "connect_for_real"): # convention for when we intercept connect, as with dialogs
-                handler = widget.connect_for_real(signalName, nullFunc)
-                widget.disconnect_for_real(handler)
-            else:
-                handler = widget.connect(signalName, nullFunc)
-                widget.disconnect(handler)
-            return True
-        except TypeError:
-            return False
-
+        else:
+            return gobject.signal_query(signalName, widget.widget) is not None
+        
     def delayLevel(self):
         # If we get this when in dialog.run, the event that cause us has not yet been
         # recorded, so we should delay
