@@ -27,7 +27,7 @@ class GtkEvent(GuiEvent):
             # Ignore this for treeviews: as they have no title/label they can't really get confused with other stuff
             return widget.get_model() is not None
         else:
-            return gobject.signal_query(signalName, widget.widget) is not None
+            return gobject.signal_lookup(signalName, widget.widget) != 0
         
     def delayLevel(self):
         # If we get this when in dialog.run, the event that cause us has not yet been
