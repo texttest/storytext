@@ -12,9 +12,23 @@ class DialogHelper:
         if self.uiMap.scriptEngine.recorderActive():
             self.connect_for_real = self.connect
             self.connect = self.store_connect
+            self.disconnect_for_real = self.disconnect
+            handlerAttrs = [ "disconnect", "handler_is_connected", "handler_disconnect",
+                             "handler_block", "handler_unblock" ]
+            for attrName in handlerAttrs:
+                setattr(self, attrName, self.handlerWrap(attrName))
             
     def store_connect(self, signalName, *args):
-        windowevents.ResponseEvent.storeApplicationConnect(self, signalName, *args)
+        return windowevents.ResponseEvent.storeApplicationConnect(self, signalName, *args)
+
+    def handlerWrap(self, attrName):
+        method = getattr(self, attrName)
+        def wrapped_method(handler):
+            return method(self.handlers[handler])
+        return wrapped_method
+
+    def connect_and_store(self, *args):
+        self.handlers.append(self.connect_for_real(*args))
 
     def run(self):
         if gtk.main_level() == 0:
@@ -44,14 +58,16 @@ class Dialog(DialogHelper, origDialog):
     def __init__(self, *args, **kw):
         origDialog.__init__(self, *args, **kw)
         self.dialogRunLevel = 0
+        self.handlers = []
         self.tryMonitor()
-
+    
 
 class FileChooserDialog(DialogHelper, origFileChooserDialog):
     uiMap = None
     def __init__(self, *args, **kw):
         origFileChooserDialog.__init__(self, *args, **kw)
         self.dialogRunLevel = 0
+        self.handlers = []
         self.tryMonitor()
 
 

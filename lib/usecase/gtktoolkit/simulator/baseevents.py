@@ -33,9 +33,10 @@ class GtkEvent(GuiEvent):
             def nullFunc(*args) : pass
             if hasattr(widget, "connect_for_real"): # convention for when we intercept connect, as with dialogs
                 handler = widget.connect_for_real(signalName, nullFunc)
+                widget.disconnect_for_real(handler)
             else:
                 handler = widget.connect(signalName, nullFunc)
-            widget.disconnect(handler)
+                widget.disconnect(handler)
             return True
         except TypeError:
             return False

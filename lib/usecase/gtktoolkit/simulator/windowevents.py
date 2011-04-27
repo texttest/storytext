@@ -58,7 +58,9 @@ class ResponseEvent(SignalEvent):
 
     @classmethod
     def storeApplicationConnect(cls, dialog, signalName, *args):
-        cls.dialogInfo.setdefault(dialog, []).append((signalName, args))
+        currDialogInfo = cls.dialogInfo.setdefault(dialog, [])
+        currDialogInfo.append((signalName, args))
+        return len(currDialogInfo) - 1
 
     def getProgrammaticChangeMethods(self):
         return [ self.widget.response ]
@@ -72,7 +74,7 @@ class ResponseEvent(SignalEvent):
     def connectStored(cls, dialog):
         # Finally, add in all the application's handlers
         for signalName, args in cls.dialogInfo.get(dialog, []):
-            dialog.connect_for_real(signalName, *args)
+            dialog.connect_and_store(signalName, *args)
 
     def getEmissionArgs(self, argumentString):
         return [ self.responseId ]
