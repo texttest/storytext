@@ -1,5 +1,5 @@
 
-import usecase.guishared, time
+import usecase.guishared, time, os
 from javax import swing
 from java.awt import Frame
 import SwingLibrary
@@ -15,22 +15,25 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JCheckBox    , [ simulator.SelectEvent]),
         (swing.JMenuItem    , [ simulator.MenuSelectEvent]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
-        (swing.JDialog       , [ simulator.FrameCloseEvent ]),
+        (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         ]
     
-    def __init__(self, *args, **kw):
-        usecase.guishared.ScriptEngine.__init__(self, *args, **kw)
-        
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
     
-    def run_python_file(self, *args):
-        #TODO: Launch normal java class main maethod
-        usecase.guishared.ScriptEngine.run_python_file(self, *args)
+    def run_python_file(self, args):
+        # Two options here: either a Jython program and hence a .py file, or a Java class
+        # If it's a file, assume it's Python
+        if os.path.isfile(args[0]):
+            usecase.guishared.ScriptEngine.run_python_file(self, args)
+        else:
+            exec "import " + args[0] + " as _className"
+            _className.main(args)
+
         if self.replayerActive():
             simulator.swinglib.runKeyword("selectMainWindow", [])
             self.replayer.describeAndRun()
-        else:
+        else: # pragma: no cover - replayer disabled, cannot create automated tests
             self.replayer.handleNewWindows()           
             while self.shouldWait() :
                 time.sleep(0.1)
@@ -41,7 +44,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             if eventDescriptor in eventClass.getAssociatedSignatures(widget):
                 return eventClass(eventName, widget, argumentParseData)
                 
-    def shouldWait(self):
+    def shouldWait(self): # pragma: no cover - replayer disabled, cannot create automated tests
         return any((frame.isShowing() for frame in Frame.getFrames()))
            
 class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
@@ -53,10 +56,9 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         pass
            
     def tryAddDescribeHandler(self):
-        from simulator import Filter
-        self.filter = Filter()
+        self.filter = simulator.Filter()
         self.filter.startListening()
-    
+        
     def describeAndRun(self):
         self.handleNewWindows()
         while True:
@@ -75,4 +77,3 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         from describer import Describer
         return Describer
     
-        

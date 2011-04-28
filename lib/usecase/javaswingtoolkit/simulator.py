@@ -1,9 +1,7 @@
 import usecase.guishared, logging, util, sys, threading
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-WindowEvent, ActionEvent, ActionListener, ComponentEvent
-from java.lang import Runnable, InterruptedException, System, Runtime
-from java.lang.reflect import InvocationTargetException
+WindowEvent, ActionEvent,ComponentEvent
 from javax import swing
 import SwingLibrary
 
@@ -89,12 +87,6 @@ class SelectEvent(SignalEvent):
     def shouldRecord(self, event, *args):
         return Filter.getEventFromUser(event) and event.getModifiers() & MouseEvent.BUTTON1_MASK != 0
 
-class StateChangeEvent(SignalEvent):
-    def outputForScript(self, *args):
-        return ' '.join([self.name, self.getStateText(*args) ])
-
-    def isStateChange(self, *args):
-        return True
     
 class MenuSelectEvent(SelectEvent):                            
     def connectRecord(self, method):
@@ -133,18 +125,6 @@ class TabSelectEvent(SelectEvent):
         # But don't amalgamate them together, allow several tabs to be selected in sequence
         return False
 
-class TextEvent(StateChangeEvent):
-    pass
-       
-class PushButtonEvent(SelectEvent):
-    def _generate(self, *args):
-        self.setNameIfNeeded()
-        swinglib.runKeyword("pushButton", [ self.widget.getName()])
-
-class ToggleButtonEvent(SelectEvent):
-    def _generate(self, *args):
-        self.setNameIfNeeded()
-        swinglib.runKeyword("pushButton", [ self.widget.getName()]) 
               
 class Filter:
     eventsFromUser = []
@@ -201,18 +181,15 @@ class Filter:
     
     def handleEvent(self, event):
         if isinstance(event.getSource(), Component) and not self.hasEventOnWindow(event.getSource()):
-            addToFilter = True;
-            if isinstance(event, MouseEvent):
-                addToFilter = self.handleMouseEvent(event)
-            elif isinstance(event, KeyEvent):
-                addToFilter = self.handleKeyEvent(event)
-            elif isinstance(event, WindowEvent):
-                addToFilter = self.handleWindowEvent(event)
-            elif isinstance(event, ActionEvent):
-                addToFilter(self.handleActionEvent(event))
-            if addToFilter:
+            if self.addToFilter(event):
                 self.logger.debug("Filter for event " + event.toString())    
                 self.eventsFromUser.append(event)
+    
+    def addToFilter(self, event):
+        for cls in [ MouseEvent, KeyEvent, WindowEvent, ActionEvent ]:
+            if isinstance(event, cls):
+                return getattr(self, "handle" + cls.__name__)(event)
+        return True
             
     def handleMouseEvent(self, event):
         return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), swing.JMenu)

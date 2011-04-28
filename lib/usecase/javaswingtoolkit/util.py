@@ -1,5 +1,4 @@
-from java.lang import Runnable, InterruptedException
-from java.lang.reflect import InvocationTargetException
+from java.lang import Runnable
 from javax import swing
 
 def runOnEventDispatchThread(method, *args):
@@ -10,13 +9,8 @@ def runOnEventDispatchThread(method, *args):
     if swing.SwingUtilities.isEventDispatchThread():
         method(*args)
     else:
-        try:
-            swing.SwingUtilities.invokeAndWait(EDTRunnable())
-        except InterruptedException, e:
-            print "EXCEPTION", e
-        except InvocationTargetException, e:
-            print "EXCEPTION", e
-
+        swing.SwingUtilities.invokeAndWait(EDTRunnable())
+        
 def getMenuPathString(widget):
     result = []
     parent = widget.getParent()
