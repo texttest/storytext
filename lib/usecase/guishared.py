@@ -433,6 +433,12 @@ class UIMapFileHandler:
     def __getattr__(self, name):
         return getattr(self.readParser, name)
 
+    def findSectionAndOption(self, valueString):
+        for section in self.readParser.sections():
+            for optionName, value in self.readParser.items(section):
+                if valueString.startswith(value):
+                    return section, optionName
+        return None, None
 
 class UIMap:
     ignoreWidgetTypes = []
@@ -444,6 +450,9 @@ class UIMap:
 
     def readFiles(self, uiMapFiles):
         self.fileHandler.readFiles(uiMapFiles)
+
+    def findWidgetDetails(self, scriptCommand):
+        return self.fileHandler.findSectionAndOption(scriptCommand)
 
     def getMapFileNames(self):
         return [ parser.fileName for parser in self.fileHandler.writeParsers ]
@@ -613,6 +622,13 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
         else:
             return False
 
+    def getParseError(self, scriptCommand):
+        widgetDescriptor, actionName = self.uiMap.findWidgetDetails(scriptCommand)
+        if widgetDescriptor:
+            return "Could not execute script command '" + scriptCommand + "'.\n" + \
+                   "No widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on."
+        else:
+            return replayer.UseCaseReplayer.getParseError(self, scriptCommand)
 
 # Base class for tkinter and wx only right now, should be developed further and bring in gtk also
 class Describer:

@@ -216,9 +216,12 @@ class UseCaseReplayer:
     def parseCommand(self, scriptCommand):
         commandName = self.findCommandName(scriptCommand)
         if not commandName:
-            raise UseCaseScriptError, "Could not parse script command '" + scriptCommand + "'"
+            raise UseCaseScriptError, self.getParseError(scriptCommand)
         argumentString = self.getArgument(scriptCommand, commandName)
         return commandName, argumentString
+
+    def getParseError(self, scriptCommand):
+        return "Could not parse script command '" + scriptCommand + "'"
 
     def getArgument(self, scriptCommand, commandName):
         return scriptCommand.replace(commandName, "").strip()
