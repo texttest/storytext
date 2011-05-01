@@ -1,13 +1,11 @@
-import usecase.guishared, logging, util
+import usecase.guishared, logging
 import java.awt as awt
 from javax import swing
-from java.awt import AWTEvent, Toolkit, Component
-from java.awt.event import AWTEventListener, ComponentEvent
 
 class Describer(usecase.guishared.Describer):
-    statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel]
+    statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel, swing.JOptionPane]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
-                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane]
+                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu]
 # Just as a remainder for all J-widgets we may describe:
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
@@ -18,10 +16,6 @@ class Describer(usecase.guishared.Describer):
         self.widgetsAppeared = []
         self.described = []
         self.diag = logging.getLogger("Swing structure")
-
-    def addFilters(self):
-        self.filter = Filter(self)
-        self.filter.startListening()
      
     def setWidgetShown(self, widget):
         if widget not in self.widgetsAppeared:
@@ -61,8 +55,12 @@ class Describer(usecase.guishared.Describer):
         return window.getTitle()
     
     def getJButtonDescription(self, widget):
-        return self.getComponentDescription(widget, "JButton")
+        res = self.getComponentDescription(widget, "JButton")
+        return res
     
+    def getJButtonState(self, button):
+        return self.combineElements(self.getComponentState(button))
+        
     def getJMenuDescription(self, menu, indent=1):
         return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions)
     
@@ -90,11 +88,15 @@ class Describer(usecase.guishared.Describer):
     def getComponentState(self, widget):
         return self.getPropertyElements(widget, selected=widget.isSelected())
     
-    def getComponentDescription(self, widget, name, statemethod=getComponentState, *args):
+    def getComponentDescription(self, widget, name, statemethod=None, *args):
         if widget.getText():
             name += " '" + widget.getText() + "'"
-        properties = statemethod(self, widget, *args)
-        self.widgetsWithState[widget] = properties
+        
+        if statemethod:
+            properties = statemethod(widget, *args)
+        else:
+            properties = self.getComponentState(widget)
+        self.widgetsWithState[widget] = self.combineElements(properties)
         elements = [ name ] + properties 
         return self.combineElements(elements)
     
@@ -112,6 +114,40 @@ class Describer(usecase.guishared.Describer):
     
     def getJPanelDescription(self, panel):
         return None
+    
+    def getJOptionPaneDescription(self, pane):
+        return None
+    
+    def getJPopupMenuDescription(self, menu):
+        return None
+    
+    def getJPopupMenuState(self, menu):
+        return None
+    
+    def getJDialogState(self, dialog):
+        return dialog.getTitle()
+    
+    def getJLabelDescription(self, label):
+        return self.getComponentDescription(label, "JLabel", statemethod=self.getPropertyElements)
+    
+    def getJLabelState(self, label):
+        return self.getComponentState(label)
+    
+    def getImageDescription(self, image):
+        #TODO: describe the image
+        return "Image"
+    
+    def getTextEntryClass(self):
+        return awt.TextComponent
+    
+    def getUpdatePrefix(self, widget, oldState, state):
+        return "\nUpdated "
+     
+    def widgetTypeDescription(self, typeName):
+        #skipping java inner classes 
+        if typeName.find("$") >= 0:
+            return ""
+        return "A widget of type '" + typeName + "'" 
     
     #To be moved to super class. TODO: refactoring
     def combineElements(self, elements):
@@ -176,29 +212,3 @@ class Describer(usecase.guishared.Describer):
         else:
             return []
     
-class Filter():
-    logger = None
-    eventListener = None
-    def __init__(self, describer):
-        self.describer = describer
-        Filter.logger = logging.getLogger("usecase record")
-        
-    def startListening(self):
-        eventMask = AWTEvent.COMPONENT_EVENT_MASK
-        class AllEventListener(AWTEventListener):
-            def eventDispatched(listenerSelf, event):
-                self.handleEvent(event)
-        
-        self.eventListener = AllEventListener()
-        util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, self.eventListener, eventMask)
-    
-    @classmethod
-    def stopListening(cls):
-        util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().removeAWTEventListener, cls.eventListener)
-            
-    def handleEvent(self, event):
-        if isinstance(event.getSource(), Component):
-            if isinstance(event, ComponentEvent) and event.getID() == ComponentEvent.COMPONENT_SHOWN:
-                self.describer.setWidgetShown(event.getSource)
-            
-            

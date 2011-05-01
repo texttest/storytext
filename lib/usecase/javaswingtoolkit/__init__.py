@@ -2,10 +2,8 @@
 import usecase.guishared, time, os
 from javax import swing
 from java.awt import Frame
-import SwingLibrary
-import simulator
+import simulator, util
 
-simulator.swinglib = SwingLibrary()
     
 class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = [
@@ -31,7 +29,6 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             _className.main(args)
 
         if self.replayerActive():
-            simulator.swinglib.runKeyword("selectMainWindow", [])
             self.replayer.describeAndRun()
         else: # pragma: no cover - replayer disabled, cannot create automated tests
             self.replayer.handleNewWindows()           
@@ -56,19 +53,19 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         pass
            
     def tryAddDescribeHandler(self):
-        self.filter = simulator.Filter()
+        self.filter = simulator.Filter(self.uiMap)
         self.filter.startListening()
         
     def describeAndRun(self):
-        self.handleNewWindows()
         while True:
+            util.runOnEventDispatchThread(self.describer.describeUpdates)
             if self.delay:
                 time.sleep(self.delay)
             if not self.runNextCommand():
                 break
                 
     def findWindowsForMonitoring(self):
-        return Frame.getFrames()
+        return []
     
     def describeNewWindow(self, frame):
         self.describer.describe(frame)
@@ -77,3 +74,10 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         from describer import Describer
         return Describer
     
+    def handleNewWindow(self, window):
+        if self.uiMap and (self.isActive() or self.recorder.isActive()):
+            self.uiMap.monitorAndStoreWindow(window)
+        if self.loggerActive:
+            self.describeNewWindow(window)
+
+
