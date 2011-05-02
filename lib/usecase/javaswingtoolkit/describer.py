@@ -13,19 +13,14 @@ class Describer(usecase.guishared.Describer):
 #                     swing.JToolBar, swing.JTree, swing.JWindow]
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
-        self.widgetsAppeared = []
         self.described = []
         self.diag = logging.getLogger("Swing structure")
-     
-    def setWidgetShown(self, widget):
-        if widget not in self.widgetsAppeared:
-            self.widgetsAppeared.append(widget)
       
     def getPropertyElements(self, item, selected=False):
         elements = []
-        if hasattr(item, "getToolTipText") and item.getToolTipText():
-            elements.append("Tooltip '" + item.getToolTipText() + "'")
-        #elements += self.getStyleDescriptions(item)
+#        Will be used when adding tooltip tests
+#        if hasattr(item, "getToolTipText") and item.getToolTipText():
+#            elements.append("Tooltip '" + item.getToolTipText() + "'")
         if hasattr(item, "getIcon") and item.getIcon():
             elements.append(self.getImageDescription(item.getIcon()))
         if hasattr(item, "isEnabled") and not item.isEnabled():
@@ -64,14 +59,8 @@ class Describer(usecase.guishared.Describer):
     def getJMenuDescription(self, menu, indent=1):
         return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions)
     
-    def getJMenuState(self, menu):
-        return self.getJMenuDescription(menu, indent=2)
-    
     def getJMenuBarDescription(self, menubar):
-        if menubar:
-            return "Menu Bar:\n" + self.getJMenuDescription(menubar)
-        else:
-            return ""
+        return "Menu Bar:\n" + self.getJMenuDescription(menubar)
     
     def getJToolBarDescription(self, toolbar, indent=1):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
@@ -118,9 +107,6 @@ class Describer(usecase.guishared.Describer):
     def getJOptionPaneDescription(self, pane):
         return None
     
-    def getJPopupMenuDescription(self, menu):
-        return None
-    
     def getJPopupMenuState(self, menu):
         return None
     
@@ -137,17 +123,8 @@ class Describer(usecase.guishared.Describer):
         #TODO: describe the image
         return "Image"
     
-    def getTextEntryClass(self):
-        return awt.TextComponent
-    
     def getUpdatePrefix(self, widget, oldState, state):
         return "\nUpdated "
-     
-    def widgetTypeDescription(self, typeName):
-        #skipping java inner classes 
-        if typeName.find("$") >= 0:
-            return ""
-        return "A widget of type '" + typeName + "'" 
     
     #To be moved to super class. TODO: refactoring
     def combineElements(self, elements):
@@ -162,9 +139,6 @@ class Describer(usecase.guishared.Describer):
         text = ""
         if hasattr(item, "getText"):
             text = item.getText()
-        elif hasattr(item, "getLabel"):
-            if item.getLabel():
-                text = item.getLabel()
         elements.append(text)
         elements += self.getPropertyElements(item, *args)
         desc = self.combineElements(elements)
@@ -175,12 +149,10 @@ class Describer(usecase.guishared.Describer):
         return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
-                               prefix="", selection=[], columnCount=0):
+                               prefix="", selection=[]):
         descs = []
         items = []
-        if hasattr(itemBar, "getItems"):
-            items = itemBar.getItems()
-        elif hasattr(itemBar, "getSubElements"):
+        if hasattr(itemBar, "getSubElements"):
             items = itemBar.getSubElements()
         elif hasattr(itemBar, "getComponents"):
             items = itemBar.getComponents()
@@ -189,15 +161,10 @@ class Describer(usecase.guishared.Describer):
             currPrefix = prefix + " " * indent * 2
             itemDesc = self.getItemDescription(item, currPrefix, item in selection)
             self.described.append(item)
-            if columnCount:
-                row = [ itemDesc ]
-                for colIndex in range(1, columnCount):
-                    row.append(self.getItemColumnDescription(item, colIndex))
-                descs.append(row)
-            elif itemDesc:
+            if itemDesc:
                 descs.append(itemDesc)
             if subItemMethod:
-                descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount)
+                descs += subItemMethod(item, indent, prefix=prefix, selection=selection)
         return descs
 
     def getCascadeMenuDescriptions(self, item, indent, **kw):
