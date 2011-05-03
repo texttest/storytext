@@ -23,12 +23,18 @@ class DialogHelper:
 
     def handlerWrap(self, attrName):
         method = getattr(self, attrName)
-        def wrapped_method(handler):
+        def wrapped_handler(handler):
             return method(self.handlers[handler])
-        return wrapped_method
+        return wrapped_handler
 
-    def connect_and_store(self, *args):
-        self.handlers.append(self.connect_for_real(*args))
+    def connect_and_store(self, signalName, method, *args):
+        def wrapped_method(*methodargs, **kw):
+            baseevents.DestroyIntercept.inResponseHandler = True
+            try:
+                method(*methodargs, **kw)
+            finally:
+                baseevents.DestroyIntercept.inResponseHandler = False
+        self.handlers.append(self.connect_for_real(signalName, wrapped_method, *args))
 
     def run(self):
         if gtk.main_level() == 0:
@@ -47,6 +53,7 @@ class DialogHelper:
 
         self.dialogRunLevel -= 1
         self.set_modal(origModal)
+        baseevents.GtkEvent.disableIntercepts(self)
         return self.response_received
 
     def runResponse(self, dialog, response):

@@ -11,8 +11,15 @@ class GtkEvent(GuiEvent):
         GuiEvent.__init__(self, name, widget)
         self.interceptMethod(self.widget.stop_emission, EmissionStopIntercept)
         self.interceptMethod(self.widget.emit_stop_by_name, EmissionStopIntercept)
+        self.interceptMethod(self.widget.get_toplevel().destroy, DestroyIntercept)
         self.stopEmissionMethod = None
-        
+        self.destroyMethod = None
+
+    @staticmethod
+    def disableIntercepts(window):
+        if isinstance(window.destroy, MethodIntercept):
+            window.destroy = window.destroy.method
+
     @classmethod
     def getAssociatedSignal(cls, widget):
         return cls.signalName
@@ -43,16 +50,18 @@ class GtkEvent(GuiEvent):
 
     def _connectRecord(self, gobj, method):
         handler = gobj.connect(self.getRecordSignal(), method, self)
-        gobj.connect(self.getRecordSignal(), self.stopEmissions)
+        gobj.connect(self.getRecordSignal(), self.executePostponedActions)
         return handler
 
     def outputForScript(self, widget, *args):
         return self._outputForScript(*args)
 
-    def stopEmissions(self, *args):
+    def executePostponedActions(self, *args):
         if self.stopEmissionMethod:
             self.stopEmissionMethod(self.getRecordSignal())
             self.stopEmissionMethod = None
+        if self.destroyMethod:
+            self.destroyMethod()
 
     def shouldRecord(self, *args):
         return GuiEvent.shouldRecord(self, *args) and self.widget.get_property("visible")
@@ -85,6 +94,15 @@ class EmissionStopIntercept(MethodIntercept):
         for event in self.events:
             if stdSigName == event.getRecordSignal():
                 event.stopEmissionMethod = self.method
+
+class DestroyIntercept(MethodIntercept):
+    inResponseHandler = False    
+    def __call__(self):
+        if self.inResponseHandler:
+            self.method()
+        else:
+            for event in self.events:
+                event.destroyMethod = self.method
 
         
 # Generic class for all GTK events due to widget signals. Many won't be able to use this, however

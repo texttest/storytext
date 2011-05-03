@@ -11,7 +11,8 @@ class DeletionEvent(SignalEvent):
         return [ gtk.gdk.Event(gtk.gdk.DELETE) ]
             
     def generate(self, argumentString):
-        SignalEvent.generate(self, argumentString)
+        SignalEvent.generate(self, argumentString)    
+        self.disableIntercepts(self.widget)
         self.widget.destroy() # just in case...
 
     def shouldRecord(self, *args):
@@ -67,7 +68,7 @@ class ResponseEvent(SignalEvent):
 
     def _connectRecord(self, dialog, method):
         handler = dialog.connect_for_real(self.getRecordSignal(), method, self)
-        dialog.connect_for_real(self.getRecordSignal(), self.stopEmissions)
+        dialog.connect_for_real(self.getRecordSignal(), self.executePostponedActions)
         return handler
 
     @classmethod
