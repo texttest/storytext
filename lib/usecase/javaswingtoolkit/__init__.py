@@ -14,6 +14,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JMenuItem    , [ simulator.MenuSelectEvent]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
+        (swing.JList        , [ simulator.ListSelectEvent]),
         ]
     
     def createReplayer(self, universalLogging=False):

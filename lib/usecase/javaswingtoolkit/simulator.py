@@ -1,4 +1,5 @@
 import usecase.guishared, logging, util, sys, threading
+from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
 WindowEvent, ComponentEvent
@@ -119,6 +120,12 @@ class SelectEvent(SignalEvent):
     def shouldRecord(self, event, *args):
         return Filter.getEventFromUser(event) and event.getModifiers() & MouseEvent.BUTTON1_MASK != 0
 
+class StateChangeEvent(SignalEvent):
+    def outputForScript(self, *args):
+        return ' '.join([self.name, self.getStateText(*args) ])
+
+    def isStateChange(self, *args):
+        return True
     
 class MenuSelectEvent(SelectEvent):                            
     def connectRecord(self, method):
@@ -155,7 +162,38 @@ class TabSelectEvent(SelectEvent):
         # But don't amalgamate them together, allow several tabs to be selected in sequence
         return False
 
-              
+class ListSelectEvent(StateChangeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Select" 
+    
+    def _generate(self, argumentString):
+        selected = argumentString.split(", ")
+        params = [ self.widget.getName() ]
+        try:
+            swinglib.runKeyword("selectFromList", params + selected)
+        except:
+            raise UseCaseScriptError, "Could not find item labeled '" + argumentString + "' in list."
+    
+    def getStateText(self, *args):
+        return self.getSelectedValues()
+    
+    def getSelectedValues(self):
+        text = ""
+        selection = self.widget.getSelectedValues()
+        size = len(selection)
+        counter = 0
+        for item in selection:
+            text += item
+            if size -counter > 1:
+                text += ", "
+            counter += 1
+        return text
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        return currOutput.startswith(stateChangeOutput)
+                                         
 class Filter:
     eventsFromUser = []
     logger = None
