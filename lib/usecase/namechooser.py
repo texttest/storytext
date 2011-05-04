@@ -168,7 +168,7 @@ class UseCaseNameChooser:
                 entry = self.allEntries.get(autoCmdName)
                 entry.connect("changed", self.updatePreview, (buffer, ix, autoArg))
             else:                
-                buffer.insert(buffer.get_end_iter(), command + "\n")
+                buffer.insert(buffer.get_end_iter(), self.convertToUtf8(command) + "\n")
         frame.add(view)
         return frame
 
