@@ -91,11 +91,15 @@ class UseCaseReplayer:
     
     def addScript(self, script):
         self.scripts.append(script)
+        if self.processInitialWait(script):
+            self.enableReading()
+
+    def processInitialWait(self, script):
         waitCommand = script.getCommand(waitCommandName)
         if waitCommand:
-            self.processWait(self.getArgument(waitCommand, waitCommandName))
+            return self.processWait(self.getArgument(waitCommand, waitCommandName))
         else:
-            self.enableReading()
+            return True
         
     def enableReading(self):
         # By default, we create a separate thread for background execution

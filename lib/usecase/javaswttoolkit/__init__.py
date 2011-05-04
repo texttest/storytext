@@ -71,10 +71,11 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
 
     def addScript(self, script):
-        # Don't process initial application events any differently
-        # We need to make sure the replay thread actually hangs around to do something
         self.scripts.append(script)
-        self.enableReading()
+        self.waiting = not self.processInitialWait(script)
+        # We need to make sure the replay thread actually hangs around to do something
+        # so we enable even if we're waiting
+        self.enableReplayInitially()
             
     def enableReading(self):
         if self.waiting:
@@ -105,6 +106,8 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         return Describer
 
     def runCommands(self, monitor):
+        if self.waiting:
+            self.waitForReenable()
         theDescriber = self.getDescriberClass()()
         from simulator import runOnUIThread
         runOnUIThread(theDescriber.addFilters, monitor.getDisplay())
@@ -113,13 +116,13 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
             if self.delay:
                 time.sleep(self.delay)
             if not self.runNextCommand():
-                if self.waitingCompleted():
-                    break
-                else:
-                    self.logger.debug("Waiting for replaying to be re-enabled...")
+                self.waiting = not self.waitingCompleted()
+                if self.waiting:
                     self.waitForReenable()
+                else:
+                    break
 
     def waitForReenable(self):
-        self.waiting = True
+        self.logger.debug("Waiting for replaying to be re-enabled...")
         while self.waiting:
             time.sleep(0.1) # don't use the whole CPU while waiting
