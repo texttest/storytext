@@ -145,10 +145,8 @@ class UseCaseNameChooser:
 
     def updatePreview(self, entry, data):
         buffer, lineNo, arg = data
-        text = entry.get_text()
-        toUse = "?"
-        if text:
-            toUse = self.convertToUtf8(text + arg)
+        text = entry.get_text() or "?"
+        toUse = self.convertToUtf8(text + arg)
         start = buffer.get_iter_at_line(lineNo)
         end = buffer.get_iter_at_line(lineNo + 1)
         buffer.delete(start, end)
@@ -164,7 +162,7 @@ class UseCaseNameChooser:
         for ix, command in enumerate(commands):
             autoCmdName, autoArg = self.splitAutoCommand(command)
             if autoCmdName:
-                buffer.insert(buffer.get_end_iter(), "?\n")
+                buffer.insert(buffer.get_end_iter(), self.convertToUtf8("?" + autoArg + "\n"))
                 entry = self.allEntries.get(autoCmdName)
                 entry.connect("changed", self.updatePreview, (buffer, ix, autoArg))
             else:                
