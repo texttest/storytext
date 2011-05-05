@@ -353,6 +353,7 @@ Version 3.5.1
 General bugfixes:
     - Source distribution corrected for Python < 2.6 (and hence Jython)
 	Will now work to install there using pip or easy_install
+    - "Name Chooser" UI now shows arguments also when usecase name has not been chosen yet
     - "Name Chooser" UI now handles encodings other than UTF-8 for unicode (an additional issue fixed)
     - Error message now distinguishes between failing to lookup in UI map file, and failing to find referenced widget
 
