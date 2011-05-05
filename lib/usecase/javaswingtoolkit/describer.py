@@ -16,8 +16,12 @@ class Describer(usecase.guishared.Describer):
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
         self.described = []
-        self.diag = logging.getLogger("Swing structure")
-      
+    
+    def describe(self, window):
+        if self.structureLogger.isEnabledFor(logging.DEBUG) and window not in self.windows:
+            self.describeStructure(window)
+        usecase.guishared.Describer.describe(self, window)
+            
     def getPropertyElements(self, item, selected=False):
         elements = []
 #        Will be used when adding tooltip tests
@@ -133,7 +137,7 @@ class Describer(usecase.guishared.Describer):
         return "Image"
     
     def getJListDescription(self, list):
-        self.leaveItemsWithoutDescriptions(list, (swing.CellRendererPane,), tuple=True)
+        self.leaveItemsWithoutDescriptions(list, None, (swing.CellRendererPane,))
         return self.getAndStoreState(list)
 
     def getJListState(self, widget):
@@ -150,29 +154,26 @@ class Describer(usecase.guishared.Describer):
     def getUpdatePrefix(self, widget, oldState, state):
         return "\nUpdated "
     
-    #To be moved to super class. TODO: refactoring
-    def leaveItemsWithoutDescriptions(self, itemContainer, filter=None, tuple=False):
+    def getStructureName(self):
+        return "Swing structure"
+    
+    def leaveItemsWithoutDescriptions(self, itemContainer, skippedObjects=None, skippedClasses=None):
         items = []
         if hasattr(itemContainer, "getSubElements"):
             items = itemContainer.getSubElements()
         elif hasattr(itemContainer, "getComponents"):
             items = itemContainer.getComponents()
-            
+        
         for item in items:
-            if not filter or item in filter or (tuple and isinstance(item, filter)):
-                self.described.append(item)
+            if skippedObjects and not item in skippedObjects or \
+            skippedClasses and not isinstance(item, skippedClasses):
+                continue
+            self.described.append(item)  
         
     def getAndStoreState(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         return state
-    
-    def combineElements(self, elements):
-        elements = filter(len, elements)
-        if len(elements) <= 1:
-            return "".join(elements)
-        else:
-            return elements[0] + " (" + ", ".join(elements[1:]) + ")"
     
     def getItemDescription(self, item, prefix, *args):
         elements = []
@@ -218,4 +219,5 @@ class Describer(usecase.guishared.Describer):
             return descs
         else:
             return []
+    
     

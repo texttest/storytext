@@ -87,7 +87,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
             self.widget.setName(name)
 
     def delayLevel(self):
-        # If there are events for other shells, implies we should delay as we're in a dialog
+        # If there are events for other windows, implies we should delay as we're in a dialog
         return len(Filter.eventsFromUser)
     
 class FrameCloseEvent(SignalEvent):
@@ -153,7 +153,7 @@ class TabSelectEvent(SelectEvent):
     
     def outputForScript(self, event, *args):
         swinglib.runKeyword("selectWindow", [ swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle()])
-        #Should be used when more than oene TabbedPane is used: swinglib.runKeyword("selectTabPane", [ self.widget.getLabel() ])
+        #Should be used when more than one TabbedPane exist: swinglib.runKeyword("selectTabPane", [ self.widget.getLabel() ])
         text = swinglib.runKeyword("getSelectedTabLabel", [])
         return ' '.join([self.name, text])
      
@@ -179,16 +179,7 @@ class ListSelectEvent(StateChangeEvent):
         return self.getSelectedValues()
     
     def getSelectedValues(self):
-        text = ""
-        selection = self.widget.getSelectedValues()
-        size = len(selection)
-        counter = 0
-        for item in selection:
-            text += item
-            if size -counter > 1:
-                text += ", "
-            counter += 1
-        return text
+        return ", ".join(self.widget.getSelectedValues())
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
@@ -278,5 +269,3 @@ class Filter:
     def monitorNewWindow(self, event):
         if isinstance(event.getSource(), (swing.JFrame, swing.JDialog)):
             self.uiMap.scriptEngine.replayer.handleNewWindow(event.getSource())
-
-

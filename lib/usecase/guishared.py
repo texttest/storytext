@@ -5,6 +5,7 @@ stuff also applicable even without this """
 import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess
 from ordereddict import OrderedDict
 from locale import getdefaultlocale
+from traceback import format_exception
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
 if sys.version_info[:2] >= (2, 6):
@@ -228,6 +229,11 @@ class ScriptEngine(scriptengine.ScriptEngine):
         if event.name and self.recorderActive():
             event.connectRecord(self.recorder.writeEvent)
 
+    def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
+        for eventClass in self.findEventClassesFor(widget):
+            if eventDescriptor in eventClass.getAssociatedSignatures(widget):
+                return eventClass(eventName, widget, argumentParseData)
+            
     def getUsecaseNameChooserEnv(self):
         new_env = {}
         for var, value in os.environ.items():
@@ -636,6 +642,7 @@ class Describer:
         self.logger = logging.getLogger("gui log")
         self.windows = set()
         self.widgetsWithState = OrderedDict()
+        self.structureLogger = logging.getLogger(self.getStructureName())
 
     def describe(self, window):
         if window in self.windows:
@@ -665,6 +672,8 @@ class Describer:
                 state = self.getState(widget)
             except:
                 # If the frame where it existed has been removed, for example...
+                message = "Warning: The following exception has been thrown:\n"
+                self.logger.debug(message.join(getExceptionString()))
                 defunctWidgets.append(widget)
                 continue
 
@@ -738,3 +747,45 @@ class Describer:
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
         return ""
+
+    def combineElements(self, elements):
+        elements = filter(len, elements)
+        if len(elements) <= 1:
+            return "".join(elements)
+        else:
+            return elements[0] + " (" + ", ".join(elements[1:]) + ")"
+    
+    def getStructureName(self):
+        return "Default structure"    
+    ##Debug code
+    def getRawData(self, widget, useModule=False):
+        basic = ""
+        if useModule:
+            basic = widget.__class__.__module__ + "."
+        basic += widget.__class__.__name__ + " " + str(id(widget))
+        if hasattr(widget, "isDisposed") and widget.isDisposed():
+            return basic
+        if hasattr(widget, "getLayout"):
+            layout = widget.getLayout()
+            if layout is not None:
+                basic += " (" + layout.__class__.__name__
+                if hasattr(layout, "numColumns"):
+                    basic += ", " + str(layout.numColumns) + " columns"
+                basic += ")"
+        if hasattr(widget, "getVisible") and not widget.getVisible() or \
+        hasattr(widget, "getVisible") and not widget.isVisible():
+            basic += " (invisible)"
+        return basic
+        
+    def describeStructure(self, widget, indent=0):
+        self.structureLogger.info("-" * 2 * indent + self.getRawData(widget, useModule=True))
+        if hasattr(widget, "getChildren"):
+            for child in widget.getChildren():
+                self.describeStructure(child, indent+1)
+        elif hasattr(widget, "getComponents"):
+            for child in widget.getComponents():
+                self.describeStructure(child, indent+1)
+
+def getExceptionString():
+    type, value, traceback = sys.exc_info()
+    return "".join(format_exception(type, value, traceback))

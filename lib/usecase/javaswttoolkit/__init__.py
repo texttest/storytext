@@ -28,11 +28,6 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             exec "import " + args[0] + " as _className"
             _className.main(args)
 
-    def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
-        for eventClass in self.findEventClassesFor(widget):
-            if eventDescriptor in eventClass.getAssociatedSignatures(widget):
-                return eventClass(eventName, widget, argumentParseData)
-
     def getDescriptionInfo(self):
         return "SWT", "javaswt", "event types", \
                "http://help.eclipse.org/helios/index.jsp?topic=/org.eclipse.platform.doc.isv/reference/api/"

@@ -35,12 +35,6 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             self.replayer.handleNewWindows()           
             while self.shouldWait() :
                 time.sleep(0.1)
-                   
-    def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
-        # TODO: identical to code in SWT and wx, very similar to Tkinter, refactor!
-        for eventClass in self.findEventClassesFor(widget):
-            if eventDescriptor in eventClass.getAssociatedSignatures(widget):
-                return eventClass(eventName, widget, argumentParseData)
                 
     def shouldWait(self): # pragma: no cover - replayer disabled, cannot create automated tests
         return any((frame.isShowing() for frame in Frame.getFrames()))

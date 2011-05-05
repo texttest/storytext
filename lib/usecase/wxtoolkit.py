@@ -203,11 +203,6 @@ class ScriptEngine(guishared.ScriptEngine):
 
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
-
-    def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
-        for eventClass in self.findEventClassesFor(widget):
-            if eventDescriptor in eventClass.getAssociatedSignatures(widget):
-                return eventClass(eventName, widget, argumentParseData)
         
     def getDescriptionInfo(self):
         return "wxPython", "wx", "actions", "http://www.wxpython.org/docs/api/"
