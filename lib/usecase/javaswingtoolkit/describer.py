@@ -3,9 +3,11 @@ import java.awt as awt
 from javax import swing
 
 class Describer(usecase.guishared.Describer):
-    statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel, swing.JOptionPane]
+    statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel, swing.JOptionPane, swing.JScrollPane,
+                        swing.JViewport]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
-                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu]
+                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu,
+                    swing.JList]
 # Just as a remainder for all J-widgets we may describe:
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
@@ -37,7 +39,7 @@ class Describer(usecase.guishared.Describer):
         for child in children:            
             if child not in self.described:
                 desc = self.addToDescription(desc, self.getDescription(child))
-                self.described.append(child)        
+                self.described.append(child)       
         return desc.rstrip()
         
     def getWindowClasses(self):
@@ -110,6 +112,13 @@ class Describer(usecase.guishared.Describer):
     def getJPopupMenuState(self, menu):
         return None
     
+    def getJScrollPaneDescription(self, pane):
+        self.leaveItemsWithoutDescriptions(pane, [pane.getVerticalScrollBar(), pane.getHorizontalScrollBar()])
+        return None
+    
+    def getJViewportDescription(self, viewport):
+        return None
+    
     def getJDialogState(self, dialog):
         return dialog.getTitle()
     
@@ -123,10 +132,41 @@ class Describer(usecase.guishared.Describer):
         #TODO: describe the image
         return "Image"
     
+    def getJListDescription(self, list):
+        self.leaveItemsWithoutDescriptions(list, (swing.CellRendererPane,), tuple=True)
+        return self.getAndStoreState(list)
+
+    def getJListState(self, widget):
+        text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
+        selection = widget.getSelectedValues()
+        for i in range(widget.getModel().getSize()):
+            item = widget.getModel().getElementAt(i)
+            text += "-> " + item
+            if item in selection:
+                text += " (selected)"
+            text += "\n"
+        return text    
+        
     def getUpdatePrefix(self, widget, oldState, state):
         return "\nUpdated "
     
     #To be moved to super class. TODO: refactoring
+    def leaveItemsWithoutDescriptions(self, itemContainer, filter=None, tuple=False):
+        items = []
+        if hasattr(itemContainer, "getSubElements"):
+            items = itemContainer.getSubElements()
+        elif hasattr(itemContainer, "getComponents"):
+            items = itemContainer.getComponents()
+            
+        for item in items:
+            if not filter or item in filter or (tuple and isinstance(item, filter)):
+                self.described.append(item)
+        
+    def getAndStoreState(self, widget):
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        return state
+    
     def combineElements(self, elements):
         elements = filter(len, elements)
         if len(elements) <= 1:
@@ -137,7 +177,7 @@ class Describer(usecase.guishared.Describer):
     def getItemDescription(self, item, prefix, *args):
         elements = []
         text = ""
-        if hasattr(item, "getText"):
+        if hasattr(item, "getText") and item.getText():
             text = item.getText()
         elements.append(text)
         elements += self.getPropertyElements(item, *args)
