@@ -67,9 +67,12 @@ class ResponseEvent(SignalEvent):
         return [ self.widget.response ]
 
     def _connectRecord(self, dialog, method):
-        handler = dialog.connect_for_real(self.getRecordSignal(), method, self)
-        dialog.connect_for_real(self.getRecordSignal(), self.executePostponedActions)
-        return handler
+        # If it doesn't have this patched-on attribute, it's a dialog which existed before we enabled PyUseCase
+        # (we're probably therefore recording a shortcut). Can't record anything sensible, so don't do anything
+        if hasattr(dialog, "connect_for_real"):
+            handler = dialog.connect_for_real(self.getRecordSignal(), method, self)
+            dialog.connect_for_real(self.getRecordSignal(), self.executePostponedActions)
+            return handler            
 
     @classmethod
     def connectStored(cls, dialog):
