@@ -47,9 +47,10 @@ class Describer(usecase.guishared.Describer):
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     statelessWidgets = [ swt.widgets.Sash, types.NoneType ]
-    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link, swt.widgets.CoolBar, swt.widgets.ToolBar,
-                     swt.widgets.Label, swt.custom.CLabel, swt.widgets.Combo, swt.widgets.ExpandBar,
-                     swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder,
+    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,
+                     swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
+                     swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
+                     swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
         self.imageCounter = WidgetCounter(self.imagesEqual)
@@ -401,6 +402,9 @@ class Describer(usecase.guishared.Describer):
     def getTreeDescription(self, widget):
         return self.getAndStoreState(widget)
 
+    def getTableDescription(self, widget):
+        return self.getAndStoreState(widget)
+
     def getListDescription(self, widget):
         return self.getAndStoreState(widget)
 
@@ -453,6 +457,21 @@ class Describer(usecase.guishared.Describer):
             text += "\n".join(rows)
         return text
 
+    def getTableState(self, widget):
+        columns = widget.getColumns()
+        columnCount = len(columns)
+        text = self.combineElements([ "Table" ] + self.getPropertyElements(widget)) + " :\n"
+        rows = self.getAllItemDescriptions(widget, indent=0, 
+                                           selection=widget.getSelection(),
+                                           columnCount=columnCount)
+        rows.insert(0, [ c.getText() for c in columns ])
+        colWidths = self.findColumnWidths(rows, columnCount)
+        tableText = self.formatCellsInGrid(rows, colWidths)
+        header, body = tableText.split("\n", 1)
+        line = "_" * sum(colWidths) + "\n"
+        text += line + header + "\n" + line + body + "\n" + line
+        return text
+        
     def getTabFolderDescription(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
