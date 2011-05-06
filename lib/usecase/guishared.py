@@ -642,7 +642,7 @@ class Describer:
         self.logger = logging.getLogger("gui log")
         self.windows = set()
         self.widgetsWithState = OrderedDict()
-        self.structureLogger = logging.getLogger(self.getStructureName())
+        self.structureLogger = logging.getLogger("widget structure")
 
     def describe(self, window):
         if window in self.windows:
@@ -673,7 +673,7 @@ class Describer:
             except:
                 # If the frame where it existed has been removed, for example...
                 message = "Warning: The following exception has been thrown:\n"
-                self.logger.debug(message.join(getExceptionString()))
+                self.logger.debug(message + getExceptionString())
                 defunctWidgets.append(widget)
                 continue
 
@@ -785,6 +785,23 @@ class Describer:
         elif hasattr(widget, "getComponents"):
             for child in widget.getComponents():
                 self.describeStructure(child, indent+1)
+
+    def getAndStoreState(self, widget):
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        return state
+
+    def getItemDescription(self, item, prefix, *args):
+        elements = []
+        if hasattr(item, "getText") and item.getText():
+            elements.append(item.getText())
+        elements += self.getPropertyElements(item, *args)
+        desc = self.combineElements(elements)
+        if desc:
+            return prefix + desc
+
+    def getItemBarDescription(self, *args, **kw):
+        return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
 def getExceptionString():
     type, value, traceback = sys.exc_info()

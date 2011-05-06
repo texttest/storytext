@@ -173,9 +173,6 @@ class Describer(usecase.guishared.Describer):
     def getShellState(self, shell):
         return shell.getText()
 
-    def getItemBarDescription(self, *args, **kw):
-        return "\n".join(self.getAllItemDescriptions(*args, **kw))
-
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
                                prefix="", selection=[], columnCount=0):
         descs = []
@@ -287,15 +284,6 @@ class Describer(usecase.guishared.Describer):
             if style & getattr(swt.SWT, tryStyle) != 0:
                 descs.append(tryStyle.lower().replace("_", " ").replace("separator", "---"))
         return descs
-        
-    def getItemDescription(self, item, prefix, *args):
-        elements = []
-        if item.getText():
-            elements.append(item.getText())
-        elements += self.getPropertyElements(item, *args)
-        desc = self.combineElements(elements)
-        if desc:
-            return prefix + desc
 
     def getItemColumnDescription(self, item, colIndex):
         elements = [ item.getText(colIndex) ]
@@ -409,11 +397,6 @@ class Describer(usecase.guishared.Describer):
 
     def getComboDescription(self, widget):
         return self.getTextDescription(widget)
-
-    def getAndStoreState(self, widget):
-        state = self.getState(widget)
-        self.widgetsWithState[widget] = state
-        return state
 
     def getTreeDescription(self, widget):
         return self.getAndStoreState(widget)
@@ -666,6 +649,3 @@ class Describer(usecase.guishared.Describer):
 
     def checkInstance(self, *args):
         return util.checkInstance(*args)
-
-    def getStructureName(self):
-        return "SWT structure"

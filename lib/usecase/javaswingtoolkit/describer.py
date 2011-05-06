@@ -153,11 +153,8 @@ class Describer(usecase.guishared.Describer):
         
     def getUpdatePrefix(self, widget, oldState, state):
         return "\nUpdated "
-    
-    def getStructureName(self):
-        return "Swing structure"
-    
-    def leaveItemsWithoutDescriptions(self, itemContainer, skippedObjects=None, skippedClasses=None):
+
+    def leaveItemsWithoutDescriptions(self, itemContainer, skippedObjects=[], skippedClasses=()):
         items = []
         if hasattr(itemContainer, "getSubElements"):
             items = itemContainer.getSubElements()
@@ -168,26 +165,7 @@ class Describer(usecase.guishared.Describer):
             if skippedObjects and not item in skippedObjects or \
             skippedClasses and not isinstance(item, skippedClasses):
                 continue
-            self.described.append(item)  
-        
-    def getAndStoreState(self, widget):
-        state = self.getState(widget)
-        self.widgetsWithState[widget] = state
-        return state
-    
-    def getItemDescription(self, item, prefix, *args):
-        elements = []
-        text = ""
-        if hasattr(item, "getText") and item.getText():
-            text = item.getText()
-        elements.append(text)
-        elements += self.getPropertyElements(item, *args)
-        desc = self.combineElements(elements)
-        if desc:
-            return prefix + desc
-        
-    def getItemBarDescription(self, *args, **kw):
-        return "\n".join(self.getAllItemDescriptions(*args, **kw))
+            self.described.append(item)
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
                                prefix="", selection=[]):

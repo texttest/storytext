@@ -241,7 +241,7 @@ class Filter:
     
     def handleEvent(self, event):
         if event.getID() == ComponentEvent.COMPONENT_SHOWN:
-            self.monitorNewWindow(event)
+            self.monitorNewComponent(event)
         elif isinstance(event.getSource(), Component):
             if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()):
                 self.logger.debug("Filter for event " + event.toString())    
@@ -266,6 +266,6 @@ class Filter:
     def handleComponentEvent(self, event):            
         return False #TODO: return event.getID() == ComponentEvent.COMPONENT_RESIZED
 
-    def monitorNewWindow(self, event):
+    def monitorNewComponent(self, event):
         if isinstance(event.getSource(), (swing.JFrame, swing.JDialog)):
             self.uiMap.scriptEngine.replayer.handleNewWindow(event.getSource())

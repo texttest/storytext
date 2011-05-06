@@ -51,17 +51,17 @@ formatter=debug
 args=(os.devnull, 'a')
 #args=('eclipsercpjobs.sample', 'a')
 
-# ======= Section for SWT structure ======
-[logger_SWT structure]
-handlers=SWT structure
-qualname=SWT structure
+# ======= Section for widget structure ======
+[logger_widget structure]
+handlers=widget structure
+qualname=widget structure
 #level=INFO
 
-[handler_SWT structure]
+[handler_widget structure]
 class=FileHandler
 formatter=debug
 args=(os.devnull, 'a')
-#args=('swtstructure.sample', 'a')
+#args=('widgetstructure.sample', 'a')
 
 # ======= Section for TreeModelIndexer ======
 [logger_TreeModelIndexer]
@@ -113,10 +113,10 @@ args=(os.devnull, 'a')
 
 # ====== Cruft that python logging module needs ======
 [loggers]
-keys=root,gui log,usecase replay log,Eclipse RCP jobs,SWT structure,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
+keys=root,gui log,usecase replay log,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
 
 [handlers]
-keys=root,Eclipse RCP jobs,SWT structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
+keys=root,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
 
 [formatters]
 keys=timed,debug
