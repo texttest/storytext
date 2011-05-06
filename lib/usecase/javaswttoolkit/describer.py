@@ -49,7 +49,7 @@ class Describer(usecase.guishared.Describer):
     statelessWidgets = [ swt.widgets.Sash, types.NoneType ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link, swt.widgets.CoolBar, swt.widgets.ToolBar,
                      swt.widgets.Label, swt.custom.CLabel, swt.widgets.Combo, swt.widgets.ExpandBar,
-                     swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime,
+                     swt.widgets.Text, swt.widgets.List, swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder,
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
         self.imageCounter = WidgetCounter(self.imagesEqual)
@@ -453,7 +453,7 @@ class Describer(usecase.guishared.Describer):
             text += "\n".join(rows)
         return text
 
-    def getCTabFolderDescription(self, widget):
+    def getTabFolderDescription(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         if state:
@@ -461,8 +461,13 @@ class Describer(usecase.guishared.Describer):
         else:
             return "TabFolder with no tabs"
 
+    def getTabFolderState(self, widget):
+        return " , ".join(self.getAllItemDescriptions(widget, selection=widget.getSelection()))
+
     def getCTabFolderState(self, widget):
         return " , ".join(self.getAllItemDescriptions(widget, selection=[ widget.getSelection() ]))
+
+    getCTabFolderDescription = getTabFolderDescription
 
     def getCompositeState(self, widget):
         return util.getTopControl(widget)

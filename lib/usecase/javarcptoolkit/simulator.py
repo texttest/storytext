@@ -121,7 +121,7 @@ class PartActivateEvent(GuiEvent):
     def isStateChange(self):
         return True
     
-    def isImpliedByTabClose(self, tab):
+    def isImpliedByCTabClose(self, tab):
         return True
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
