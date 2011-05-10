@@ -35,9 +35,10 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def tryAddDescribeHandler(self):
         # Set up used for recording
         runner = TestRunner(self.setUpMonitoring)
+        jobSetupRunner = TestRunner(self.enableJobListener)
         recordExitRunner = TestRunner(self.runOnRecordExit)
         try:
-            self.setTestRunnables(runner, recordExitRunner)
+            self.setTestRunnables(runner, jobSetupRunner, recordExitRunner)
         except ImportError:
             sys.stderr.write("ERROR: Could not find SWTBot testscript plugin. Please install it as described at :\n" +
                              "http://www.texttest.org/index.php?page=ui_testing&n=pyusecase_and_swt\n")
@@ -46,6 +47,10 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def runOnRecordExit(self):
         self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt")
         self.tryTerminateCoverage()
+
+    def enableJobListener(self):
+        from jobsynchroniser import JobListener
+        JobListener.enable()
 
     def tryTerminateCoverage(self):
         # Eclipse doesn't return control to the python interpreter
@@ -58,12 +63,13 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     
     def enableReplayInitially(self):
         runner = TestRunner(self.runReplay)
+        jobSetupRunner = TestRunner(self.enableJobListener)
         replayExitRunner = TestRunner(self.tryTerminateCoverage)
-        self.setTestRunnables(runner, replayExitRunner)
+        self.setTestRunnables(runner, jobSetupRunner, replayExitRunner)
         
-    def setTestRunnables(self, runner, exitRunner):
+    def setTestRunnables(self, *args):
         from org.eclipse.swtbot.testscript import TestRunnableStore
-        TestRunnableStore.setTestRunnables(runner, exitRunner)
+        TestRunnableStore.setTestRunnables(*args)
 
     def getMonitorClass(self):
         from simulator import WidgetMonitor
