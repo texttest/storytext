@@ -39,14 +39,21 @@ def indent(rows, hasHeader=False, headerChar='-', delim=' | ', justify='left',
        - postfix: A string appended to each printed row.
        - wrapfunc: A function f(text) for wrapping text; each element in
          the table is first wrapped by this function."""
+    def transpose(iterables):
+        if len(iterables) > 1:
+            return map(None, *iterables)
+        else:
+            return [ (item,) for item in iterables[0] ]
+    
     # closure for breaking logical rows to physical, using wrapfunc
     def rowWrapper(row):
         newRows = [wrapfunc(item).split('\n') for item in row]
-        return [[substr or '' for substr in item] for item in map(None,*newRows)]
+        return [[substr or '' for substr in item] for item in transpose(newRows)]
+            
     # break each logical row into one or more physical ones
     logicalRows = [rowWrapper(row) for row in rows]
     # columns of physical rows
-    columns = map(None,*reduce(operator.add,logicalRows))
+    columns = transpose(reduce(operator.add,logicalRows))
     # get the maximum of each column by the string length of its items
     maxWidths = [max([len(str(item)) for item in column]) for column in columns]
     rowSeparator = headerChar * (len(prefix) + len(postfix) + sum(maxWidths) + \
