@@ -68,7 +68,7 @@ class UseCaseReplayer:
         self.shortcuts = {}
         self.events = {}
         self.waitingForEvents = []
-        self.applicationEventNames = []
+        self.applicationEventNames = set()
         self.replayThread = None
         self.timeDelayNextCommand = 0
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
@@ -109,14 +109,14 @@ class UseCaseReplayer:
         #gtk.idle_add(method)
 
     def registerApplicationEvent(self, eventName, timeDelay):
-        self.applicationEventNames.append(eventName)
+        self.applicationEventNames.add(eventName)
         self.logger.debug("Replayer got application event " + repr(eventName))
         self.timeDelayNextCommand = timeDelay
         if len(self.waitingForEvents) > 0 and self.waitingCompleted():
             self.logger.debug("Waiting completed, proceeding...")
             if self.replayThread:
                 self.replayThread.join()
-            self.applicationEventNames = []
+            self.applicationEventNames = set()
             self.enableReading()
             
     def applicationEventRename(self, oldName, newName):
@@ -130,10 +130,7 @@ class UseCaseReplayer:
         self.logger.debug("Finished renaming")
 
     def waitingCompleted(self):
-        for eventName in self.waitingForEvents:
-            if not eventName in self.applicationEventNames:
-                return False
-        return True
+        return set(self.waitingForEvents).issubset(self.applicationEventNames)
 
     def runCommands(self):
         while self.runNextCommand():
@@ -158,12 +155,20 @@ class UseCaseReplayer:
             return self.checkTermination()
         else:
             return False
-        
-    def runNextCommand(self):
-        if len(self.waitingForEvents):
+
+    def describeAppEventsWaiting(self, eventNames):
+        self.write("") # blank line
+        for eventName in eventNames:
+            self.write("Waiting for application event '" + eventName + "' to occur.")    
+
+    def describeAppEventsHappened(self, eventNames):
+        if len(eventNames):
             self.write("")
-        for eventName in self.waitingForEvents:
+        for eventName in eventNames:
             self.write("Expected application event '" + eventName + "' occurred, proceeding.")
+
+    def runNextCommand(self):
+        self.describeAppEventsHappened(self.waitingForEvents)
         self.waitingForEvents = []
         if self.timeDelayNextCommand:
             self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
@@ -243,17 +248,10 @@ class UseCaseReplayer:
         return longestEventName            
     
     def processWait(self, applicationEventStr):
-        allHappened = True
-        self.write("") # blank line
-        for applicationEventName in applicationEventStr.split(", "):
-            self.write("Waiting for application event '" + applicationEventName + "' to occur.")
-            if applicationEventName in self.applicationEventNames:
-                self.write("Expected application event '" + applicationEventName + "' occurred, proceeding.")
-                self.applicationEventNames.remove(applicationEventName)
-            else:
-                self.waitingForEvents.append(applicationEventName)
-                allHappened = False
-        return allHappened
+        eventsToWaitFor = set(applicationEventStr.split(", "))
+        self.describeAppEventsWaiting(eventsToWaitFor)
+        self.waitingForEvents += eventsToWaitFor
+        return self.waitingCompleted()
 
     def processSignalCommand(self, signalArg):
         signalNum = getattr(signal, signalArg)
