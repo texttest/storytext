@@ -96,9 +96,11 @@ class Describer(usecase.guishared.Describer):
         return window.getTitle()
     
     def getJButtonDescription(self, widget):
-        res = self.getComponentDescription(widget, "JButton")
-        return res
-    
+        if widget.getText() and widget.getText().startswith("ApplicationEvent"):
+            return ""
+        else:
+            return self.getComponentDescription(widget, "JButton")
+
     def getJButtonState(self, button):
         return self.combineElements(self.getComponentState(button))
         
@@ -210,6 +212,9 @@ class Describer(usecase.guishared.Describer):
         return self.getAndStoreState(widget)
     
     def getJTableState(self, table):
+        selectedRows = table.getSelectedRows()
+        selectedColumns = table.getSelectedColumns()
+        
         columnCount = table.getColumnCount()
         rowCount = table.getRowCount()
         columns = []
@@ -223,6 +228,8 @@ class Describer(usecase.guishared.Describer):
                 value = str(table.getValueAt(j, k))
                 if not value:
                     value = ""
+                if j in selectedRows and k in selectedColumns:
+                    value += " (selected)"
                 r += [value]
             rows+= [r]
 

@@ -212,12 +212,17 @@ class TableSelectEvent(ListSelectEvent):
         allColumns = []
         for value in selectedValues:
             rowColIndex = self.getIndexer().getIndex(value)
-            allRows.append(self.widget.convertRowIndexToView(rowColIndex[0]))
-            allColumns.append(self.widget.convertColumnIndexToView(rowColIndex[1]))
+            if rowColIndex:
+                allRows.append(self.widget.convertRowIndexToView(rowColIndex[0]))
+                allColumns.append(self.widget.convertColumnIndexToView(rowColIndex[1]))
         
         #  By now, accepts only single cell selection
         if len(selectedValues) == 1:
-            swinglib.runKeyword("selectTableCell", params + [min(allRows), min(allColumns)])
+            try:
+                swinglib.runKeyword("selectTableCell", params + [min(allRows), min(allColumns)])
+            except:
+                raise UseCaseScriptError, "Could not find value labeled '" + argumentString + "' in table."
+            
 
     def getStateText(self, *args):
         return self.getSelectedCells()
@@ -342,7 +347,10 @@ class TableIndexer():
         return cls.allIndexers.setdefault(table, cls(table))
     
     def getIndex(self, name):
-        return self.nameToIndex.get(name)[0]
+        index = self.nameToIndex.get(name)
+        if index:
+            return index[0]
+        return index
 
     def indexToValue(self, viewIndices):
         rowIndex = self.table.convertRowIndexToModel(viewIndices[0])
