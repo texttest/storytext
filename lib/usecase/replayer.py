@@ -248,7 +248,7 @@ class UseCaseReplayer:
         return longestEventName            
     
     def processWait(self, applicationEventStr):
-        eventsToWaitFor = set(applicationEventStr.split(", "))
+        eventsToWaitFor = applicationEventStr.split(", ")
         self.describeAppEventsWaiting(eventsToWaitFor)
         self.waitingForEvents += eventsToWaitFor
         return self.waitingCompleted()
