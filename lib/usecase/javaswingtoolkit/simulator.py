@@ -1,12 +1,14 @@
 import usecase.guishared, logging, util, sys, threading
+from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-WindowEvent, ComponentEvent
+WindowEvent, ComponentEvent, ActionListener
 from javax import swing
 import SwingLibrary
 
 swinglib = SwingLibrary()
+applicationEventType = AWTEvent.RESERVED_ID_MAX + 1234
 
 def selectWindow(widget):
     w = checkWidget(widget)
@@ -74,9 +76,10 @@ class SignalEvent(usecase.guishared.GuiEvent):
             
             def mouseReleased(listenerSelf, event):
                 method(listenerSelf.pressedEvent, self)
-              
+                      
         util.runOnEventDispatchThread(self.widget.widget.addMouseListener, ClickListener())
         
+
     def shouldRecord(self, event, *args):
         return Filter.getEventFromUser(event)
     
@@ -118,8 +121,19 @@ class SelectEvent(SignalEvent):
         return "Click"
 
     def shouldRecord(self, event, *args):
-        return Filter.getEventFromUser(event) and event.getModifiers() & MouseEvent.BUTTON1_MASK != 0
+        return Filter.getEventFromUser(event) and event.getModifiers() & \
+        MouseEvent.BUTTON1_MASK != 0 and event.getClickCount() == 1
 
+class ButtonClickEvent(SelectEvent):
+    def connectRecord(self, method):
+        SelectEvent.connectRecord(self, method)
+        class FakeActionListener(ActionListener):
+            def actionPerformed(lself, event):
+                if isinstance(event.getSource(), swing.JButton) and event.getActionCommand().startswith("ApplicationEvent"):
+                    applicationEvent(event.getActionCommand().replace("ApplicationEvent", "").lstrip())
+                    
+        util.runOnEventDispatchThread(self.widget.widget.addActionListener, FakeActionListener())
+    
 class StateChangeEvent(SignalEvent):
     def outputForScript(self, *args):
         return ' '.join([self.name, self.getStateText(*args) ])
@@ -184,7 +198,45 @@ class ListSelectEvent(StateChangeEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return currOutput.startswith(stateChangeOutput)
-                                         
+
+class TableSelectEvent(ListSelectEvent):
+    def __init__(self, *args, **kw):
+        ListSelectEvent.__init__(self, *args, **kw)
+        self.indexer = None
+        
+        
+    def _generate(self, argumentString):
+        selectedValues = argumentString.split(", ")
+        params = [ self.widget.getName() ]
+        allRows = []
+        allColumns = []
+        for value in selectedValues:
+            rowColIndex = self.getIndexer().getIndex(value)
+            allRows.append(self.widget.convertRowIndexToView(rowColIndex[0]))
+            allColumns.append(self.widget.convertColumnIndexToView(rowColIndex[1]))
+        
+        #  By now, accepts only single cell selection
+        if len(selectedValues) == 1:
+            swinglib.runKeyword("selectTableCell", params + [min(allRows), min(allColumns)])
+
+    def getStateText(self, *args):
+        return self.getSelectedCells()
+        
+    def getSelectedCells(self):
+        text = []
+        for i in self.widget.getSelectedRows():
+            for j in self.widget.getSelectedColumns():
+                text += [str(self.getIndexer().indexToValue([i, j]))]
+        return ", ".join(text)
+    
+    def getSelectionWidget(self):
+        return self.widget.widget.getSelectionModel()
+
+    def getIndexer(self):
+        if self.indexer is None:
+            self.indexer = TableIndexer.getIndexer(self.widget.widget)
+        return self.indexer
+                                       
 class Filter:
     eventsFromUser = []
     logger = None
@@ -220,7 +272,8 @@ class Filter:
         return False
     
     def startListening(self):
-        eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK | AWTEvent.COMPONENT_EVENT_MASK
+        eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK | \
+        AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
         # Should be commented out if we need to listen to these events:
         #| AWTEvent.WINDOW_EVENT_MASK | AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
         #| AWTEvent.ITEM_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASk
@@ -269,3 +322,76 @@ class Filter:
     def monitorNewComponent(self, event):
         if isinstance(event.getSource(), (swing.JFrame, swing.JDialog)):
             self.uiMap.scriptEngine.replayer.handleNewWindow(event.getSource())
+        else:
+            self.uiMap.scriptEngine.replayer.handleNewWidget(event.getSource())
+
+class TableIndexer():
+    allIndexers = {}
+    
+    def __init__(self, table):
+        self.tableModel = table.getModel()
+        self.table = table
+        self.nameToIndex = {}
+        self.indexToName = {}
+        self.uniqueNames = {}
+        self.logger = logging.getLogger("TableModelIndexer")
+        self.populateMapping()
+    
+    @classmethod
+    def getIndexer(cls, table):
+        return cls.allIndexers.setdefault(table, cls(table))
+    
+    def getIndex(self, name):
+        return self.nameToIndex.get(name)[0]
+
+    def indexToValue(self, viewIndices):
+        rowIndex = self.table.convertRowIndexToModel(viewIndices[0])
+        colIndex = self.table.convertColumnIndexToModel(viewIndices[1])
+        currentName = self.tableModel.getValueAt(rowIndex, colIndex)
+        if not self.uniqueNames.has_key(currentName):
+            return currentName
+        
+        for uniqueName in self.uniqueNames.get(currentName):
+            for rowColIndex in self.findAllIndices(uniqueName):
+                if rowColIndex == [rowIndex, colIndex]:
+                    return uniqueName
+        
+    def populateMapping(self):
+        rowCount = self.tableModel.getRowCount()
+        colCount = self.tableModel.getColumnCount()
+        for i in range(colCount):
+            for j in range(rowCount):
+                index = [j, i]
+                name = self.tableModel.getValueAt(j, i)
+                if self.store(index, name):
+                    allIndices = self.findAllIndices(name)
+                    if len(allIndices) > 1:
+                        newNames = self.getNewNames(allIndices, name)
+                        if newNames is None:
+                            newNames = ""
+                        self.uniqueNames[name] = newNames
+                        for rowColIndex, newName in zip(allIndices, newNames):
+                            self.store(rowColIndex, newName)
+    
+    def findAllIndices(self, name):
+        storedIndices = self.nameToIndex.get(name, [])
+        if len(storedIndices) > 0:
+            validIndices = filter(lambda r: len(r) == 2, storedIndices)
+            self.nameToIndex[name] = validIndices
+            return validIndices
+        else:
+            return storedIndices
+    
+    def getNewNames(self, indexes, oldName):
+        pass
+                    
+    def store(self, index, name):
+        indices = self.nameToIndex.setdefault(name, [])
+        if not index in indices:
+            self.logger.debug("Storing value named " + repr(name) + " in table cell with index " + repr(index))
+            indices.append(index)
+            return True
+        else:
+            return False
+
+            

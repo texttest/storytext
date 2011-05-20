@@ -1,13 +1,13 @@
-import usecase.guishared, logging
+import usecase.guishared, logging, util
 import java.awt as awt
 from javax import swing
 
 class Describer(usecase.guishared.Describer):
     statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel, swing.JOptionPane, swing.JScrollPane,
-                        swing.JViewport]
+                        swing.JViewport, swing.table.JTableHeader, swing.CellRendererPane]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu,
-                    swing.JList]
+                    swing.JList, swing.JTable]
 # Just as a remainder for all J-widgets we may describe:
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
@@ -16,12 +16,52 @@ class Describer(usecase.guishared.Describer):
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
         self.described = []
+        self.widgetsAppeared = []
     
     def describe(self, window):
         if self.structureLogger.isEnabledFor(logging.DEBUG) and window not in self.windows:
             self.describeStructure(window)
         usecase.guishared.Describer.describe(self, window)
-            
+    
+    def describeWithUpdates(self):
+        stateChanges = self.findStateChanges()
+        stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
+        self.describeAppearedWidgets(stateChangeWidgets)
+        self.describeStateChanges(stateChanges)
+        self.widgetsAppeared = []
+    
+    def describeAppearedWidgets(self, stateChangeWidgets):
+        markedWidgets = self.widgetsAppeared + stateChangeWidgets
+        for widget in self.widgetsAppeared:
+            self.describeVisibilityChange(widget, markedWidgets, "New widgets have appeared: describing common parent :\n")
+    
+    def parentMarked(self, widget, markedWidgets):
+        if widget in markedWidgets:
+            return True
+        elif isinstance(widget, awt.Component) and widget.getParent():
+            return self.parentMarked(widget.getParent(), markedWidgets)
+        else:
+            return False
+
+    def describeVisibilityChange(self, widget, markedWidgets, header):
+        if hasattr(widget, "isVisible") and not widget.isVisible():
+            return
+        if isinstance(widget, (swing.JFrame, swing.JDialog)):
+            self.describe(widget)
+        else:
+            parent = widget.getParent()
+            if not self.parentMarked(parent, markedWidgets):
+                markedWidgets.append(parent)
+                self.logger.info(header)
+                self.logger.info(self.getChildrenDescription(parent))
+            elif self.logger.isEnabledFor(logging.DEBUG):
+                self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " + \
+                                    repr(map(self.getRawData, markedWidgets)))
+   
+    def setWidgetShown(self, widget):
+        if not isinstance(widget, (swing.Popup, swing.JMenuItem, swing.JScrollBar)) and widget not in self.widgetsAppeared:
+            self.widgetsAppeared.append(widget)
+              
     def getPropertyElements(self, item, selected=False):
         elements = []
 #        Will be used when adding tooltip tests
@@ -123,14 +163,27 @@ class Describer(usecase.guishared.Describer):
     def getJViewportDescription(self, viewport):
         return None
     
+    def getJTableHeaderDescription(self, widget):
+        return None
+    
+    def getCellRendererPaneDescription(self, widget):
+        return None
+
     def getJDialogState(self, dialog):
         return dialog.getTitle()
     
     def getJLabelDescription(self, label):
-        return self.getComponentDescription(label, "JLabel", statemethod=self.getPropertyElements)
-    
+        return self.getAndStoreState(label)
+
     def getJLabelState(self, label):
-        return self.getComponentState(label)
+        elements = []
+        if label.getText() and len(label.getText()) > 0:
+            elements.append("'" + label.getText() + "'")
+        else:
+            elements.append("JLabel")
+        if label.getIcon():
+            elements.append(self.getImageDescription(label.getIcon()))
+        return self.combineElements(elements)
     
     def getImageDescription(self, image):
         #TODO: describe the image
@@ -145,11 +198,37 @@ class Describer(usecase.guishared.Describer):
         selection = widget.getSelectedValues()
         for i in range(widget.getModel().getSize()):
             item = widget.getModel().getElementAt(i)
+            if not item:
+                item = ""
             text += "-> " + item
             if item in selection:
                 text += " (selected)"
             text += "\n"
         return text    
+    
+    def getJTableDescription(self, widget):
+        return self.getAndStoreState(widget)
+    
+    def getJTableState(self, table):
+        columnCount = table.getColumnCount()
+        rowCount = table.getRowCount()
+        columns = []
+        rows = []
+        for i in range(columnCount):
+            columns += [table.getColumnName(i)]
+
+        for j in range(rowCount):
+            r = []
+            for k in range(columnCount):
+                value = str(table.getValueAt(j, k))
+                if not value:
+                    value = ""
+                r += [value]
+            rows+= [r]
+
+        text = self.combineElements([ "Table" ] + self.getPropertyElements(table)) + " :\n"
+        return text + util.indent([columns] + rows, hasHeader=True, separateRows=False, \
+                                  headerChar="_", justify="left", prefix="| ", postfix=" |")
         
     def getUpdatePrefix(self, widget, oldState, state):
         return "\nUpdated "

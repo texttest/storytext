@@ -8,13 +8,14 @@ import simulator, util
 class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = [
         (swing.JFrame       , [ simulator.FrameCloseEvent ]),
-        (swing.JButton      , [ simulator.SelectEvent ]),
+        (swing.JButton      , [ simulator.ButtonClickEvent ]),
         (swing.JRadioButton , [ simulator.SelectEvent]),
         (swing.JCheckBox    , [ simulator.SelectEvent]),
         (swing.JMenuItem    , [ simulator.MenuSelectEvent]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         (swing.JList        , [ simulator.ListSelectEvent]),
+        (swing.JTable       , [ simulator.TableSelectEvent]),
         ]
     
     def createReplayer(self, universalLogging=False):
@@ -29,20 +30,25 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             exec "import " + args[0] + " as _className"
             _className.main(args)
 
+        while not self.frameShowing():
+            time.sleep(0.1)
+                
         if self.replayerActive():
             self.replayer.describeAndRun()
         else: # pragma: no cover - replayer disabled, cannot create automated tests
-            self.replayer.handleNewWindows()           
-            while self.shouldWait() :
+            self.replayer.handleNewWindows()
+            while self.frameShowing():
                 time.sleep(0.1)
-                
-    def shouldWait(self): # pragma: no cover - replayer disabled, cannot create automated tests
+
+    def frameShowing(self): # pragma: no cover - replayer disabled, cannot create automated tests
         return any((frame.isShowing() for frame in Frame.getFrames()))
            
 class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
     def __init__(self, *args, **kw):
-        usecase.guishared.UseCaseReplayer.__init__(self, *args, **kw)
+        self.waiting = False
         self.describer = self.getDescriberClass()()
+        usecase.guishared.UseCaseReplayer.__init__(self, *args, **kw)
+        
         
     def enableReplayHandler(self, *args):
         pass
@@ -52,18 +58,31 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         self.filter.startListening()
         
     def describeAndRun(self):
+        if self.waiting:
+            self.waitForReenable()
         while True:
-            util.runOnEventDispatchThread(self.describer.describeUpdates)
+            util.runOnEventDispatchThread(self.describer.describeWithUpdates)
             if self.delay:
                 time.sleep(self.delay)
             if not self.runNextCommand():
-                break
+                self.waiting = not self.waitingCompleted()
+                if self.waiting:
+                    self.waitForReenable()
+                else:
+                    break
+
+    def enableReading(self):
+        if self.waiting:
+            self.waiting = False
+            
+    def waitForReenable(self):
+        self.logger.debug("Waiting for replaying to be re-enabled...")
+        while self.waiting:
+            time.sleep(0.1) # don't use the whole CPU while waiting
+
                 
     def findWindowsForMonitoring(self):
         return []
-    
-    def describeNewWindow(self, frame):
-        self.describer.describe(frame)
 
     def getDescriberClass(self):
         from describer import Describer
@@ -73,6 +92,10 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             self.uiMap.monitorAndStoreWindow(window)
         if self.loggerActive:
-            self.describeNewWindow(window)
+            self.describer.setWidgetShown(window)
 
-
+    def handleNewWidget(self, widget):
+        if self.uiMap and (self.isActive() or self.recorder.isActive()):
+            self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
+        if self.loggerActive:
+            self.describer.setWidgetShown(widget)
