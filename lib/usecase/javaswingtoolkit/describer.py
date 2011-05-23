@@ -210,33 +210,27 @@ class Describer(usecase.guishared.Describer):
     
     def getJTableDescription(self, widget):
         return self.getAndStoreState(widget)
-    
+
+    def getCellText(self, i, j, table, selectedRows, selectedColumns):
+        if i < 0:
+            return table.getColumnName(j)
+        
+        cellText = str(table.getValueAt(i, j))
+        if i in selectedRows and j in selectedColumns:
+            cellText += " (selected)"
+        return cellText
+
     def getJTableState(self, table):
         selectedRows = table.getSelectedRows()
         selectedColumns = table.getSelectedColumns()
-        
         columnCount = table.getColumnCount()
-        rowCount = table.getRowCount()
-        columns = []
-        rows = []
-        for i in range(columnCount):
-            columns += [table.getColumnName(i)]
 
-        for j in range(rowCount):
-            r = []
-            for k in range(columnCount):
-                value = str(table.getValueAt(j, k))
-                if not value:
-                    value = ""
-                if j in selectedRows and k in selectedColumns:
-                    value += " (selected)"
-                r += [value]
-            rows+= [r]
+        args = table, selectedRows, selectedColumns
+        rows = [ [ self.getCellText(i, j, *args) for j in range(columnCount) ] for i in range(-1, table.getRowCount()) ]
 
         text = self.combineElements([ "Table" ] + self.getPropertyElements(table)) + " :\n"
-        return text + util.indent([columns] + rows, hasHeader=True, separateRows=False, \
-                                  headerChar="_", justify="left", prefix="| ", postfix=" |")
-        
+        return text + self.formatTable(rows, columnCount)
+
     def getUpdatePrefix(self, widget, oldState, state):
         return "\nUpdated "
 

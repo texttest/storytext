@@ -803,6 +803,48 @@ class Describer:
     def getItemBarDescription(self, *args, **kw):
         return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
+    def getCellWidth(self, row, colNum, numColumns):
+        # Don't include rows which span several columns
+        if len(row) == numColumns:
+            lines = row[colNum].splitlines()
+            if lines:
+                return max((len(line) for line in lines))
+        return 0
+
+    def findColumnWidths(self, grid, numColumns):
+        colWidths = []
+        for colNum in range(numColumns):
+            maxWidth = max((self.getCellWidth(row, colNum, numColumns) for row in grid))
+            if colNum == numColumns - 1:
+                colWidths.append(maxWidth)
+            else:
+                # Pad two spaces between each column
+                colWidths.append(maxWidth + 2)
+        return colWidths
+
+    def formatTable(self, rows, columnCount):
+        colWidths = self.findColumnWidths(rows, columnCount)
+        tableText = self.formatCellsInGrid(rows, colWidths)
+        header, body = tableText.split("\n", 1)
+        line = "_" * sum(colWidths) + "\n"
+        return line + header + "\n" + line + body + "\n" + line
+
+    def formatCellsInGrid(self, grid, colWidths):
+        desc = ""
+        for row in grid:
+            rowLines = max((desc.count("\n") + 1 for desc in row))
+            for rowLine in range(rowLines):
+                for colNum, childDesc in enumerate(row):
+                    cellLines = childDesc.splitlines()
+                    if rowLine < len(cellLines):
+                        cellRow = cellLines[rowLine]
+                    else:
+                        cellRow = ""
+                    desc += cellRow.ljust(colWidths[colNum])
+                desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
+        return desc.rstrip()
+
+
 def getExceptionString():
     type, value, traceback = sys.exc_info()
     return "".join(format_exception(type, value, traceback))

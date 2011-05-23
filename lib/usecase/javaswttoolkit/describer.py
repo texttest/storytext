@@ -465,13 +465,8 @@ class Describer(usecase.guishared.Describer):
                                            selection=widget.getSelection(),
                                            columnCount=columnCount)
         rows.insert(0, [ c.getText() for c in columns ])
-        colWidths = self.findColumnWidths(rows, columnCount)
-        tableText = self.formatCellsInGrid(rows, colWidths)
-        header, body = tableText.split("\n", 1)
-        line = "_" * sum(colWidths) + "\n"
-        text += line + header + "\n" + line + body + "\n" + line
-        return text
-        
+        return text + self.formatTable(rows, columnCount)
+
     def getTabFolderDescription(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
@@ -606,14 +601,6 @@ class Describer(usecase.guishared.Describer):
                     return len(childDescriptions)
         return 1
 
-    def getCellWidth(self, row, colNum, numColumns):
-        # Don't include rows which span several columns
-        if len(row) == numColumns:
-            lines = row[colNum].splitlines()
-            if lines:
-                return max((len(line) for line in lines))
-        return 0
-
     def makeGrid(self, childDescriptions, numColumns, horizontalSpans):
         grid = []
         index = 0
@@ -624,17 +611,6 @@ class Describer(usecase.guishared.Describer):
             index += span
         return grid
 
-    def findColumnWidths(self, grid, numColumns):
-        colWidths = []
-        for colNum in range(numColumns):
-            maxWidth = max((self.getCellWidth(row, colNum, numColumns) for row in grid))
-            if colNum == numColumns - 1:
-                colWidths.append(maxWidth)
-            else:
-                # Pad two spaces between each column
-                colWidths.append(maxWidth + 2)
-        return colWidths
-    
     def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
         grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
         colWidths = self.findColumnWidths(grid, numColumns)
@@ -646,21 +622,6 @@ class Describer(usecase.guishared.Describer):
             return header + "\n" + desc + "\n" + footer
         else:
             return self.formatCellsInGrid(grid, colWidths)
-
-    def formatCellsInGrid(self, grid, colWidths):
-        desc = ""
-        for row in grid:
-            rowLines = max((desc.count("\n") + 1 for desc in row))
-            for rowLine in range(rowLines):
-                for colNum, childDesc in enumerate(row):
-                    cellLines = childDesc.splitlines()
-                    if rowLine < len(cellLines):
-                        cellRow = cellLines[rowLine]
-                    else:
-                        cellRow = ""
-                    desc += cellRow.ljust(colWidths[colNum])
-                desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
-        return desc.rstrip()
 
     def formatColumnsInGrid(self, grid, numColumns):
         desc = ""
