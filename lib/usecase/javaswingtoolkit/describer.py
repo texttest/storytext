@@ -78,9 +78,9 @@ class Describer(usecase.guishared.Describer):
     def getChildrenDescription(self, widget):
         if not isinstance(widget, awt.Container):
             return ""
-        children = widget.getComponents()
+        visibleChildren = filter(lambda c: c.isVisible(), widget.getComponents())
         desc = ""
-        for child in children:            
+        for child in visibleChildren:            
             if child not in self.described:
                 desc = self.addToDescription(desc, self.getDescription(child))
                 self.described.append(child)       
@@ -96,10 +96,7 @@ class Describer(usecase.guishared.Describer):
         return window.getTitle()
     
     def getJButtonDescription(self, widget):
-        if widget.getText() and widget.getText().startswith("ApplicationEvent"):
-            return ""
-        else:
-            return self.getComponentDescription(widget, "JButton")
+        return self.getComponentDescription(widget, "JButton")
 
     def getJButtonState(self, button):
         return self.combineElements(self.getComponentState(button))
@@ -119,9 +116,20 @@ class Describer(usecase.guishared.Describer):
     def getJCheckBoxDescription(self, widget):
         return self.getComponentDescription(widget, "JCheckBox")
         
-    def getJTabbedPaneDescription(self, tabbedpane):
-        return "Tabbed Pane:\n" + self.getTabsDescription(tabbedpane)
+    def getJTabbedPaneDescription(self, widget):
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        if state:
+            return "TabFolder with tabs " + state
+        else:
+            return "TabFolder with no tabs"
+        
+        #return "Tabbed Pane:\n" + self.getTabsDescription(tabbedpane)
     
+    def getJTabbedPaneState(self, widget):
+        #return self.getTabsDescription(widget)
+        return ", ".join(self.getTabsDescription(widget))
+
     def getComponentState(self, widget):
         return self.getPropertyElements(widget, selected=widget.isSelected())
     
@@ -136,12 +144,20 @@ class Describer(usecase.guishared.Describer):
         self.widgetsWithState[widget] = self.combineElements(properties)
         elements = [ name ] + properties 
         return self.combineElements(elements)
-    
-    def getTabsDescription(self, pane):
-        descs = []
+
+    def getTabsDescription(self, pane):        
+        result = []
         for i in range(pane.getTabCount()):
-            descs.append(" '" + pane.getTitleAt(i) + "'")
-        return "".join(descs)
+            desc = []
+            desc.append(pane.getTitleAt(i))
+            if pane.getToolTipTextAt(i):
+                desc.append(pane.getToolTipTextAt(i))
+            if pane.getIconAt(i):
+                desc.append(self.getImageDescription(pane.getIconAt(i)))
+            if pane.getSelectedIndex() == i:
+                desc.append("selected")
+            result += [self.combineElements(desc)]
+        return result
     
     def getJRootPaneDescription(self, pane):
         return None
@@ -284,4 +300,6 @@ class Describer(usecase.guishared.Describer):
         else:
             return []
     
+    def getTabComponentsDescriptions(self, component, indent=0, **kw):
+        return self.getAllItemDescriptions(component, indent+1, subItemMethod=self.getTabComponentsDescriptions, **kw)
     
