@@ -199,9 +199,6 @@ class ListSelectEvent(StateChangeEvent):
             raise UseCaseScriptError, "Could not find item labeled '" + argumentString + "' in list."
     
     def getStateText(self, *args):
-        return self.getSelectedValues()
-    
-    def getSelectedValues(self):
         return ", ".join(self.widget.getSelectedValues())
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
@@ -209,46 +206,35 @@ class ListSelectEvent(StateChangeEvent):
         return currOutput.startswith(stateChangeOutput)
 
 class TableSelectEvent(ListSelectEvent):
-    def __init__(self, *args, **kw):
-        ListSelectEvent.__init__(self, *args, **kw)
-        self.indexer = None
-
     def _generate(self, argumentString):
         # To be used when using multi-selection: selectedCells = argumentString.split(", ")
         params = [ self.widget.getName() ]
-        row, column = self.getIndexer().getViewCellIndices(argumentString)
-        try:
+        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
+        if row is not None:
             # It seems to be a bug in SwingLibrary. Using Column name as argument doesn't work as expected. It throws exceptions
             # for some cell values. 
             swinglib.runKeyword("selectTableCell", params + [row, column])
-        except:
+        else:
             raise UseCaseScriptError, "Could not find value labeled '" + argumentString + "' in table."
 
     def getStateText(self, *args):
-        return self.getSelectedCells()
-        
-    def getSelectedCells(self):
         text = []
-        
+        indexer = TableIndexer.getIndexer(self.widget.widget)
         for row in self.widget.getSelectedRows():
             for col in self.widget.getSelectedColumns():
-                text.append(self.getIndexer().getCellDescription(row, col))
+                text.append(indexer.getCellDescription(row, col))
         return ", ".join(text)
-    
+        
     def getSelectionWidget(self):
         return self.widget.widget.getSelectionModel()
 
-    def getIndexer(self):
-        if self.indexer is None:
-            self.indexer = TableIndexer.getIndexer(self.widget.widget)
-        return self.indexer
 
 class CellDoubleClickEvent(DoubleClickEvent):
     def _generate(self, argumentString):
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)            
-        try:
+        if row is not None:
             swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 2, "BUTTON1_MASK" ])
-        except:
+        else:
             raise UseCaseScriptError, "Could not find value labeled '" + argumentString + "' in table."
     
     def outputForScript(self, event, *args):
@@ -353,78 +339,77 @@ class TableIndexer():
         self.tableModel = table.getModel()
         self.table = table
         self.nameToIndex = {}
-        self.indexToName = {}
         self.uniqueNames = {}
         self.logger = logging.getLogger("TableModelIndexer")
+        self.logger.debug("Creating table indexer for table " + self.table.getName() + " " + str(hash(table)))
         self.populateMapping()
     
     @classmethod
     def getIndexer(cls, table):
-        return cls.allIndexers.setdefault(table, cls(table))
+        # Don't just do setdefault, shouldn't create the TableIndexer if it already exists
+        if table in cls.allIndexers:
+            return cls.allIndexers.get(table)
+        else:
+            return cls.allIndexers.setdefault(table, cls(table))
     
     def getIndex(self, name):
-        return self.nameToIndex.get(name)
+        indices = self.nameToIndex.get(name)
+        return indices[0] if indices else (None, None)
 
     def isKey(self, name):
         return not self.uniqueNames.has_key(name) and self.nameToIndex.has_key(name)
 
-    def checkKey(self, key, rowColumnIndex):
+    def checkKey(self, key, row, col):
         if self.isKey(key):
-            return rowColumnIndex in self.nameToIndex.get(key)
+            return (row, col) in self.nameToIndex.get(key)
         return False
 
-    def getKeyAtRow(self, row):
-        currentName = None
+    def findRowName(self, row):
         for name, indices in self.nameToIndex.items():
-            if row in [index[:1][0]for index in indices]:
-                currentName = name
-                break
+            if row in [ r for r, c in indices ]:
+                return name
+
+    def getKeyAtRow(self, row):
+        currentName = self.findRowName(row)
         if not self.uniqueNames.has_key(currentName):
             return currentName
+
         # Used when "primary key column" doesn't exist in the table
         for uniqueName in self.uniqueNames.get(currentName):
-            for rowColIndices in self.findAllIndices(uniqueName):
-                if row in rowColIndices:
-                    return uniqueName
+            indices = self.nameToIndex.get(uniqueName)
+            if row in [ r for r, c in indices ]:
+                return uniqueName
         return currentName
     
     def getViewCellIndices(self, description, cellContent=False):
-        if len(description.split(" for ")) == 1:
-            indices = self.getIndex(description)
-            return self.getViewIndices(rowColumnIndices=indices)
-        else:
+        if " for " in description:
             columnName, keyValue = description.split(" for ")
             if cellContent:
                 key, value = keyValue.split("=")
             else:
                 key = keyValue
-            indices = self.getIndex(key)
-            col = self.table.getColumn(columnName).getModelIndex()
-            if indices:
-                return self.getViewIndices(row=indices[0][0], column=col)
-        return [None, None]
-            
-    def getViewIndices(self, row=-1, column=-1, rowColumnIndices=None):
-        viewIndices = []
-        if rowColumnIndices:
-            viewIndices.append(self.table.convertRowIndexToView(rowColumnIndices[0][0]))
-            viewIndices.append(self.table.convertColumnIndexToView(rowColumnIndices[0][1]))
+            firstRow, firstCol = self.getIndex(key)
+            if firstRow is not None:
+                col = self.table.getColumn(columnName).getModelIndex()
+                return self.getViewIndices(firstRow, col)
         else:
-            viewIndices.append(self.table.convertRowIndexToView(row))
-            viewIndices.append(self.table.convertColumnIndexToView(column))
-        return viewIndices
+            firstRow, firstCol = self.getIndex(description)
+            if firstRow is not None:
+                return self.getViewIndices(firstRow, firstCol)
+
+        return None, None
+            
+    def getViewIndices(self, row, column):
+        return self.table.convertRowIndexToView(row), self.table.convertColumnIndexToView(column)
         
     def getCellDescription(self, row, col, cellContent=False):
-        text = ""
         name = self.table.getValueAt(row, col)
-        if self.checkKey(name, [self.table.convertRowIndexToModel(row), self.table.convertColumnIndexToModel(col)]):
-            text = name
+        if self.checkKey(name, self.table.convertRowIndexToModel(row), self.table.convertColumnIndexToModel(col)):
+            return name
         else:
             key = self.getKeyAtRow(self.table.convertRowIndexToModel(row))
-            if key:
-                text = self.getTableSelectionString(key, row, col, cellContent)
-        return text
-    
+            return self.getTableSelectionString(key, row, col, cellContent) if key else ""
+            
     def getTableSelectionString(self, key, row, column, cellContent=False):
         text =  self.table.getColumnName(column) + " for " + key
         if cellContent:
@@ -435,53 +420,25 @@ class TableIndexer():
         rowCount = self.tableModel.getRowCount()
         colCount = self.tableModel.getColumnCount()
         for col in range(colCount):
-            tmpUniqueNames = {}
             tmpNameToIndex = {}
             for row in range(rowCount):
-                index = [row, col]
-                name = self.tableModel.getValueAt(row, col)
-                if self.store(index, name):
-                    indices = tmpNameToIndex.setdefault(name, [])
-                    indices.append( index)
-                    allIndices = self.findAllIndices(name)
-                    if len(allIndices) > 1:
-                        newNames = self.getNewNames(allIndices, name)
-                        if newNames is None:
-                            newNames = ""
-                        self.uniqueNames[name] = newNames
-                        tmpUniqueNames[name] = newNames
-                        for rowColIndex, newName in zip(allIndices, newNames):
-                            self.store(rowColIndex, newName)
-            if len (tmpUniqueNames) == 0:
-                self.uniqueNames = tmpUniqueNames
+                index = row, col
+                name = self.tableModel.getValueAt(row, col) or ""
+                self.store(index, name)
+                indices = tmpNameToIndex.setdefault(name, [])
+                indices.append(index)
+                if len(indices) > 1:
+                    newNames = self.getNewNames(indices, name)
+                    self.uniqueNames[name] = newNames
+                    for rowColIndex, newName in zip(indices, newNames):
+                        self.store(rowColIndex, newName)
+            if len(self.uniqueNames) == 0:
                 self.nameToIndex = tmpNameToIndex
                 break
     
-    def findAllIndices(self, name):
-        storedIndices = self.nameToIndex.get(name, [])
-        if len(storedIndices) > 0:
-            validIndices = filter(lambda r: len(r) == 2, storedIndices)
-            self.nameToIndex[name] = validIndices
-            return validIndices
-        else:
-            return storedIndices
-    
     def getNewNames(self, indices, oldName):
-        if oldName is None:
-            oldName = ""
-        newNames = [ oldName ] * len(indices) 
-        newName = oldName
-        for i in range(len(indices)):
-            newNames[i] = newName + " (" + str(indices[i][0]) +  "," + str(indices[i][1]) + ")"
-        return newNames
+        return [ oldName + " (" + str(row) +  "," + str(col) + ")" for row, col in indices ]
                 
     def store(self, index, name):
-        indices = self.nameToIndex.setdefault(name, [])
-        if not index in indices:
-            self.logger.debug("Storing value named " + repr(name) + " in table cell with index " + repr(index))
-            indices.append(index)
-            return True
-        else:
-            return False
-
-            
+        self.nameToIndex.setdefault(name, []).append(index)
+        self.logger.debug("Storing value named " + repr(name) + " in table cell with index " + repr(index))
