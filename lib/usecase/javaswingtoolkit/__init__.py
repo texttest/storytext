@@ -15,7 +15,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         (swing.JList        , [ simulator.ListSelectEvent]),
-        (swing.JTable       , [ simulator.TableSelectEvent]),
+        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent]),
         ]
     
     def createReplayer(self, universalLogging=False):

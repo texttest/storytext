@@ -825,7 +825,11 @@ class Describer:
     def formatTable(self, rows, columnCount):
         colWidths = self.findColumnWidths(rows, columnCount)
         tableText = self.formatCellsInGrid(rows, colWidths)
-        header, body = tableText.split("\n", 1)
+        if "\n" in tableText:
+            header, body = tableText.split("\n", 1)
+        else:
+            header = tableText
+            body = ""
         line = "_" * sum(colWidths) + "\n"
         return line + header + "\n" + line + body + "\n" + line
 
