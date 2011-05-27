@@ -203,7 +203,8 @@ class ListSelectEvent(StateChangeEvent):
             raise UseCaseScriptError, "Could not find item labeled '" + argumentString + "' in list."
     
     def getStateText(self, *args):
-        return ", ".join(self.widget.getSelectedValues())
+        texts = [ util.getJListText(self.widget.widget, i) for i in self.widget.getSelectedIndices() ]
+        return ", ".join(texts)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)

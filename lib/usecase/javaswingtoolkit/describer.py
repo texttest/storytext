@@ -213,13 +213,11 @@ class Describer(usecase.guishared.Describer):
 
     def getJListState(self, widget):
         text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
-        selection = widget.getSelectedValues()
         for i in range(widget.getModel().getSize()):
-            item = widget.getModel().getElementAt(i)
-            if not item:
-                item = ""
-            text += "-> " + item
-            if item in selection:
+            value = util.getJListText(widget, i)
+            isSelected = widget.isSelectedIndex(i)
+            text += "-> " + value
+            if isSelected:
                 text += " (selected)"
             text += "\n"
         return text    
