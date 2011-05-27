@@ -16,6 +16,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         (swing.JList        , [ simulator.ListSelectEvent]),
         (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent]),
+        (swing.table.JTableHeader   , [ simulator.TableHeaderEvent]),
         ]
     
     def createReplayer(self, universalLogging=False):

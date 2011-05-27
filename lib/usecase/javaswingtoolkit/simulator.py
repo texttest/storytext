@@ -134,6 +134,9 @@ class DoubleClickEvent(SignalEvent):
         return Filter.getEventFromUser(oldEvent) and newEvent.getModifiers() & \
         MouseEvent.BUTTON1_MASK != 0 and newEvent.getClickCount() == 2
         
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, SelectEvent)
+        
 class ButtonClickEvent(SelectEvent):
     def connectRecord(self, method):
         SelectEvent.connectRecord(self, method)
@@ -226,7 +229,16 @@ class TableSelectEvent(ListSelectEvent):
     def getSelectionWidget(self):
         return self.widget.widget.getSelectionModel()
 
+        
+class TableHeaderEvent(SelectEvent):
+    def _generate(self, argumentString):
+        swinglib.runKeyword("clickTableHeader", [self.widget.getTable().getName(), argumentString])
 
+    def outputForScript(self, event, *args):
+        colIndex = self.widget.columnAtPoint(event.getPoint())
+        name = self.widget.getTable().getColumnName(colIndex)        
+        return SelectEvent.outputForScript(self, event, *args) + " " + name
+    
 class CellDoubleClickEvent(DoubleClickEvent):
     def _generate(self, argumentString):
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)            
