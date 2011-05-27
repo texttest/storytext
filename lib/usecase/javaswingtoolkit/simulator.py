@@ -285,7 +285,7 @@ class Filter:
                 return True
         return False
     
-    def startListening(self):
+    def startListening(self, handleNewComponent):
         eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK | \
         AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
         # Should be commented out if we need to listen to these events:
@@ -297,7 +297,11 @@ class Filter:
                 # Primarily to make coverage work, it doesn't get enabled in threads made by Java
                 if hasattr(threading, "_trace_hook") and threading._trace_hook:
                     sys.settrace(threading._trace_hook)
-                self.handleEvent(event)
+                    
+                if event.getID() == ComponentEvent.COMPONENT_SHOWN:
+                    handleNewComponent(event.getSource())
+                else:
+                    self.handleEvent(event)
         
         self.eventListener = AllEventListener()
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, self.eventListener, eventMask)
@@ -307,9 +311,7 @@ class Filter:
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().removeAWTEventListener, cls.eventListener)
     
     def handleEvent(self, event):
-        if event.getID() == ComponentEvent.COMPONENT_SHOWN:
-            self.monitorNewComponent(event)
-        elif isinstance(event.getSource(), Component):
+        if isinstance(event.getSource(), Component):
             if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()):
                 self.logger.debug("Filter for event " + event.toString())    
                 self.eventsFromUser.append(event)
@@ -333,11 +335,6 @@ class Filter:
     def handleComponentEvent(self, event):            
         return False #TODO: return event.getID() == ComponentEvent.COMPONENT_RESIZED
 
-    def monitorNewComponent(self, event):
-        if isinstance(event.getSource(), (swing.JFrame, swing.JDialog)):
-            self.uiMap.scriptEngine.replayer.handleNewWindow(event.getSource())
-        else:
-            self.uiMap.scriptEngine.replayer.handleNewWidget(event.getSource())
 
 class TableIndexer():
     allIndexers = {}

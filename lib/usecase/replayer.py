@@ -71,12 +71,13 @@ class UseCaseReplayer:
         self.applicationEventNames = set()
         self.replayThread = None
         self.timeDelayNextCommand = 0
-        replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if os.name == "posix":
             os.setpgrp() # Makes it easier to kill subprocesses
+
+        replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if replayScript:
-            self.addScript(ReplayScript(replayScript))
-    
+            self.scripts.append(ReplayScript(replayScript))
+                
     def isActive(self):
         return len(self.scripts) > 0
 
@@ -91,6 +92,14 @@ class UseCaseReplayer:
     
     def addScript(self, script):
         self.scripts.append(script)
+        self.runScript(script)
+
+    def tryRunScript(self):
+        if self.isActive():
+            script = self.scripts[-1]
+            self.runScript(script)
+
+    def runScript(self, script):
         if self.processInitialWait(script):
             self.enableReading()
 

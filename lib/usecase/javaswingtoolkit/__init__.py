@@ -2,7 +2,7 @@
 import usecase.guishared, time, os
 from javax import swing
 from java.awt import Frame
-import simulator, util
+import simulator, describer, util
 
     
 class ScriptEngine(usecase.guishared.ScriptEngine):
@@ -31,74 +31,37 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             exec "import " + args[0] + " as _className"
             _className.main(args)
 
+        self.replayer.runTestThread()
+
+           
+class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
+    def __init__(self, *args, **kw):
+        usecase.guishared.ThreadedUseCaseReplayer.__init__(self, *args, **kw)
+        self.describer = describer.Describer()
+        self.filter = simulator.Filter(self.uiMap)
+        self.filter.startListening(self.handleNewComponent)
+
+    def handleNewComponent(self, widget):
+        if self.uiMap and (self.isActive() or self.recorder.isActive()):
+            if isinstance(widget, (swing.JFrame, swing.JDialog)):
+                self.uiMap.monitorAndStoreWindow(widget)
+            else:
+                self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
+        if self.loggerActive:
+            self.describer.setWidgetShown(widget)
+
+    def describe(self):
+        util.runOnEventDispatchThread(self.describer.describeWithUpdates)
+
+    def runTestThread(self):
         while not self.frameShowing():
             time.sleep(0.1)
                 
-        if self.replayerActive():
-            self.replayer.describeAndRun()
+        if self.isActive():
+            self.describeAndRun(self.describe)
         else: # pragma: no cover - replayer disabled, cannot create automated tests
-            self.replayer.handleNewWindows()
             while self.frameShowing():
                 time.sleep(0.1)
 
     def frameShowing(self): # pragma: no cover - replayer disabled, cannot create automated tests
         return any((frame.isShowing() for frame in Frame.getFrames()))
-           
-class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
-    def __init__(self, *args, **kw):
-        self.waiting = False
-        self.describer = self.getDescriberClass()()
-        usecase.guishared.UseCaseReplayer.__init__(self, *args, **kw)
-        
-    def enableReplayHandler(self, *args):
-        pass
-
-    def addScript(self, script):
-        self.scripts.append(script)
-        self.waiting = not self.processInitialWait(script)
-           
-    def tryAddDescribeHandler(self):
-        self.filter = simulator.Filter(self.uiMap)
-        self.filter.startListening()
-        
-    def describeAndRun(self):
-        if self.waiting:
-            self.waitForReenable()
-        while True:
-            util.runOnEventDispatchThread(self.describer.describeWithUpdates)
-            if self.delay:
-                time.sleep(self.delay)
-            if not self.runNextCommand():
-                self.waiting = not self.waitingCompleted()
-                if self.waiting:
-                    self.waitForReenable()
-                else:
-                    break
-
-    def enableReading(self):
-        if self.waiting:
-            self.waiting = False
-            
-    def waitForReenable(self):
-        self.logger.debug("Waiting for replaying to be re-enabled...")
-        while self.waiting:
-            time.sleep(0.1) # don't use the whole CPU while waiting
-                
-    def findWindowsForMonitoring(self):
-        return []
-
-    def getDescriberClass(self):
-        from describer import Describer
-        return Describer
-    
-    def handleNewWindow(self, window):
-        if self.uiMap and (self.isActive() or self.recorder.isActive()):
-            self.uiMap.monitorAndStoreWindow(window)
-        if self.loggerActive:
-            self.describer.setWidgetShown(window)
-
-    def handleNewWidget(self, widget):
-        if self.uiMap and (self.isActive() or self.recorder.isActive()):
-            self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
-        if self.loggerActive:
-            self.describer.setWidgetShown(widget)

@@ -224,9 +224,9 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
 
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
-class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
+class UseCaseReplayer(usecase.guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args):
-        usecase.guishared.UseCaseReplayer.__init__(self, *args)
+        usecase.guishared.IdleHandlerUseCaseReplayer.__init__(self, *args)
         # Anyone calling events_pending doesn't mean to include our logging events
         # so we intercept it and return the right answer for them...
         self.orig_events_pending = gtk.events_pending

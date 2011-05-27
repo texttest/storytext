@@ -144,9 +144,9 @@ class UIMap(guishared.UIMap):
         wx.Dialog = Dialog
         Dialog.uiMap = self
 
-class UseCaseReplayer(guishared.UseCaseReplayer):
+class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
-        guishared.UseCaseReplayer.__init__(self, *args, **kw)
+        guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
 
     def makeIdleHandler(self, method):
@@ -161,7 +161,7 @@ class UseCaseReplayer(guishared.UseCaseReplayer):
 
     def handleNewWindows(self, *args):
         self.describer.describeUpdates()
-        guishared.UseCaseReplayer.handleNewWindows(self)
+        guishared.IdleHandlerUseCaseReplayer.handleNewWindows(self)
 
     def describeNewWindow(self, window):
         self.describer.describe(window)

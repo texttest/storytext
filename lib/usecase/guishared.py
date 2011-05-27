@@ -2,7 +2,7 @@
 """ Generic module for any kind of Python UI, as distinct from the classes these derive from which contains 
 stuff also applicable even without this """
 
-import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess
+import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess, time
 from ordereddict import OrderedDict
 from locale import getdefaultlocale
 from traceback import format_exception
@@ -552,33 +552,66 @@ class UIMap:
         self.scriptEngine._monitorSignal(eventName, signalName, widget, argumentParseData)
         return True
         
-
-# Use the GTK idle handlers instead of a separate thread for replay execution
+# Base class for all replayers using a GUI
 class UseCaseReplayer(replayer.UseCaseReplayer):
     def __init__(self, uiMap, universalLogging, recorder):
+        replayer.UseCaseReplayer.__init__(self)
         self.readingEnabled = False
         self.uiMap = uiMap
-        self.idleHandler = None
         self.loggerActive = universalLogging
         self.recorder = recorder
         self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
+        
+    def enableReading(self):
+        self.readingEnabled = True
+    
+    def getParseError(self, scriptCommand):
+        widgetDescriptor, actionName = self.uiMap.findWidgetDetails(scriptCommand)
+        if widgetDescriptor:
+            return "Could not execute script command '" + scriptCommand + "'.\n" + \
+                   "No widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on."
+        else:
+            return replayer.UseCaseReplayer.getParseError(self, scriptCommand)
+
+
+# Use the idle handlers instead of a separate thread for replay execution
+# Used for GTK, tkinter, wxPython
+class IdleHandlerUseCaseReplayer(UseCaseReplayer):
+    def __init__(self, *args):
+        UseCaseReplayer.__init__(self, *args)
+        self.idleHandler = None
         self.tryAddDescribeHandler()
-        replayer.UseCaseReplayer.__init__(self)
 
     def isMonitoring(self):
         return self.loggerActive or (self.recorder.isActive() and self.uiMap)
-
+        
     def tryAddDescribeHandler(self):
         if self.idleHandler is None and self.isMonitoring():
             self.idleHandler = self.makeDescribeHandler(self.handleNewWindows)
         else:
             self.idleHandler = None
 
+    def enableReading(self):
+        self.readingEnabled = True
+        self._disableIdleHandlers()
+        self.enableReplayHandler()
+
     def makeDescribeHandler(self, method):
         return self.makeIdleHandler(method)
 
     def makeIdleReplayHandler(self, method):
         return self.makeIdleHandler(method)
+
+    def callReplayHandlerAgain(self):
+        self.enableReplayHandler()
+
+    def _disableIdleHandlers(self):
+        if self.idleHandler is not None:
+            self.removeHandler(self.idleHandler)
+            self.idleHandler = None
+    
+    def enableReplayHandler(self):
+        self.idleHandler = self.makeReplayHandler(self.describeAndRun)
 
     def handleNewWindows(self):
         for window in self.findWindowsForMonitoring():
@@ -587,22 +620,6 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
             if self.loggerActive:
                 self.describeNewWindow(window)
         return True
-
-    def callReplayHandlerAgain(self):
-        self.enableReplayHandler()
-
-    def enableReading(self):
-        self.readingEnabled = True
-        self._disableIdleHandlers()
-        self.enableReplayHandler()
-    
-    def _disableIdleHandlers(self):
-        if self.idleHandler is not None:
-            self.removeHandler(self.idleHandler)
-            self.idleHandler = None
-    
-    def enableReplayHandler(self):
-        self.idleHandler = self.makeReplayHandler(self.describeAndRun)
 
     def makeReplayHandler(self, method):
         if self.delay:
@@ -627,16 +644,30 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
             return self.callReplayHandlerAgain()
         else:
             return False
+        
+# Base class for Java replayers, both of which run in a separate thread
+class ThreadedUseCaseReplayer(UseCaseReplayer):
+    def waitForReenable(self):
+        self.logger.debug("Waiting for replaying to be re-enabled...")
+        while not self.readingEnabled:
+            time.sleep(0.1) # don't use the whole CPU while waiting
 
-    def getParseError(self, scriptCommand):
-        widgetDescriptor, actionName = self.uiMap.findWidgetDetails(scriptCommand)
-        if widgetDescriptor:
-            return "Could not execute script command '" + scriptCommand + "'.\n" + \
-                   "No widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on."
-        else:
-            return replayer.UseCaseReplayer.getParseError(self, scriptCommand)
+    def describeAndRun(self, describeMethod):
+        if not self.readingEnabled:
+            self.waitForReenable()
+        while True:
+            describeMethod()
+            if self.delay:
+                time.sleep(self.delay)
+            if not self.runNextCommand():
+                self.readingEnabled = self.waitingCompleted()
+                if self.readingEnabled:
+                    break
+                else:
+                    self.waitForReenable()
 
-# Base class for tkinter and wx only right now, should be developed further and bring in gtk also
+
+# Base class for everything except GTK's describer, which works a bit differently
 class Describer:
     def __init__(self):
         self.logger = logging.getLogger("gui log")
@@ -754,7 +785,7 @@ class Describer:
             return "".join(elements)
         else:
             return elements[0] + " (" + ", ".join(elements[1:]) + ")"
-    
+
     def getStructureName(self):
         return "Default structure"    
     ##Debug code

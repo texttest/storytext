@@ -1,7 +1,7 @@
 
 """ Don't load any Java stuff at global scope, needs to be importable by CPython also """
 
-import usecase.guishared, os, time, types
+import usecase.guishared, os, types
 from threading import Thread
 
 class ScriptEngine(usecase.guishared.ScriptEngine):
@@ -56,30 +56,17 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         return widgets
 
         
-class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
-    def __init__(self, *args, **kw):
-        self.waiting = False
-        usecase.guishared.UseCaseReplayer.__init__(self, *args, **kw)
-        
-    def tryAddDescribeHandler(self):
+class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
+    def __init__(self, *args):
         # Set up used for recording
-        self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
+        usecase.guishared.ThreadedUseCaseReplayer.__init__(self, *args)
+        self.setThreadCallbacks()
 
-    def addScript(self, script):
-        self.scripts.append(script)
-        self.waiting = not self.processInitialWait(script)
-        # We need to make sure the replay thread actually hangs around to do something
-        # so we enable even if we're waiting
-        self.enableReplayInitially()
-            
-    def enableReading(self):
-        if self.waiting:
-            self.waiting = False
+    def setThreadCallbacks(self):
+        if self.isActive():
+            self.uiMap.scriptEngine.setTestThreadAction(self.runReplay)
         else:
-            self.enableReplayInitially()
-
-    def enableReplayInitially(self):
-        self.uiMap.scriptEngine.setTestThreadAction(self.runReplay)
+            self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
 
     def getMonitorClass(self):
         from simulator import WidgetMonitor
@@ -94,30 +81,14 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
     
     def runReplay(self):
         monitor = self.setUpMonitoring()
-        self.runCommands(monitor)
+        from simulator import runOnUIThread
+        # Can't make this a member, otherwise fail with classloader problems for RCP
+        describer = self.getDescriberClass()()
+        runOnUIThread(describer.addFilters, monitor.getDisplay())
+        def describe():
+            runOnUIThread(describer.describeWithUpdates, monitor.getActiveShell())
+        self.describeAndRun(describe)
 
     def getDescriberClass(self):
         from describer import Describer
         return Describer
-
-    def runCommands(self, monitor):
-        if self.waiting:
-            self.waitForReenable()
-        theDescriber = self.getDescriberClass()()
-        from simulator import runOnUIThread
-        runOnUIThread(theDescriber.addFilters, monitor.getDisplay())
-        while True:
-            runOnUIThread(theDescriber.describeWithUpdates, monitor.getActiveShell())
-            if self.delay:
-                time.sleep(self.delay)
-            if not self.runNextCommand():
-                self.waiting = not self.waitingCompleted()
-                if self.waiting:
-                    self.waitForReenable()
-                else:
-                    break
-
-    def waitForReenable(self):
-        self.logger.debug("Waiting for replaying to be re-enabled...")
-        while self.waiting:
-            time.sleep(0.1) # don't use the whole CPU while waiting

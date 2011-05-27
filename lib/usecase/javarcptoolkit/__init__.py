@@ -32,13 +32,16 @@ class TestRunner(Runnable):
 
         
 class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
-    def tryAddDescribeHandler(self):
-        # Set up used for recording
-        runner = TestRunner(self.setUpMonitoring)
-        jobSetupRunner = TestRunner(self.enableJobListener)
-        recordExitRunner = TestRunner(self.runOnRecordExit)
+    def setThreadCallbacks(self):
+        if self.isActive():
+            methods = [ self.runReplay, self.enableJobListener, self.tryTerminateCoverage ]
+        else:
+            methods = [ self.setUpMonitoring, self.enableJobListener, self.runOnRecordExit ]
+
+        runners = map(TestRunner, methods)
         try:
-            self.setTestRunnables(runner, jobSetupRunner, recordExitRunner)
+            from org.eclipse.swtbot.testscript import TestRunnableStore
+            TestRunnableStore.setTestRunnables(*runners)
         except ImportError:
             sys.stderr.write("ERROR: Could not find SWTBot testscript plugin. Please install it as described at :\n" +
                              "http://www.texttest.org/index.php?page=ui_testing&n=pyusecase_and_swt\n")
@@ -61,16 +64,6 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
         except: # pragma: no cover - Obviously can't measure coverage here!
             pass
     
-    def enableReplayInitially(self):
-        runner = TestRunner(self.runReplay)
-        jobSetupRunner = TestRunner(self.enableJobListener)
-        replayExitRunner = TestRunner(self.tryTerminateCoverage)
-        self.setTestRunnables(runner, jobSetupRunner, replayExitRunner)
-        
-    def setTestRunnables(self, *args):
-        from org.eclipse.swtbot.testscript import TestRunnableStore
-        TestRunnableStore.setTestRunnables(*args)
-
     def getMonitorClass(self):
         from simulator import WidgetMonitor
         return WidgetMonitor

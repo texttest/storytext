@@ -493,9 +493,9 @@ class ScriptEngine(guishared.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 
-class UseCaseReplayer(guishared.UseCaseReplayer):
+class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
-        guishared.UseCaseReplayer.__init__(self, *args, **kw)
+        guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
 
     def makeIdleHandler(self, method):
@@ -510,7 +510,7 @@ class UseCaseReplayer(guishared.UseCaseReplayer):
 
     def handleNewWindows(self):
         self.describer.describeUpdates()
-        guishared.UseCaseReplayer.handleNewWindows(self)
+        guishared.IdleHandlerUseCaseReplayer.handleNewWindows(self)
 
     def describeNewWindow(self, window):
         self.describer.describe(window)
@@ -534,7 +534,7 @@ class UseCaseReplayer(guishared.UseCaseReplayer):
             # Seems to occasionally get called by Tkinter even after application is terminated.
             # That causes a TclError here. We should ignore it and just terminate
             return
-        guishared.UseCaseReplayer.describeAndRun(self)
+        guishared.IdleHandlerUseCaseReplayer.describeAndRun(self)
         
 
 class Describer(guishared.Describer):
