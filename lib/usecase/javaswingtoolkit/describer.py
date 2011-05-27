@@ -29,6 +29,9 @@ class Describer(usecase.guishared.Describer):
         self.describeAppearedWidgets(stateChangeWidgets)
         self.describeStateChanges(stateChanges)
         self.widgetsAppeared = []
+
+    def shouldCheckForUpdates(self, widget, *args):
+        return widget.isShowing()
     
     def describeAppearedWidgets(self, stateChangeWidgets):
         markedWidgets = self.widgetsAppeared + stateChangeWidgets
