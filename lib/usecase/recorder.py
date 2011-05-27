@@ -247,6 +247,7 @@ class UseCaseRecorder:
         else:
             # Non-categorised event makes all previous ones irrelevant
             self.applicationEvents = OrderedDict()
+            self.logger.debug("Got application event '" + eventName + "' in global category")
             self.supercededAppEventCategories = {}
             self.applicationEvents["gtkscript_DEFAULT"] = eventName
 

@@ -49,9 +49,12 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         self.describer = self.getDescriberClass()()
         usecase.guishared.UseCaseReplayer.__init__(self, *args, **kw)
         
-        
     def enableReplayHandler(self, *args):
         pass
+
+    def addScript(self, script):
+        self.scripts.append(script)
+        self.waiting = not self.processInitialWait(script)
            
     def tryAddDescribeHandler(self):
         self.filter = simulator.Filter(self.uiMap)
@@ -79,7 +82,6 @@ class UseCaseReplayer(usecase.guishared.UseCaseReplayer):
         self.logger.debug("Waiting for replaying to be re-enabled...")
         while self.waiting:
             time.sleep(0.1) # don't use the whole CPU while waiting
-
                 
     def findWindowsForMonitoring(self):
         return []
