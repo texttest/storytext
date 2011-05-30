@@ -67,6 +67,8 @@ class Describer(usecase.guishared.Describer):
               
     def getPropertyElements(self, item, selected=False):
         elements = []
+        if isinstance(item, swing.JSeparator):
+            elements.append("---")
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
         if hasattr(item, "getIcon") and item.getIcon():
@@ -284,8 +286,8 @@ class Describer(usecase.guishared.Describer):
                                prefix="", selection=[]):
         descs = []
         items = []
-        if hasattr(itemBar, "getSubElements"):
-            items = itemBar.getSubElements()
+        if hasattr(itemBar, "getMenuComponents"):
+            items = itemBar.getMenuComponents()
         elif hasattr(itemBar, "getComponents"):
             items = itemBar.getComponents()
             
