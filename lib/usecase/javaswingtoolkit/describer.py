@@ -83,7 +83,7 @@ class Describer(usecase.guishared.Describer):
         return elements
 
     def layoutSortsChildren(self, widget):
-        return not isinstance(widget, swing.JLayeredPane)
+        return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane))
 
     def getVerticalDividePositions(self, visibleChildren):
         return [] # for now
@@ -98,13 +98,18 @@ class Describer(usecase.guishared.Describer):
 
     def getLayoutColumns(self, widget, childDescriptions):
         if len(childDescriptions) > 1:
+            if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
+                return 2
             layout = widget.getLayout()
             if isinstance(layout, awt.FlowLayout):
                 return len(childDescriptions)
         return 1
 
     def getHorizontalSpan(self, widget):
-        return 1
+        if isinstance(widget.getParent(), swing.JScrollPane) and widget is widget.getParent().getColumnHeader():
+            return 2
+        else:
+            return 1
         
     def getWindowClasses(self):
         return swing.JFrame, swing.JDialog
@@ -242,8 +247,16 @@ class Describer(usecase.guishared.Describer):
         self.leaveItemsWithoutDescriptions(list, None, (swing.CellRendererPane,))
         return self.getAndStoreState(list)
 
+    def isTableRowHeader(self, widget):
+        # viewport, then scroll pane...
+        scrollPane = widget.getParent().getParent()
+        return isinstance(scrollPane, swing.JScrollPane) and scrollPane.getRowHeader() is not None and \
+               scrollPane.getRowHeader().getView() is widget and isinstance(scrollPane.getViewport().getView(), swing.JTable)
+
     def getJListState(self, widget):
         text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
+        if self.isTableRowHeader(widget):
+            text += "\n\n\n" # line it up with the table...
         for i in range(widget.getModel().getSize()):
             value = util.getJListText(widget, i)
             isSelected = widget.isSelectedIndex(i)
