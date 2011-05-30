@@ -67,9 +67,8 @@ class Describer(usecase.guishared.Describer):
               
     def getPropertyElements(self, item, selected=False):
         elements = []
-#        Will be used when adding tooltip tests
-#        if hasattr(item, "getToolTipText") and item.getToolTipText():
-#            elements.append("Tooltip '" + item.getToolTipText() + "'")
+        if hasattr(item, "getToolTipText") and item.getToolTipText():
+            elements.append("Tooltip '" + item.getToolTipText() + "'")
         if hasattr(item, "getIcon") and item.getIcon():
             elements.append(self.getImageDescription(item.getIcon()))
         if hasattr(item, "isEnabled") and not item.isEnabled():

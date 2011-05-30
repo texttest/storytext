@@ -56,6 +56,12 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             if dialogTitle:
                 return text + ", Dialog=" + dialogTitle
         return text
+
+    def getTooltip(self):
+        if hasattr(self.widget, "getToolTipText"):
+            return self.widget.getToolTipText() or ""
+        else:
+            return ""
     
     def getDialogTitle(self):
         return swing.SwingUtilities.getWindowAncestor(self.widget).getTitle()
