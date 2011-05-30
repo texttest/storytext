@@ -667,12 +667,47 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                     self.waitForReenable()
 
 
+class WidgetCounter:
+    def __init__(self, equalityMethod=None):
+        self.widgetNumbers = []
+        self.nextWidgetNumber = 1
+        self.describedNumber = 0
+        self.customEqualityMethod = equalityMethod
+
+    def widgetsEqual(self, widget1, widget2):
+        if self.customEqualityMethod:
+            return widget1 is widget2 or self.customEqualityMethod(widget1, widget2)
+        else:
+            return widget1 is widget2
+
+    def getWidgetNumber(self, widget):
+        for currWidget, number in self.widgetNumbers:
+            if (not hasattr(currWidget, "isDisposed") or not currWidget.isDisposed()) and self.widgetsEqual(widget, currWidget):
+                return number
+        return 0
+
+    def getId(self, widget):
+        number = self.getWidgetNumber(widget)
+        if not number:
+            number = self.nextWidgetNumber
+            self.widgetNumbers.append((widget, self.nextWidgetNumber))
+            self.nextWidgetNumber += 1
+        return str(number)
+
+    def getWidgetsForDescribe(self):
+        widgets = self.widgetNumbers[self.describedNumber:]
+        self.describedNumber = len(self.widgetNumbers)
+        return widgets
+
+
+
 # Base class for everything except GTK's describer, which works a bit differently
 class Describer:
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
         self.widgetsWithState = OrderedDict()
+        self.imageCounter = WidgetCounter(self.imagesEqual)
         self.structureLogger = logging.getLogger("widget structure")
 
     def describe(self, window):

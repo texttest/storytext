@@ -3,40 +3,7 @@ import usecase.guishared, util, types, os, logging
 from itertools import izip
 from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
-from java.util import Date
-
-class WidgetCounter:
-    def __init__(self, equalityMethod=None):
-        self.widgetNumbers = []
-        self.nextWidgetNumber = 1
-        self.describedNumber = 0
-        self.customEqualityMethod = equalityMethod
-
-    def widgetsEqual(self, widget1, widget2):
-        if self.customEqualityMethod:
-            return widget1 is widget2 or self.customEqualityMethod(widget1, widget2)
-        else:
-            return widget1 is widget2
-
-    def getWidgetNumber(self, widget):
-        for currWidget, number in self.widgetNumbers:
-            if not currWidget.isDisposed() and self.widgetsEqual(widget, currWidget):
-                return number
-        return 0
-
-    def getId(self, widget):
-        number = self.getWidgetNumber(widget)
-        if not number:
-            number = self.nextWidgetNumber
-            self.widgetNumbers.append((widget, self.nextWidgetNumber))
-            self.nextWidgetNumber += 1
-        return str(number)
-
-    def getWidgetsForDescribe(self):
-        widgets = self.widgetNumbers[self.describedNumber:]
-        self.describedNumber = len(self.widgetNumbers)
-        return widgets
-        
+from java.util import Date        
         
         
 class Describer(usecase.guishared.Describer):
@@ -53,9 +20,8 @@ class Describer(usecase.guishared.Describer):
                      swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
     def __init__(self):
-        self.imageCounter = WidgetCounter(self.imagesEqual)
-        self.canvasCounter = WidgetCounter()
-        self.contextMenuCounter = WidgetCounter(self.contextMenusEqual)
+        self.canvasCounter = usecase.guishared.WidgetCounter()
+        self.contextMenuCounter = usecase.guishared.WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
         self.widgetsRepainted = []
         self.widgetsDescribed = set()

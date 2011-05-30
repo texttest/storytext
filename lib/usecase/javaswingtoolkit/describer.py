@@ -1,4 +1,4 @@
-import usecase.guishared, logging, util
+import usecase.guishared, logging, util, os
 import java.awt as awt
 from javax import swing
 
@@ -213,8 +213,19 @@ class Describer(usecase.guishared.Describer):
         return self.combineElements(elements)
     
     def getImageDescription(self, image):
-        #TODO: describe the image
-        return "Image"
+        if hasattr(image, "getDescription") and image.getDescription():
+            desc = image.getDescription()
+            if "file:" in desc:
+                desc = os.path.basename(desc.split("file:")[-1])
+            return "Icon '" + desc + "'"
+        else:
+            return "Image " + self.imageCounter.getId(image)
+
+    def imagesEqual(self, icon1, icon2):
+        if hasattr(icon1, "getImage") and hasattr(icon2, "getImage"):
+            return icon1.getImage() == icon2.getImage()
+        else:
+            return icon1 == icon2
     
     def getJListDescription(self, list):
         self.leaveItemsWithoutDescriptions(list, None, (swing.CellRendererPane,))
