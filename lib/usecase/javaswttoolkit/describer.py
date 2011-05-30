@@ -1,6 +1,5 @@
 
 import usecase.guishared, util, types, os, logging
-from itertools import izip
 from usecase.definitions import UseCaseScriptError
 from org.eclipse import swt
 from java.util import Date        
@@ -506,16 +505,8 @@ class Describer(usecase.guishared.Describer):
             return ""
 
         visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
-        children = self.sortChildren(widget, visibleChildren)
-        childDescriptions = map(self.getDescription, children)
-        columns = self.getLayoutColumns(widget, childDescriptions)
-        if columns > 1:
-            horizontalSpans = map(self.getHorizontalSpan, children)
-            return self.formatInGrid(childDescriptions, columns, horizontalSpans)
-        else:
-            return self.formatInColumn(childDescriptions)
-        return self.formatChildrenDescriptions(widget, children)
-
+        return self.formatChildrenDescription(widget, visibleChildren)
+        
     def formatContextMenuDescriptions(self):
         text = ""
         for contextMenu, menuId in self.contextMenuCounter.getWidgetsForDescribe():
@@ -529,13 +520,6 @@ class Describer(usecase.guishared.Describer):
         else:
             return 1
 
-    def formatInColumn(self, childDescriptions):
-        desc = ""
-        for childDesc in childDescriptions:
-            desc = self.addToDescription(desc, childDesc)
-        
-        return desc.rstrip()
-
     def getLayoutColumns(self, widget, childDescriptions):
         if len(childDescriptions) > 1:
             layout = widget.getLayout()
@@ -545,37 +529,6 @@ class Describer(usecase.guishared.Describer):
                 if layout.type == swt.SWT.HORIZONTAL:
                     return len(childDescriptions)
         return 1
-
-    def makeGrid(self, childDescriptions, numColumns, horizontalSpans):
-        grid = []
-        index = 0
-        for childDesc, span in izip(childDescriptions, horizontalSpans):
-            if index % numColumns == 0:
-                grid.append([])
-            grid[-1].append(childDesc)
-            index += span
-        return grid
-
-    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
-        grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
-        colWidths = self.findColumnWidths(grid, numColumns)
-        totalWidth = sum(colWidths)
-        if totalWidth > 130: # After a while, excessively wide grids just get too hard to read
-            header = "." * 6 + " " + str(numColumns) + "-Column Layout " + "." * 6
-            desc = self.formatColumnsInGrid(grid, numColumns)
-            footer = "." * len(header)
-            return header + "\n" + desc + "\n" + footer
-        else:
-            return self.formatCellsInGrid(grid, colWidths)
-
-    def formatColumnsInGrid(self, grid, numColumns):
-        desc = ""
-        for colNum in range(numColumns):
-            for row in grid:
-                if colNum < len(row):
-                    desc += row[colNum] + "\n"
-            desc += "\n"
-        return desc.rstrip()
 
     def checkInstance(self, *args):
         return util.checkInstance(*args)

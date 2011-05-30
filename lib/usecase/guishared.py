@@ -3,6 +3,7 @@
 stuff also applicable even without this """
 
 import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess, time
+from itertools import izip
 from ordereddict import OrderedDict
 from locale import getdefaultlocale
 from traceback import format_exception
@@ -912,6 +913,54 @@ class Describer:
                         cellRow = ""
                     desc += cellRow.ljust(colWidths[colNum])
                 desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
+        return desc.rstrip()
+
+    def formatChildrenDescription(self, widget, children):
+        sortedChildren = self.sortChildren(widget, children)
+        childDescriptions = map(self.getDescription, sortedChildren)
+        columns = self.getLayoutColumns(widget, childDescriptions)
+        if columns > 1:
+            horizontalSpans = map(self.getHorizontalSpan, sortedChildren)
+            return self.formatInGrid(childDescriptions, columns, horizontalSpans)
+        else:
+            return self.formatInColumn(childDescriptions)
+
+    def formatInColumn(self, childDescriptions):
+        desc = ""
+        for childDesc in childDescriptions:
+            desc = self.addToDescription(desc, childDesc)
+        
+        return desc.rstrip()
+
+    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
+        grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
+        colWidths = self.findColumnWidths(grid, numColumns)
+        totalWidth = sum(colWidths)
+        if totalWidth > 130: # After a while, excessively wide grids just get too hard to read
+            header = "." * 6 + " " + str(numColumns) + "-Column Layout " + "." * 6
+            desc = self.formatColumnsInGrid(grid, numColumns)
+            footer = "." * len(header)
+            return header + "\n" + desc + "\n" + footer
+        else:
+            return self.formatCellsInGrid(grid, colWidths)
+
+    def makeGrid(self, childDescriptions, numColumns, horizontalSpans):
+        grid = []
+        index = 0
+        for childDesc, span in izip(childDescriptions, horizontalSpans):
+            if index % numColumns == 0:
+                grid.append([])
+            grid[-1].append(childDesc)
+            index += span
+        return grid
+
+    def formatColumnsInGrid(self, grid, numColumns):
+        desc = ""
+        for colNum in range(numColumns):
+            for row in grid:
+                if colNum < len(row):
+                    desc += row[colNum] + "\n"
+            desc += "\n"
         return desc.rstrip()
 
     def sortChildren(self, widget, visibleChildren):

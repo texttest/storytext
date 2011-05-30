@@ -15,7 +15,7 @@ class Describer(usecase.guishared.Describer):
 #                     swing.JToolBar, swing.JTree, swing.JWindow]
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
-        self.described = []
+        self.described = set()
         self.widgetsAppeared = []
     
     def describe(self, window):
@@ -91,13 +91,20 @@ class Describer(usecase.guishared.Describer):
     def getChildrenDescription(self, widget):
         if not isinstance(widget, awt.Container):
             return ""
-        desc = ""
-        visibleChildren = filter(lambda c: c.isVisible(), widget.getComponents())
-        for child in self.sortChildren(widget, visibleChildren):
-            if child not in self.described:
-                desc = self.addToDescription(desc, self.getDescription(child))
-                self.described.append(child)       
-        return desc.rstrip()
+
+        visibleChildren = filter(lambda c: c.isVisible() and c not in self.described, widget.getComponents())
+        self.described.update(visibleChildren)
+        return self.formatChildrenDescription(widget, visibleChildren)
+
+    def getLayoutColumns(self, widget, childDescriptions):
+        if len(childDescriptions) > 1:
+            layout = widget.getLayout()
+            if isinstance(layout, awt.FlowLayout):
+                return len(childDescriptions)
+        return 1
+
+    def getHorizontalSpan(self, widget):
+        return 1
         
     def getWindowClasses(self):
         return swing.JFrame, swing.JDialog
@@ -283,7 +290,7 @@ class Describer(usecase.guishared.Describer):
             if skippedObjects and not item in skippedObjects or \
             skippedClasses and not isinstance(item, skippedClasses):
                 continue
-            self.described.append(item)
+            self.described.add(item)
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
                                prefix="", selection=[]):
@@ -297,7 +304,7 @@ class Describer(usecase.guishared.Describer):
         for item in filter(lambda c: c.isVisible(), items):
             currPrefix = prefix + " " * indent * 2
             itemDesc = self.getItemDescription(item, currPrefix, item in selection)
-            self.described.append(item)
+            self.described.add(item)
             if itemDesc:
                 descs.append(itemDesc)
             if subItemMethod:
