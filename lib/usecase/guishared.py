@@ -840,7 +840,7 @@ class Describer:
                     basic += ", " + str(layout.numColumns) + " columns"
                 basic += ")"
         if hasattr(widget, "getVisible") and not widget.getVisible() or \
-        hasattr(widget, "getVisible") and not widget.isVisible():
+               hasattr(widget, "isVisible") and not widget.isVisible():
             basic += " (invisible)"
         return basic
         
