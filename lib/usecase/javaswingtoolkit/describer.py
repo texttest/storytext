@@ -73,6 +73,9 @@ class Describer(usecase.guishared.Describer):
             elements.append("Tooltip '" + item.getToolTipText() + "'")
         if hasattr(item, "getIcon") and item.getIcon():
             elements.append(self.getImageDescription(item.getIcon()))
+        if hasattr(item, "getAccelerator") and item.getAccelerator():
+            accel = item.getAccelerator().toString().replace(" pressed ", "+")
+            elements.append("Accelerator '" + accel + "'")
         if hasattr(item, "isEnabled") and not item.isEnabled():
             elements.append("greyed out")
         if selected:
