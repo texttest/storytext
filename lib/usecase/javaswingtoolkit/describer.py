@@ -77,13 +77,19 @@ class Describer(usecase.guishared.Describer):
         if selected:
             elements.append("selected")
         return elements
+
+    def layoutSortsChildren(self, widget):
+        return not isinstance(widget, swing.JLayeredPane)
+
+    def getVerticalDividePositions(self, visibleChildren):
+        return [] # for now
     
     def getChildrenDescription(self, widget):
         if not isinstance(widget, awt.Container):
             return ""
-        visibleChildren = filter(lambda c: c.isVisible(), widget.getComponents())
         desc = ""
-        for child in visibleChildren:            
+        visibleChildren = filter(lambda c: c.isVisible(), widget.getComponents())
+        for child in self.sortChildren(widget, visibleChildren):
             if child not in self.described:
                 desc = self.addToDescription(desc, self.getDescription(child))
                 self.described.append(child)       

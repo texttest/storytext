@@ -879,6 +879,28 @@ class Describer:
                 desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
         return desc.rstrip()
 
+    def sortChildren(self, widget, visibleChildren):
+        if len(visibleChildren) <= 1 or self.layoutSortsChildren(widget):
+            # Trust in the layout, if there is one
+            return visibleChildren
+        
+        xDivides = self.getVerticalDividePositions(visibleChildren)
+        # Children don't always come in order, sort them...
+        def getChildPosition(child):
+            loc = child.getLocation()
+            # With a divider, want to make sure everything ends up on the correct side of it
+            return self.getDividerIndex(loc.x, xDivides), loc.y, loc.x
+            
+        visibleChildren.sort(key=getChildPosition)
+        return visibleChildren
+
+    def getDividerIndex(self, pos, dividers):
+        for i, dividePos in enumerate(dividers):
+            if pos < dividePos:
+                return i
+        return len(dividers)
+
+
 
 def getExceptionString():
     type, value, traceback = sys.exc_info()

@@ -509,34 +509,12 @@ class Describer(usecase.guishared.Describer):
                  positions.append(child.getLocation().x)
         return sorted(positions)
 
-    def getDividerIndex(self, pos, dividers):
-        for i, dividePos in enumerate(dividers):
-            if pos < dividePos:
-                return i
-        return len(dividers)
-
     def layoutSortsChildren(self, widget):
         layout = widget.getLayout()
         return layout is not None and (util.checkInstance(layout, swt.layout.GridLayout) or \
                                        util.checkInstance(layout, swt.layout.FillLayout) or \
                                        util.checkInstance(layout, swt.layout.RowLayout) or \
                                        util.checkInstance(layout, swt.custom.StackLayout))
-
-    def sortChildren(self, widget):
-        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
-        if len(visibleChildren) <= 1 or self.layoutSortsChildren(widget):
-            # Trust in the layout, if there is one
-            return visibleChildren
-        
-        xDivides = self.getVerticalDividePositions(visibleChildren)
-        # Children don't always come in order, sort them...
-        def getChildPosition(child):
-            loc = child.getLocation()
-            # With a divider, want to make sure everything ends up on the correct side of it
-            return self.getDividerIndex(loc.x, xDivides), loc.y, loc.x
-            
-        visibleChildren.sort(key=getChildPosition)
-        return visibleChildren
 
     def getDescription(self, widget):
         self.widgetsDescribed.add(widget)
@@ -561,7 +539,8 @@ class Describer(usecase.guishared.Describer):
                util.getTopControl(widget):
             return ""
 
-        children = self.sortChildren(widget)
+        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
+        children = self.sortChildren(widget, visibleChildren)
         childDescriptions = map(self.getDescription, children)
         columns = self.getLayoutColumns(widget, childDescriptions)
         if columns > 1:
