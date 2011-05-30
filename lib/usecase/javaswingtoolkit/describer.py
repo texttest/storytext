@@ -290,8 +290,8 @@ class Describer(usecase.guishared.Describer):
             items = itemBar.getMenuComponents()
         elif hasattr(itemBar, "getComponents"):
             items = itemBar.getComponents()
-            
-        for item in items:
+
+        for item in filter(lambda c: c.isVisible(), items):
             currPrefix = prefix + " " * indent * 2
             itemDesc = self.getItemDescription(item, currPrefix, item in selection)
             self.described.append(item)
