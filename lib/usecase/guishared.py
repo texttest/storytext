@@ -711,6 +711,9 @@ class Describer:
         self.imageCounter = WidgetCounter(self.imagesEqual)
         self.structureLogger = logging.getLogger("widget structure")
 
+    def imagesEqual(self, image1, image2):
+        return image1 == image2
+
     def describe(self, window):
         if window in self.windows:
             return

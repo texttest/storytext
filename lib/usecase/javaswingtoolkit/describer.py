@@ -241,8 +241,8 @@ class Describer(usecase.guishared.Describer):
         if hasattr(icon1, "getImage") and hasattr(icon2, "getImage"):
             return icon1.getImage() == icon2.getImage()
         else:
-            return icon1 == icon2
-    
+            return usecase.guishared.Describer.imagesEqual(self, icon1, icon2)
+        
     def getJListDescription(self, list):
         self.leaveItemsWithoutDescriptions(list, None, (swing.CellRendererPane,))
         return self.getAndStoreState(list)
