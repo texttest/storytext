@@ -53,7 +53,7 @@ class Describer(usecase.guishared.Describer):
             self.describe(widget)
         else:
             parent = widget.getParent()
-            if not self.parentMarked(parent, markedWidgets):
+            if parent is not None and not self.parentMarked(parent, markedWidgets):
                 markedWidgets.append(parent)
                 self.logger.info(header)
                 self.logger.info(self.getChildrenDescription(parent))
