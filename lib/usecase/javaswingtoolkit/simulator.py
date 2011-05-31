@@ -148,7 +148,8 @@ class ButtonClickEvent(SelectEvent):
         SelectEvent.connectRecord(self, method)
         class FakeActionListener(ActionListener):
             def actionPerformed(lself, event):
-                if isinstance(event.getSource(), swing.JButton) and event.getActionCommand().startswith("ApplicationEvent"):
+                if isinstance(event.getSource(), swing.JButton) and event.getActionCommand() is not None and \
+                       event.getActionCommand().startswith("ApplicationEvent"):
                     applicationEvent(event.getActionCommand().replace("ApplicationEvent", "").lstrip())
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, FakeActionListener())
