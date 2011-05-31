@@ -3,7 +3,7 @@ from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-WindowEvent, ComponentEvent, ActionListener
+     WindowEvent, ComponentEvent, ContainerEvent, ActionListener
 from java.lang import IllegalArgumentException
 from javax import swing
 import SwingLibrary
@@ -295,9 +295,8 @@ class Filter:
     
     def startListening(self, handleNewComponent):
         eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK | \
-        AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
+                    AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK | AWTEvent.CONTAINER_EVENT_MASK
         # Should be commented out if we need to listen to these events:
-        #| AWTEvent.WINDOW_EVENT_MASK | AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK
         #| AWTEvent.ITEM_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASk
         
         class AllEventListener(AWTEventListener):
@@ -305,9 +304,11 @@ class Filter:
                 # Primarily to make coverage work, it doesn't get enabled in threads made by Java
                 if hasattr(threading, "_trace_hook") and threading._trace_hook:
                     sys.settrace(threading._trace_hook)
-                    
+
                 if event.getID() == ComponentEvent.COMPONENT_SHOWN:
                     handleNewComponent(event.getSource())
+                elif event.getID() == ContainerEvent.COMPONENT_ADDED:
+                    handleNewComponent(event.getChild())
                 else:
                     self.handleEvent(event)
         

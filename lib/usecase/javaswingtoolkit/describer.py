@@ -55,14 +55,20 @@ class Describer(usecase.guishared.Describer):
             parent = widget.getParent()
             if parent is not None and not self.parentMarked(parent, markedWidgets):
                 markedWidgets.append(parent)
-                self.logger.info(header)
-                self.logger.info(self.getChildrenDescription(parent))
+                self.logger.info("\n" + header)
+                self.logger.info(self.getDescriptionForVisibilityChange(parent))
             elif self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " + \
                                     repr(map(self.getRawData, markedWidgets)))
+
+    def getDescriptionForVisibilityChange(self, widget):
+        if isinstance(widget, (swing.JToolBar, swing.JMenuBar)):
+            return self.getDescription(widget)
+        else:
+            return self.getChildrenDescription(widget)
    
     def setWidgetShown(self, widget):
-        if not isinstance(widget, (swing.Popup, swing.JMenuItem, swing.JScrollBar)) and widget not in self.widgetsAppeared:
+        if not isinstance(widget, (swing.Popup, swing.JScrollBar)) and widget not in self.widgetsAppeared:
             self.widgetsAppeared.append(widget)
               
     def getPropertyElements(self, item, selected=False):

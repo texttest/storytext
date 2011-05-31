@@ -42,12 +42,15 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         self.filter.startListening(self.handleNewComponent)
 
     def handleNewComponent(self, widget):
+        inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
+                   widget.getTopLevelAncestor() in self.uiMap.windows
+        isWindow = isinstance(widget, (swing.JFrame, swing.JDialog))
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
-            if isinstance(widget, (swing.JFrame, swing.JDialog)):
+            if isWindow:
                 self.uiMap.monitorAndStoreWindow(widget)
-            else:
+            elif inWindow:
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
-        if self.loggerActive:
+        if self.loggerActive and (isWindow or inWindow):
             self.describer.setWidgetShown(widget)
 
     def describe(self):
