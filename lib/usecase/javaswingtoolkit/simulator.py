@@ -3,7 +3,7 @@ from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-     WindowEvent, ComponentEvent, ContainerEvent, ActionListener
+     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent
 from java.lang import IllegalArgumentException
 from javax import swing
 import SwingLibrary
@@ -233,11 +233,7 @@ class TableSelectEvent(ListSelectEvent):
             for col in self.widget.getSelectedColumns():
                 text.append(indexer.getCellDescription(row, col))
         return ", ".join(text)
-        
-    def getSelectionWidget(self):
-        return self.widget.widget.getSelectionModel()
 
-        
 class TableHeaderEvent(SelectEvent):
     def _generate(self, argumentString):
         swinglib.runKeyword("clickTableHeader", [self.widget.getTable().getName(), argumentString])
@@ -248,6 +244,9 @@ class TableHeaderEvent(SelectEvent):
         return SelectEvent.outputForScript(self, event, *args) + " " + name
     
 class CellDoubleClickEvent(DoubleClickEvent):
+    def isStateChange(self):
+        return True
+    
     def _generate(self, argumentString):
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)            
         swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 2, "BUTTON1_MASK" ])
@@ -259,6 +258,45 @@ class CellDoubleClickEvent(DoubleClickEvent):
         desc = TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)
         return predefined + " " + desc
 
+class CellEditEvent(StateChangeEvent):
+    def _generate(self, argumentString):
+        oldName, newName = argumentString.split("=")
+        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(oldName)            
+        swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newName ])
+    
+    def connectRecord(self, method):
+        #SelectEvent.connectRecord(self, method)
+        class TableListener(swing.event.TableModelListener):
+            def tableChanged(listenerSelf, event):
+                if (event.getType() == swing.event.TableModelEvent.UPDATE):                   
+                    row = self.widget.getEditingRow()
+                    column = self.widget.getEditingColumn()
+                    if row >= 0 and column >= 0:
+                        method(row, column, self)
+                    
+        util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)
+    
+    def  getStateText(self, row, col, *args):
+        name = self.widget.getValueAt(row, col)
+#        if self.widget.isEditing() or name is None:
+#            return ""
+        desc = str(TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)) + "=" + str(name)
+#        print "DESC", desc
+        return desc
+            
+    def shouldRecord(self, row, col, *args):
+        name = self.widget.getValueAt(row, col)
+        if name is None:
+            return False
+        return True
+    
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Edited" 
+        
 class Filter:
     eventsFromUser = []
     logger = None
@@ -266,7 +304,7 @@ class Filter:
     def __init__(self, uiMap):
         Filter.logger = logging.getLogger("usecase record")
         self.uiMap = uiMap
-        
+
     @classmethod
     def getEventFromUser(cls, event):
         if event in cls.eventsFromUser:
@@ -321,12 +359,12 @@ class Filter:
     
     def handleEvent(self, event):
         if isinstance(event.getSource(), Component):
-            if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()):
-                self.logger.debug("Filter for event " + event.toString())    
+            if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()) and self.uiMap.scriptEngine.checkType(event.getSource()):
+                self.logger.debug("Filter for event " + event.toString())
                 self.eventsFromUser.append(event)
     
     def addToFilter(self, event):
-        for cls in [ MouseEvent, KeyEvent, WindowEvent, ComponentEvent ]:
+        for cls in [ MouseEvent, KeyEvent, WindowEvent, ComponentEvent, ActionEvent ]:
             if isinstance(event, cls):
                 return getattr(self, "handle" + cls.__name__)(event)
         return True
@@ -341,10 +379,12 @@ class Filter:
     def handleWindowEvent(self, event):
         return event.getID() == WindowEvent.WINDOW_CLOSING or self.handleComponentEvent(event)
     
-    def handleComponentEvent(self, event):            
+    def handleComponentEvent(self, event):       
         return False #TODO: return event.getID() == ComponentEvent.COMPONENT_RESIZED
 
-
+    def handleActionEvent(self, event):
+        return False
+    
 class TableIndexer():
     allIndexers = {}
     def __init__(self, table):
@@ -352,8 +392,17 @@ class TableIndexer():
         self.table = table
         self.logger = logging.getLogger("TableModelIndexer")
         self.rowNames = self.findRowNames()
+        self.observeUpdates()
         self.logger.debug("Creating table indexer with rows " + repr(self.rowNames))
-        
+
+    def observeUpdates(self):
+        class TableListener(swing.event.TableModelListener):
+            def tableChanged(listenerSelf, event):
+                if (event.getType() == swing.event.TableModelEvent.INSERT or event.getType() == swing.event.TableModelEvent.DELETE):
+                    self.rowNames = self.findRowNames()
+
+        util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
+
     @classmethod
     def getIndexer(cls, table):
         # Don't just do setdefault, shouldn't create the TableIndexer if it already exists
@@ -415,3 +464,4 @@ class TableIndexer():
             return rowName
         else:
             return self.table.getColumnName(col) + " for " + rowName
+

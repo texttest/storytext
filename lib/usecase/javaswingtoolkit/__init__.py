@@ -15,7 +15,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         (swing.JList        , [ simulator.ListSelectEvent]),
-        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent]),
+        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent]),
         (swing.table.JTableHeader   , [ simulator.TableHeaderEvent]),
         ]
     
@@ -32,8 +32,10 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
             _className.main(args)
 
         self.replayer.runTestThread()
+        
+    def checkType(self, widget):
+        return any((isinstance(widget, clazz) for clazz in [type for type,signals in self.eventTypes]))
 
-           
 class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
     def __init__(self, *args, **kw):
         usecase.guishared.ThreadedUseCaseReplayer.__init__(self, *args, **kw)
