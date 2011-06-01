@@ -263,12 +263,11 @@ class CellDoubleClickEvent(DoubleClickEvent):
 
 class CellEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
-        oldName, newName = argumentString.split("=")
-        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(oldName)            
-        swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newName ])
+        cellDescription, newValue = argumentString.split("=")
+        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(cellDescription)            
+        swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue + "\n" ])
     
     def connectRecord(self, method):
-        #SelectEvent.connectRecord(self, method)
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event):
                 if (event.getType() == swing.event.TableModelEvent.UPDATE):                   
@@ -282,18 +281,15 @@ class CellEditEvent(StateChangeEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)
     
-    def  getStateText(self, row, col, *args):
-        name = self.widget.getValueAt(row, col)
-#        if self.widget.isEditing() or name is None:
-#            return ""
-        desc = str(TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)) + "=" + str(name)
-#        print "DESC", desc
-        return desc
+    def getStateText(self, row, col, *args):
+        cellEditor = self.widget.getCellEditor()
+        if cellEditor is not None:
+            value = cellEditor.getCellEditorValue()
+        else:
+            value = self.widget.getValueAt(row, col)
+        return str(TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)) + "=" + str(value)
             
     def shouldRecord(self, row, col, *args):
-        name = self.widget.getValueAt(row, col)
-        if name is None:
-            return False
         return True
     
     @classmethod
