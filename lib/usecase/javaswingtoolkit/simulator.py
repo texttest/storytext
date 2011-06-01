@@ -68,6 +68,14 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
 
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
+# Jython has problems with exceptions thrown from Java callbacks
+# Print them out and continue, don't just lose them...
+def catchAll(method, *args):
+    try:
+        method(*args)
+    except:
+        sys.stderr.write(usecase.guishared.getExceptionString() + "\n")
+
 class SignalEvent(usecase.guishared.GuiEvent):
                 
     def generate(self, *args):
@@ -81,8 +89,8 @@ class SignalEvent(usecase.guishared.GuiEvent):
                 listenerSelf.pressedEvent = event
             
             def mouseReleased(listenerSelf, event):
-                method(listenerSelf.pressedEvent, event, self)
-                      
+                catchAll(method, listenerSelf.pressedEvent, event, self)
+
         util.runOnEventDispatchThread(self.widget.widget.addMouseListener, ClickListener())
         
 
@@ -92,7 +100,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def setNameIfNeeded(self):
         mapId = self.widget.getUIMapIdentifier()
         if not mapId.startswith("Name="):
-            name = "PyUseCase map ID: " + mapId + str(id(self))
+            name = "PyUseCase map ID: " + mapId + " " + str(id(self))
             self.widget.setName(name)
 
     def delayLevel(self):
@@ -107,10 +115,10 @@ class FrameCloseEvent(SignalEvent):
     def connectRecord(self, method):
         class WindowCloseListener(WindowAdapter):
             def windowClosing(listenerSelf, event):
-                method(event, self)
+                catchAll(method, event, self)
             
             def windowClosed(listenerSelf, event):
-                Filter.stopListening()
+                catchAll(Filter.stopListening)
                         
         util.runOnEventDispatchThread(self.widget.widget.addWindowListener, WindowCloseListener())
         
@@ -148,11 +156,15 @@ class ButtonClickEvent(SelectEvent):
         SelectEvent.connectRecord(self, method)
         class FakeActionListener(ActionListener):
             def actionPerformed(lself, event):
-                if isinstance(event.getSource(), swing.JButton) and event.getActionCommand() is not None and \
-                       event.getActionCommand().startswith("ApplicationEvent"):
-                    applicationEvent(event.getActionCommand().replace("ApplicationEvent", "").lstrip())
+                catchAll(self.tryApplicationEvent, event)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, FakeActionListener())
+
+    def tryApplicationEvent(self, event):
+        if isinstance(event.getSource(), swing.JButton) and event.getActionCommand() is not None and \
+               event.getActionCommand().startswith("ApplicationEvent"):
+            applicationEvent(event.getActionCommand().replace("ApplicationEvent", "").lstrip())
+
     
 class StateChangeEvent(SelectEvent):
     def outputForScript(self, *args):
@@ -161,22 +173,13 @@ class StateChangeEvent(SelectEvent):
     def isStateChange(self, *args):
         return True
     
-class MenuSelectEvent(SelectEvent):                            
-    def connectRecord(self, method):
-        class ClickListener(MouseAdapter):
-            def mousePressed(listenerSelf, event):
-                if not isinstance(event.getSource(), swing.JMenu):
-                    listenerSelf.pressedEvent = event
-                    
-            def mouseReleased(listenerSelf, event):
-                if not isinstance(event.getSource(), swing.JMenu):
-                    method(listenerSelf.pressedEvent, self)
-                    
-        util.runOnEventDispatchThread(self.widget.widget.addMouseListener, ClickListener())      
-        
+class MenuSelectEvent(SelectEvent):    
     def _generate(self, *args):
         path = util.getMenuPathString(self.widget)
         swinglib.runKeyword("selectFromMenuAndWait", [ path ])
+
+    def shouldRecord(self, event, *args):
+        return not isinstance(event.getSource(), swing.JMenu) and SelectEvent.shouldRecord(self, event, *args)
 
 class TabSelectEvent(SelectEvent):
     def isStateChange(self):
@@ -309,6 +312,7 @@ class Filter:
     def getEventFromUser(cls, event):
         if event in cls.eventsFromUser:
             cls.eventsFromUser.remove(event)
+            cls.logger.debug("Filter matched for event " + event.toString())
             return True
         else:
             if len(cls.eventsFromUser) == 0:
