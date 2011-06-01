@@ -35,7 +35,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def setThreadCallbacks(self):
         if self.isActive():
             methods = [ self.runReplay, self.enableJobListener, self.tryTerminateCoverage ]
-        else:
+        else: # pragma: no cover - cannot test with replayer disabled
             methods = [ self.setUpMonitoring, self.enableJobListener, self.runOnRecordExit ]
 
         runners = map(TestRunner, methods)
@@ -47,7 +47,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
                              "http://www.texttest.org/index.php?page=ui_testing&n=pyusecase_and_swt\n")
             sys.exit(1)
 
-    def runOnRecordExit(self):
+    def runOnRecordExit(self): # pragma: no cover - cannot test with replayer disabled
         self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt")
         self.tryTerminateCoverage()
 
