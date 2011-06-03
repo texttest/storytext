@@ -3,7 +3,7 @@ from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent
+     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent, KeyAdapter
 from java.lang import IllegalArgumentException
 from javax import swing
 import SwingLibrary
@@ -56,12 +56,6 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             if dialogTitle:
                 return text + ", Dialog=" + dialogTitle
         return text
-
-    def getTooltip(self):
-        if hasattr(self.widget, "getToolTipText"):
-            return self.widget.getToolTipText() or ""
-        else:
-            return ""
     
     def getDialogTitle(self):
         return swing.SwingUtilities.getWindowAncestor(self.widget).getTitle()
@@ -106,7 +100,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def delayLevel(self):
         # If there are events for other windows, implies we should delay as we're in a dialog
         return len(Filter.eventsFromUser)
-    
+
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
         # What happens here if we don't have a title?
@@ -261,6 +255,21 @@ class CellDoubleClickEvent(DoubleClickEvent):
         desc = TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)
         return predefined + " " + desc
 
+class HeaderDoubleClickEvent(DoubleClickEvent):
+    def isStateChange(self):
+        return True
+    
+    def _generate(self, argumentString):
+        row, column = TableIndexer.getIndexer(self.widget.widget.getTable()).getViewCellIndices(argumentString)            
+        swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 2, "BUTTON1_MASK" ])
+        
+    def outputForScript(self, event, *args):
+        predefined = DoubleClickEvent.outputForScript(self,event, *args)
+        row = self.widget.getTable().getSelectedRow()
+        col = self.widget.getTable().getSelectedColumn()
+        desc = TableIndexer.getIndexer(self.widget.widget.getTable()).getCellDescription(row, col)
+        return predefined + " " + desc
+    
 class CellEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
         cellDescription, newValue = argumentString.split("=")
@@ -295,9 +304,37 @@ class CellEditEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Edited" 
-        
+
+class TextEditEvent(StateChangeEvent):
+    def connectRecord(self, method):
+        class TextEventListener(KeyAdapter):
+            def keyReleased(lself, event):
+                method(event, self)
+
+        ancestor = swing.SwingUtilities.getAncestorOfClass(swing.JTable, self.widget.widget)
+        if ancestor is None:
+            util.runOnEventDispatchThread(self.widget.widget.addKeyListener, TextEventListener())
+
+    def _generate(self, argumentString):
+        swinglib.runKeyword("clearTextField", [self.widget.getName()])
+        swinglib.runKeyword("typeIntoTextField", [self.widget.getName(), argumentString])
+    
+    def getStateText(self, event, *args):
+        return self.widget.getText()
+
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "Modify"
+    
+    def shouldRecord(self, row, col, *args):
+        return True
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, TextEditEvent)
+
 class Filter:
     eventsFromUser = []
+    ignoredWidgets = [swing.JTextField]
     logger = None
     eventListener = None
     def __init__(self, uiMap):
@@ -359,7 +396,7 @@ class Filter:
     
     def handleEvent(self, event):
         if isinstance(event.getSource(), Component):
-            if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()) and self.uiMap.scriptEngine.checkType(event.getSource()):
+            if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()) and not event.getSource().__class__ in self.ignoredWidgets and self.uiMap.scriptEngine.checkType(event.getSource()):
                 self.logger.debug("Filter for event " + event.toString())
                 self.eventsFromUser.append(event)
     

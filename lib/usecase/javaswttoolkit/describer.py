@@ -320,13 +320,6 @@ class Describer(usecase.guishared.Describer):
     def getBrowserDescription(self, widget):
         return "Browser browsing '" + (widget.getUrl() or "about:blank") + "'"
 
-    def fixLineEndings(self, text):
-        # Methods return text 'raw' with Windows line endings
-        if os.linesep != "\n":
-            return text.replace(os.linesep, "\n")
-        else:
-            return text
-    
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, self.getTextEntryClass()):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"

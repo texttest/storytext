@@ -986,8 +986,13 @@ class Describer:
             if pos < dividePos:
                 return i
         return len(dividers)
-
-
+    
+    def fixLineEndings(self, text):
+        # Methods return text 'raw' with Windows line endings
+        if os.linesep != "\n":
+            return text.replace(os.linesep, "\n")
+        else:
+            return text
 
 def getExceptionString():
     type, value, traceback = sys.exc_info()

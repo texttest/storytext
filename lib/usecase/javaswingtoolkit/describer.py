@@ -7,7 +7,7 @@ class Describer(usecase.guishared.Describer):
                         swing.JViewport, swing.table.JTableHeader, swing.CellRendererPane]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu,
-                    swing.JList, swing.JTable]
+                    swing.JList, swing.JTable, swing.JTextField]
 # Just as a remainder for all J-widgets we may describe:
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
@@ -275,6 +275,20 @@ class Describer(usecase.guishared.Describer):
     def getJTableDescription(self, widget):
         return self.getAndStoreState(widget)
 
+    
+    def getJTextFieldState(self, widget):
+        return widget.getText(), self.getPropertyElements(widget)
+    
+    def getJTextFieldDescription(self, widget):
+        contents, properties = self.getJTextFieldState(widget)
+        self.widgetsWithState[widget] = contents, properties
+        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
+        fullHeader = self.combineElements([ header ] + properties)
+        return fullHeader + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)
+
+    def getState(self, widget):
+        return self.getSpecificState(widget)
+        
     def getCellText(self, i, j, table, selectedRows, selectedColumns):
         if i < 0:
             return table.getColumnName(j)
