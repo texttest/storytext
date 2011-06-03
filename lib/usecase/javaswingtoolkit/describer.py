@@ -106,6 +106,13 @@ class Describer(usecase.guishared.Describer):
     def hasDescriptionForChild(self, child, childDescriptions, sortedChildren):
         return child is not None and len(childDescriptions[sortedChildren.index(child)]) > 0
 
+    def isHorizontalBox(self, layout):
+        # There is no way to ask a layout for its orientation - very strange
+        # So we hack around the access priveleges. If you know a better way, please improve this!
+        field = layout.getClass().getDeclaredField("axis")
+        field.setAccessible(True) 
+        return field.get(layout) in [ swing.BoxLayout.X_AXIS, swing.BoxLayout.LINE_AXIS ]
+
     def getLayoutColumns(self, widget, childDescriptions, sortedChildren):
         if len(childDescriptions) > 1:
             if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
@@ -113,6 +120,8 @@ class Describer(usecase.guishared.Describer):
             layout = widget.getLayout()
             if isinstance(layout, awt.FlowLayout):
                 return len(childDescriptions)
+            elif isinstance(layout, swing.BoxLayout):
+                return len(childDescriptions) if self.isHorizontalBox(layout) else 1
             elif isinstance(layout, awt.BorderLayout):
                 columns = 1
                 for pos in [ awt.BorderLayout.WEST, awt.BorderLayout.EAST,
