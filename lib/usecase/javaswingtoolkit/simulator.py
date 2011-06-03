@@ -156,6 +156,11 @@ class DoubleClickEvent(SignalEvent):
         return isinstance(stateChangeEvent, SelectEvent)
         
 class ButtonClickEvent(SelectEvent):
+    def _generate(self, *args):
+        # Just doing clickOnComponent as in SelectEvent ought to work, but doesn't, see
+        # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
+        swinglib.runKeyword("pushButton", [ self.widget.getName()])
+
     def connectRecord(self, method):
         SelectEvent.connectRecord(self, method)
         class FakeActionListener(ActionListener):
