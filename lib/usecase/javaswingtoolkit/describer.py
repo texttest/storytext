@@ -103,7 +103,10 @@ class Describer(usecase.guishared.Describer):
         self.described.update(visibleChildren)
         return self.formatChildrenDescription(widget, visibleChildren)
 
-    def getLayoutColumns(self, widget, childDescriptions):
+    def hasDescriptionForChild(self, child, childDescriptions, sortedChildren):
+        return child is not None and len(childDescriptions[sortedChildren.index(child)]) > 0
+
+    def getLayoutColumns(self, widget, childDescriptions, sortedChildren):
         if len(childDescriptions) > 1:
             if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
                 return 2
@@ -114,7 +117,8 @@ class Describer(usecase.guishared.Describer):
                 columns = 1
                 for pos in [ awt.BorderLayout.WEST, awt.BorderLayout.EAST,
                              awt.BorderLayout.LINE_START, awt.BorderLayout.LINE_END ]:
-                    if layout.getLayoutComponent(pos) is not None:
+                    child = layout.getLayoutComponent(pos)
+                    if self.hasDescriptionForChild(child, childDescriptions, sortedChildren):
                         columns += 1
                 return columns
         return 1

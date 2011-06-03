@@ -513,7 +513,7 @@ class Describer(usecase.guishared.Describer):
         else:
             return 1
 
-    def getLayoutColumns(self, widget, childDescriptions):
+    def getLayoutColumns(self, widget, childDescriptions, *args):
         if len(childDescriptions) > 1:
             layout = widget.getLayout()
             if hasattr(layout, "numColumns"):

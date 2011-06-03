@@ -923,7 +923,7 @@ class Describer:
     def formatChildrenDescription(self, widget, children):
         sortedChildren = self.sortChildren(widget, children)
         childDescriptions = map(self.getDescription, sortedChildren)
-        columns = self.getLayoutColumns(widget, childDescriptions)
+        columns = self.getLayoutColumns(widget, childDescriptions, sortedChildren)
         if columns > 1:
             horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
             return self.formatInGrid(childDescriptions, columns, horizontalSpans)
