@@ -838,10 +838,12 @@ class Describer:
         if hasattr(widget, "getLayout"):
             layout = widget.getLayout()
             if layout is not None:
-                basic += " (" + layout.__class__.__name__
+                elements = [ layout.__class__.__name__ ]
                 if hasattr(layout, "numColumns"):
-                    basic += ", " + str(layout.numColumns) + " columns"
-                basic += ")"
+                    elements.append(str(layout.numColumns) + " columns")
+                if hasattr(layout, "getConstraints"):
+                    elements += [ str(layout.getConstraints(child)) for child in widget.getComponents() ]
+                basic += " (" + ", ".join(elements) + ")"
         if hasattr(widget, "getVisible") and not widget.getVisible() or \
                hasattr(widget, "isVisible") and not widget.isVisible():
             basic += " (invisible)"
@@ -923,7 +925,7 @@ class Describer:
         childDescriptions = map(self.getDescription, sortedChildren)
         columns = self.getLayoutColumns(widget, childDescriptions)
         if columns > 1:
-            horizontalSpans = map(self.getHorizontalSpan, sortedChildren)
+            horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
             return self.formatInGrid(childDescriptions, columns, horizontalSpans)
         else:
             return self.formatInColumn(childDescriptions)

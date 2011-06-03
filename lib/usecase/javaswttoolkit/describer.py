@@ -506,7 +506,7 @@ class Describer(usecase.guishared.Describer):
             text += "\n\nContext Menu " + str(menuId) + ":\n" + self.getMenuDescription(contextMenu)
         return text
 
-    def getHorizontalSpan(self, widget):
+    def getHorizontalSpan(self, widget, *args):
         layout = widget.getLayoutData()
         if hasattr(layout, "horizontalSpan"):
             return layout.horizontalSpan

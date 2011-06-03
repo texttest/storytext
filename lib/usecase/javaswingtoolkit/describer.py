@@ -89,7 +89,8 @@ class Describer(usecase.guishared.Describer):
         return elements
 
     def layoutSortsChildren(self, widget):
-        return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane))
+        return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane)) and \
+               not isinstance(widget.getLayout(), (awt.BorderLayout))
 
     def getVerticalDividePositions(self, visibleChildren):
         return [] # for now
@@ -109,11 +110,23 @@ class Describer(usecase.guishared.Describer):
             layout = widget.getLayout()
             if isinstance(layout, awt.FlowLayout):
                 return len(childDescriptions)
+            elif isinstance(layout, awt.BorderLayout):
+                columns = 1
+                for pos in [ awt.BorderLayout.WEST, awt.BorderLayout.EAST,
+                             awt.BorderLayout.LINE_START, awt.BorderLayout.LINE_END ]:
+                    if layout.getLayoutComponent(pos) is not None:
+                        columns += 1
+                return columns
         return 1
 
-    def getHorizontalSpan(self, widget):
+    def getHorizontalSpan(self, widget, columnCount):
         if isinstance(widget.getParent(), swing.JScrollPane) and widget is widget.getParent().getColumnHeader():
             return 2
+        elif isinstance(widget.getParent().getLayout(), awt.BorderLayout):
+            constraints = widget.getParent().getLayout().getConstraints(widget)
+            fullWidth = constraints in [ awt.BorderLayout.NORTH, awt.BorderLayout.SOUTH,
+                                         awt.BorderLayout.PAGE_START, awt.BorderLayout.PAGE_END ]
+            return columnCount if fullWidth else 1
         else:
             return 1
         
