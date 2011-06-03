@@ -255,10 +255,10 @@ class Describer(usecase.guishared.Describer):
 
     def getJLabelState(self, label):
         elements = []
-        if label.getText() and len(label.getText()) > 0:
-            elements.append("'" + label.getText() + "'")
-        else:
-            elements.append("JLabel")
+        if label.getText():
+            text = usecase.guishared.removeMarkup(label.getText())
+            if text:
+                elements.append("'" + text + "'")
         if label.getIcon():
             elements.append(self.getImageDescription(label.getIcon()))
         return self.combineElements(elements)

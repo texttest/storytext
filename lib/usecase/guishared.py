@@ -1022,4 +1022,5 @@ def getTextLabel(widget, childrenMethodName, labelClass):
     return ""
 
 def removeMarkup(text):
-    return re.sub("<[^>]*>", "", text).strip()
+    removed = re.sub("<[^>]*>", "", text)
+    return text if removed == text else removed.strip()
