@@ -310,7 +310,10 @@ class Describer(usecase.guishared.Describer):
         return text + self.formatTable(rows, columnCount)
 
     def getUpdatePrefix(self, widget, oldState, state):
-        return "\nUpdated "
+        if isinstance(widget, swing.JTextField):
+            return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
+        else:
+            return "\nUpdated "
 
     def leaveItemsWithoutDescriptions(self, itemContainer, skippedObjects=[], skippedClasses=()):
         items = []

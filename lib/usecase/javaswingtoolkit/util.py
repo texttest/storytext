@@ -1,5 +1,6 @@
 from java.lang import Runnable
 from javax import swing
+import usecase.guishared
 
 def runOnEventDispatchThread(method, *args):
     class EDTRunnable(Runnable):
@@ -10,6 +11,9 @@ def runOnEventDispatchThread(method, *args):
         method(*args)
     else:
         swing.SwingUtilities.invokeAndWait(EDTRunnable())
+
+def getTextLabel(widget):
+    return usecase.guishared.getTextLabel(widget, "getComponents", swing.JLabel)
        
 def getMenuPathString(widget):
     result = [ widget.getText() ]    

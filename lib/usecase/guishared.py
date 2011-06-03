@@ -997,3 +997,24 @@ class Describer:
 def getExceptionString():
     type, value, traceback = sys.exc_info()
     return "".join(format_exception(type, value, traceback))
+
+def getTextLabel(widget, childrenMethodName, labelClass):
+    """ Text widgets often are preceeded by a label, use this as their text, if it exists """
+    parent = widget.getParent()
+    if parent:
+        children = getattr(parent, childrenMethodName)()
+        if len(children) == 1:
+            return getTextLabel(parent, childrenMethodName, labelClass)
+    
+        textPos = children.index(widget)
+        while textPos > 0:
+            prevWidget = children[textPos -1]
+            if isinstance(prevWidget, labelClass):
+                text = prevWidget.getText()
+                if text:
+                    return text
+                else:
+                    textPos -= 1
+            else:
+                break
+    return ""

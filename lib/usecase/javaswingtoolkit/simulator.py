@@ -46,11 +46,15 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return name == "frame0" or name.startswith("OptionPane") or len(name) == 0
     
     def getLabel(self):
+        if isinstance(self.widget, swing.JTextField):
+            return util.getTextLabel(self.widget)
+
         text = ""
         if hasattr(self.widget, "getLabel"):
-            text =  self.widget.getLabel()
+            text = self.widget.getLabel()
         else:
             return ""
+                
         if text in self.dialogTexts:
             dialogTitle = self.getDialogTitle()
             if dialogTitle:
