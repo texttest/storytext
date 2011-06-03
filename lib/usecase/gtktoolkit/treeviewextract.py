@@ -4,7 +4,8 @@ Module that makes it possible to extract information from a treeview
 without having information about the treemodel, as we may not from inside PyUsecase
 """
 
-import gtk, re
+import gtk
+from usecase.guishared import removeMarkup
 
 # This is the important information, used by other classes
 cellRendererExtractors = {}
@@ -187,4 +188,4 @@ class MarkupRemover:
 
     def getValue(self, *args):
         value = self.extractor.getValue(*args)
-        return re.sub("<[^>]*>", "", str(value))
+        return removeMarkup(str(value))

@@ -2,7 +2,7 @@
 """ Generic module for any kind of Python UI, as distinct from the classes these derive from which contains 
 stuff also applicable even without this """
 
-import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess, time
+import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess, time, re
 from itertools import izip
 from ordereddict import OrderedDict
 from locale import getdefaultlocale
@@ -796,7 +796,7 @@ class Describer:
     def getWidgetDescription(self, widget):
         for widgetClass in self.stateWidgets + self.statelessWidgets:
             if self.checkInstance(widget, widgetClass):
-                methodName = "get" + widgetClass.__name__ + "Description"
+                methodName = "get" + widgetClass.__name__.replace("$", "") + "Description"
                 return getattr(self, methodName)(widget)
         
         return self.widgetTypeDescription(widget.__class__.__name__) # pragma: no cover - should be unreachable
@@ -1018,3 +1018,6 @@ def getTextLabel(widget, childrenMethodName, labelClass):
             else:
                 break
     return ""
+
+def removeMarkup(text):
+    return re.sub("<[^>]*>", "", text).strip()

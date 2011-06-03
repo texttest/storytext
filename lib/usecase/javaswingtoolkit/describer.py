@@ -4,14 +4,14 @@ from javax import swing
 
 class Describer(usecase.guishared.Describer):
     statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel, swing.JOptionPane, swing.JScrollPane,
-                        swing.JViewport, swing.table.JTableHeader, swing.CellRendererPane]
+                        swing.JViewport, swing.table.JTableHeader, swing.CellRendererPane, swing.Box.Filler ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu,
-                    swing.JList, swing.JTable, swing.JTextField]
+                    swing.JList, swing.JTable, swing.text.JTextComponent]
 # Just as a remainder for all J-widgets we may describe:
 #    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
 #                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
-#                     swing.JRadioButton, swing.JTable, swing.JTextArea, swing.JTextField, swing.JToggleButton,
+#                     swing.JRadioButton, swing.JTable, swing.JTextArea, swing.JTextComponent, swing.JToggleButton,
 #                     swing.JToolBar, swing.JTree, swing.JWindow]
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
@@ -189,6 +189,9 @@ class Describer(usecase.guishared.Describer):
                 desc.append("selected")
             result += [self.combineElements(desc)]
         return result
+
+    def getBoxFillerDescription(self, filler):
+        return None
     
     def getJRootPaneDescription(self, pane):
         return None
@@ -274,13 +277,12 @@ class Describer(usecase.guishared.Describer):
     
     def getJTableDescription(self, widget):
         return self.getAndStoreState(widget)
-
     
-    def getJTextFieldState(self, widget):
-        return widget.getText(), self.getPropertyElements(widget)
+    def getJTextComponentState(self, widget):
+        return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)
     
-    def getJTextFieldDescription(self, widget):
-        contents, properties = self.getJTextFieldState(widget)
+    def getJTextComponentDescription(self, widget):
+        contents, properties = self.getJTextComponentState(widget)
         self.widgetsWithState[widget] = contents, properties
         header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
         fullHeader = self.combineElements([ header ] + properties)
@@ -310,7 +312,7 @@ class Describer(usecase.guishared.Describer):
         return text + self.formatTable(rows, columnCount)
 
     def getUpdatePrefix(self, widget, oldState, state):
-        if isinstance(widget, swing.JTextField):
+        if isinstance(widget, swing.text.JTextComponent):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
         else:
             return "\nUpdated "

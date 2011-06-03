@@ -46,7 +46,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return name == "frame0" or name.startswith("OptionPane") or len(name) == 0
     
     def getLabel(self):
-        if isinstance(self.widget, swing.JTextField):
+        if isinstance(self.widget, swing.text.JTextComponent):
             return util.getTextLabel(self.widget)
 
         text = ""
@@ -319,7 +319,7 @@ class TextEditEvent(StateChangeEvent):
     def connectRecord(self, method):
         class TextEventListener(KeyAdapter):
             def keyReleased(lself, event):
-                method(event, self)
+                catchAll(method, event, self)
 
         ancestor = swing.SwingUtilities.getAncestorOfClass(swing.JTable, self.widget.widget)
         if ancestor is None:
@@ -330,7 +330,7 @@ class TextEditEvent(StateChangeEvent):
         swinglib.runKeyword("typeIntoTextField", [self.widget.getName(), argumentString])
     
     def getStateText(self, event, *args):
-        return self.widget.getText()
+        return usecase.guishared.removeMarkup(self.widget.getText())
 
     @classmethod
     def getAssociatedSignal(cls, *args):
@@ -344,7 +344,7 @@ class TextEditEvent(StateChangeEvent):
 
 class Filter:
     eventsFromUser = []
-    ignoredWidgets = [swing.JTextField]
+    ignoredWidgets = [swing.text.JTextComponent]
     logger = None
     eventListener = None
     def __init__(self, uiMap):
@@ -403,12 +403,18 @@ class Filter:
     @classmethod
     def stopListening(cls):
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().removeAWTEventListener, cls.eventListener)
+
+    def shouldAddFilter(self, event):
+        return isinstance(event.getSource(), Component) and \
+                   self.addToFilter(event) and \
+                   not self.hasEventOnWindow(event.getSource()) and \
+                   not any((isinstance(event.getSource(), widgetClass) for widgetClass in self.ignoredWidgets)) and \
+                   self.uiMap.scriptEngine.checkType(event.getSource())
     
     def handleEvent(self, event):
-        if isinstance(event.getSource(), Component):
-            if self.addToFilter(event) and not self.hasEventOnWindow(event.getSource()) and not event.getSource().__class__ in self.ignoredWidgets and self.uiMap.scriptEngine.checkType(event.getSource()):
-                self.logger.debug("Filter for event " + event.toString())
-                self.eventsFromUser.append(event)
+        if self.shouldAddFilter(event):
+            self.logger.debug("Filter for event " + event.toString())
+            self.eventsFromUser.append(event)
     
     def addToFilter(self, event):
         for cls in [ MouseEvent, KeyEvent, WindowEvent, ComponentEvent, ActionEvent ]:

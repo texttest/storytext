@@ -17,7 +17,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JList        , [ simulator.ListSelectEvent]),
         (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent]),
         (swing.table.JTableHeader   , [ simulator.TableHeaderEvent, simulator.HeaderDoubleClickEvent]),
-        (swing.JTextField   , [ simulator.TextEditEvent]),
+        (swing.text.JTextComponent  , [ simulator.TextEditEvent]),
         ]
     
     def createReplayer(self, universalLogging=False):
