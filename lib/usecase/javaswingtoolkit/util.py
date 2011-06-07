@@ -34,3 +34,8 @@ def getJListText(jlist, index):
     isSelected = jlist.isSelectedIndex(index)
     component = renderer.getListCellRendererComponent(jlist, value, index, isSelected, False)
     return component.getText()
+
+# Designed to filter out buttons etc which are details of other widgets, such as calendars, scrollbars, tables etc
+def hasComplexAncestors(widget):
+    return any((swing.SwingUtilities.getAncestorOfClass(widgetClass, widget) is not None
+                for widgetClass in [ swing.JTable, swing.JScrollBar ]))

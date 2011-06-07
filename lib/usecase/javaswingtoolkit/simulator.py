@@ -80,8 +80,7 @@ def catchAll(method, *args):
     except:
         sys.stderr.write(usecase.guishared.getExceptionString() + "\n")
 
-class SignalEvent(usecase.guishared.GuiEvent):
-                
+class SignalEvent(usecase.guishared.GuiEvent):        
     def generate(self, *args):
         self.setNameIfNeeded()
         selectWindow(self.widget.widget)
@@ -97,9 +96,8 @@ class SignalEvent(usecase.guishared.GuiEvent):
 
         util.runOnEventDispatchThread(self.widget.widget.addMouseListener, ClickListener())
         
-
     def shouldRecord(self, event, *args):
-        return Filter.getEventFromUser(event)
+        return Filter.getEventFromUser(event) and not util.hasComplexAncestors(self.widget.widget)
     
     def setNameIfNeeded(self):
         mapId = self.widget.getUIMapIdentifier()
@@ -110,6 +108,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
     def delayLevel(self):
         # If there are events for other windows, implies we should delay as we're in a dialog
         return len(Filter.eventsFromUser)
+                
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
@@ -139,9 +138,9 @@ class SelectEvent(SignalEvent):
         return "Click"
 
     def shouldRecord(self, event, *args):
-        if event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and event.getClickCount() == 1:
-            return Filter.getEventFromUser(event)
-        return False
+        return event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
+               event.getClickCount() == 1 and \
+               SignalEvent.shouldRecord(self, event, *args)
 
 class DoubleClickEvent(SignalEvent):
     @classmethod
@@ -149,8 +148,9 @@ class DoubleClickEvent(SignalEvent):
         return "DoubleClick"
     
     def shouldRecord(self, oldEvent, newEvent, *args):
-        return Filter.getEventFromUser(oldEvent) and newEvent.getModifiers() & \
-        MouseEvent.BUTTON1_MASK != 0 and newEvent.getClickCount() == 2
+        return SignalEvent.shouldRecord(self, oldEvent, newEvent, *args) and \
+               newEvent.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
+               newEvent.getClickCount() == 2
         
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, SelectEvent)
@@ -304,17 +304,20 @@ class CellEditEvent(StateChangeEvent):
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)
-    
-    def getStateText(self, row, col, *args):
+
+    def getNewValue(self, row, col):
         cellEditor = self.widget.getCellEditor()
         if cellEditor is not None:
-            value = cellEditor.getCellEditorValue()
+            return cellEditor.getCellEditorValue()
         else:
-            value = self.widget.getValueAt(row, col)
+            return self.widget.getValueAt(row, col)
+    
+    def getStateText(self, row, col, *args):
+        value = self.getNewValue(row, col)
         return str(TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)) + "=" + str(value)
             
     def shouldRecord(self, row, col, *args):
-        return True
+        return self.getNewValue(row, col) is not None
     
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -326,9 +329,7 @@ class TextEditEvent(StateChangeEvent):
             def keyReleased(lself, event):
                 catchAll(method, event, self)
 
-        ancestor = swing.SwingUtilities.getAncestorOfClass(swing.JTable, self.widget.widget)
-        if ancestor is None:
-            util.runOnEventDispatchThread(self.widget.widget.addKeyListener, TextEventListener())
+        util.runOnEventDispatchThread(self.widget.widget.addKeyListener, TextEventListener())
 
     def _generate(self, argumentString):
         swinglib.runKeyword("clearTextField", [self.widget.getName()])
@@ -342,7 +343,7 @@ class TextEditEvent(StateChangeEvent):
         return "Modify"
     
     def shouldRecord(self, row, col, *args):
-        return True
+        return not util.hasComplexAncestors(self.widget.widget)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, TextEditEvent)
@@ -428,7 +429,8 @@ class Filter:
         return True
             
     def handleMouseEvent(self, event):
-        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), swing.JMenu)
+        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), swing.JMenu) and \
+               not util.hasComplexAncestors(event.getSource())
             
     def handleKeyEvent(self, event):
         # TODO: to be implemented
