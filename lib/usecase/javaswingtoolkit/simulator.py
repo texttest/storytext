@@ -212,15 +212,20 @@ class ListSelectEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Select" 
+
+    def getIndex(self, text):
+        for i in range(self.widget.getModel().getSize()):
+            if util.getJListText(self.widget.widget, i) == text:
+                return i
+        raise UseCaseScriptError, "Could not find item labeled '" + text + "' in list."
     
     def _generate(self, argumentString):
         selected = argumentString.split(", ")
-        params = [ self.widget.getName() ]
-        try:
-            swinglib.runKeyword("selectFromList", params + selected)
-        except:
-            raise UseCaseScriptError, "Could not find item labeled '" + argumentString + "' in list."
-    
+        # Officially we can pass the names directly to SwingLibrary
+        # Problem is that doesn't work if the names are themselves numbers
+        params = [ self.widget.getName() ] + map(self.getIndex, selected)
+        swinglib.runKeyword("selectFromList", params)
+        
     def getStateText(self, *args):
         texts = [ util.getJListText(self.widget.widget, i) for i in self.widget.getSelectedIndices() ]
         return ", ".join(texts)
