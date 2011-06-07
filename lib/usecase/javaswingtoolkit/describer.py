@@ -153,7 +153,7 @@ class Describer(usecase.guishared.Describer):
         return window.getTitle()
     
     def getJButtonDescription(self, widget):
-        return self.getComponentDescription(widget, "JButton")
+        return self.getComponentDescription(widget, "Button")
 
     def getJButtonState(self, button):
         return self.combineElements(self.getComponentState(button))
@@ -168,10 +168,10 @@ class Describer(usecase.guishared.Describer):
         return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
     
     def getJRadioButtonDescription(self, widget):
-        return self.getComponentDescription(widget, "JRadioButton")
+        return self.getComponentDescription(widget, "RadioButton")
     
     def getJCheckBoxDescription(self, widget):
-        return self.getComponentDescription(widget, "JCheckBox")
+        return self.getComponentDescription(widget, "CheckBox")
         
     def getJTabbedPaneDescription(self, widget):
         state = self.getState(widget)
@@ -310,7 +310,7 @@ class Describer(usecase.guishared.Describer):
     def getJTextComponentDescription(self, widget):
         contents, properties = self.getJTextComponentState(widget)
         self.widgetsWithState[widget] = contents, properties
-        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
+        header = "=" * 10 + " " + widget.__class__.__name__[1:] + " " + "=" * 10
         fullHeader = self.combineElements([ header ] + properties)
         return fullHeader + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)
 
