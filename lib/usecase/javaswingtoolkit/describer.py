@@ -27,6 +27,7 @@ class Describer(usecase.guishared.Describer):
         stateChanges = self.findStateChanges()
         stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
         self.describeAppearedWidgets(stateChangeWidgets)
+        stateChanges = self.describeStateChangeGroups(stateChangeWidgets, stateChanges)
         self.describeStateChanges(stateChanges)
         self.widgetsAppeared = []
 
@@ -277,7 +278,24 @@ class Describer(usecase.guishared.Describer):
             return icon1.getImage() == icon2.getImage()
         else:
             return usecase.guishared.Describer.imagesEqual(self, icon1, icon2)
-        
+
+    def resetDescribedFlags(self, widget):
+        if widget in self.described:
+            self.described.remove(widget)
+        for child in widget.getComponents():
+            self.resetDescribedFlags(child)
+    
+    def describeStateChangeGroups(self, widgets, stateChanges):
+        for widget in widgets:
+            if isinstance(widget, swing.JList) and self.isTableRowHeader(widget):
+                scrollPane = widget.getParent().getParent()
+                table = scrollPane.getViewport().getView()
+                if table in widgets:
+                    self.resetDescribedFlags(scrollPane)
+                    self.logger.info("Updated..." + self.getDescription(scrollPane))
+                    return filter(lambda (w, x, y): w is not widget and w is not table, stateChanges)
+        return stateChanges
+                
     def getJListDescription(self, list):
         self.leaveItemsWithoutDescriptions(list, None, (swing.CellRendererPane,))
         return self.getAndStoreState(list)
