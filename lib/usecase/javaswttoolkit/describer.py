@@ -12,7 +12,8 @@ class Describer(usecase.guishared.Describer):
                    (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
-    statelessWidgets = [ swt.widgets.Sash, types.NoneType ]
+    ignoreWidgets = [ types.NoneType ]
+    statelessWidgets = [ swt.widgets.Sash ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,
                      swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
                      swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
@@ -124,9 +125,6 @@ class Describer(usecase.guishared.Describer):
                 self.clipboardText = newText
         clipboard.dispose()
         
-    def getNoneTypeDescription(self, *args):
-        return ""
-
     def getWindowClasses(self):
         return swt.widgets.Shell, swt.widgets.Dialog
 

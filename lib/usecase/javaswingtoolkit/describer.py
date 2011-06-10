@@ -3,16 +3,12 @@ import java.awt as awt
 from javax import swing
 
 class Describer(usecase.guishared.Describer):
-    statelessWidgets = [swing.JSplitPane, swing.JRootPane, swing.JLayeredPane, swing.JPanel, swing.JOptionPane, swing.JScrollPane,
-                        swing.JViewport, swing.table.JTableHeader, swing.CellRendererPane, swing.Box.Filler ]
+    ignoreWidgets = [ swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
+                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader ]
+    statelessWidgets = [swing.JSplitPane, swing.JScrollPane, swing.JPopupMenu ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
-                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel, swing.JPopupMenu,
+                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTable, swing.text.JTextComponent]
-# Just as a remainder for all J-widgets we may describe:
-#    stateWidgets = [ swing.JButton, swing.JCheckBox, swing.JComboBox, swing.JDialog, swing.JFrame, swing.JInternalFrame,
-#                     swing.JLabel, swing.JList, swing.JMenu, swing.JMenuBar, swing.JPanel, swing.JPasswordField, swing.JPopupMenu,
-#                     swing.JRadioButton, swing.JTable, swing.JTextArea, swing.JTextComponent, swing.JToggleButton,
-#                     swing.JToolBar, swing.JTree, swing.JWindow]
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
         self.described = set()
@@ -182,10 +178,7 @@ class Describer(usecase.guishared.Describer):
         else:
             return "TabFolder with no tabs"
         
-        #return "Tabbed Pane:\n" + self.getTabsDescription(tabbedpane)
-    
     def getJTabbedPaneState(self, widget):
-        #return self.getTabsDescription(widget)
         return ", ".join(self.getTabsDescription(widget))
 
     def getComponentState(self, widget):
@@ -217,37 +210,9 @@ class Describer(usecase.guishared.Describer):
             result += [self.combineElements(desc)]
         return result
 
-    def getBoxFillerDescription(self, filler):
-        return None
-    
-    def getJRootPaneDescription(self, pane):
-        return None
-    
-    def getJLayeredPaneDescription(self, pane):
-        return None
-    
-    def getJPanelDescription(self, panel):
-        return None
-    
-    def getJOptionPaneDescription(self, pane):
-        return None
-    
-    def getJPopupMenuState(self, menu):
-        return None
-    
     def getJScrollPaneDescription(self, pane):
         self.leaveItemsWithoutDescriptions(pane, [pane.getVerticalScrollBar(), pane.getHorizontalScrollBar()])
-        return None
     
-    def getJViewportDescription(self, viewport):
-        return None
-    
-    def getJTableHeaderDescription(self, widget):
-        return None
-    
-    def getCellRendererPaneDescription(self, widget):
-        return None
-
     def getJDialogState(self, dialog):
         return dialog.getTitle()
     
@@ -404,7 +369,4 @@ class Describer(usecase.guishared.Describer):
             return descs
         else:
             return []
-    
-    def getTabComponentsDescriptions(self, component, indent=0, **kw):
-        return self.getAllItemDescriptions(component, indent+1, subItemMethod=self.getTabComponentsDescriptions, **kw)
-    
+

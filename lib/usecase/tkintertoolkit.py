@@ -538,8 +538,9 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
         
 
 class Describer(guishared.Describer):
+    ignoreWidgets = [ Tkinter.Scrollbar ]
     statelessWidgets = [ Tkinter.Button, Tkinter.Menubutton, Tkinter.Frame,
-                         Tkinter.LabelFrame, Tkinter.Scrollbar, Tkinter.Label, Tkinter.Menu ]
+                         Tkinter.LabelFrame, Tkinter.Label, Tkinter.Menu ]
     stateWidgets = [  Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
                       Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
     def __init__(self):
@@ -667,9 +668,6 @@ class Describer(guishared.Describer):
 
     def getLabelFrameDescription(self, widget):
         return "....." + getWidgetOption(widget, "text") + "......"
-
-    def getScrollbarDescription(self, widget):
-        return ""
 
     def getButtonDescription(self, widget):
         text = "Button"

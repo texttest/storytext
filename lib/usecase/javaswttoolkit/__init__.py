@@ -51,9 +51,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
 
     def getSupportedLogWidgets(self):
         from describer import Describer
-        widgets = Describer.statelessWidgets + Describer.stateWidgets
-        widgets.remove(types.NoneType)
-        return widgets
+        return Describer.statelessWidgets + Describer.stateWidgets
 
         
 class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):

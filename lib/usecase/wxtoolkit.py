@@ -222,7 +222,8 @@ class ScriptEngine(guishared.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 class Describer(guishared.Describer):
-    statelessWidgets = [ wx.Button, wx.ScrolledWindow, wx.Window ]
+    ignoreWidgets = [ wx.ScrolledWindow, wx.Window ]
+    statelessWidgets = [ wx.Button ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     def getChildrenDescription(self, widget):
         try:
@@ -263,12 +264,6 @@ class Describer(guishared.Describer):
         if labelText:
             text += " '" + labelText + "'"
         return text
-
-    def getScrolledWindowDescription(self, widget):
-        return ""
-
-    def getWindowDescription(self, widget):
-        return ""
 
     def getListCtrlState(self, widget):
         text = ".................\n"

@@ -798,6 +798,10 @@ class Describer:
             if self.checkInstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__.replace("$", "") + "Description"
                 return getattr(self, methodName)(widget)
+
+        for widgetClass in self.ignoreWidgets:
+            if self.checkInstance(widget, widgetClass):
+                return ""
         
         return self.widgetTypeDescription(widget.__class__.__name__) # pragma: no cover - should be unreachable
 
