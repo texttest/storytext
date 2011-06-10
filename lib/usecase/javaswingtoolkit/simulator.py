@@ -3,7 +3,7 @@ from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent, KeyAdapter
+     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent
 from java.lang import IllegalArgumentException
 from javax import swing
 import SwingLibrary
@@ -330,15 +330,18 @@ class CellEditEvent(StateChangeEvent):
 
 class TextEditEvent(StateChangeEvent):
     def connectRecord(self, method):
-        class TextEventListener(KeyAdapter):
-            def keyReleased(lself, event):
+        class TextDocumentListener(swing.event.DocumentListener):
+            def insertUpdate(lself, event):
                 catchAll(method, event, self)
+                
+            changedUpdate = insertUpdate
+            removeUpdate = insertUpdate
 
-        util.runOnEventDispatchThread(self.widget.widget.addKeyListener, TextEventListener())
+        util.runOnEventDispatchThread(self.widget.getDocument().addDocumentListener, TextDocumentListener())
 
     def _generate(self, argumentString):
         swinglib.runKeyword("clearTextField", [self.widget.getName()])
-        swinglib.runKeyword("typeIntoTextField", [self.widget.getName(), argumentString])
+        swinglib.runKeyword("insertIntoTextField", [self.widget.getName(), argumentString])
     
     def getStateText(self, event, *args):
         return usecase.guishared.removeMarkup(self.widget.getText())
@@ -348,7 +351,8 @@ class TextEditEvent(StateChangeEvent):
         return "Modify"
     
     def shouldRecord(self, row, col, *args):
-        return not util.hasComplexAncestors(self.widget.widget)
+        # Can get document changes on things that aren't visible
+        return self.widget.isShowing() and not util.hasComplexAncestors(self.widget.widget)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, TextEditEvent)
