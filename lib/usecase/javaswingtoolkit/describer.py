@@ -259,7 +259,7 @@ class Describer(usecase.guishared.Describer):
         return stateChanges
                 
     def getJListDescription(self, list):
-        self.leaveItemsWithoutDescriptions(list, None, (swing.CellRendererPane,))
+        self.leaveItemsWithoutDescriptions(list, skippedClasses=(swing.CellRendererPane,))
         return self.getAndStoreState(list)
 
     def isTableRowHeader(self, widget):
@@ -324,28 +324,14 @@ class Describer(usecase.guishared.Describer):
             return "\nUpdated "
 
     def leaveItemsWithoutDescriptions(self, itemContainer, skippedObjects=[], skippedClasses=()):
-        items = []
-        if hasattr(itemContainer, "getSubElements"):
-            items = itemContainer.getSubElements()
-        elif hasattr(itemContainer, "getComponents"):
-            items = itemContainer.getComponents()
-        
-        for item in items:
-            if skippedObjects and not item in skippedObjects or \
-            skippedClasses and not isinstance(item, skippedClasses):
-                continue
-            self.described.add(item)
+        for item in itemContainer.getComponents():
+            if item in skippedObjects or isinstance(item, skippedClasses):
+                self.described.add(item)
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
                                prefix="", selection=[]):
         descs = []
-        items = []
-        if hasattr(itemBar, "getMenuComponents"):
-            items = itemBar.getMenuComponents()
-        elif hasattr(itemBar, "getComponents"):
-            items = itemBar.getComponents()
-
-        for item in filter(lambda c: c.isVisible(), items):
+        for item in filter(lambda c: c.isVisible(), itemBar.getComponents()):
             currPrefix = prefix + " " * indent * 2
             itemDesc = self.getItemDescription(item, currPrefix, item in selection)
             self.described.add(item)
