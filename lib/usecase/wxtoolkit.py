@@ -210,14 +210,6 @@ class ScriptEngine(guishared.ScriptEngine):
     def getDocName(self, className):
         return className + "-class"
 
-    def addSignals(self, classes, widgetClass, currEventClasses, module):
-        signalNames = set()
-        for eventClass in currEventClasses:
-            signatures = eventClass.getAssociatedSignatures(None)
-            signalNames.update(signatures)
-        className = self.getClassName(widgetClass, module)
-        classes[className] = sorted(signalNames)
-
     def getSupportedLogWidgets(self):
         return Describer.statelessWidgets + Describer.stateWidgets
 

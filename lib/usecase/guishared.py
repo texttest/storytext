@@ -330,6 +330,14 @@ is also supported but will only have features of the listed type described.
                 self.addSignals(classes, widgetClass, currEventClasses, module)
         return classes
 
+    def addSignals(self, classes, widgetClass, currEventClasses, module):
+        signalNames = set()
+        for eventClass in currEventClasses:
+            signatures = eventClass.getAssociatedSignatures(None)
+            signalNames.update(signatures)
+        className = self.getClassName(widgetClass, module)
+        classes[className] = sorted(signalNames)
+
     def writeAsciiTable(self, classNames, classes):
         for className in classNames:
             print className.ljust(self.getClassNameColumnSize()) + ":", " , ".join(classes[className])

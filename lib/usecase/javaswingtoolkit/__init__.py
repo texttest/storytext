@@ -37,6 +37,24 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     def checkType(self, widget):
         return any((isinstance(widget, clazz) for clazz in [type for type,signals in self.eventTypes]))
 
+    def getDescriptionInfo(self):
+        return "Swing", "javaswing", "event types", \
+               "http://download.oracle.com/javase/6/docs/api/"
+    
+    def getClassName(self, widgetClass, *args):
+        return widgetClass.__module__ + "." + widgetClass.__name__
+
+    def getDocName(self, className):
+        return className.replace(".", "/")
+
+    def getClassNameColumnSize(self):
+        return 40 # seems to work, mostly
+
+    def getSupportedLogWidgets(self):
+        from describer import Describer
+        return Describer.statelessWidgets + Describer.stateWidgets
+
+
 class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
     def __init__(self, *args, **kw):
         usecase.guishared.ThreadedUseCaseReplayer.__init__(self, *args, **kw)
