@@ -4,11 +4,20 @@ from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
      WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent
-from java.lang import IllegalArgumentException
+from java.lang import IllegalArgumentException, System
+from java.io import PrintStream, OutputStream
 from javax import swing
-import SwingLibrary
 
+# Importing writes uninteresting stuff to stdout
+out_orig = System.out
+class NullOutputStream(OutputStream):
+    def write(self, *args):
+        pass
+
+System.setOut(PrintStream(NullOutputStream()))
+import SwingLibrary
 swinglib = SwingLibrary()
+System.setOut(out_orig)
 
 def selectWindow(widget):
     w = checkWidget(widget)
