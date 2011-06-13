@@ -27,8 +27,8 @@ def getMenuPathString(widget):
 def getJListText(jlist, index):
     value = jlist.getModel().getElementAt(index) or ""
     renderer = jlist.getCellRenderer()
+    # Don't check isinstance, any subclasses might be doing all sorts of stuff
     if renderer.__class__ is swing.DefaultListCellRenderer:
-        # Don't check isinstance, any subclasses might be doing all sorts of stuff
         return value
 
     isSelected = jlist.isSelectedIndex(index)
