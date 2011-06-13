@@ -157,9 +157,9 @@ class DoubleClickEvent(SignalEvent):
         return "DoubleClick"
     
     def shouldRecord(self, oldEvent, newEvent, *args):
-        return SignalEvent.shouldRecord(self, oldEvent, newEvent, *args) and \
-               newEvent.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
-               newEvent.getClickCount() == 2
+        return newEvent.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
+               newEvent.getClickCount() == 2 and \
+               SignalEvent.shouldRecord(self, oldEvent, newEvent, *args)
         
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, SelectEvent)
@@ -260,14 +260,26 @@ class TableSelectEvent(ListSelectEvent):
                 text.append(indexer.getCellDescription(row, col))
         return ", ".join(text)
 
-class TableHeaderEvent(SelectEvent):
+class TableHeaderEvent(SignalEvent):
+    def isStateChange(self):
+        return True
+    
     def _generate(self, argumentString):
         swinglib.runKeyword("clickTableHeader", [self.widget.getTable().getName(), argumentString])
 
     def outputForScript(self, event, *args):
         colIndex = self.widget.columnAtPoint(event.getPoint())
         name = self.widget.getTable().getColumnName(colIndex)        
-        return SelectEvent.outputForScript(self, event, *args) + " " + name
+        return SignalEvent.outputForScript(self, event, *args) + " " + name
+    
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "Click"
+
+    def shouldRecord(self, event, *args):
+        return event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
+            event.getClickCount() == 1 and SignalEvent.shouldRecord(self, event, *args)
+               
     
 class CellDoubleClickEvent(DoubleClickEvent):
     def isStateChange(self):
@@ -284,21 +296,30 @@ class CellDoubleClickEvent(DoubleClickEvent):
         desc = TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)
         return predefined + " " + desc
 
-class HeaderDoubleClickEvent(DoubleClickEvent):
-    def isStateChange(self):
-        return True
-    
-    def _generate(self, argumentString):
-        row, column = TableIndexer.getIndexer(self.widget.widget.getTable()).getViewCellIndices(argumentString)            
-        swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 2, "BUTTON1_MASK" ])
-        
-    def outputForScript(self, event, *args):
-        predefined = DoubleClickEvent.outputForScript(self,event, *args)
-        row = self.widget.getTable().getSelectedRow()
-        col = self.widget.getTable().getSelectedColumn()
-        desc = TableIndexer.getIndexer(self.widget.widget.getTable()).getCellDescription(row, col)
-        return predefined + " " + desc
-    
+#class HeaderDoubleClickEvent(DoubleClickEvent):
+#    def isStateChange(self):
+#        return True
+#    
+#    def _generate(self, argumentString):
+#        colIndex = self.widget.getColumnModel().getColumnIndex(argumentString)
+#        rect = self.widget.getHeaderRect(colIndex)
+#        System.setProperty("abbot.robot.mode", "awt")
+#        robot = Robot()
+#        robot.setEventMode(Robot.EM_AWT)
+#        util.runOnEventDispatchThread(robot.click, self.widget.widget, rect.x + rect.width / 2, rect.height / 2, MouseEvent.BUTTON1_MASK, 2)
+#
+#    def outputForScript(self, event, *args):
+#        colIndex = self.widget.columnAtPoint(event.getPoint())
+#        name = self.widget.getTable().getColumnName(colIndex)
+#        return DoubleClickEvent.outputForScript(self, event, *args) + " " + name    
+#
+#    def shouldRecord(self, event, newEvent, *args):
+#        return newEvent.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
+#               newEvent.getClickCount() == 2 and Filter.getEventFromUser(event)
+#
+#    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+#        return isinstance(stateChangeEvent, TableHeaderEvent)
+
 class CellEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
         cellDescription, newValue = argumentString.split("=")
@@ -351,8 +372,8 @@ class TextEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
         swinglib.runKeyword("clearTextField", [self.widget.getName()])
         swinglib.runKeyword("insertIntoTextField", [self.widget.getName(), argumentString])
-    
-    def getStateText(self, event, *args):
+
+    def getStateText(self, event, *args):        
         return usecase.guishared.removeMarkup(self.widget.getText())
 
     @classmethod
@@ -365,6 +386,26 @@ class TextEditEvent(StateChangeEvent):
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, TextEditEvent)
+
+class ActivateEvent(SignalEvent):
+    def connectRecord(self, method):
+        class ActivateEventListener(ActionListener):
+            def actionPerformed(lself, event):
+                method(event, self)
+                    
+        util.runOnEventDispatchThread(self.widget.widget.addActionListener, ActivateEventListener())
+        
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "Activate"
+    
+    def shouldRecord(self, *args):
+        return not util.hasComplexAncestors(self.widget.widget)
+
+class TextActivateEvent(ActivateEvent):
+    def _generate(self, argumentString):
+        swinglib.runKeyword("selectContext", [self.widget.getName()])
+        swinglib.runKeyword("sendKeyboardEvent", ["VK_ENTER"])
 
 class Filter:
     eventsFromUser = []

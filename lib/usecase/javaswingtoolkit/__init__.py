@@ -9,15 +9,16 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = [
         (swing.JFrame       , [ simulator.FrameCloseEvent ]),
         (swing.JButton      , [ simulator.ButtonClickEvent ]),
-        (swing.JRadioButton , [ simulator.SelectEvent]),
-        (swing.JCheckBox    , [ simulator.SelectEvent]),
-        (swing.JMenuItem    , [ simulator.MenuSelectEvent]),
+        (swing.JRadioButton , [ simulator.SelectEvent ]),
+        (swing.JCheckBox    , [ simulator.SelectEvent ]),
+        (swing.JMenuItem    , [ simulator.MenuSelectEvent ]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
-        (swing.JList        , [ simulator.ListSelectEvent]),
-        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent]),
-        (swing.table.JTableHeader   , [ simulator.TableHeaderEvent, simulator.HeaderDoubleClickEvent]),
-        (swing.text.JTextComponent  , [ simulator.TextEditEvent]),
+        (swing.JList        , [ simulator.ListSelectEvent ]),
+        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent ]),
+        (swing.table.JTableHeader   , [ simulator.TableHeaderEvent ]),
+        (swing.text.JTextComponent  , [ simulator.TextEditEvent ]),
+        (swing.JTextField  , [ simulator.TextEditEvent, simulator.TextActivateEvent ]),
         ]
     
     def createReplayer(self, universalLogging=False):
@@ -61,6 +62,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         self.describer = describer.Describer()
         self.filter = simulator.Filter(self.uiMap)
         self.filter.startListening(self.handleNewComponent)
+        self.appearedWidgets = []
 
     def handleNewComponent(self, widget):
         inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
@@ -69,8 +71,9 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
                 self.uiMap.monitorAndStoreWindow(widget)
-            elif inWindow:
+            elif inWindow and widget not in self.appearedWidgets:
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
+                self.appearedWidgets.append(widget)
         if self.loggerActive and (isWindow or inWindow):
             self.describer.setWidgetShown(widget)
 
