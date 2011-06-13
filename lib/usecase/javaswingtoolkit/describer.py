@@ -184,14 +184,11 @@ class Describer(usecase.guishared.Describer):
     def getComponentState(self, widget):
         return self.getPropertyElements(widget, selected=widget.isSelected())
     
-    def getComponentDescription(self, widget, name, statemethod=None, *args):
+    def getComponentDescription(self, widget, name):
         if widget.getText():
             name += " '" + widget.getText() + "'"
         
-        if statemethod:
-            properties = statemethod(widget, *args)
-        else:
-            properties = self.getComponentState(widget)
+        properties = self.getComponentState(widget)
         self.widgetsWithState[widget] = self.combineElements(properties)
         elements = [ name ] + properties 
         return self.combineElements(elements)

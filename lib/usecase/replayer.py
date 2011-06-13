@@ -272,5 +272,3 @@ class UseCaseReplayer:
         else:
             os.killpg(os.getpgid(0), signalNum) # So we can generate signals for ourselves...
         self.logger.debug("Signal " + signalArg + " has been sent")
-
-
