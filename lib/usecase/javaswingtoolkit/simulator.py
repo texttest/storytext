@@ -181,7 +181,8 @@ class ButtonClickEvent(SelectEvent):
     def tryApplicationEvent(self, event):
         if isinstance(event.getSource(), swing.JButton) and event.getActionCommand() is not None and \
                event.getActionCommand().startswith("ApplicationEvent"):
-            applicationEvent(event.getActionCommand().replace("ApplicationEvent", "").lstrip())
+            appEventName = event.getActionCommand().replace("ApplicationEvent", "").lstrip()
+            applicationEvent(appEventName, delayLevel=self.delayLevel())
 
     
 class StateChangeEvent(SelectEvent):

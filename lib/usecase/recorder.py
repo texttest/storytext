@@ -146,7 +146,7 @@ class UseCaseRecorder:
             return script
 
     def recordSignal(self, signum, stackFrame):
-        self.writeApplicationEventDetails()
+        self.writeApplicationEventDetails(recordingEvent=True)
         self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
@@ -178,16 +178,18 @@ class UseCaseRecorder:
             self.logger.debug("Told we should not record it : args were " + repr(args))
             return
 
+        haveRecorded = False 
         if self.stateChangeEventInfo:
             stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
             if event.implies(stateChangeOutput, stateChangeEvent, *args):
                 self.logger.debug("Implies previous state change event, ignoring previous")
             else:
-                self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
+                haveRecorded = self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
             self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
-        self.writeApplicationEventDetails()
+        willRecord = not event.delayLevel() and not event.isStateChange()
+        self.writeApplicationEventDetails(haveRecorded or willRecord)
         delayLevel = event.delayLevel()
         if event.isStateChange():
             self.logger.debug("Storing up state change event " + repr(scriptOutput))
@@ -234,42 +236,56 @@ class UseCaseRecorder:
             if isinstance(arg, UserEvent):
                 return arg
             
-    def registerApplicationEvent(self, eventName, category, supercedeCategories=[]):
+    def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
         if category:
-            self.applicationEvents[category] = eventName
+            self.applicationEvents[category] = eventName, delayLevel
             self.logger.debug("Got application event '" + eventName + "' in category " + repr(category))
             for supercededCategory in self.supercededAppEventCategories.get(category, []):
                 if supercededCategory in self.applicationEvents:
-                    self.logger.debug("Superceded and discarded application event " + self.applicationEvents[supercededCategory])
+                    self.logger.debug("Superceded and discarded application event " + self.applicationEvents[supercededCategory][0])
                     del self.applicationEvents[supercededCategory]
             for supercedeCategory in supercedeCategories:
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
         else:
             # Non-categorised event makes all previous ones irrelevant
             self.applicationEvents = OrderedDict()
-            self.logger.debug("Got application event '" + eventName + "' in global category")
+            self.logger.debug("Got application event '" + eventName + "' in global category with delay level " + str(delayLevel))
             self.supercededAppEventCategories = {}
-            self.applicationEvents["gtkscript_DEFAULT"] = eventName
+            self.applicationEvents["pyusecase_DEFAULT"] = eventName, delayLevel
 
     def applicationEventRename(self, oldName, newName, oldCategory, newCategory):
-        for categoryName, oldEventName in self.applicationEvents.items():
+        for categoryName, (oldEventName, delayLevel) in self.applicationEvents.items():
             if oldCategory in categoryName:
                 newCategoryName = categoryName.replace(oldCategory, newCategory)
                 del self.applicationEvents[categoryName]
                 newEventName = oldEventName.replace(oldName, newName)
-                self.registerApplicationEvent(newEventName, newCategory)
+                self.registerApplicationEvent(newEventName, newCategory, delayLevel=delayLevel)
         
         for supercedeCategory, categories in self.supercededAppEventCategories.items():
             if oldCategory in categories:
                 categories.remove(oldCategory)
                 categories.add(newCategory)
                 self.logger.debug("Swapping for " + repr(supercedeCategory) + ": " + repr(oldCategory) + " -> " + repr(newCategory))
-            
-    def writeApplicationEventDetails(self):
-        if len(self.applicationEvents) > 0:
-            eventString = ", ".join(sorted(self.applicationEvents.values()))
+
+    def getCurrentApplicationEvents(self, recordingEvent):
+        currEvents = []
+        allEvents = self.applicationEvents.items()
+        for categoryName, (eventName, delayLevel) in allEvents:
+            if delayLevel == 0:
+                currEvents.append(eventName)
+                del self.applicationEvents[categoryName]
+            elif recordingEvent:
+                self.logger.debug("Delaying application event " + eventName + ", level now " + str(delayLevel - 1))
+                self.applicationEvents[categoryName] = eventName, delayLevel - 1
+            else:
+                self.logger.debug("Ignoring delaying application event " + eventName + ", as not recording anyway")
+        return sorted(currEvents)
+                            
+    def writeApplicationEventDetails(self, recordingEvent):
+        eventNames = self.getCurrentApplicationEvents(recordingEvent)
+        if len(eventNames) > 0:
+            eventString = ", ".join(eventNames)
             self.record(waitCommandName + " " + eventString)
-            self.applicationEvents = OrderedDict()
 
     def registerShortcut(self, replayScript):
         for script in self.scripts:
