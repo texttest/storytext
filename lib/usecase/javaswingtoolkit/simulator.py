@@ -245,20 +245,23 @@ class ListSelectEvent(StateChangeEvent):
         return currOutput.startswith(stateChangeOutput)
 
 class TableSelectEvent(ListSelectEvent):
+    def __init__(self, *args):
+        ListSelectEvent.__init__(self, *args)
+        self.indexer = TableIndexer.getIndexer(self.widget.widget)
+        
     def _generate(self, argumentString):
         # To be used when using multi-selection: selectedCells = argumentString.split(", ")
         params = [ self.widget.getName() ]
-        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
+        row, column = self.indexer.getViewCellIndices(argumentString)
         # It seems to be a bug in SwingLibrary. Using Column name as argument doesn't work as expected. It throws exceptions
         # for some cell values. 
         swinglib.runKeyword("selectTableCell", params + [row, column])
         
     def getStateText(self, *args):
         text = []
-        indexer = TableIndexer.getIndexer(self.widget.widget)
         for row in self.widget.getSelectedRows():
             for col in self.widget.getSelectedColumns():
-                text.append(indexer.getCellDescription(row, col))
+                text.append(self.indexer.getCellDescription(row, col))
         return ", ".join(text)
 
 class TableHeaderEvent(SignalEvent):
@@ -297,29 +300,6 @@ class CellDoubleClickEvent(DoubleClickEvent):
         desc = TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)
         return predefined + " " + desc
 
-#class HeaderDoubleClickEvent(DoubleClickEvent):
-#    def isStateChange(self):
-#        return True
-#    
-#    def _generate(self, argumentString):
-#        colIndex = self.widget.getColumnModel().getColumnIndex(argumentString)
-#        rect = self.widget.getHeaderRect(colIndex)
-#        System.setProperty("abbot.robot.mode", "awt")
-#        robot = Robot()
-#        robot.setEventMode(Robot.EM_AWT)
-#        util.runOnEventDispatchThread(robot.click, self.widget.widget, rect.x + rect.width / 2, rect.height / 2, MouseEvent.BUTTON1_MASK, 2)
-#
-#    def outputForScript(self, event, *args):
-#        colIndex = self.widget.columnAtPoint(event.getPoint())
-#        name = self.widget.getTable().getColumnName(colIndex)
-#        return DoubleClickEvent.outputForScript(self, event, *args) + " " + name    
-#
-#    def shouldRecord(self, event, newEvent, *args):
-#        return newEvent.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
-#               newEvent.getClickCount() == 2 and Filter.getEventFromUser(event)
-#
-#    def implies(self, stateChangeOutput, stateChangeEvent, *args):
-#        return isinstance(stateChangeEvent, TableHeaderEvent)
 
 class CellEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
@@ -511,16 +491,20 @@ class TableIndexer():
         self.tableModel = table.getModel()
         self.table = table
         self.logger = logging.getLogger("TableModelIndexer")
-        self.rowNames = self.findRowNames()
+        self.primaryKeyColumn, self.rowNames = self.findRowNames()
         self.observeUpdates()
         self.logger.debug("Creating table indexer with rows " + repr(self.rowNames))
 
     def observeUpdates(self):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event):
-                if (event.getType() == swing.event.TableModelEvent.INSERT or event.getType() == swing.event.TableModelEvent.DELETE):
-                    self.rowNames = self.findRowNames()
-
+                if self.primaryKeyColumn is None:
+                    self.primaryKeyColumn, self.rowNames = self.findRowNames()
+                    self.logger.debug("Rebuilding indexer, row names now " + repr(self.rowNames))
+                elif (event.getType() == swing.event.TableModelEvent.INSERT or event.getType() == swing.event.TableModelEvent.DELETE):
+                    self.rowNames = self.getColumn(self.primaryKeyColumn)
+                    self.logger.debug("Model changed, row names now " + repr(self.rowNames))
+                
         util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
 
     @classmethod
@@ -537,10 +521,10 @@ class TableIndexer():
     def findRowNames(self):
         for colIndex in range(self.tableModel.getColumnCount()):
             column = self.getColumn(colIndex)
-            if len(set(column)) == len(column):
-                return column
+            if len(column) > 1 and len(set(column)) == len(column):
+                return colIndex, column
         # No unique columns to use as row names. Use the first row and add numbers
-        return self.addIndexes(self.getColumn(0))
+        return None, self.addIndexes(self.getColumn(0))
 
     def getIndexedValue(self, index, value, mapping):
         indices = mapping.get(value)
