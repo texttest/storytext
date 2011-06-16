@@ -51,7 +51,7 @@ class ScriptEngine:
     def createReplayer(self, **kwargs):
         return replayer.UseCaseReplayer()
 
-    def applicationEvent(self, name, category=None, supercedeCategories=[], delayLevel=0, timeDelay=0.001):
+    def applicationEvent(self, name, category=None, supercedeCategories=[], timeDelay=0.001, delayLevel=0):
         # Small time delay to avoid race conditions: see replayer
         if self.recorderActive():
             self.recorder.registerApplicationEvent(name, category, supercedeCategories, delayLevel)

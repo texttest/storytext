@@ -239,7 +239,8 @@ class UseCaseRecorder:
     def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
         if category:
             self.applicationEvents[category] = eventName, delayLevel
-            self.logger.debug("Got application event '" + eventName + "' in category " + repr(category))
+            self.logger.debug("Got application event '" + eventName + "' in category " + repr(category) +
+                              " with delay level " + str(delayLevel))
             for supercededCategory in self.supercededAppEventCategories.get(category, []):
                 if supercededCategory in self.applicationEvents:
                     self.logger.debug("Superceded and discarded application event " + self.applicationEvents[supercededCategory][0])
