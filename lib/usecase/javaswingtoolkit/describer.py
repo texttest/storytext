@@ -9,16 +9,13 @@ class Describer(usecase.guishared.Describer):
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTable, swing.text.JTextComponent]
+    childrenMethodName = "getComponents"
+    visibleMethodName = "isVisible"
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
         self.described = set()
         self.widgetsAppeared = []
-    
-    def describe(self, window):
-        if self.structureLogger.isEnabledFor(logging.DEBUG) and window not in self.windows:
-            self.describeStructure(window)
-        usecase.guishared.Describer.describe(self, window)
-    
+        
     def describeWithUpdates(self):
         stateChanges = self.findStateChanges()
         stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
@@ -361,3 +358,8 @@ class Describer(usecase.guishared.Describer):
         else:
             return []
 
+    def getRawDataLayoutDetails(self, layout, widget):
+        if hasattr(layout, "getConstraints"):
+            return [ str(layout.getConstraints(child)) for child in widget.getComponents() ]
+        else:
+            return []

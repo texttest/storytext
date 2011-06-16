@@ -217,6 +217,8 @@ class Describer(guishared.Describer):
     ignoreWidgets = [ wx.ScrolledWindow, wx.Window ]
     statelessWidgets = [ wx.Button ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
+    visibleMethodName = "not_used"
+    childrenMethodName = "GetChildren"
     def getChildrenDescription(self, widget):
         try:
             children = widget.GetChildren()

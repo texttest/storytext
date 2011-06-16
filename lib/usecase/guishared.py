@@ -725,6 +725,10 @@ class Describer:
     def describe(self, window):
         if window in self.windows:
             return
+        
+        if self.structureLogger.isEnabledFor(logging.DEBUG):
+            self.describeStructure(window)
+            
         self.windows.add(window)
         title = self.getSpecificState(window)
         message = "-" * 10 + " " + self.getWindowString() + " '" + title + "' " + "-" * 10
@@ -837,8 +841,6 @@ class Describer:
         else:
             return elements[0] + " (" + ", ".join(elements[1:]) + ")"
 
-    def getStructureName(self):
-        return "Default structure"    
     ##Debug code
     def getRawData(self, widget, useModule=False):
         basic = ""
@@ -850,24 +852,16 @@ class Describer:
         if hasattr(widget, "getLayout"):
             layout = widget.getLayout()
             if layout is not None:
-                elements = [ layout.__class__.__name__ ]
-                if hasattr(layout, "numColumns"):
-                    elements.append(str(layout.numColumns) + " columns")
-                if hasattr(layout, "getConstraints"):
-                    elements += [ str(layout.getConstraints(child)) for child in widget.getComponents() ]
+                elements = [ layout.__class__.__name__ ] + self.getRawDataLayoutDetails(layout, widget)
                 basic += " (" + ", ".join(elements) + ")"
-        if hasattr(widget, "getVisible") and not widget.getVisible() or \
-               hasattr(widget, "isVisible") and not widget.isVisible():
+        if hasattr(widget, self.visibleMethodName) and not getattr(widget, self.visibleMethodName)():
             basic += " (invisible)"
         return basic
         
     def describeStructure(self, widget, indent=0):
         self.structureLogger.info("-" * 2 * indent + self.getRawData(widget, useModule=True))
-        if hasattr(widget, "getChildren"):
-            for child in widget.getChildren():
-                self.describeStructure(child, indent+1)
-        elif hasattr(widget, "getComponents"):
-            for child in widget.getComponents():
+        if hasattr(widget, self.childrenMethodName):
+            for child in getattr(widget, self.childrenMethodName)():
                 self.describeStructure(child, indent+1)
 
     def getAndStoreState(self, widget):

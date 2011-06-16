@@ -19,6 +19,8 @@ class Describer(usecase.guishared.Describer):
                      swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
                      swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
+    childrenMethodName = "getChildren"
+    visibleMethodName = "getVisible"
     def __init__(self):
         self.canvasCounter = usecase.guishared.WidgetCounter()
         self.contextMenuCounter = usecase.guishared.WidgetCounter(self.contextMenusEqual)
@@ -58,8 +60,6 @@ class Describer(usecase.guishared.Describer):
         display.addFilter(swt.SWT.Paint, PaintListener())
 
     def describeWithUpdates(self, shell):
-        if self.structureLogger.isEnabledFor(logging.DEBUG) and shell not in self.windows:
-            self.describeStructure(shell)
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
@@ -523,3 +523,6 @@ class Describer(usecase.guishared.Describer):
 
     def checkInstance(self, *args):
         return util.checkInstance(*args)
+
+    def getRawDataLayoutDetails(self, layout, *args):
+        return [ str(layout.numColumns) + " columns" ] if hasattr(layout, "numColumns") else []

@@ -543,6 +543,8 @@ class Describer(guishared.Describer):
                          Tkinter.LabelFrame, Tkinter.Label, Tkinter.Menu ]
     stateWidgets = [  Tkinter.Checkbutton, Tkinter.Entry, Tkinter.Text, Tkinter.Canvas,
                       Tkinter.Listbox, Tkinter.Toplevel, Tkinter.Tk ]
+    visibleMethodName = "not_used"
+    childrenMethodName = "winfo_children"
     def __init__(self):
         guishared.Describer.__init__(self)
         self.canvasWindows = set()
