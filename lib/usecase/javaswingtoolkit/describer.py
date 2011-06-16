@@ -268,6 +268,14 @@ class Describer(usecase.guishared.Describer):
         return isinstance(scrollPane, swing.JScrollPane) and scrollPane.getRowHeader() is not None and \
                scrollPane.getRowHeader().getView() is widget and isinstance(scrollPane.getViewport().getView(), swing.JTable)
 
+    def isTableScrollPane(self, scrollPane):
+        return isinstance(scrollPane, swing.JScrollPane) and scrollPane.getRowHeader() is not None and \
+               isinstance(scrollPane.getRowHeader().getView(), swing.JList) and \
+               isinstance(scrollPane.getViewport().getView(), swing.JTable)
+
+    def getMaxDescriptionWidth(self, widget):
+        return 100000 if self.isTableScrollPane(widget) else 130
+
     def getJListState(self, widget):
         text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
         if self.isTableRowHeader(widget):

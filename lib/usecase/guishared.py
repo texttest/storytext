@@ -938,9 +938,13 @@ class Describer:
         columns = self.getLayoutColumns(widget, childDescriptions, sortedChildren)
         if columns > 1:
             horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
-            return self.formatInGrid(childDescriptions, columns, horizontalSpans)
+            maxWidth = self.getMaxDescriptionWidth(widget)
+            return self.formatInGrid(childDescriptions, columns, horizontalSpans, maxWidth)
         else:
             return self.formatInColumn(childDescriptions)
+
+    def getMaxDescriptionWidth(self, widget):
+        return 130 # About a screen or so...
 
     def formatInColumn(self, childDescriptions):
         desc = ""
@@ -949,11 +953,11 @@ class Describer:
         
         return desc.rstrip()
 
-    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans):
+    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans, maxWidth):
         grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
         colWidths = self.findColumnWidths(grid, numColumns)
         totalWidth = sum(colWidths)
-        if totalWidth > 130: # After a while, excessively wide grids just get too hard to read
+        if totalWidth > maxWidth: # After a while, excessively wide grids just get too hard to read
             header = "." * 6 + " " + str(numColumns) + "-Column Layout " + "." * 6
             desc = self.formatColumnsInGrid(grid, numColumns)
             footer = "." * len(header)
