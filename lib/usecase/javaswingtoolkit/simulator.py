@@ -191,6 +191,57 @@ class StateChangeEvent(SelectEvent):
 
     def isStateChange(self, *args):
         return True
+
+
+class TextEditEvent(StateChangeEvent):
+    def connectRecord(self, method):
+        class TextDocumentListener(swing.event.DocumentListener):
+            def insertUpdate(lself, event):
+                catchAll(method, event, self)
+                
+            changedUpdate = insertUpdate
+            removeUpdate = insertUpdate
+
+        util.runOnEventDispatchThread(self.widget.getDocument().addDocumentListener, TextDocumentListener())
+
+    def _generate(self, argumentString):
+        swinglib.runKeyword("clearTextField", [self.widget.getName()])
+        swinglib.runKeyword("insertIntoTextField", [self.widget.getName(), argumentString])
+
+    def getStateText(self, event, *args):        
+        return usecase.guishared.removeMarkup(self.widget.getText())
+
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "Modify"
+    
+    def shouldRecord(self, row, col, *args):
+        # Can get document changes on things that aren't visible
+        return self.widget.isShowing() and not util.hasComplexAncestors(self.widget.widget)
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, TextEditEvent)
+
+class ActivateEvent(SignalEvent):
+    def connectRecord(self, method):
+        class ActivateEventListener(ActionListener):
+            def actionPerformed(lself, event):
+                method(event, self)
+                    
+        util.runOnEventDispatchThread(self.widget.widget.addActionListener, ActivateEventListener())
+        
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "Activate"
+    
+    def shouldRecord(self, *args):
+        return not util.hasComplexAncestors(self.widget.widget)
+
+class TextActivateEvent(ActivateEvent):
+    def _generate(self, argumentString):
+        swinglib.runKeyword("selectContext", [self.widget.getName()])
+        swinglib.runKeyword("sendKeyboardEvent", ["VK_ENTER"])
+
     
 class MenuSelectEvent(SelectEvent):    
     def _generate(self, *args):
@@ -339,54 +390,91 @@ class CellEditEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Edited" 
 
-class TextEditEvent(StateChangeEvent):
-    def connectRecord(self, method):
-        class TextDocumentListener(swing.event.DocumentListener):
-            def insertUpdate(lself, event):
-                catchAll(method, event, self)
+
+    
+class TableIndexer():
+    allIndexers = {}
+    def __init__(self, table):
+        self.tableModel = table.getModel()
+        self.table = table
+        self.logger = logging.getLogger("TableModelIndexer")
+        self.primaryKeyColumn, self.rowNames = self.findRowNames()
+        self.observeUpdates()
+        self.logger.debug("Creating table indexer with rows " + repr(self.rowNames))
+
+    def observeUpdates(self):
+        class TableListener(swing.event.TableModelListener):
+            def tableChanged(listenerSelf, event):
+                if self.primaryKeyColumn is None:
+                    self.primaryKeyColumn, self.rowNames = self.findRowNames()
+                    self.logger.debug("Rebuilding indexer, row names now " + repr(self.rowNames))
+                else:
+                    self.rowNames = self.getColumn(self.primaryKeyColumn)
+                    self.logger.debug("Model changed, row names now " + repr(self.rowNames))
                 
-            changedUpdate = insertUpdate
-            removeUpdate = insertUpdate
-
-        util.runOnEventDispatchThread(self.widget.getDocument().addDocumentListener, TextDocumentListener())
-
-    def _generate(self, argumentString):
-        swinglib.runKeyword("clearTextField", [self.widget.getName()])
-        swinglib.runKeyword("insertIntoTextField", [self.widget.getName(), argumentString])
-
-    def getStateText(self, event, *args):        
-        return usecase.guishared.removeMarkup(self.widget.getText())
+        util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
 
     @classmethod
-    def getAssociatedSignal(cls, *args):
-        return "Modify"
-    
-    def shouldRecord(self, row, col, *args):
-        # Can get document changes on things that aren't visible
-        return self.widget.isShowing() and not util.hasComplexAncestors(self.widget.widget)
-    
-    def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return isinstance(stateChangeEvent, TextEditEvent)
+    def getIndexer(cls, table):
+        # Don't just do setdefault, shouldn't create the TableIndexer if it already exists
+        if table in cls.allIndexers:
+            return cls.allIndexers.get(table)
+        else:
+            return cls.allIndexers.setdefault(table, cls(table))
 
-class ActivateEvent(SignalEvent):
-    def connectRecord(self, method):
-        class ActivateEventListener(ActionListener):
-            def actionPerformed(lself, event):
-                method(event, self)
-                    
-        util.runOnEventDispatchThread(self.widget.widget.addActionListener, ActivateEventListener())
+    def getColumn(self, col):
+        return [ self.tableModel.getValueAt(row, col) or "<unnamed>" for row in range(self.tableModel.getRowCount()) ]
+
+    def findRowNames(self):
+        for colIndex in range(self.tableModel.getColumnCount()):
+            column = self.getColumn(colIndex)
+            if len(column) > 1 and len(set(column)) == len(column):
+                return colIndex, column
+        # No unique columns to use as row names. Use the first row and add numbers
+        return None, self.addIndexes(self.getColumn(0))
+
+    def getIndexedValue(self, index, value, mapping):
+        indices = mapping.get(value)
+        if len(indices) == 1:
+            return value
+        else:
+            return value + " (" + str(indices.index(index) + 1) + ")"
+
+    def addIndexes(self, values):
+        mapping = {}
+        for i, value in enumerate(values):
+            mapping.setdefault(value, []).append(i)
+
+        return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
+
+    def parseDescription(self, description):
+        if " for " in description:
+            columnName, rowName = description.split(" for ")
+            try:
+                return rowName, self.table.getColumn(columnName).getModelIndex()
+            except IllegalArgumentException:
+                raise UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
+        else:
+            return description, 0
+    
+    def getViewCellIndices(self, description):
+        rowName, columnIndex = self.parseDescription(description)
+        try:
+            rowModelIndex = self.rowNames.index(rowName)
+            return self.getViewIndices(rowModelIndex, columnIndex)
+        except ValueError:
+            raise UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table."
+            
+    def getViewIndices(self, row, column):
+        return self.table.convertRowIndexToView(row), self.table.convertColumnIndexToView(column)
         
-    @classmethod
-    def getAssociatedSignal(cls, *args):
-        return "Activate"
-    
-    def shouldRecord(self, *args):
-        return not util.hasComplexAncestors(self.widget.widget)
+    def getCellDescription(self, row, col):
+        rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
+        if self.tableModel.getColumnCount() == 1:
+            return rowName
+        else:
+            return self.table.getColumnName(col) + " for " + rowName
 
-class TextActivateEvent(ActivateEvent):
-    def _generate(self, argumentString):
-        swinglib.runKeyword("selectContext", [self.widget.getName()])
-        swinglib.runKeyword("sendKeyboardEvent", ["VK_ENTER"])
 
 class Filter:
     eventsFromUser = []
@@ -484,87 +572,3 @@ class Filter:
 
     def handleActionEvent(self, event):
         return False
-    
-class TableIndexer():
-    allIndexers = {}
-    def __init__(self, table):
-        self.tableModel = table.getModel()
-        self.table = table
-        self.logger = logging.getLogger("TableModelIndexer")
-        self.primaryKeyColumn, self.rowNames = self.findRowNames()
-        self.observeUpdates()
-        self.logger.debug("Creating table indexer with rows " + repr(self.rowNames))
-
-    def observeUpdates(self):
-        class TableListener(swing.event.TableModelListener):
-            def tableChanged(listenerSelf, event):
-                if self.primaryKeyColumn is None:
-                    self.primaryKeyColumn, self.rowNames = self.findRowNames()
-                    self.logger.debug("Rebuilding indexer, row names now " + repr(self.rowNames))
-                elif (event.getType() == swing.event.TableModelEvent.INSERT or event.getType() == swing.event.TableModelEvent.DELETE):
-                    self.rowNames = self.getColumn(self.primaryKeyColumn)
-                    self.logger.debug("Model changed, row names now " + repr(self.rowNames))
-                
-        util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
-
-    @classmethod
-    def getIndexer(cls, table):
-        # Don't just do setdefault, shouldn't create the TableIndexer if it already exists
-        if table in cls.allIndexers:
-            return cls.allIndexers.get(table)
-        else:
-            return cls.allIndexers.setdefault(table, cls(table))
-
-    def getColumn(self, col):
-        return [ self.tableModel.getValueAt(row, col) or "" for row in range(self.tableModel.getRowCount()) ]
-
-    def findRowNames(self):
-        for colIndex in range(self.tableModel.getColumnCount()):
-            column = self.getColumn(colIndex)
-            if len(column) > 1 and len(set(column)) == len(column):
-                return colIndex, column
-        # No unique columns to use as row names. Use the first row and add numbers
-        return None, self.addIndexes(self.getColumn(0))
-
-    def getIndexedValue(self, index, value, mapping):
-        indices = mapping.get(value)
-        if len(indices) == 1:
-            return value
-        else:
-            return value + " (" + str(indices.index(index) + 1) + ")"
-
-    def addIndexes(self, values):
-        mapping = {}
-        for i, value in enumerate(values):
-            mapping.setdefault(value, []).append(i)
-
-        return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
-
-    def parseDescription(self, description):
-        if " for " in description:
-            columnName, rowName = description.split(" for ")
-            try:
-                return rowName, self.table.getColumn(columnName).getModelIndex()
-            except IllegalArgumentException:
-                raise UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
-        else:
-            return description, 0
-    
-    def getViewCellIndices(self, description):
-        rowName, columnIndex = self.parseDescription(description)
-        try:
-            rowModelIndex = self.rowNames.index(rowName)
-            return self.getViewIndices(rowModelIndex, columnIndex)
-        except ValueError:
-            raise UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table."
-            
-    def getViewIndices(self, row, column):
-        return self.table.convertRowIndexToView(row), self.table.convertColumnIndexToView(column)
-        
-    def getCellDescription(self, row, col):
-        rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
-        if self.tableModel.getColumnCount() == 1:
-            return rowName
-        else:
-            return self.table.getColumnName(col) + " for " + rowName
-
