@@ -1028,7 +1028,7 @@ def getTextLabel(widget, childrenMethodName, labelClass):
                 else:
                     textPos -= 1
             else:
-                break
+                return ""
     return ""
 
 def removeMarkup(text):
