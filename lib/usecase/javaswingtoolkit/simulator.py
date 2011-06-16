@@ -562,7 +562,6 @@ class TableIndexer():
         return self.table.convertRowIndexToView(row), self.table.convertColumnIndexToView(column)
         
     def getCellDescription(self, row, col):
-        name = self.table.getValueAt(row, col)
         rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
         if self.tableModel.getColumnCount() == 1:
             return rowName
