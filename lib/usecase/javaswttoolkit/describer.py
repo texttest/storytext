@@ -420,8 +420,8 @@ class Describer(usecase.guishared.Describer):
         rows = self.getAllItemDescriptions(widget, indent=0, 
                                            selection=widget.getSelection(),
                                            columnCount=columnCount)
-        rows.insert(0, [ c.getText() for c in columns ])
-        return text + self.formatTable(rows, columnCount)
+        headerRow = [ c.getText() for c in columns ]
+        return text + self.formatTable(headerRow, rows, columnCount)
 
     def getTabFolderDescription(self, widget):
         state = self.getState(widget)

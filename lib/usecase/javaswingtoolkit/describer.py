@@ -62,7 +62,9 @@ class Describer(usecase.guishared.Describer):
             return self.getChildrenDescription(widget)
    
     def setWidgetShown(self, widget):
-        if not isinstance(widget, (swing.Popup, swing.JScrollBar)) and widget not in self.widgetsAppeared:
+        if not isinstance(widget, (swing.Popup, swing.JScrollBar, swing.table.TableCellRenderer)) and \
+               widget not in self.widgetsAppeared:
+            self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
               
     def getPropertyElements(self, item, selected=False):
@@ -255,9 +257,28 @@ class Describer(usecase.guishared.Describer):
                     return filter(lambda (w, x, y): w is not widget and w is not table, stateChanges)
         return stateChanges
                 
-    def getJListDescription(self, list):
-        self.leaveItemsWithoutDescriptions(list, skippedClasses=(swing.CellRendererPane,))
-        return self.getAndStoreState(list)
+    def getJListDescription(self, widget):
+        self.leaveItemsWithoutDescriptions(widget, skippedClasses=(swing.CellRendererPane,))
+        state = self.getState(widget)
+        self.widgetsWithState[widget] = state
+        if self.isTableRowHeader(widget):
+            return state.replace("\n", "\n" * self.getTableHeaderLength(widget), 1) # line it up with the table...
+        else:
+            return state
+
+    def getTableHeaderLength(self, tableHeader):
+        return 4
+
+    def getJListState(self, widget):
+        text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
+        for i in range(widget.getModel().getSize()):
+            value = util.getJListText(widget, i)
+            isSelected = widget.isSelectedIndex(i)
+            text += "-> " + value
+            if isSelected:
+                text += " (selected)"
+            text += "\n"
+        return text
 
     def isTableRowHeader(self, widget):
         # viewport, then scroll pane...
@@ -272,19 +293,6 @@ class Describer(usecase.guishared.Describer):
 
     def getMaxDescriptionWidth(self, widget):
         return 100000 if self.isTableScrollPane(widget) else 130
-
-    def getJListState(self, widget):
-        text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
-        if self.isTableRowHeader(widget):
-            text += "\n\n\n" # line it up with the table...
-        for i in range(widget.getModel().getSize()):
-            value = util.getJListText(widget, i)
-            isSelected = widget.isSelectedIndex(i)
-            text += "-> " + value
-            if isSelected:
-                text += " (selected)"
-            text += "\n"
-        return text    
     
     def getJTableDescription(self, widget):
         return self.getAndStoreState(widget)
@@ -301,11 +309,17 @@ class Describer(usecase.guishared.Describer):
 
     def getState(self, widget):
         return self.getSpecificState(widget)
+
+    def getHeaderText(self, table, col):
+        renderer = table.getColumnModel().getColumn(col).getHeaderRenderer()
+        if renderer is None:
+            return table.getColumnName(col)
+        
+        component = renderer.getTableCellRendererComponent(table, "", False, False, 0, col)
+        self.resetDescribedFlags(component)
+        return self.getDescription(component)
         
     def getCellText(self, i, j, table, selectedRows, selectedColumns):
-        if i < 0:
-            return table.getColumnName(j)
-        
         cellText = str(table.getValueAt(i, j))
         if i in selectedRows and j in selectedColumns:
             cellText += " (selected)"
@@ -316,11 +330,12 @@ class Describer(usecase.guishared.Describer):
         selectedColumns = table.getSelectedColumns()
         columnCount = table.getColumnCount()
 
+        headerRow = [ self.getHeaderText(table, j) for j in range(columnCount) ]
         args = table, selectedRows, selectedColumns
-        rows = [ [ self.getCellText(i, j, *args) for j in range(columnCount) ] for i in range(-1, table.getRowCount()) ]
+        rows = [ [ self.getCellText(i, j, *args) for j in range(columnCount) ] for i in range(table.getRowCount()) ]
 
         text = self.combineElements([ "Table" ] + self.getPropertyElements(table)) + " :\n"
-        return text + self.formatTable(rows, columnCount)
+        return text + self.formatTable(headerRow, rows, columnCount)
 
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, swing.text.JTextComponent):

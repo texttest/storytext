@@ -900,15 +900,14 @@ class Describer:
                 colWidths.append(maxWidth + 2)
         return colWidths
 
-    def formatTable(self, rows, columnCount):
-        colWidths = self.findColumnWidths(rows, columnCount)
-        tableText = self.formatCellsInGrid(rows, colWidths)
-        if "\n" in tableText:
-            header, body = tableText.split("\n", 1)
-        else:
-            header = tableText
-            body = ""
+    def formatTable(self, headerRow, rows, columnCount):
+        colWidths = self.findColumnWidths([ headerRow ] + rows, columnCount)
+        header = self.formatCellsInGrid([ headerRow ], colWidths)
+        body = self.formatCellsInGrid(rows, colWidths)
         line = "_" * sum(colWidths) + "\n"
+        return self.formatWithSeparators(header, body, line)
+
+    def formatWithSeparators(self, header, body, line):
         return line + header + "\n" + line + body + "\n" + line
 
     def formatCellsInGrid(self, grid, colWidths):
