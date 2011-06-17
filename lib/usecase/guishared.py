@@ -911,19 +911,20 @@ class Describer:
         return line + header + "\n" + line + body + "\n" + line
 
     def formatCellsInGrid(self, grid, colWidths):
-        desc = ""
+        lines = []
         for row in grid:
             rowLines = max((desc.count("\n") + 1 for desc in row))
             for rowLine in range(rowLines):
+                lineText = ""
                 for colNum, childDesc in enumerate(row):
                     cellLines = childDesc.splitlines()
                     if rowLine < len(cellLines):
                         cellRow = cellLines[rowLine]
                     else:
                         cellRow = ""
-                    desc += cellRow.ljust(colWidths[colNum])
-                desc = desc.rstrip(" ") + "\n" # don't leave trailing spaces        
-        return desc.rstrip()
+                    lineText += cellRow.ljust(colWidths[colNum])
+                lines.append(lineText.rstrip(" ")) # don't leave trailing spaces        
+        return "\n".join(lines)
 
     def formatChildrenDescription(self, widget, children):
         sortedChildren = self.sortChildren(widget, children)

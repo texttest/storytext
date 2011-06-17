@@ -318,10 +318,7 @@ class Describer(usecase.guishared.Describer):
         
         component = renderer.getTableCellRendererComponent(table, columnName, False, False, 0, col)
         self.resetDescribedFlags(component)
-        if hasattr(component, "getText"):
-            return component.getText()
-        else:
-            return self.getDescription(component)
+        return util.getComponentText(component)
         
     def getCellText(self, i, j, table, selectedRows, selectedColumns):
         cellText = str(table.getValueAt(i, j))

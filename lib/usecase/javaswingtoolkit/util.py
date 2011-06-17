@@ -24,6 +24,18 @@ def getMenuPathString(widget):
     
     return "|".join(reversed(result)) 
 
+def getComponentTextElements(component):
+    elements = []
+    if hasattr(component, "getText"):
+        elements.append(component.getText())
+    for child in component.getComponents():
+        elements += getComponentTextElements(child)
+    return elements    
+
+def getComponentText(component):
+    return "\n".join(getComponentTextElements(component))
+ 
+
 def getJListText(jlist, index):
     value = jlist.getModel().getElementAt(index) or ""
     renderer = jlist.getCellRenderer()
@@ -33,7 +45,7 @@ def getJListText(jlist, index):
 
     isSelected = jlist.isSelectedIndex(index)
     component = renderer.getListCellRendererComponent(jlist, value, index, isSelected, False)
-    return component.getText()
+    return getComponentText(component)
 
 # Designed to filter out buttons etc which are details of other widgets, such as calendars, scrollbars, tables etc
 def hasComplexAncestors(widget):
