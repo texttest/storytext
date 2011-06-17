@@ -312,12 +312,16 @@ class Describer(usecase.guishared.Describer):
 
     def getHeaderText(self, table, col):
         renderer = table.getColumnModel().getColumn(col).getHeaderRenderer()
+        columnName = table.getColumnName(col)
         if renderer is None:
-            return table.getColumnName(col)
+            return columnName
         
-        component = renderer.getTableCellRendererComponent(table, "", False, False, 0, col)
+        component = renderer.getTableCellRendererComponent(table, columnName, False, False, 0, col)
         self.resetDescribedFlags(component)
-        return self.getDescription(component)
+        if hasattr(component, "getText"):
+            return component.getText()
+        else:
+            return self.getDescription(component)
         
     def getCellText(self, i, j, table, selectedRows, selectedColumns):
         cellText = str(table.getValueAt(i, j))
