@@ -409,8 +409,10 @@ class TableIndexer():
                     self.primaryKeyColumn, self.rowNames = self.findRowNames()
                     self.logger.debug("Rebuilding indexer, row names now " + repr(self.rowNames))
                 else:
-                    self.rowNames = self.getColumn(self.primaryKeyColumn)
-                    self.logger.debug("Model changed, row names now " + repr(self.rowNames))
+                    currRowNames = self.getColumn(self.primaryKeyColumn)
+                    if set(currRowNames) != set([ "<unnamed>" ]):
+                        self.rowNames = currRowNames
+                        self.logger.debug("Model changed, row names now " + repr(self.rowNames))
                 
         util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
 
