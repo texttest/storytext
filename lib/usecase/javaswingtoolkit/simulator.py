@@ -115,8 +115,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
             self.widget.setName(name)
 
     def delayLevel(self):
-        # If there are events for other windows, implies we should delay as we're in a dialog
-        return len(Filter.eventsFromUser)
+        return Filter.delayLevel()
                 
 
 class FrameCloseEvent(SignalEvent):
@@ -370,7 +369,7 @@ class CellEditEvent(StateChangeEvent):
         util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)
+        return (isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
 
     def getNewValue(self, row, col):
         cellEditor = self.widget.getCellEditor()
@@ -486,6 +485,13 @@ class Filter:
     def __init__(self, uiMap):
         Filter.logger = logging.getLogger("usecase record")
         self.uiMap = uiMap
+
+    @classmethod
+    def delayLevel(cls):
+        # If there are events for other windows, implies we should delay as we're in a dialog
+        for event in cls.eventsFromUser:
+            cls.logger.debug("Event causing delay " + repr(event)) 
+        return len(cls.eventsFromUser)
 
     @classmethod
     def getEventFromUser(cls, event):
