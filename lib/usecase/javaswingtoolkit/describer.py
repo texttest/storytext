@@ -28,32 +28,39 @@ class Describer(usecase.guishared.Describer):
         return widget.isShowing()
     
     def describeAppearedWidgets(self, stateChangeWidgets):
-        markedWidgets = self.widgetsAppeared + stateChangeWidgets
-        for widget in self.widgetsAppeared:
-            self.describeVisibilityChange(widget, markedWidgets, "New widgets have appeared: describing common parent :\n")
+        newWindows, commonParents = self.categoriseAppearedWidgets(stateChangeWidgets)
+        for window in newWindows:
+            self.describe(window)
+        descriptions = map(self.getDescriptionForVisibilityChange, commonParents)
+        for desc in sorted(descriptions):
+            self.logger.info("\nNew widgets have appeared: describing common parent :\n")
+            self.logger.info(desc)
     
     def parentMarked(self, widget, markedWidgets):
         if widget in markedWidgets:
             return True
-        elif isinstance(widget, awt.Component) and widget.getParent():
+        elif widget.getParent():
             return self.parentMarked(widget.getParent(), markedWidgets)
         else:
             return False
 
-    def describeVisibilityChange(self, widget, markedWidgets, header):
-        if hasattr(widget, "isVisible") and not widget.isVisible():
-            return
-        if isinstance(widget, (swing.JFrame, swing.JDialog)):
-            self.describe(widget)
-        else:
-            parent = widget.getParent()
-            if parent is not None and not self.parentMarked(parent, markedWidgets):
-                markedWidgets.append(parent)
-                self.logger.info("\n" + header)
-                self.logger.info(self.getDescriptionForVisibilityChange(parent))
-            elif self.logger.isEnabledFor(logging.DEBUG):
-                self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " + \
-                                    repr(map(self.getRawData, markedWidgets)))
+    def categoriseAppearedWidgets(self, stateChangeWidgets):
+        newWindows, commonParents = [], []
+        markedWidgets = self.widgetsAppeared + stateChangeWidgets
+        for widget in self.widgetsAppeared:
+            if not widget.isVisible():
+                continue
+            elif isinstance(widget, self.getWindowClasses()):
+                newWindows.append(widget)
+            else:
+                parent = widget.getParent()
+                if parent is not None and not self.parentMarked(parent, markedWidgets):
+                    markedWidgets.append(parent)
+                    commonParents.append(parent)
+                elif self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " +
+                                      repr(map(self.getRawData, markedWidgets)))
+        return newWindows, commonParents
 
     def getDescriptionForVisibilityChange(self, widget):
         if isinstance(widget, (swing.JToolBar, swing.JMenuBar)):
