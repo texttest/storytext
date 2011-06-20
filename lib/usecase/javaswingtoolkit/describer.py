@@ -317,12 +317,21 @@ class Describer(usecase.guishared.Describer):
             return columnName
         
         component = renderer.getTableCellRendererComponent(table, columnName, False, False, 0, col)
-        self.resetDescribedFlags(component)
+        return util.getComponentText(component)
+
+    def getCellText(self, table, row, col, selected):
+        renderer = table.getCellRenderer(row, col)
+        value = table.getValueAt(row, col)
+        if renderer is None:
+            return str(value)
+
+        component = renderer.getTableCellRendererComponent(table, value, selected, False, row, col)
         return util.getComponentText(component)
         
-    def getCellText(self, i, j, table, selectedRows, selectedColumns):
-        cellText = str(table.getValueAt(i, j))
-        if i in selectedRows and j in selectedColumns:
+    def getFullCellText(self, i, j, table, selectedRows, selectedColumns):
+        selected = i in selectedRows and j in selectedColumns
+        cellText = self.getCellText(table, i, j, selected)
+        if selected:
             cellText += " (selected)"
         return cellText
 
@@ -333,7 +342,7 @@ class Describer(usecase.guishared.Describer):
 
         headerRow = [ self.getHeaderText(table, j) for j in range(columnCount) ]
         args = table, selectedRows, selectedColumns
-        rows = [ [ self.getCellText(i, j, *args) for j in range(columnCount) ] for i in range(table.getRowCount()) ]
+        rows = [ [ self.getFullCellText(i, j, *args) for j in range(columnCount) ] for i in range(table.getRowCount()) ]
 
         text = self.combineElements([ "Table" ] + self.getPropertyElements(table)) + " :\n"
         return text + self.formatTable(headerRow, rows, columnCount)

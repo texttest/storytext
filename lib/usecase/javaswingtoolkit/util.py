@@ -26,7 +26,9 @@ def getMenuPathString(widget):
 
 def getComponentTextElements(component):
     elements = []
-    if hasattr(component, "getText"):
+    if isinstance(component, swing.JCheckBox):
+        elements.append("[x]" if component.isSelected() else "[ ]")
+    elif hasattr(component, "getText"):
         elements.append(component.getText())
     for child in component.getComponents():
         elements += getComponentTextElements(child)
