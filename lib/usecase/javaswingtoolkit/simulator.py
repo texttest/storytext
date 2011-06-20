@@ -295,6 +295,8 @@ class ListSelectEvent(StateChangeEvent):
         return currOutput.startswith(stateChangeOutput)
 
 class TableSelectEvent(ListSelectEvent):
+    recordOnSelect = True
+    
     def __init__(self, *args):
         ListSelectEvent.__init__(self, *args)
         self.indexer = TableIndexer.getIndexer(self.widget.widget)
@@ -313,6 +315,11 @@ class TableSelectEvent(ListSelectEvent):
             for col in self.widget.getSelectedColumns():
                 text.append(self.indexer.getCellDescription(row, col))
         return ", ".join(text)
+    
+    def shouldRecord(self, event, *args):
+        value =  ListSelectEvent.shouldRecord(self, event, *args) and TableSelectEvent.recordOnSelect
+        TableSelectEvent.recordOnSelect = True
+        return value
 
 class TableHeaderEvent(SignalEvent):
     def isStateChange(self):
@@ -354,9 +361,25 @@ class CellDoubleClickEvent(DoubleClickEvent):
 class CellEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
         cellDescription, newValue = argumentString.split("=")
-        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(cellDescription)            
-        swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue + "\n" ])
-    
+        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(cellDescription)
+        ce = self.widget.getCellEditor(row, column)
+        if isinstance(ce, swing.DefaultCellEditor):
+            if isinstance(ce.getComponent(), swing.text.JTextComponent):
+                self.editTextComponent(newValue, row, column)
+            elif isinstance(ce.getComponent(), swing.JCheckBox):
+                swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 1, "BUTTON1_MASK" ])   
+            elif isinstance(ce.getComponent(), swing.JComboBox):
+                pass
+                
+        else:
+            #temporary workaround
+            self.editTextComponent(newValue, row, column)
+
+    def editTextComponent(self, newValue, row, column):
+        swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
+        TableSelectEvent.recordOnSelect = False
+        swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
+
     def connectRecord(self, method):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event):
@@ -369,7 +392,8 @@ class CellEditEvent(StateChangeEvent):
         util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return (isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
+        currOutput = self.outputForScript(*args)
+        return currOutput.startswith(stateChangeOutput) or (isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
 
     def getNewValue(self, row, col):
         cellEditor = self.widget.getCellEditor()
