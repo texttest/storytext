@@ -1,4 +1,4 @@
-import usecase.guishared, logging, util, sys, threading
+import usecase.guishared, logging, util, sys, threading, time
 from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
@@ -379,7 +379,12 @@ class CellEditEvent(StateChangeEvent):
         swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
         TableSelectEvent.recordOnSelect = False
         swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
+        while not self.ready(newValue, row, column):
+            time.sleep(0.1)
 
+    def ready(self, value, row, column):
+        return value == str(self.widget.getValueAt(row, column))
+    
     def connectRecord(self, method):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event):
@@ -413,8 +418,9 @@ class CellEditEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Edited" 
 
-
-    
+    def delayLevel(self):
+        return False
+        
 class TableIndexer():
     allIndexers = {}
     def __init__(self, table):
