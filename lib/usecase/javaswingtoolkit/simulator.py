@@ -362,26 +362,35 @@ class CellEditEvent(StateChangeEvent):
     def _generate(self, argumentString):
         cellDescription, newValue = argumentString.split("=")
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(cellDescription)
-        ce = self.widget.getCellEditor(row, column)
-        if isinstance(ce, swing.DefaultCellEditor):
-            if isinstance(ce.getComponent(), swing.text.JTextComponent):
-                self.editTextComponent(newValue, row, column)
-            elif isinstance(ce.getComponent(), swing.JCheckBox):
-                swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 1, "BUTTON1_MASK" ])   
-            elif isinstance(ce.getComponent(), swing.JComboBox):
-                pass
-                
+        cellEditor = self.widget.getCellEditor(row, column)
+        if self.isTextComponent(cellEditor):
+            self.editTextComponent(newValue, row, column)
+        elif self.isCheckBox(cellEditor):
+            self.editCheckBoxComponent(newValue, row, column)
         else:
             #temporary workaround
             self.editTextComponent(newValue, row, column)
 
     def editTextComponent(self, newValue, row, column):
         swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
-        TableSelectEvent.recordOnSelect = False
         swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
         while not self.ready(newValue, row, column):
             time.sleep(0.1)
 
+    def editCheckBoxComponent(self, newValue, row, column):
+        if not newValue == str(self.widget.getValueAt(row, column)):
+            swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 1, "BUTTON1_MASK" ])
+
+    def isTextComponent(self, cellEditor):
+        return self.isCellEditorComponent(cellEditor, swing.text.JTextComponent)
+
+    def isCheckBox(self, cellEditor):
+        return self.isCellEditorComponent(cellEditor, swing.JCheckBox)
+
+    def isCellEditorComponent(self, cellEditor, component):
+        if isinstance(cellEditor, swing.DefaultCellEditor):
+            return isinstance(cellEditor.getComponent(), component)
+    
     def ready(self, value, row, column):
         return value == str(self.widget.getValueAt(row, column))
     
@@ -398,7 +407,7 @@ class CellEditEvent(StateChangeEvent):
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
-        return currOutput.startswith(stateChangeOutput) or (isinstance(stateChangeEvent, CellEditEvent) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
+        return ((currOutput.startswith(stateChangeOutput) and isinstance(stateChangeEvent, CellEditEvent)) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
 
     def getNewValue(self, row, col):
         cellEditor = self.widget.getCellEditor()
@@ -412,7 +421,10 @@ class CellEditEvent(StateChangeEvent):
         return str(TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)) + "=" + str(value)
             
     def shouldRecord(self, row, col, *args):
-        return self.getNewValue(row, col) is not None
+        result = self.getNewValue(row, col) is not None
+        if result:
+            TableSelectEvent.recordOnSelect = False 
+        return result
     
     @classmethod
     def getAssociatedSignal(cls, widget):
