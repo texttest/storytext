@@ -466,7 +466,7 @@ class TableIndexer():
             return cls.allIndexers.setdefault(table, cls(table))
 
     def getColumn(self, col):
-        return [ self.tableModel.getValueAt(row, col) or "<unnamed>" for row in range(self.tableModel.getRowCount()) ]
+        return [ str(self.tableModel.getValueAt(row, col) or "<unnamed>") for row in range(self.tableModel.getRowCount()) ]
 
     def findRowNames(self):
         for colIndex in range(self.tableModel.getColumnCount()):
