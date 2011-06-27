@@ -118,6 +118,8 @@ class UseCaseReplayer:
         #gtk.idle_add(method)
 
     def registerApplicationEvent(self, eventName, timeDelay):
+        if eventName in self.applicationEventNames:
+            eventName += " * 2"
         self.applicationEventNames.add(eventName)
         self.logger.debug("Replayer got application event " + repr(eventName))
         self.timeDelayNextCommand = timeDelay
