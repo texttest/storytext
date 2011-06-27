@@ -230,7 +230,8 @@ class UseCaseReplayer:
                     event.generate(argumentString)
                     return
                 except UseCaseScriptError:
-                    pass
+                    type, value, traceback = sys.exc_info()
+                    self.logger.debug("Error, trying another: " + str(value))  
             possibleEvents[0].generate(argumentString)
             
     def parseCommand(self, scriptCommand):

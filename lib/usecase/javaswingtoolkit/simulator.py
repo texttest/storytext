@@ -91,6 +91,7 @@ def catchAll(method, *args):
 
 class SignalEvent(usecase.guishared.GuiEvent):        
     def generate(self, *args):
+        self.checkWidgetStatus()
         self.setNameIfNeeded()
         selectWindow(self.widget.widget)
         self._generate(*args)
@@ -116,7 +117,15 @@ class SignalEvent(usecase.guishared.GuiEvent):
 
     def delayLevel(self):
         return Filter.delayLevel()
-                
+    
+    def widgetVisible(self):
+        return self.widget.isShowing()
+
+    def widgetSensitive(self):
+        return self.widget.isEnabled()
+    
+    def describeWidget(self):
+        return " of type " + self.widget.getType()
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
@@ -249,6 +258,9 @@ class MenuSelectEvent(SelectEvent):
 
     def shouldRecord(self, event, *args):
         return not isinstance(event.getSource(), swing.JMenu) and SelectEvent.shouldRecord(self, event, *args)
+    
+    def widgetVisible(self):
+        return True
 
 class TabSelectEvent(SelectEvent):
     def isStateChange(self):
