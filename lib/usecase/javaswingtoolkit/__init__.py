@@ -1,4 +1,3 @@
-
 import usecase.guishared, time, os
 from javax import swing
 from java.awt import Frame
@@ -70,6 +69,8 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         isWindow = isinstance(widget, (swing.JFrame, swing.JDialog))
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
+                if widget.getDefaultCloseOperation() == swing.WindowConstants.EXIT_ON_CLOSE:
+                    widget.setDefaultCloseOperation(swing.WindowConstants.DISPOSE_ON_CLOSE)
                 self.uiMap.monitorAndStoreWindow(widget)
             elif inWindow and widget not in self.appearedWidgets:
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
