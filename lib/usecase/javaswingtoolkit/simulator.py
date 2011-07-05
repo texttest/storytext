@@ -3,10 +3,11 @@ from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent
+     WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent, InputEvent
 from java.lang import IllegalArgumentException, System
 from java.io import PrintStream, OutputStream
 from javax import swing
+from abbot.tester import Robot
 
 # Importing writes uninteresting stuff to stdout
 out_orig = System.out
@@ -89,7 +90,7 @@ def catchAll(method, *args):
     except:
         sys.stderr.write(usecase.guishared.getExceptionString() + "\n")
 
-class SignalEvent(usecase.guishared.GuiEvent):        
+class SignalEvent(usecase.guishared.GuiEvent):
     def generate(self, *args):
         self.checkWidgetStatus()
         self.setNameIfNeeded()
@@ -292,11 +293,35 @@ class ListSelectEvent(StateChangeEvent):
         raise UseCaseScriptError, "Could not find item labeled '" + text + "' in list."
     
     def _generate(self, argumentString):
+        self._generateAbbot(argumentString)
+
+    def _generateAbbot(self, argumentString):
         selected = argumentString.split(", ")
-        # Officially we can pass the names directly to SwingLibrary
-        # Problem is that doesn't work if the names are themselves numbers
-        params = [ self.widget.getName() ] + map(self.getIndex, selected)
-        swinglib.runKeyword("selectFromList", params)
+        indices = map(self.getIndex, selected)
+        mask1 = InputEvent.BUTTON1_MASK
+        mask2 = InputEvent.BUTTON1_MASK | InputEvent.CTRL_MASK
+        self.widget.clearSelection()
+        count = 0
+        for index in indices:
+            if count == 0:
+                mask = mask1
+            else:
+                mask = mask2
+            count += 1
+            rect = self.widget.getCellBounds(index, index)
+            System.setProperty("abbot.robot.mode", "awt")
+            robot = Robot()
+            robot.setEventMode(Robot.EM_AWT)
+            util.runOnEventDispatchThread(robot.click, self.widget.widget, rect.width / 2, rect.y + rect.height / 2, mask, 1)
+
+# It seems to be a bug in SwingLibrary when selecting a row larger than window's visible width. 
+# We'll keep this method commented and investigate the causes.
+#    def _generateSwingLib(self, argumentString):
+#        selected = argumentString.split(", ")
+#         Officially we can pass the names directly to SwingLibrary
+#         Problem is that doesn't work if the names are themselves numbers
+#        params = [ self.widget.getName() ] + map(self.getIndex, selected)
+#        swinglib.runKeyword("selectFromList", params)
         
     def getStateText(self, *args):
         texts = [ util.getJListText(self.widget.widget, i) for i in self.widget.getSelectedIndices() ]
@@ -352,7 +377,7 @@ class TableHeaderEvent(SignalEvent):
     def shouldRecord(self, event, *args):
         return event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
             event.getClickCount() == 1 and SignalEvent.shouldRecord(self, event, *args)
-               
+
     
 class CellDoubleClickEvent(DoubleClickEvent):
     def isStateChange(self):
