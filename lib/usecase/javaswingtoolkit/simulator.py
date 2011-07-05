@@ -513,17 +513,21 @@ class TableIndexer():
         else:
             return cls.allIndexers.setdefault(table, cls(table))
 
+    def getCellValue(self, row, col):
+        return str(self.tableModel.getValueAt(row, col) or "<unnamed>")
+        
     def getColumn(self, col):
-        return [ str(self.tableModel.getValueAt(row, col) or "<unnamed>") for row in range(self.tableModel.getRowCount()) ]
+        return [ self.getCellValue(row, col) for row in range(self.table.getRowCount()) ]
 
     def findRowNames(self):
-        for colIndex in range(self.tableModel.getColumnCount()):
-            column = self.getColumn(colIndex)
-            if len(column) > 1 and len(set(column)) == len(column):
-                return colIndex, column
-        # No unique columns to use as row names. Use the first row and add numbers
+        if self.table.getRowCount() > 1:
+            for colIndex in range(self.table.getColumnCount()):
+                column = self.getColumn(colIndex)
+                if len(column) > 1 and len(set(column)) == len(column):
+                    return colIndex, column
+        # No unique columns to use as row names. Use the first column and add numbers
         return None, self.addIndexes(self.getColumn(0))
-
+        
     def getIndexedValue(self, index, value, mapping):
         indices = mapping.get(value)
         if len(indices) == 1:
@@ -561,7 +565,7 @@ class TableIndexer():
         
     def getCellDescription(self, row, col):
         rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
-        if self.tableModel.getColumnCount() == 1:
+        if self.table.getColumnCount() == 1:
             return rowName
         else:
             return self.table.getColumnName(col) + " for " + rowName
