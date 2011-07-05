@@ -3,9 +3,9 @@ import java.awt as awt
 from javax import swing
 
 class Describer(usecase.guishared.Describer):
-    ignoreWidgets = [ swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
+    ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
                       swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader ]
-    statelessWidgets = [swing.JSplitPane, swing.JScrollPane, swing.JPopupMenu ]
+    statelessWidgets = [swing.JScrollPane, swing.JPopupMenu ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTable, swing.text.JTextComponent]
