@@ -901,6 +901,8 @@ class Describer:
         return colWidths
 
     def formatTable(self, headerRow, rows, columnCount):
+        if columnCount == 0:
+            return ""
         colWidths = self.findColumnWidths([ headerRow ] + rows, columnCount)
         header = self.formatCellsInGrid([ headerRow ], colWidths)
         body = self.formatCellsInGrid(rows, colWidths)
