@@ -396,9 +396,14 @@ class CellDoubleClickEvent(DoubleClickEvent):
 
 
 class CellEditEvent(StateChangeEvent):
+    def __init__(self, *args):
+        StateChangeEvent.__init__(self, *args)
+        self.indexer = TableIndexer.getIndexer(self.widget.widget)
+        self.logger = logging.getLogger("usecase replay log")
+        
     def _generate(self, argumentString):
         cellDescription, newValue = argumentString.split("=")
-        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(cellDescription)
+        row, column = self.indexer.getViewCellIndices(cellDescription)
         cellEditor = self.widget.getCellEditor(row, column)
         if self.isTextComponent(cellEditor):
             self.editTextComponent(newValue, row, column)
@@ -409,10 +414,19 @@ class CellEditEvent(StateChangeEvent):
             self.editTextComponent(newValue, row, column)
 
     def editTextComponent(self, newValue, row, column):
+        oldValue = self.widget.getValueAt(row, column)
         swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
         swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
-        while not self.ready(newValue, row, column):
+        self.waitForEdit(row, column, oldValue)
+
+    def waitForEdit(self, row, column, oldValue):
+        while not self.hasEdited(row, column, oldValue):
+            self.logger.debug("Waiting for edit of " + repr((row, column)) + " away from " + repr(oldValue) + "...") 
             time.sleep(0.1)
+
+    def hasEdited(self, row, column, oldValue):
+        value = self.widget.getValueAt(row, column)
+        return value is not None and value != oldValue and self.widget.getCellEditor() is None
 
     def editCheckBoxComponent(self, newValue, row, column):
         if not newValue == str(self.widget.getValueAt(row, column)):
@@ -427,9 +441,6 @@ class CellEditEvent(StateChangeEvent):
     def isCellEditorComponent(self, cellEditor, component):
         if isinstance(cellEditor, swing.DefaultCellEditor):
             return isinstance(cellEditor.getComponent(), component)
-    
-    def ready(self, value, row, column):
-        return value == str(self.widget.getValueAt(row, column))
     
     def connectRecord(self, method):
         class TableListener(swing.event.TableModelListener):
@@ -455,7 +466,7 @@ class CellEditEvent(StateChangeEvent):
     
     def getStateText(self, row, col, *args):
         value = self.getNewValue(row, col)
-        return str(TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, col)) + "=" + str(value)
+        return str(self.indexer.getCellDescription(row, col)) + "=" + str(value)
             
     def shouldRecord(self, row, col, *args):
         result = self.getNewValue(row, col) is not None
