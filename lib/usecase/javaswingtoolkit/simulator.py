@@ -226,7 +226,9 @@ class TextEditEvent(StateChangeEvent):
     
     def shouldRecord(self, row, col, *args):
         # Can get document changes on things that aren't visible
-        return self.widget.isShowing() and not util.hasComplexAncestors(self.widget.widget)
+        # We don't store ourselves in the filter, so anything there (for this window) implies we've been caused programmatically
+        return self.widget.isShowing() and not util.hasComplexAncestors(self.widget.widget) and \
+               not Filter.hasEventOnWindow(self.widget.widget)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, TextEditEvent)
@@ -606,17 +608,19 @@ class Filter:
                 cls.logger.debug("Received event " + repr(event))
                 cls.logger.debug("Rejecting event, not yet processed " + repr([ repr(e) for e in cls.eventsFromUser ]))
             return False
-        
-    def getWindow(self, widget):
+
+    @staticmethod
+    def getWindow(widget):
         return swing.SwingUtilities.getWindowAncestor(widget)
-    
-    def hasEventOnWindow(self, widget):
-        currWindow = self.getWindow(widget)
+
+    @classmethod
+    def hasEventOnWindow(cls, widget):
+        currWindow = cls.getWindow(widget)
         if not currWindow:
             return False
 
-        for event in self.eventsFromUser:
-            if self.getWindow(event.getSource()) is currWindow:
+        for event in cls.eventsFromUser:
+            if cls.getWindow(event.getSource()) is currWindow:
                 return True
         return False
     
