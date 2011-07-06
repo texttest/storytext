@@ -333,7 +333,7 @@ class ListSelectEvent(StateChangeEvent):
 
 class TableSelectEvent(ListSelectEvent):
     recordOnSelect = True
-    
+
     def __init__(self, *args):
         ListSelectEvent.__init__(self, *args)
         self.indexer = TableIndexer.getIndexer(self.widget.widget)
@@ -363,7 +363,11 @@ class TableHeaderEvent(SignalEvent):
         return True
     
     def _generate(self, argumentString):
-        swinglib.runKeyword("clickTableHeader", [self.widget.getTable().getName(), argumentString])
+        tableName = self.widget.getTable().getName()
+        if tableName is None:
+            tableName = str(self.widget.getTable().__class__) + " " + str(id(self))
+            self.widget.getTable().setName(tableName)
+        swinglib.runKeyword("clickTableHeader", [tableName, argumentString])
 
     def outputForScript(self, event, *args):
         colIndex = self.widget.columnAtPoint(event.getPoint())
@@ -378,6 +382,8 @@ class TableHeaderEvent(SignalEvent):
         return event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
             event.getClickCount() == 1 and SignalEvent.shouldRecord(self, event, *args)
 
+    def implies(self, *args):
+        return False
     
 class CellDoubleClickEvent(DoubleClickEvent):
     def isStateChange(self):
