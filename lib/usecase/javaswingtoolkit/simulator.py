@@ -472,7 +472,7 @@ class CellEditEvent(StateChangeEvent):
     
     def getStateText(self, row, col, *args):
         value = self.getNewValue(row, col)
-        return str(self.indexer.getCellDescription(row, col)) + "=" + str(value)
+        return str(self.indexer.getCellDescription(row, col, checkSelectionModel=False)) + "=" + str(value)
             
     def shouldRecord(self, row, col, *args):
         result = self.getNewValue(row, col) is not None
@@ -569,9 +569,9 @@ class TableIndexer():
     def getViewIndices(self, row, column):
         return self.table.convertRowIndexToView(row), self.table.convertColumnIndexToView(column)
         
-    def getCellDescription(self, row, col):
+    def getCellDescription(self, row, col, checkSelectionModel=True):
         rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
-        if self.table.getColumnCount() == 1:
+        if self.table.getColumnCount() == 1 or (checkSelectionModel and not self.table.getCellSelectionEnabled()):
             return rowName
         else:
             return self.table.getColumnName(col) + " for " + rowName
