@@ -63,10 +63,11 @@ class Describer(usecase.guishared.Describer):
         return newWindows, commonParents
 
     def getDescriptionForVisibilityChange(self, widget):
-        if isinstance(widget, (swing.JToolBar, swing.JMenuBar)):
+        if isinstance(widget, swing.JMenuBar) or \
+               (isinstance(widget, swing.JToolBar) and self.isNormalToolbar(widget)):
             return self.getDescription(widget)
         else:
-            return self.getChildrenDescription(widget)
+            return self.getChildrenDescription(widget, checkPrevious=False)
    
     def setWidgetShown(self, widget):
         if not isinstance(widget, (swing.Popup, swing.JScrollBar, swing.table.TableCellRenderer)) and \
@@ -97,12 +98,15 @@ class Describer(usecase.guishared.Describer):
 
     def getVerticalDividePositions(self, visibleChildren):
         return [] # for now
+
+    def shouldDescribeChild(self, child, checkPrevious):
+        return child.isVisible() and (not checkPrevious or child not in self.described)
     
-    def getChildrenDescription(self, widget):
+    def getChildrenDescription(self, widget, checkPrevious=True):
         if not isinstance(widget, awt.Container):
             return ""
 
-        visibleChildren = filter(lambda c: c.isVisible() and c not in self.described, widget.getComponents())
+        visibleChildren = filter(lambda c: self.shouldDescribeChild(c, checkPrevious), widget.getComponents())
         self.described.update(visibleChildren)
         return self.formatChildrenDescription(widget, visibleChildren)
 
@@ -121,7 +125,7 @@ class Describer(usecase.guishared.Describer):
             if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
                 return 2
             layout = widget.getLayout()
-            if isinstance(layout, awt.FlowLayout):
+            if isinstance(layout, awt.FlowLayout) or isinstance(widget, swing.JToolBar):
                 return len(childDescriptions)
             elif isinstance(layout, swing.BoxLayout):
                 return len(childDescriptions) if self.isHorizontalBox(layout) else 1
@@ -166,9 +170,15 @@ class Describer(usecase.guishared.Describer):
     
     def getJMenuBarDescription(self, menubar):
         return "Menu Bar:\n" + self.getJMenuDescription(menubar)
-    
+
+    def isNormalToolbar(self, toolbar):
+        return all((isinstance(item, (swing.JButton, swing.JSeparator)) for item in toolbar.getComponents()))
+            
     def getJToolBarDescription(self, toolbar, indent=1):
-        return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
+        if self.isNormalToolbar(toolbar):
+            return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
+        else:
+            return ""
     
     def getJRadioButtonDescription(self, widget):
         return self.getComponentDescription(widget, "RadioButton")
