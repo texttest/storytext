@@ -61,7 +61,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         self.describer = describer.Describer()
         self.filter = simulator.Filter(self.uiMap)
         self.filter.startListening(self.handleNewComponent)
-        self.appearedWidgets = []
+        self.appearedWidgets = set()
 
     def handleNewComponent(self, widget):
         inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
@@ -72,11 +72,17 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
                 if widget.getDefaultCloseOperation() == swing.WindowConstants.EXIT_ON_CLOSE:
                     widget.setDefaultCloseOperation(swing.WindowConstants.DISPOSE_ON_CLOSE)
                 self.uiMap.monitorAndStoreWindow(widget)
+                self.setAppeared(widget)
             elif inWindow and widget not in self.appearedWidgets:
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
-                self.appearedWidgets.append(widget)
+                self.setAppeared(widget)
         if self.loggerActive and (isWindow or inWindow):
             self.describer.setWidgetShown(widget)
+
+    def setAppeared(self, widget):
+        self.appearedWidgets.add(widget)
+        for child in widget.getComponents():
+            self.setAppeared(child)
 
     def describe(self):
         util.runOnEventDispatchThread(self.describer.describeWithUpdates)
