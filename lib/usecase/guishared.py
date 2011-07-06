@@ -294,6 +294,17 @@ class ScriptEngine(scriptengine.ScriptEngine):
                 if not options.disable_usecase_names:
                     self.replaceAutoRecordingForUsecase(options.interface)
 
+    def run_python_or_java(self, args):
+        # Two options here: either a Jython program and hence a .py file, or a Java class
+        # If it's a file, assume it's Python
+        if os.path.isfile(args[0]):
+            self.run_python_file(args)
+        else:
+            exec "import " + args[0] + " as _className"
+            # Java doesn't use the standard convention of having the first item in args be the
+            # actual program name
+            _className.main(args[1:])
+
     def describeSupportedWidgets(self, html=False):
         toolkit, module, actionWord, linkPrefix = self.getDescriptionInfo()
         intro = """The following lists the %s widget types and the associated %s on them which 

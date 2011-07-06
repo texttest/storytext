@@ -17,17 +17,10 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     def setTestThreadAction(self, method):
         self.testThread = Thread(target=method)
         
-    def run_python_file(self, args):
+    def runSystemUnderTest(self, args):
         self.testThread.start()
+        self.run_python_or_java(args)
         
-        # Two options here: either a Jython program and hence a .py file, or a Java class
-        # If it's a file, assume it's Python
-        if os.path.isfile(args[0]):
-            usecase.guishared.ScriptEngine.run_python_file(self, args)
-        else:
-            exec "import " + args[0] + " as _className"
-            _className.main(args)
-
     def getDescriptionInfo(self):
         return "SWT", "javaswt", "event types", \
                "http://help.eclipse.org/helios/index.jsp?topic=/org.eclipse.platform.doc.isv/reference/api/"

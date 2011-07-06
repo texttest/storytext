@@ -23,15 +23,8 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
     
-    def run_python_file(self, args):
-        # Two options here: either a Jython program and hence a .py file, or a Java class
-        # If it's a file, assume it's Python
-        if os.path.isfile(args[0]):
-            usecase.guishared.ScriptEngine.run_python_file(self, args)
-        else:
-            exec "import " + args[0] + " as _className"
-            _className.main(args)
-
+    def runSystemUnderTest(self, args):
+        self.run_python_or_java(args)
         self.replayer.runTestThread()
         
     def checkType(self, widget):

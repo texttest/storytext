@@ -69,8 +69,12 @@ class ScriptEngine:
         if len(args) == 0:
             return False
         else:
-            self.run_python_file(args)
+            self.runSystemUnderTest(args)
             return True
+
+    def runSystemUnderTest(self, args):
+        # By default, just assume it's a python program. Allow this to be overridden
+        self.run_python_file(args)
 
     def run_python_file(self, args):
         """Run a python file as if it were the main program on the command line.

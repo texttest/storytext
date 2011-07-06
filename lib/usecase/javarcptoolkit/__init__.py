@@ -9,7 +9,7 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
 
-    def run_python_file(self, args):
+    def runSystemUnderTest(self, args):
         import org.eclipse.equinox.launcher as launcher
         cmdArgs = [ "-application", "org.eclipse.swtbot.testscript.application",
                     "-testApplication" ] + args
