@@ -51,5 +51,10 @@ def getJListText(jlist, index):
 
 # Designed to filter out buttons etc which are details of other widgets, such as calendars, scrollbars, tables etc
 def hasComplexAncestors(widget):
-    return any((swing.SwingUtilities.getAncestorOfClass(widgetClass, widget) is not None
-                for widgetClass in [ swing.JTable, swing.JScrollBar ]))
+    if any((swing.SwingUtilities.getAncestorOfClass(widgetClass, widget) is not None
+            for widgetClass in [ swing.JTable, swing.JScrollBar ])):
+        return True
+    
+    # If we're in a popup menu that's attached to something with complex ancestors, that's clearly even more complex :)
+    popup = swing.SwingUtilities.getAncestorOfClass(swing.JPopupMenu, widget)
+    return popup is not None and hasComplexAncestors(popup.getInvoker())
