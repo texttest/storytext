@@ -417,6 +417,8 @@ class CellEditEvent(StateChangeEvent):
             self.editTextComponent(newValue, row, column)
         elif self.isCheckBox(cellEditor):
             self.editCheckBoxComponent(newValue, row, column)
+        elif self.isComboBox(cellEditor):
+            self.editComboBoxComponent(newValue, row, column, cellEditor.getComponent())
         else:
             #temporary workaround
             self.editTextComponent(newValue, row, column)
@@ -440,12 +442,22 @@ class CellEditEvent(StateChangeEvent):
         if not newValue == str(self.widget.getValueAt(row, column)):
             swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 1, "BUTTON1_MASK" ])
 
+    def editComboBoxComponent(self, newValue, row, column, combobox):
+        if combobox.isEditable():
+            swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
+        else:
+            swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
+            combobox.setSelectedItem(newValue)
+
     def isTextComponent(self, cellEditor):
         return self.isCellEditorComponent(cellEditor, swing.text.JTextComponent)
 
     def isCheckBox(self, cellEditor):
         return self.isCellEditorComponent(cellEditor, swing.JCheckBox)
 
+    def isComboBox(self, cellEditor):
+        return self.isCellEditorComponent(cellEditor, swing.JComboBox)
+    
     def isCellEditorComponent(self, cellEditor, component):
         if isinstance(cellEditor, swing.DefaultCellEditor):
             return isinstance(cellEditor.getComponent(), component)
@@ -466,12 +478,25 @@ class CellEditEvent(StateChangeEvent):
         return ((currOutput.startswith(stateChangeOutput) and isinstance(stateChangeEvent, CellEditEvent)) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
 
     def getNewValue(self, row, col):
-        cellEditor = self.widget.getCellEditor()
-        if cellEditor is not None:
-            return cellEditor.getCellEditorValue()
+        component = self.widget.getEditorComponent()
+        if component is not None:
+            return self.getValueFromComponent(component)
         else:
             return self.widget.getValueAt(row, col)
     
+    def getValueFromComponent(self, component):
+        if isinstance(component, swing.JComboBox):
+            return component.getSelectedItem()
+        elif isinstance(component, swing.JTextField):
+            return component.getText()
+        elif isinstance(component, swing.JCheckBox):
+            return component.isSelected()
+        else:
+            cellEditor = self.widget.getCellEditor()
+            if cellEditor is not None:
+                value = cellEditor.getCellEditorValue()
+                return value
+        
     def getStateText(self, row, col, *args):
         value = self.getNewValue(row, col)
         return str(self.indexer.getCellDescription(row, col, checkSelectionModel=False)) + "=" + str(value)
