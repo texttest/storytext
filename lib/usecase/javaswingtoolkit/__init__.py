@@ -3,7 +3,6 @@ from javax import swing
 from java.awt import Frame
 import simulator, describer, util
 
-    
 class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = [
         (swing.JFrame       , [ simulator.FrameCloseEvent ]),
@@ -11,10 +10,10 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JRadioButton , [ simulator.SelectEvent ]),
         (swing.JCheckBox    , [ simulator.SelectEvent ]),
         (swing.JMenuItem    , [ simulator.MenuSelectEvent ]),
-        (swing.JTabbedPane  , [ simulator.TabSelectEvent]),
+        (swing.JTabbedPane  , [ simulator.TabSelectEvent, simulator.TabPopupActivateEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         (swing.JList        , [ simulator.ListSelectEvent ]),
-        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent ]),
+        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent, simulator.CellPopupMenuActivateEvent ]),
         (swing.table.JTableHeader   , [ simulator.TableHeaderEvent ]),
         (swing.text.JTextComponent  , [ simulator.TextEditEvent ]),
         (swing.JTextField  , [ simulator.TextEditEvent, simulator.TextActivateEvent ]),
@@ -66,7 +65,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
                     widget.setDefaultCloseOperation(swing.WindowConstants.DISPOSE_ON_CLOSE)
                 self.uiMap.monitorAndStoreWindow(widget)
                 self.setAppeared(widget)
-            elif inWindow and widget not in self.appearedWidgets:
+            elif (isinstance(widget, swing.JPopupMenu) or inWindow) and widget not in self.appearedWidgets:
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
                 self.setAppeared(widget)
         if self.loggerActive and (isWindow or inWindow):

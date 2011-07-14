@@ -127,6 +127,10 @@ class SignalEvent(usecase.guishared.GuiEvent):
     
     def describeWidget(self):
         return " of type " + self.widget.getType()
+    
+    def isPopupTriger(self, pressedEvent, releasedEvent):
+        return pressedEvent.isPopupTrigger() or releasedEvent.isPopupTrigger()
+        
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
@@ -172,7 +176,23 @@ class DoubleClickEvent(SignalEvent):
         
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, SelectEvent)
-        
+
+class PopupActivateEvent(SelectEvent):
+    def _generate(self, *args):
+        System.setOut(PrintStream(NullOutputStream()))
+        from org.netbeans.jemmy.operators import ComponentOperator
+        operator = ComponentOperator(self.widget.widget)
+        System.setOut(out_orig)
+        operator.clickForPopup()
+    
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "PopupActivate"
+    
+    def shouldRecord(self, oldEvent, newEvent, *args):
+        return self.isPopupTriger(oldEvent, newEvent) and \
+               SignalEvent.shouldRecord(self, oldEvent, newEvent, *args)
+
 class ButtonClickEvent(SelectEvent):
     def _generate(self, *args):
         # Just doing clickOnComponent as in SelectEvent ought to work, but doesn't, see
@@ -257,8 +277,20 @@ class TextActivateEvent(ActivateEvent):
 class MenuSelectEvent(SelectEvent):    
     def _generate(self, *args):
         path = util.getMenuPathString(self.widget)
-        swinglib.runKeyword("selectFromMenuAndWait", [ path ])
+        if util.belongsMenubar(self.widget):
+            swinglib.runKeyword("selectFromMenuAndWait", [ path ])
+        else:    
+            self.selectFromPopupMenu(self.widget.getParent(), path)
 
+    def selectFromPopupMenu(self, popup, path):
+        System.setOut(PrintStream(NullOutputStream()))
+        from org.robotframework.swing.popup import PopupMenuOperatorFactory
+        from org.robotframework.swing.comparator import EqualsStringComparator
+        factory = PopupMenuOperatorFactory()
+        operator = factory.createPopupOperator(popup)
+        System.setOut(out_orig)
+        operator.pushMenu(path, EqualsStringComparator())
+        
     def shouldRecord(self, event, *args):
         return not isinstance(event.getSource(), swing.JMenu) and SelectEvent.shouldRecord(self, event, *args)
     
@@ -283,6 +315,20 @@ class TabSelectEvent(SelectEvent):
         # But don't amalgamate them together, allow several tabs to be selected in sequence
         return False
 
+class TabPopupActivateEvent(PopupActivateEvent):
+    def _generate(self, title, *args):
+        System.setOut(PrintStream(NullOutputStream()))
+        from org.netbeans.jemmy.operators import ComponentOperator
+        index = self.widget.indexOfTab(title)
+        rect = self.widget.getBoundsAt(index)
+        operator = ComponentOperator(self.widget.widget)
+        System.setOut(out_orig)
+        operator.clickForPopup(rect.x + rect.width/2, rect.y + rect.height/2)
+     
+    def outputForScript(self, event, *args):
+        index = self.widget.getSelectedIndex()        
+        return ' '.join([self.name, self.widget.getTitleAt(index)])   
+    
 class ListSelectEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -359,6 +405,21 @@ class TableSelectEvent(ListSelectEvent):
         value =  ListSelectEvent.shouldRecord(self, event, *args) and TableSelectEvent.recordOnSelect
         TableSelectEvent.recordOnSelect = True
         return value
+
+class CellPopupMenuActivateEvent(PopupActivateEvent):
+    def _generate(self, argumentString):
+        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
+        System.setOut(PrintStream(NullOutputStream()))
+        from org.netbeans.jemmy.operators import JTableOperator
+        operator = JTableOperator(self.widget.widget)
+        System.setOut(out_orig)
+        operator.callPopupOnCell(row, column)
+
+    def outputForScript(self, event, *args):
+        row = self.widget.rowAtPoint(event.getPoint())
+        column = self.widget.columnAtPoint(event.getPoint())
+        text = TableIndexer.getIndexer(self.widget.widget).getCellDescription(row, column)
+        return ' '.join([self.name, text])
 
 class TableHeaderEvent(SignalEvent):
     def isStateChange(self):

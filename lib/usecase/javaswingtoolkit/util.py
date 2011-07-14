@@ -19,9 +19,13 @@ def getMenuPathString(widget):
     result = [ widget.getText() ]    
     parent = widget.getParent()
     while isinstance(parent, swing.JMenu) or isinstance(parent, swing.JPopupMenu):
-        result.append(parent.getInvoker().getText())
-        parent = parent.getInvoker().getParent()
-    
+        invoker=  parent.getInvoker()
+        if isinstance(invoker, swing.JMenu):
+            result.append(invoker.getText())
+            parent = invoker.getParent()
+        else:
+            parent = None
+
     return "|".join(reversed(result)) 
 
 def getComponentTextElements(component):
@@ -58,3 +62,20 @@ def hasComplexAncestors(widget):
     # If we're in a popup menu that's attached to something with complex ancestors, that's clearly even more complex :)
     popup = swing.SwingUtilities.getAncestorOfClass(swing.JPopupMenu, widget)
     return popup is not None and hasComplexAncestors(popup.getInvoker())
+
+def belongsMenubar(menuItem):
+    parent = menuItem.getParent()
+    while parent is not None:
+        if isinstance(parent, swing.JMenuBar):
+            return True
+        if hasattr(parent, "getInvoker") and parent.getInvoker() is not None:
+            if isinstance(parent.getInvoker(), swing.JMenu):
+                parent = parent.getInvoker().getParent()
+            else:
+                parent = parent.getInvoker()
+        else:
+            parent = None
+    return False
+
+def hasPopupMenu(widget):
+    return any((isinstance(item, (swing.JPopupMenu)) for item in widget.getComponents()))

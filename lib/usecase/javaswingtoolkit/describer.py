@@ -5,10 +5,10 @@ from javax import swing
 class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
                       swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader ]
-    statelessWidgets = [swing.JScrollPane, swing.JPopupMenu ]
+    statelessWidgets = [swing.JScrollPane ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
-                    swing.JList, swing.JTable, swing.text.JTextComponent]
+                    swing.JList, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu]
     childrenMethodName = "getComponents"
     visibleMethodName = "isVisible"
     def __init__(self):
@@ -52,6 +52,9 @@ class Describer(usecase.guishared.Describer):
                 continue
             elif isinstance(widget, self.getWindowClasses()):
                 newWindows.append(widget)
+            elif util.hasPopupMenu(widget):
+                markedWidgets.append(widget)
+                commonParents.append(widget)
             else:
                 parent = widget.getParent()
                 if parent is not None and not self.parentMarked(parent, markedWidgets):
@@ -251,6 +254,10 @@ class Describer(usecase.guishared.Describer):
         else:
             return "Image " + self.imageCounter.getId(image)
 
+    def getJPopupMenuDescription(self, widget):
+        self.resetDescribedFlags(widget)
+        return "Popup menu:\n" + self.getJMenuDescription(widget)
+    
     def imagesEqual(self, icon1, icon2):
         if hasattr(icon1, "getImage") and hasattr(icon2, "getImage"):
             return icon1.getImage() == icon2.getImage()
