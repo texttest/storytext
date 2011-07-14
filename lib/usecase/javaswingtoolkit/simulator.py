@@ -134,9 +134,15 @@ class SignalEvent(usecase.guishared.GuiEvent):
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
-        # What happens here if we don't have a title?
-        swinglib.runKeyword("closeWindow", [ self.widget.getTitle() ])
-  
+        #swinglib.runKeyword("closeWindow", [ self.widget.getTitle() ]) doesn't work for confirm dialogs after closing
+        #the application.
+        System.setProperty("abbot.robot.mode", "awt")
+        robot = Robot()
+        robot.setEventMode(Robot.EM_AWT)
+        util.runOnEventDispatchThread(robot.close, self.widget.widget)
+        while self.widget.widget.isActive() and self.widget.widget.isShowing():
+            time.sleep(0.1)
+
     def connectRecord(self, method):
         class WindowCloseListener(WindowAdapter):
             def windowClosing(listenerSelf, event):
