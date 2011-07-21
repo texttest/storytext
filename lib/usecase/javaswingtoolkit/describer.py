@@ -335,12 +335,13 @@ class Describer(usecase.guishared.Describer):
         return self.getSpecificState(widget)
 
     def getHeaderText(self, table, col):
-        renderer = table.getColumnModel().getColumn(col).getHeaderRenderer()
-        columnName = table.getColumnName(col)
+        column = table.getColumnModel().getColumn(col)
+        renderer = column.getHeaderRenderer()
+        headerValue = column.getHeaderValue()
         if renderer is None:
-            return columnName
+            return str(headerValue)
         
-        component = renderer.getTableCellRendererComponent(table, columnName, False, False, 0, col)
+        component = renderer.getTableCellRendererComponent(table, headerValue, False, False, 0, col)
         return util.getComponentText(component)
 
     def getCellText(self, table, row, col, selected):
