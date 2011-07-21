@@ -13,11 +13,14 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JTabbedPane  , [ simulator.TabSelectEvent, simulator.TabPopupActivateEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
         (swing.JList        , [ simulator.ListSelectEvent ]),
-        (swing.JTable       , [ simulator.TableSelectEvent, simulator.CellDoubleClickEvent, simulator.CellEditEvent, simulator.CellPopupMenuActivateEvent ]),
-        (swing.table.JTableHeader   , [ simulator.TableHeaderEvent ]),
+        (swing.JTable       , [ simulator.TableSelectEvent, simulator.TableHeaderEvent,
+                                simulator.CellDoubleClickEvent, simulator.CellEditEvent,
+                                simulator.CellPopupMenuActivateEvent ]),
         (swing.text.JTextComponent  , [ simulator.TextEditEvent ]),
         (swing.JTextField  , [ simulator.TextEditEvent, simulator.TextActivateEvent ]),
         ]
+    # Headers are connected to the table to use any identification that is there
+    recordWidgetTypes = [ cls for cls, signals in eventTypes ] + [ swing.table.JTableHeader ]
     
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
@@ -25,9 +28,9 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     def runSystemUnderTest(self, args):
         self.run_python_or_java(args)
         self.replayer.runTestThread()
-        
+    
     def checkType(self, widget):
-        return any((isinstance(widget, clazz) for clazz in [type for type,signals in self.eventTypes]))
+        return any((isinstance(widget, cls) for cls in self.recordWidgetTypes))
 
     def getDescriptionInfo(self):
         return "Swing", "javaswing", "event types", \

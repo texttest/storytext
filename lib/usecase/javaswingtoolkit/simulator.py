@@ -105,10 +105,13 @@ class SignalEvent(usecase.guishared.GuiEvent):
             def mouseReleased(listenerSelf, event):
                 catchAll(method, listenerSelf.pressedEvent, event, self)
 
-        util.runOnEventDispatchThread(self.widget.widget.addMouseListener, ClickListener())
+        util.runOnEventDispatchThread(self.getRecordWidget().addMouseListener, ClickListener())
+
+    def getRecordWidget(self):
+        return self.widget.widget
         
     def shouldRecord(self, event, *args):
-        return Filter.getEventFromUser(event) and not util.hasComplexAncestors(self.widget.widget)
+        return Filter.getEventFromUser(event) and not util.hasComplexAncestors(self.getRecordWidget())
     
     def setNameIfNeeded(self):
         mapId = self.widget.getUIMapIdentifier()
@@ -411,20 +414,19 @@ class TableHeaderEvent(SignalEvent):
         return True
     
     def _generate(self, argumentString):
-        tableName = self.widget.getTable().getName()
-        if tableName is None:
-            tableName = str(self.widget.getTable().__class__) + " " + str(id(self))
-            self.widget.getTable().setName(tableName)
-        swinglib.runKeyword("clickTableHeader", [tableName, argumentString])
+        swinglib.runKeyword("clickTableHeader", [self.widget.getName(), argumentString])
 
     def outputForScript(self, event, *args):
-        colIndex = self.widget.columnAtPoint(event.getPoint())
-        name = self.widget.getTable().getColumnName(colIndex)        
+        colIndex = self.widget.getTableHeader().columnAtPoint(event.getPoint())
+        name = self.widget.getColumnName(colIndex)        
         return SignalEvent.outputForScript(self, event, *args) + " " + name
+
+    def getRecordWidget(self):
+        return self.widget.getTableHeader()
     
     @classmethod
     def getAssociatedSignal(cls, *args):
-        return "Click"
+        return "ClickHeader"
 
     def shouldRecord(self, event, *args):
         return event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
@@ -712,7 +714,7 @@ class Filter:
                 elif event.getID() == ContainerEvent.COMPONENT_ADDED:
                     handleNewComponent(event.getChild())
                 else:
-                    self.handleEvent(event)
+                    catchAll(self.handleEvent, event)
         
         self.eventListener = AllEventListener()
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, self.eventListener, eventMask)
