@@ -20,13 +20,16 @@ import SwingLibrary
 swinglib = SwingLibrary()
 System.setOut(out_orig)
 
+def runKeyword(keywordName, *args):
+    return swinglib.runKeyword(keywordName, list(args))
+
 def selectWindow(widget):
     w = checkWidget(widget)
     window = swing.SwingUtilities.getWindowAncestor(w)
     if isinstance(window, swing.JFrame):
-        swinglib.runKeyword("selectWindow", [ window.getTitle() ])
+        runKeyword("selectWindow", window.getTitle())
     elif isinstance(window, swing.JDialog):
-        swinglib.runKeyword("selectDialog", [ window.getTitle() ])
+        runKeyword("selectDialog", window.getTitle())
 
 def checkWidget(widget):
     if isinstance(widget, swing.JMenuItem):
@@ -79,6 +82,10 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
     
     def getDialogTitle(self):
         return swing.SwingUtilities.getWindowAncestor(self.widget).getTitle()
+
+    def runKeyword(self, keywordName, *args):
+        return runKeyword(keywordName, self.widget.getName(), *args)
+                            
 
 usecase.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
@@ -137,7 +144,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
-        #swinglib.runKeyword("closeWindow", [ self.widget.getTitle() ]) doesn't work for confirm dialogs after closing
+        #runKeyword("closeWindow", self.widget.getTitle()) doesn't work for confirm dialogs after closing
         #the application.
         System.setProperty("abbot.robot.mode", "awt")
         robot = Robot()
@@ -162,7 +169,7 @@ class FrameCloseEvent(SignalEvent):
 
 class SelectEvent(SignalEvent):
     def _generate(self, *args):
-        swinglib.runKeyword("clickOnComponent", [ self.widget.getName()])
+        self.widget.runKeyword("clickOnComponent")
         
     @classmethod
     def getAssociatedSignal(cls, *args):
@@ -206,7 +213,7 @@ class ButtonClickEvent(SelectEvent):
     def _generate(self, *args):
         # Just doing clickOnComponent as in SelectEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
-        swinglib.runKeyword("pushButton", [ self.widget.getName()])
+        self.widget.runKeyword("pushButton")
 
     def connectRecord(self, method):
         SelectEvent.connectRecord(self, method)
@@ -243,8 +250,8 @@ class TextEditEvent(StateChangeEvent):
         util.runOnEventDispatchThread(self.widget.getDocument().addDocumentListener, TextDocumentListener())
 
     def _generate(self, argumentString):
-        swinglib.runKeyword("clearTextField", [self.widget.getName()])
-        swinglib.runKeyword("insertIntoTextField", [self.widget.getName(), argumentString])
+        self.widget.runKeyword("clearTextField")
+        self.widget.runKeyword("insertIntoTextField", argumentString)
 
     def getStateText(self, event, *args):        
         return usecase.guishared.removeMarkup(self.widget.getText())
@@ -279,15 +286,15 @@ class ActivateEvent(SignalEvent):
 
 class TextActivateEvent(ActivateEvent):
     def _generate(self, argumentString):
-        swinglib.runKeyword("selectContext", [self.widget.getName()])
-        swinglib.runKeyword("sendKeyboardEvent", ["VK_ENTER"])
+        self.widget.runKeyword("selectContext")
+        runKeyword("sendKeyboardEvent", "VK_ENTER")
 
     
 class MenuSelectEvent(SelectEvent):    
     def _generate(self, *args):
         path = util.getMenuPathString(self.widget)
         if util.belongsMenubar(self.widget):
-            swinglib.runKeyword("selectFromMenuAndWait", [ path ])
+            runKeyword("selectFromMenuAndWait", path)
         else:    
             self.selectFromPopupMenu(self.widget.getParent(), path)
 
@@ -311,12 +318,12 @@ class TabSelectEvent(SelectEvent):
         return True
                     
     def _generate(self, argumentString):
-        swinglib.runKeyword("selectTab", [ argumentString ])
+        runKeyword("selectTab", argumentString)
     
     def outputForScript(self, event, *args):
-        swinglib.runKeyword("selectWindow", [ swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle()])
-        #Should be used when more than one TabbedPane exist: swinglib.runKeyword("selectTabPane", [ self.widget.getLabel() ])
-        text = swinglib.runKeyword("getSelectedTabLabel", [])
+        runKeyword("selectWindow", swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle())
+        #Should be used when more than one TabbedPane exist: runKeyword("selectTabPane", self.widget.getLabel())
+        text = runKeyword("getSelectedTabLabel")
         return ' '.join([self.name, text])
      
     def implies(self, *args):
@@ -356,8 +363,7 @@ class ListSelectEvent(StateChangeEvent):
         selected = argumentString.split(", ")
         #Officially we can pass the names directly to SwingLibrary
         #Problem is that doesn't work if the names are themselves numbers
-        params = [ self.widget.getName() ] + map(self.getIndex, selected)
-        swinglib.runKeyword("selectFromList", params)
+        self.widget.runKeyword("selectFromList", *map(self.getIndex, selected))
         
     def getStateText(self, *args):
         texts = [ util.getJListText(self.widget.widget, i) for i in self.widget.getSelectedIndices() ]
@@ -376,11 +382,10 @@ class TableSelectEvent(ListSelectEvent):
         
     def _generate(self, argumentString):
         # To be used when using multi-selection: selectedCells = argumentString.split(", ")
-        params = [ self.widget.getName() ]
         row, column = self.indexer.getViewCellIndices(argumentString)
         # It seems to be a bug in SwingLibrary. Using Column name as argument doesn't work as expected. It throws exceptions
         # for some cell values. 
-        swinglib.runKeyword("selectTableCell", params + [row, column])
+        self.widget.runKeyword("selectTableCell", row, column)
         
     def getStateText(self, *args):
         text = []
@@ -414,7 +419,7 @@ class TableHeaderEvent(SignalEvent):
         return True
     
     def _generate(self, argumentString):
-        swinglib.runKeyword("clickTableHeader", [self.widget.getName(), argumentString])
+        self.widget.runKeyword("clickTableHeader", argumentString)
 
     def outputForScript(self, event, *args):
         colIndex = self.widget.getTableHeader().columnAtPoint(event.getPoint())
@@ -441,7 +446,7 @@ class CellDoubleClickEvent(DoubleClickEvent):
     
     def _generate(self, argumentString):
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)            
-        swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 2, "BUTTON1_MASK" ])
+        self.widget.runKeyword("clickOnTableCell", row, column, 2, "BUTTON1_MASK")
         
     def outputForScript(self, event, *args):
         predefined = DoubleClickEvent.outputForScript(self,event, *args)
@@ -473,8 +478,8 @@ class CellEditEvent(StateChangeEvent):
 
     def editTextComponent(self, newValue, row, column):
         oldValue = self.widget.getValueAt(row, column)
-        swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
-        swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
+        self.widget.runKeyword("typeIntoTableCell", row, column, newValue)
+        self.widget.runKeyword("selectTableCell", row, column)
         self.waitForEdit(row, column, oldValue)
 
     def waitForEdit(self, row, column, oldValue):
@@ -488,13 +493,13 @@ class CellEditEvent(StateChangeEvent):
 
     def editCheckBoxComponent(self, newValue, row, column):
         if not newValue == str(self.widget.getValueAt(row, column)):
-            swinglib.runKeyword("clickOnTableCell", [self.widget.getName(), row, column, 1, "BUTTON1_MASK" ])
+            self.widget.runKeyword("clickOnTableCell", row, column, 1, "BUTTON1_MASK")
 
     def editComboBoxComponent(self, newValue, row, column, combobox):
         if combobox.isEditable():
-            swinglib.runKeyword("typeIntoTableCell", [self.widget.getName(), row, column, newValue ])
+            self.widget.runKeyword("typeIntoTableCell", row, column, newValue)
         else:
-            swinglib.runKeyword("selectTableCell", [self.widget.getName(), row, column])
+            self.widget.runKeyword("selectTableCell", row, column)
             combobox.setSelectedItem(newValue)
 
     def isTextComponent(self, cellEditor):
