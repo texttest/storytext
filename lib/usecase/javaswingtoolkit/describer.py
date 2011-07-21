@@ -296,7 +296,7 @@ class Describer(usecase.guishared.Describer):
     def getJListState(self, widget):
         text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
         for i in range(widget.getModel().getSize()):
-            value = util.getJListText(widget, i)
+            value = util.getJListText(widget, i, multiline=True)
             isSelected = widget.isSelectedIndex(i)
             text += "-> " + value
             if isSelected:
@@ -334,16 +334,6 @@ class Describer(usecase.guishared.Describer):
     def getState(self, widget):
         return self.getSpecificState(widget)
 
-    def getHeaderText(self, table, col):
-        column = table.getColumnModel().getColumn(col)
-        renderer = column.getHeaderRenderer()
-        headerValue = column.getHeaderValue()
-        if renderer is None:
-            return str(headerValue)
-        
-        component = renderer.getTableCellRendererComponent(table, headerValue, False, False, 0, col)
-        return util.getComponentText(component)
-
     def getCellText(self, table, row, col, selected):
         renderer = table.getCellRenderer(row, col)
         value = table.getValueAt(row, col)
@@ -365,7 +355,7 @@ class Describer(usecase.guishared.Describer):
         selectedColumns = table.getSelectedColumns()
         columnCount = table.getColumnCount()
 
-        headerRow = [ self.getHeaderText(table, j) for j in range(columnCount) ]
+        headerRow = [ util.getJTableHeaderText(table, j, multiline=True) for j in range(columnCount) ]
         args = table, selectedRows, selectedColumns
         rows = [ [ self.getFullCellText(i, j, *args) for j in range(columnCount) ] for i in range(table.getRowCount()) ]
 

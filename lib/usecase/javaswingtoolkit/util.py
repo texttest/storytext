@@ -38,11 +38,12 @@ def getComponentTextElements(component):
         elements += getComponentTextElements(child)
     return elements    
 
-def getComponentText(component):
-    return "\n".join(getComponentTextElements(component))
+def getComponentText(component, multiline=True):
+    elements = getComponentTextElements(component)
+    return "\n".join(elements) if multiline else elements[0]
  
 
-def getJListText(jlist, index):
+def getJListText(jlist, index, **kw):
     value = jlist.getModel().getElementAt(index) or ""
     renderer = jlist.getCellRenderer()
     # Don't check isinstance, any subclasses might be doing all sorts of stuff
@@ -51,7 +52,17 @@ def getJListText(jlist, index):
 
     isSelected = jlist.isSelectedIndex(index)
     component = renderer.getListCellRendererComponent(jlist, value, index, isSelected, False)
-    return getComponentText(component)
+    return getComponentText(component, **kw)
+
+def getJTableHeaderText(table, columnIndex, **kw):
+    column = table.getColumnModel().getColumn(columnIndex)
+    renderer = column.getHeaderRenderer()
+    headerValue = column.getHeaderValue()
+    if renderer is None:
+        return str(headerValue)
+        
+    component = renderer.getTableCellRendererComponent(table, headerValue, False, False, 0, columnIndex)
+    return getComponentText(component, **kw)
 
 # Designed to filter out buttons etc which are details of other widgets, such as calendars, scrollbars, tables etc
 def hasComplexAncestors(widget):

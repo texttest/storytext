@@ -4,7 +4,7 @@ from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
      WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent, InputEvent
-from java.lang import IllegalArgumentException, System
+from java.lang import System
 from java.io import PrintStream, OutputStream
 from javax import swing
 from abbot.tester import Robot
@@ -350,9 +350,12 @@ class ListSelectEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Select" 
 
+    def getJListText(self, index):
+        return util.getJListText(self.widget.widget, index, multiline=False)
+
     def getIndex(self, text):
         for i in range(self.widget.getModel().getSize()):
-            if util.getJListText(self.widget.widget, i) == text:
+            if self.getJListText(i) == text:
                 return i
         raise UseCaseScriptError, "Could not find item labeled '" + text + "' in list."
     
@@ -366,7 +369,7 @@ class ListSelectEvent(StateChangeEvent):
         self.widget.runKeyword("selectFromList", *map(self.getIndex, selected))
         
     def getStateText(self, *args):
-        texts = [ util.getJListText(self.widget.widget, i) for i in self.widget.getSelectedIndices() ]
+        texts = [ self.getJListText(i) for i in self.widget.getSelectedIndices() ]
         return ", ".join(texts)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
@@ -423,8 +426,8 @@ class TableHeaderEvent(SignalEvent):
 
     def outputForScript(self, event, *args):
         colIndex = self.widget.getTableHeader().columnAtPoint(event.getPoint())
-        name = self.widget.getColumnName(colIndex)        
-        return SignalEvent.outputForScript(self, event, *args) + " " + name
+        colText = TableIndexer.getIndexer(self.widget.widget).getColumnText(colIndex)
+        return SignalEvent.outputForScript(self, event, *args) + " " + colText
 
     def getRecordWidget(self):
         return self.widget.getTableHeader()
@@ -628,13 +631,20 @@ class TableIndexer():
 
         return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
 
+    def getColumnText(self, col):
+        return util.getJTableHeaderText(self.table, col, multiline=False)
+
+    def findColumnIndex(self, columnName):
+        for col in range(self.table.getColumnCount()):
+            if self.getColumnText(col) == columnName:
+                return col
+
+        raise UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
+
     def parseDescription(self, description):
         if " for " in description:
             columnName, rowName = description.split(" for ")
-            try:
-                return rowName, self.table.getColumn(columnName).getModelIndex()
-            except IllegalArgumentException:
-                raise UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
+            return rowName, self.findColumnIndex(columnName)    
         else:
             return description, 0
     
@@ -642,19 +652,17 @@ class TableIndexer():
         rowName, columnIndex = self.parseDescription(description)
         try:
             rowModelIndex = self.rowNames.index(rowName)
-            return self.getViewIndices(rowModelIndex, columnIndex)
+            rowIndex = self.table.convertRowIndexToView(rowModelIndex)
+            return rowIndex, columnIndex
         except ValueError:
             raise UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table."
-            
-    def getViewIndices(self, row, column):
-        return self.table.convertRowIndexToView(row), self.table.convertColumnIndexToView(column)
-        
+                    
     def getCellDescription(self, row, col, checkSelectionModel=True):
         rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
         if self.table.getColumnCount() == 1 or (checkSelectionModel and not self.table.getCellSelectionEnabled()):
             return rowName
         else:
-            return self.table.getColumnName(col) + " for " + rowName
+            return self.getColumnText(col) + " for " + rowName
 
 
 class Filter:
