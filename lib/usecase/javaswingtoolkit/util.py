@@ -28,41 +28,87 @@ def getMenuPathString(widget):
 
     return "|".join(reversed(result)) 
 
-def getComponentTextElements(component):
-    elements = []
-    if isinstance(component, swing.JCheckBox):
-        elements.append("[x]" if component.isSelected() else "[ ]")
-    elif hasattr(component, "getText"):
-        elements.append(component.getText())
-    for child in component.getComponents():
-        elements += getComponentTextElements(child)
-    return elements    
-
-def getComponentText(component, multiline=True):
-    elements = getComponentTextElements(component)
-    return "\n".join(elements) if multiline else elements[0]
- 
-
-def getJListText(jlist, index, **kw):
-    value = jlist.getModel().getElementAt(index) or ""
-    renderer = jlist.getCellRenderer()
-    # Don't check isinstance, any subclasses might be doing all sorts of stuff
-    if renderer.__class__ is swing.DefaultListCellRenderer:
-        return value
-
-    isSelected = jlist.isSelectedIndex(index)
-    component = renderer.getListCellRendererComponent(jlist, value, index, isSelected, False)
-    return getComponentText(component, **kw)
-
-def getJTableHeaderText(table, columnIndex, **kw):
-    column = table.getColumnModel().getColumn(columnIndex)
-    renderer = column.getHeaderRenderer()
-    headerValue = column.getHeaderValue()
-    if renderer is None:
-        return str(headerValue)
+class ComponentTextFinder:
+    classesHandled = [ swing.JCheckBox, swing.JTree, swing.JTable, swing.JList ]
+    def __init__(self, widget, describe):
+        self.widget = widget
+        self.describe = describe
         
-    component = renderer.getTableCellRendererComponent(table, headerValue, False, False, 0, columnIndex)
-    return getComponentText(component, **kw)
+    def getComponentTextElements(self, component, index=None):
+        for cls in self.classesHandled:
+            if isinstance(component, cls):
+                textFinder = ComponentTextFinder(component, self.describe)
+                return [ getattr(textFinder, "get" + cls.__name__ + "Text")(index) ]
+        
+        elements = []
+        if hasattr(component, "getText"):
+            elements.append(component.getText())
+        for child in component.getComponents():
+            elements += self.getComponentTextElements(child, index)
+        return elements    
+
+    def getComponentText(self, *args):
+        elements = self.getComponentTextElements(*args)
+        if self.describe:
+            return "\n".join(elements)
+        else:
+            return elements[0] if elements else ""
+
+    def getJCheckBoxText(self, *args):
+        return "[x]" if self.widget.isSelected() else "[ ]"
+
+    def getJListText(self, index):
+        value = self.widget.getModel().getElementAt(index) or ""
+        renderer = self.widget.getCellRenderer()
+        # Don't check isinstance, any subclasses might be doing all sorts of stuff
+        if renderer.__class__ is swing.DefaultListCellRenderer:
+            return value
+
+        isSelected = self.widget.isSelectedIndex(index)
+        component = renderer.getListCellRendererComponent(self.widget, value, index, isSelected, False)
+        return self.getComponentText(component, index)
+
+    def getJTreeTextFromRenderer(self, renderer, rowObj, row):
+        if renderer.__class__ is swing.tree.DefaultTreeCellRenderer:
+            return str(rowObj)
+        
+        selected = self.widget.isRowSelected(row)
+        expanded = self.widget.isExpanded(row)
+        leaf = self.widget.getModel().isLeaf(rowObj)
+        component = renderer.getTreeCellRendererComponent(self.widget, rowObj, selected, expanded, leaf, row, False)
+        return self.getComponentText(component)
+
+    def getJTreeText(self, row):
+        path = self.widget.getPathForRow(row)
+        if path is None:
+            return ""
+
+        rowObj = path.getLastPathComponent()
+        renderer = self.widget.getCellRenderer()
+        text = self.getJTreeTextFromRenderer(renderer, rowObj, row)
+        if self.describe:
+            return "-> " + "  " * (path.getPathCount() - 1) + text
+        else:
+            return text
+
+    def getJTableTextFromRenderer(self, renderer, value, row, col):
+        if renderer is None:
+            return str(value)
+
+        component = renderer.getTableCellRendererComponent(self.widget, value, False, False, row, col)
+        return self.getComponentText(component, row)
+
+    def getJTableText(self, row, col):
+        renderer = self.widget.getCellRenderer(row, col)
+        value = self.widget.getValueAt(row, col)
+        return self.getJTableTextFromRenderer(renderer, value, row, col)
+
+    def getJTableHeaderText(self, col):
+        column = self.widget.getColumnModel().getColumn(col)
+        renderer = column.getHeaderRenderer()
+        value = column.getHeaderValue()
+        return self.getJTableTextFromRenderer(renderer, value, 0, col)
+
 
 # Designed to filter out buttons etc which are details of other widgets, such as calendars, scrollbars, tables etc
 def hasComplexAncestors(widget):

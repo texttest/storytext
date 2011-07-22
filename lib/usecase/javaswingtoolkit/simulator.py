@@ -351,7 +351,7 @@ class ListSelectEvent(StateChangeEvent):
         return "Select" 
 
     def getJListText(self, index):
-        return util.getJListText(self.widget.widget, index, multiline=False)
+        return util.ComponentTextFinder(self.widget.widget, describe=False).getJListText(index)
 
     def getIndex(self, text):
         for i in range(self.widget.getModel().getSize()):
@@ -575,6 +575,8 @@ class TableIndexer():
     def __init__(self, table):
         self.tableModel = table.getModel()
         self.table = table
+        self.textFinder = util.ComponentTextFinder(self.table, describe=False)
+        self.getColumnText = self.textFinder.getJTableHeaderText
         self.logger = logging.getLogger("TableModelIndexer")
         self.primaryKeyColumn, self.rowNames = self.findRowNames()
         self.observeUpdates()
@@ -585,7 +587,8 @@ class TableIndexer():
             def tableChanged(listenerSelf, event):
                 if self.primaryKeyColumn is None:
                     self.primaryKeyColumn, self.rowNames = self.findRowNames()
-                    self.logger.debug("Rebuilding indexer, row names now " + repr(self.rowNames))
+                    self.logger.debug("Rebuilding indexer, primary key " + str(self.primaryKeyColumn) +
+                                      ", row names now " + repr(self.rowNames))
                 else:
                     currRowNames = self.getColumn(self.primaryKeyColumn)
                     if set(currRowNames) != set([ "<unnamed>" ]):
@@ -603,7 +606,7 @@ class TableIndexer():
             return cls.allIndexers.setdefault(table, cls(table))
 
     def getCellValue(self, row, col):
-        return str(self.tableModel.getValueAt(row, col) or "<unnamed>")
+        return self.textFinder.getJTableText(row, col) or "<unnamed>"
         
     def getColumn(self, col):
         return [ self.getCellValue(row, col) for row in range(self.table.getRowCount()) ]
@@ -614,6 +617,8 @@ class TableIndexer():
                 column = self.getColumn(colIndex)
                 if len(column) > 1 and len(set(column)) == len(column):
                     return colIndex, column
+                else:
+                    self.logger.debug("Rejecting column " + str(colIndex) + " as primary key : names were " + repr(column))
         # No unique columns to use as row names. Use the first column and add numbers
         return None, self.addIndexes(self.getColumn(0))
         
@@ -630,9 +635,6 @@ class TableIndexer():
             mapping.setdefault(value, []).append(i)
 
         return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
-
-    def getColumnText(self, col):
-        return util.getJTableHeaderText(self.table, col, multiline=False)
 
     def findColumnIndex(self, columnName):
         for col in range(self.table.getColumnCount()):

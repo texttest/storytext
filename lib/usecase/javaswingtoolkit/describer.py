@@ -8,7 +8,7 @@ class Describer(usecase.guishared.Describer):
     statelessWidgets = [swing.JScrollPane ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
-                    swing.JList, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu]
+                    swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu]
     childrenMethodName = "getComponents"
     visibleMethodName = "isVisible"
     def __init__(self):
@@ -232,8 +232,14 @@ class Describer(usecase.guishared.Describer):
     def getJDialogState(self, dialog):
         return dialog.getTitle()
     
-    def getJLabelDescription(self, label):
-        return self.getAndStoreState(label)
+    def getJLabelDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getJTreeDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getJTableDescription(self, widget):
+        return self.getAndStoreState(widget)
 
     def getJLabelState(self, label):
         elements = []
@@ -296,7 +302,7 @@ class Describer(usecase.guishared.Describer):
     def getJListState(self, widget):
         text = self.combineElements([ "List" ] + self.getPropertyElements(widget)) + " :\n"
         for i in range(widget.getModel().getSize()):
-            value = util.getJListText(widget, i, multiline=True)
+            value = util.ComponentTextFinder(widget, describe=True).getJListText(i)
             isSelected = widget.isSelectedIndex(i)
             text += "-> " + value
             if isSelected:
@@ -318,9 +324,6 @@ class Describer(usecase.guishared.Describer):
     def getMaxDescriptionWidth(self, widget):
         return 100000 if self.isTableScrollPane(widget) else 130
     
-    def getJTableDescription(self, widget):
-        return self.getAndStoreState(widget)
-    
     def getJTextComponentState(self, widget):
         return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)
     
@@ -333,35 +336,37 @@ class Describer(usecase.guishared.Describer):
 
     def getState(self, widget):
         return self.getSpecificState(widget)
-
-    def getCellText(self, table, row, col, selected):
-        renderer = table.getCellRenderer(row, col)
-        value = table.getValueAt(row, col)
-        if renderer is None:
-            return str(value)
-
-        component = renderer.getTableCellRendererComponent(table, value, selected, False, row, col)
-        return util.getComponentText(component)
         
-    def getFullCellText(self, i, j, table, selectedRows, selectedColumns):
-        selected = i in selectedRows and j in selectedColumns
-        cellText = self.getCellText(table, i, j, selected)
-        if selected:
-            cellText += " (selected)"
-        return cellText
+    def getFullCellText(self, i, j, textFinder, selectedRows, selectedColumns):
+        return textFinder.getJTableText(i, j) + self.getSelectionText(i in selectedRows and j in selectedColumns)
+
+    def getSelectionText(self, selected):
+        return " (selected)" if selected else ""
+
+    def getTreeRowText(self, i, textFinder, selectedRows):
+        return textFinder.getJTreeText(i) + self.getSelectionText(i in selectedRows)
 
     def getJTableState(self, table):
         selectedRows = table.getSelectedRows()
         selectedColumns = table.getSelectedColumns()
         columnCount = table.getColumnCount()
 
-        headerRow = [ util.getJTableHeaderText(table, j, multiline=True) for j in range(columnCount) ]
-        args = table, selectedRows, selectedColumns
+        textFinder = util.ComponentTextFinder(table, describe=True)
+        headerRow = map(textFinder.getJTableHeaderText, range(columnCount))
+        args = textFinder, selectedRows, selectedColumns
         rows = [ [ self.getFullCellText(i, j, *args) for j in range(columnCount) ] for i in range(table.getRowCount()) ]
 
         text = self.combineElements([ "Table" ] + self.getPropertyElements(table)) + " :\n"
         return text + self.formatTable(headerRow, rows, columnCount)
 
+    def getJTreeState(self, tree):
+        selectedRows = tree.getSelectionRows() or []
+        rowCount = tree.getRowCount()
+        textFinder = util.ComponentTextFinder(tree, describe=True)
+        rows = [ self.getTreeRowText(i, textFinder, selectedRows)  for i in range(rowCount) ]
+        text = self.combineElements([ "Tree" ] + self.getPropertyElements(tree)) + " :\n"
+        return text + "\n".join(rows)
+    
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, swing.text.JTextComponent):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
