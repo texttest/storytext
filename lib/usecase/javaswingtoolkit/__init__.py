@@ -62,13 +62,14 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
                    widget.getTopLevelAncestor() in self.uiMap.windows
         isWindow = isinstance(widget, (swing.JFrame, swing.JDialog))
+        appEventButton = hasattr(widget, "getText") and str(widget.getText()).startswith("ApplicationEvent") 
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
                 if widget.getDefaultCloseOperation() == swing.WindowConstants.EXIT_ON_CLOSE:
                     widget.setDefaultCloseOperation(swing.WindowConstants.DISPOSE_ON_CLOSE)
                 self.uiMap.monitorAndStoreWindow(widget)
                 self.setAppeared(widget)
-            elif (isinstance(widget, swing.JPopupMenu) or inWindow) and widget not in self.appearedWidgets:
+            elif (isinstance(widget, swing.JPopupMenu) or inWindow or appEventButton) and widget not in self.appearedWidgets:
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
                 self.setAppeared(widget)
         if self.loggerActive and (isWindow or inWindow):
