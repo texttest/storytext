@@ -1,6 +1,7 @@
 import usecase.guishared, time, os
 from javax import swing
 from java.awt import Frame
+from java.lang import Thread, Runtime
 import simulator, describer, util
 
 class ScriptEngine(usecase.guishared.ScriptEngine):
@@ -21,6 +22,19 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         ]
     # Headers are connected to the table to use any identification that is there
     recordWidgetTypes = [ cls for cls, signals in eventTypes ] + [ swing.table.JTableHeader ]
+    def run(self, options, args):
+        if options.supported or options.supported_html:
+            return usecase.guishared.ScriptEngine.run(self, options, args)
+
+        class ShutdownHook(Thread):
+            def run(tself):
+                self.cleanup(options.interface)
+                
+        if not options.disable_usecase_names:
+            hook = ShutdownHook()
+            Runtime.getRuntime().addShutdownHook(hook)
+
+        return usecase.scriptengine.ScriptEngine.run(self, options, args)
     
     def createReplayer(self, universalLogging=False):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
@@ -28,6 +42,11 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     def runSystemUnderTest(self, args):
         self.run_python_or_java(args)
         self.replayer.runTestThread()
+
+    def cleanup(self, interface):
+        for frame in Frame.getFrames():
+            frame.hide() # don't leave the window up, looks weird
+        self.replaceAutoRecordingForUsecase(interface)
     
     def checkType(self, widget):
         return any((isinstance(widget, cls) for cls in self.recordWidgetTypes))
@@ -65,8 +84,6 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         appEventButton = hasattr(widget, "getText") and str(widget.getText()).startswith("ApplicationEvent") 
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
-                if widget.getDefaultCloseOperation() == swing.WindowConstants.EXIT_ON_CLOSE:
-                    widget.setDefaultCloseOperation(swing.WindowConstants.DISPOSE_ON_CLOSE)
                 self.uiMap.monitorAndStoreWindow(widget)
                 self.setAppeared(widget)
             elif (isinstance(widget, swing.JPopupMenu) or inWindow or appEventButton) and widget not in self.appearedWidgets:
