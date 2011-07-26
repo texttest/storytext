@@ -228,6 +228,8 @@ class Describer(usecase.guishared.Describer):
                 desc.append(pane.getToolTipTextAt(i))
             if pane.getIconAt(i):
                 desc.append(self.getImageDescription(pane.getIconAt(i)))
+            if not pane.isEnabledAt(i):
+                desc.append("greyed out")
             if pane.getSelectedIndex() == i:
                 desc.append("selected")
             result += [self.combineElements(desc)]

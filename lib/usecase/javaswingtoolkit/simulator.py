@@ -4,7 +4,7 @@ from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
      WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent, InputEvent
-from java.lang import System
+from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
 from javax import swing
 from abbot.tester import Robot
@@ -318,7 +318,10 @@ class TabSelectEvent(SelectEvent):
         return True
                     
     def _generate(self, argumentString):
-        runKeyword("selectTab", argumentString)
+        try:
+            runKeyword("selectTab", argumentString)
+        except RuntimeException:
+            raise UseCaseScriptError, "Could not find tab named '" + argumentString + "' to select."
     
     def outputForScript(self, event, *args):
         runKeyword("selectWindow", swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle())
