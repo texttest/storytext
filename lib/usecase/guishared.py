@@ -945,6 +945,8 @@ class Describer:
     def formatChildrenDescription(self, widget, children):
         sortedChildren = self.sortChildren(widget, children)
         childDescriptions = map(self.getDescription, sortedChildren)
+        if not self.usesGrid(widget):
+            self.removeEmptyDescriptions(sortedChildren, childDescriptions)
         columns = self.getLayoutColumns(widget, childDescriptions, sortedChildren)
         if columns > 1:
             horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
@@ -952,6 +954,15 @@ class Describer:
             return self.formatInGrid(childDescriptions, columns, horizontalSpans, maxWidth)
         else:
             return self.formatInColumn(childDescriptions)
+
+    def usesGrid(self, widget):
+        return False
+
+    def removeEmptyDescriptions(self, sortedChildren, childDescriptions):
+        for child, desc in zip(sortedChildren, childDescriptions):
+            if not desc:
+                sortedChildren.remove(child)
+                childDescriptions.remove(desc)
 
     def getMaxDescriptionWidth(self, widget):
         return 130 # About a screen or so...

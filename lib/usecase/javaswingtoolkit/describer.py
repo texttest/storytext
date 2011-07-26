@@ -113,9 +113,6 @@ class Describer(usecase.guishared.Describer):
         self.described.update(visibleChildren)
         return self.formatChildrenDescription(widget, visibleChildren)
 
-    def hasDescriptionForChild(self, child, childDescriptions, sortedChildren):
-        return child is not None and len(childDescriptions[sortedChildren.index(child)]) > 0
-
     def isHorizontalBox(self, layout):
         # There is no way to ask a layout for its orientation - very strange
         # So we hack around the access priveleges. If you know a better way, please improve this!
@@ -133,14 +130,16 @@ class Describer(usecase.guishared.Describer):
             elif isinstance(layout, swing.BoxLayout):
                 return len(childDescriptions) if self.isHorizontalBox(layout) else 1
             elif isinstance(layout, awt.BorderLayout):
-                columns = 1
-                for pos in [ awt.BorderLayout.WEST, awt.BorderLayout.EAST,
-                             awt.BorderLayout.LINE_START, awt.BorderLayout.LINE_END ]:
-                    child = layout.getLayoutComponent(pos)
-                    if self.hasDescriptionForChild(child, childDescriptions, sortedChildren):
-                        columns += 1
-                return columns
+                positions = [ [ awt.BorderLayout.WEST, awt.BorderLayout.LINE_START ],
+                              [ awt.BorderLayout.NORTH, awt.BorderLayout.PAGE_START,
+                                awt.BorderLayout.CENTER,
+                                awt.BorderLayout.SOUTH, awt.BorderLayout.PAGE_END ],
+                              [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
+                return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
         return 1
+
+    def hasBorderLayoutComponent(self, col, layout, sortedChildren):
+        return any((layout.getLayoutComponent(pos) in sortedChildren for pos in col))
 
     def getHorizontalSpan(self, widget, columnCount):
         if isinstance(widget.getParent(), swing.JScrollPane) and widget is widget.getParent().getColumnHeader():
@@ -292,7 +291,7 @@ class Describer(usecase.guishared.Describer):
                 table = scrollPane.getViewport().getView()
                 if table in widgets:
                     self.resetDescribedFlags(scrollPane)
-                    self.logger.info("Updated..." + self.getDescription(scrollPane))
+                    self.logger.info("Updated...\n" + self.getDescription(scrollPane))
                     return filter(lambda (w, x, y): w is not widget and w is not table, stateChanges)
         return stateChanges
                 

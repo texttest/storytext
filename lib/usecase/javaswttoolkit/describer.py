@@ -511,6 +511,9 @@ class Describer(usecase.guishared.Describer):
         else:
             return 1
 
+    def usesGrid(self, widget):
+        return isinstance(widget.getLayout(), swt.layout.GridLayout)
+
     def getLayoutColumns(self, widget, childDescriptions, *args):
         if len(childDescriptions) > 1:
             layout = widget.getLayout()
