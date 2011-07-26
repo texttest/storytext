@@ -8,7 +8,7 @@ class Describer(usecase.guishared.Describer):
     statelessWidgets = [swing.JScrollPane, swing.plaf.basic.BasicSplitPaneDivider ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
-                    swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu]
+                    swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu, swing.JProgressBar]
     childrenMethodName = "getComponents"
     visibleMethodName = "isVisible"
     def __init__(self):
@@ -248,6 +248,12 @@ class Describer(usecase.guishared.Describer):
 
     def getJTableDescription(self, widget):
         return self.getAndStoreState(widget)
+
+    def getJProgressBarDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getJProgressBarState(self, widget):
+        return "Progress Bar"
 
     def getJLabelState(self, label):
         elements = []
