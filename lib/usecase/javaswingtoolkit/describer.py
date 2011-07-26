@@ -5,7 +5,7 @@ from javax import swing
 class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
                       swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader ]
-    statelessWidgets = [swing.JScrollPane ]
+    statelessWidgets = [swing.JScrollPane, swing.plaf.basic.BasicSplitPaneDivider ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu]
@@ -96,7 +96,7 @@ class Describer(usecase.guishared.Describer):
         return elements
 
     def layoutSortsChildren(self, widget):
-        return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane)) and \
+        return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane, swing.JSplitPane)) and \
                not isinstance(widget.getLayout(), (awt.BorderLayout))
 
     def getVerticalDividePositions(self, visibleChildren):
@@ -182,6 +182,13 @@ class Describer(usecase.guishared.Describer):
             return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
         else:
             return ""
+
+    def getBasicSplitPaneDividerDescription(self, divider):
+        # Note: orientation of the divider is the opposite of the orientation of the split pane...
+        orientation = "Vertical"
+        if divider.getParent().getOrientation() == swing.JSplitPane.VERTICAL_SPLIT:
+            orientation = "Horizontal"
+        return "-" * 15 + " " + orientation + " divider " + "-" * 15
     
     def getJRadioButtonDescription(self, widget):
         return self.getComponentDescription(widget, "RadioButton")
