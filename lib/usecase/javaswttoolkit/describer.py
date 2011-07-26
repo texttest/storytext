@@ -1,6 +1,7 @@
 
 import usecase.guishared, util, types, os, logging
 from usecase.definitions import UseCaseScriptError
+from usecase.gridformatter import GridFormatter
 from org.eclipse import swt
 from java.util import Date        
         
@@ -407,8 +408,7 @@ class Describer(usecase.guishared.Describer):
                                            columnCount=columnCount)
         if columnCount > 0:
             rows.insert(0, [ c.getText() for c in columns ])
-            colWidths = self.findColumnWidths(rows, columnCount)
-            text += self.formatCellsInGrid(rows, colWidths)
+            text += str(GridFormatter(rows, columnCount))
         else:
             text += "\n".join(rows)
         return text

@@ -336,7 +336,7 @@ class Describer(usecase.guishared.Describer):
                isinstance(scrollPane.getViewport().getView(), swing.JTable)
 
     def getMaxDescriptionWidth(self, widget):
-        return 100000 if self.isTableScrollPane(widget) else 130
+        return None if self.isTableScrollPane(widget) else 130
     
     def getJTextComponentState(self, widget):
         return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)

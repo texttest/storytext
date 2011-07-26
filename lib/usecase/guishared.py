@@ -3,6 +3,7 @@
 stuff also applicable even without this """
 
 import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess, time, re
+from gridformatter import GridFormatter
 from itertools import izip
 from ordereddict import OrderedDict
 from locale import getdefaultlocale
@@ -895,52 +896,18 @@ class Describer:
     def getItemBarDescription(self, *args, **kw):
         return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
-    def getCellWidth(self, row, colNum, numColumns):
-        # Don't include rows which span several columns
-        if len(row) == numColumns:
-            lines = row[colNum].splitlines()
-            if lines:
-                return max((len(line) for line in lines))
-        return 0
-
-    def findColumnWidths(self, grid, numColumns):
-        colWidths = []
-        for colNum in range(numColumns):
-            maxWidth = max((self.getCellWidth(row, colNum, numColumns) for row in grid))
-            if colNum == numColumns - 1:
-                colWidths.append(maxWidth)
-            else:
-                # Pad two spaces between each column
-                colWidths.append(maxWidth + 2)
-        return colWidths
-
     def formatTable(self, headerRow, rows, columnCount):
         if columnCount == 0:
             return ""
-        colWidths = self.findColumnWidths([ headerRow ] + rows, columnCount)
-        header = self.formatCellsInGrid([ headerRow ], colWidths)
-        body = self.formatCellsInGrid(rows, colWidths)
+
+        colWidths = GridFormatter([ headerRow ] + rows, columnCount).findColumnWidths()
+        header = GridFormatter([ headerRow ], columnCount).formatCellsInGrid(colWidths)
+        body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
         line = "_" * sum(colWidths) + "\n"
         return self.formatWithSeparators(header, body, line)
 
     def formatWithSeparators(self, header, body, line):
         return line + header + "\n" + line + body + "\n" + line
-
-    def formatCellsInGrid(self, grid, colWidths):
-        lines = []
-        for row in grid:
-            rowLines = max((desc.count("\n") + 1 for desc in row))
-            for rowLine in range(rowLines):
-                lineText = ""
-                for colNum, childDesc in enumerate(row):
-                    cellLines = childDesc.splitlines()
-                    if rowLine < len(cellLines):
-                        cellRow = cellLines[rowLine]
-                    else:
-                        cellRow = ""
-                    lineText += cellRow.ljust(colWidths[colNum])
-                lines.append(lineText.rstrip(" ")) # don't leave trailing spaces        
-        return "\n".join(lines)
 
     def formatChildrenDescription(self, widget, children):
         sortedChildren = self.sortChildren(widget, children)
@@ -951,12 +918,23 @@ class Describer:
         if columns > 1:
             horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
             maxWidth = self.getMaxDescriptionWidth(widget)
-            return self.formatInGrid(childDescriptions, columns, horizontalSpans, maxWidth)
+            grid = self.makeGrid(childDescriptions, horizontalSpans, columns)
+            return str(GridFormatter(grid, columns, maxWidth))
         else:
             return self.formatInColumn(childDescriptions)
 
     def usesGrid(self, widget):
         return False
+
+    def makeGrid(self, cellTexts, spans, numColumns):
+        grid = []
+        index = 0
+        for cellText, span in izip(cellTexts, spans):
+            if index % numColumns == 0:
+                grid.append([])
+            grid[-1].append(cellText)
+            index += span
+        return grid
 
     def removeEmptyDescriptions(self, sortedChildren, childDescriptions):
         for child, desc in zip(sortedChildren, childDescriptions):
@@ -972,37 +950,6 @@ class Describer:
         for childDesc in childDescriptions:
             desc = self.addToDescription(desc, childDesc)
         
-        return desc.rstrip()
-
-    def formatInGrid(self, childDescriptions, numColumns, horizontalSpans, maxWidth):
-        grid = self.makeGrid(childDescriptions, numColumns, horizontalSpans)
-        colWidths = self.findColumnWidths(grid, numColumns)
-        totalWidth = sum(colWidths)
-        if totalWidth > maxWidth: # After a while, excessively wide grids just get too hard to read
-            header = "." * 6 + " " + str(numColumns) + "-Column Layout " + "." * 6
-            desc = self.formatColumnsInGrid(grid, numColumns)
-            footer = "." * len(header)
-            return header + "\n" + desc + "\n" + footer
-        else:
-            return self.formatCellsInGrid(grid, colWidths)
-
-    def makeGrid(self, childDescriptions, numColumns, horizontalSpans):
-        grid = []
-        index = 0
-        for childDesc, span in izip(childDescriptions, horizontalSpans):
-            if index % numColumns == 0:
-                grid.append([])
-            grid[-1].append(childDesc)
-            index += span
-        return grid
-
-    def formatColumnsInGrid(self, grid, numColumns):
-        desc = ""
-        for colNum in range(numColumns):
-            for row in grid:
-                if colNum < len(row):
-                    desc += row[colNum] + "\n"
-            desc += "\n"
         return desc.rstrip()
 
     def sortChildren(self, widget, visibleChildren):
@@ -1032,6 +979,7 @@ class Describer:
             return text.replace(os.linesep, "\n")
         else:
             return text
+
 
 def getExceptionString():
     type, value, traceback = sys.exc_info()
