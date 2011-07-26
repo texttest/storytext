@@ -863,7 +863,10 @@ class Describer:
         if hasattr(widget, "getLayout"):
             layout = widget.getLayout()
             if layout is not None:
-                elements = [ layout.__class__.__name__ ] + self.getRawDataLayoutDetails(layout, widget)
+                layoutText = layout.__class__.__name__
+                if useModule:
+                    layoutText = layout.__class__.__module__ + "." + layoutText
+                elements = [ layoutText ] + self.getRawDataLayoutDetails(layout, widget)
                 basic += " (" + ", ".join(elements) + ")"
         if hasattr(widget, self.visibleMethodName) and not getattr(widget, self.visibleMethodName)():
             basic += " (invisible)"
