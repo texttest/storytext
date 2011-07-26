@@ -1,4 +1,4 @@
-import usecase.guishared, logging, util, os
+import usecase.guishared, logging, util, os, inspect
 import java.awt as awt
 from javax import swing
 
@@ -340,11 +340,19 @@ class Describer(usecase.guishared.Describer):
     
     def getJTextComponentState(self, widget):
         return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)
+
+    def getClassDescription(self, cls):
+        if cls.__name__.startswith("J"):
+            return cls.__name__[1:]
+
+        for baseCls in inspect.getmro(cls)[1:]:
+            if baseCls.__name__.startswith("J"):
+                return baseCls.__name__[1:]
     
     def getJTextComponentDescription(self, widget):
         contents, properties = self.getJTextComponentState(widget)
         self.widgetsWithState[widget] = contents, properties
-        header = "=" * 10 + " " + widget.__class__.__name__[1:] + " " + "=" * 10
+        header = "=" * 10 + " " + self.getClassDescription(widget.__class__) + " " + "=" * 10
         fullHeader = self.combineElements([ header ] + properties)
         return fullHeader + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)
 
