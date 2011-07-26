@@ -20,8 +20,6 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.text.JTextComponent  , [ simulator.TextEditEvent ]),
         (swing.JTextField  , [ simulator.TextEditEvent, simulator.TextActivateEvent ]),
         ]
-    # Headers are connected to the table to use any identification that is there
-    recordWidgetTypes = [ cls for cls, signals in eventTypes ] + [ swing.table.JTableHeader ]
     def run(self, options, args):
         if options.supported or options.supported_html:
             return usecase.guishared.ScriptEngine.run(self, options, args)
@@ -49,7 +47,9 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         self.replaceAutoRecordingForUsecase(interface)
     
     def checkType(self, widget):
-        return any((isinstance(widget, cls) for cls in self.recordWidgetTypes))
+        # Headers are connected to the table to use any identification that is there
+        recordWidgetTypes = [ cls for cls, signals in self.eventTypes ] + [ swing.table.JTableHeader ]
+        return any((isinstance(widget, cls) for cls in recordWidgetTypes))
 
     def getDescriptionInfo(self):
         return "Swing", "javaswing", "event types", \
