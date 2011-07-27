@@ -4,8 +4,8 @@ from javax import swing
 
 class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
-                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader ]
-    statelessWidgets = [swing.JScrollPane, swing.plaf.basic.BasicSplitPaneDivider ]
+                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane ]
+    statelessWidgets = [swing.JScrollBar, swing.plaf.basic.BasicSplitPaneDivider ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu, swing.JProgressBar]
@@ -243,8 +243,8 @@ class Describer(usecase.guishared.Describer):
             result += [self.combineElements(desc)]
         return result
 
-    def getJScrollPaneDescription(self, pane):
-        self.leaveItemsWithoutDescriptions(pane, [pane.getVerticalScrollBar(), pane.getHorizontalScrollBar()])
+    def getJScrollBarDescription(self, bar):
+        self.leaveItemsWithoutDescriptions(bar, bar.getComponents())
     
     def getJDialogState(self, dialog):
         return dialog.getTitle()
