@@ -36,13 +36,11 @@ class Describer(usecase.guishared.Describer):
             self.logger.info("\nNew widgets have appeared: describing common parent :\n")
             self.logger.info(desc)
     
-    def parentMarked(self, widget, markedWidgets):
+    def getMarkedAncestor(self, widget, markedWidgets):
         if widget in markedWidgets:
-            return True
+            return widget
         elif widget.getParent():
-            return self.parentMarked(widget.getParent(), markedWidgets)
-        else:
-            return False
+            return self.getMarkedAncestor(widget.getParent(), markedWidgets)
 
     def categoriseAppearedWidgets(self, stateChangeWidgets):
         newWindows, commonParents = [], []
@@ -57,13 +55,25 @@ class Describer(usecase.guishared.Describer):
                 commonParents.append(widget)
             else:
                 parent = widget.getParent()
-                if parent is not None and not self.parentMarked(parent, markedWidgets):
-                    markedWidgets.append(parent)
-                    commonParents.append(parent)
-                elif self.logger.isEnabledFor(logging.DEBUG):
-                    self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " +
-                                      repr(map(self.getRawData, markedWidgets)))
+                if parent is not None:
+                    markedAncestor = self.getMarkedAncestor(parent, markedWidgets)
+                    if markedAncestor:
+                        self.clearDescribedStatus(parent, markedAncestor)
+                        if self.logger.isEnabledFor(logging.DEBUG):
+                            self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " +
+                                              self.getRawData(markedAncestor))
+                    else:
+                        markedWidgets.append(parent)
+                        commonParents.append(parent)
+                
         return newWindows, commonParents
+
+    def clearDescribedStatus(self, widget, ancestor):
+        if widget in self.described:
+            self.described.remove(widget)
+        parent = widget.getParent()
+        if parent and parent is not ancestor:
+            self.clearDescribedStatus(parent, ancestor)
 
     def getDescriptionForVisibilityChange(self, widget):
         if isinstance(widget, swing.JMenuBar) or \
