@@ -955,7 +955,7 @@ class Describer:
                 grid[-1] += cellObject.grid[-1]
                 newColumns = len(grid[-1])
             else:
-                grid[-1].append(cellObject)
+                grid[-1].append(self.convertToString(cellObject))
             index += span
         return grid, newColumns
 
