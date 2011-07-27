@@ -17,12 +17,14 @@ class Describer(usecase.guishared.Describer):
         self.widgetsAppeared = []
         
     def describeWithUpdates(self):
+        self.logger.debug("Describing with updates...")
         stateChanges = self.findStateChanges()
         stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
         self.describeAppearedWidgets(stateChangeWidgets)
         stateChanges = self.describeStateChangeGroups(stateChangeWidgets, stateChanges)
         self.describeStateChanges(stateChanges)
         self.widgetsAppeared = []
+        self.logger.debug("Finished describing with updates")
 
     def shouldCheckForUpdates(self, widget, *args):
         return widget.isShowing()
