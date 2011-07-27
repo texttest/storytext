@@ -219,7 +219,7 @@ class Describer(guishared.Describer):
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     visibleMethodName = "not_used"
     childrenMethodName = "GetChildren"
-    def getChildrenDescription(self, widget):
+    def _getChildrenDescription(self, widget):
         try:
             children = widget.GetChildren()
         except wx._core.PyDeadObjectError:

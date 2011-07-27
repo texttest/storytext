@@ -18,6 +18,9 @@ class GridFormatter:
         else:
             return self.formatCellsInGrid(colWidths)
 
+    def isHorizontalRow(self):
+        return len(self.grid) == 1 and self.numColumns > 1
+
     def findColumnWidths(self):
         colWidths = []
         for colNum in range(self.numColumns):

@@ -598,7 +598,7 @@ class Describer(guishared.Describer):
     def isPopupMenu(self, child, parent):
         return isinstance(child, Tkinter.Menu) and not isinstance(parent, (Tkinter.Menu, Tkinter.Menubutton))
 
-    def getChildrenDescription(self, widget):
+    def _getChildrenDescription(self, widget):
         slaves = set()
         children = widget.winfo_children()
         desc = ""

@@ -811,11 +811,25 @@ class Describer:
             desc += newText.rstrip() + "\n"
         return desc
 
-    def getDescription(self, widget, **kw):
+    def getDescription(self, *args, **kw):
+        return self.convertToString(self._getDescription(*args, **kw))
+
+    def getChildrenDescription(self, *args, **kw):
+        return self.convertToString(self._getChildrenDescription(*args, **kw))
+
+    def convertToString(self, obj):
+        # Bit of a pain, unicode doesn't inherit from string for some reason
+        return str(obj) if isinstance(obj, GridFormatter) else obj
+
+    def _getDescription(self, widget, **kw):
         desc = ""
         desc = self.addToDescription(desc, self.getWidgetDescription(widget))
-        desc = self.addToDescription(desc, self.getChildrenDescription(widget, **kw))
-        return desc.rstrip()
+        childDesc = self._getChildrenDescription(widget, **kw)
+        if desc or not isinstance(childDesc, GridFormatter):
+            desc = self.addToDescription(desc, self.convertToString(childDesc))
+            return desc.rstrip()
+        else:
+            return childDesc
     
     def getWidgetDescription(self, widget):
         for widgetClass in self.stateWidgets + self.statelessWidgets:
@@ -911,30 +925,39 @@ class Describer:
 
     def formatChildrenDescription(self, widget, children):
         sortedChildren = self.sortChildren(widget, children)
-        childDescriptions = map(self.getDescription, sortedChildren)
+        childDescriptions = map(self._getDescription, sortedChildren)
         if not self.usesGrid(widget):
             self.removeEmptyDescriptions(sortedChildren, childDescriptions)
-        columns = self.getLayoutColumns(widget, childDescriptions, sortedChildren)
-        if columns > 1:
-            horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
-            maxWidth = self.getMaxDescriptionWidth(widget)
-            grid = self.makeGrid(childDescriptions, horizontalSpans, columns)
-            return str(GridFormatter(grid, columns, maxWidth))
-        else:
-            return self.formatInColumn(childDescriptions)
+        childCount = len(childDescriptions)
+        if childCount > 1:
+            columns = self.getLayoutColumns(widget, childCount, sortedChildren)
+            if columns > 1:
+                horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
+                maxWidth = self.getMaxDescriptionWidth(widget)
+                grid, newColumns = self.makeGrid(childDescriptions, horizontalSpans, columns)
+                formatter = GridFormatter(grid, newColumns, maxWidth)
+                # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
+                return formatter if formatter.isHorizontalRow() else str(formatter)
+        return self.formatInColumn(childDescriptions)
 
     def usesGrid(self, widget):
         return False
 
-    def makeGrid(self, cellTexts, spans, numColumns):
+    def makeGrid(self, cellObjects, spans, numColumns):
         grid = []
         index = 0
-        for cellText, span in izip(cellTexts, spans):
+        horizontalRow = len(cellObjects) == numColumns
+        newColumns = numColumns
+        for cellObject, span in izip(cellObjects, spans):
             if index % numColumns == 0:
                 grid.append([])
-            grid[-1].append(cellText)
+            if horizontalRow and isinstance(cellObject, GridFormatter):
+                grid[-1] += cellObject.grid[-1]
+                newColumns = len(grid[-1])
+            else:
+                grid[-1].append(cellObject)
             index += span
-        return grid
+        return grid, newColumns
 
     def removeEmptyDescriptions(self, sortedChildren, childDescriptions):
         for child, desc in zip(sortedChildren, childDescriptions):
@@ -948,7 +971,7 @@ class Describer:
     def formatInColumn(self, childDescriptions):
         desc = ""
         for childDesc in childDescriptions:
-            desc = self.addToDescription(desc, childDesc)
+            desc = self.addToDescription(desc, self.convertToString(childDesc))
         
         return desc.rstrip()
 

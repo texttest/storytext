@@ -472,11 +472,11 @@ class Describer(usecase.guishared.Describer):
                                        util.checkInstance(layout, swt.layout.RowLayout) or \
                                        util.checkInstance(layout, swt.custom.StackLayout))
 
-    def getDescription(self, widget):
+    def _getDescription(self, widget):
         self.widgetsDescribed.add(widget)
-        desc = usecase.guishared.Describer.getDescription(self, widget)
+        desc = usecase.guishared.Describer._getDescription(self, widget)
         if desc and isinstance(widget, (swt.widgets.ExpandBar, swt.widgets.Tree, swt.widgets.List)):
-            desc += self.formatContextMenuDescriptions()
+            desc = str(desc) + self.formatContextMenuDescriptions()
         return desc
 
     def getWindowContentDescription(self, shell):
@@ -486,7 +486,7 @@ class Describer(usecase.guishared.Describer):
         desc += self.formatContextMenuDescriptions()
         return desc
     
-    def getChildrenDescription(self, widget):
+    def _getChildrenDescription(self, widget):
         # DateTime children are an implementation detail
         # Coolbars and Expandbars describe their children directly : they have two parallel children structures
         # Composites with StackLayout use the topControl rather than the children
@@ -514,14 +514,13 @@ class Describer(usecase.guishared.Describer):
     def usesGrid(self, widget):
         return isinstance(widget.getLayout(), swt.layout.GridLayout)
 
-    def getLayoutColumns(self, widget, childDescriptions, *args):
-        if len(childDescriptions) > 1:
-            layout = widget.getLayout()
-            if hasattr(layout, "numColumns"):
-                return layout.numColumns
-            elif hasattr(layout, "type"):
-                if layout.type == swt.SWT.HORIZONTAL:
-                    return len(childDescriptions)
+    def getLayoutColumns(self, widget, childCount, *args):
+        layout = widget.getLayout()
+        if hasattr(layout, "numColumns"):
+            return layout.numColumns
+        elif hasattr(layout, "type"):
+            if layout.type == swt.SWT.HORIZONTAL:
+                return childCount
         return 1
 
     def checkInstance(self, *args):

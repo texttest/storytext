@@ -105,7 +105,7 @@ class Describer(usecase.guishared.Describer):
     def shouldDescribeChild(self, child, checkPrevious):
         return child.isVisible() and (not checkPrevious or child not in self.described)
     
-    def getChildrenDescription(self, widget, checkPrevious=True):
+    def _getChildrenDescription(self, widget, checkPrevious=True):
         if not isinstance(widget, awt.Container):
             return ""
 
@@ -120,22 +120,21 @@ class Describer(usecase.guishared.Describer):
         field.setAccessible(True) 
         return field.get(layout) in [ swing.BoxLayout.X_AXIS, swing.BoxLayout.LINE_AXIS ]
 
-    def getLayoutColumns(self, widget, childDescriptions, sortedChildren):
-        if len(childDescriptions) > 1:
-            if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
-                return 2
-            layout = widget.getLayout()
-            if isinstance(layout, awt.FlowLayout) or isinstance(widget, swing.JToolBar):
-                return len(childDescriptions)
-            elif isinstance(layout, swing.BoxLayout):
-                return len(childDescriptions) if self.isHorizontalBox(layout) else 1
-            elif isinstance(layout, awt.BorderLayout):
-                positions = [ [ awt.BorderLayout.WEST, awt.BorderLayout.LINE_START ],
-                              [ awt.BorderLayout.NORTH, awt.BorderLayout.PAGE_START,
-                                awt.BorderLayout.CENTER,
-                                awt.BorderLayout.SOUTH, awt.BorderLayout.PAGE_END ],
-                              [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
-                return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
+    def getLayoutColumns(self, widget, childCount, sortedChildren):
+        if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
+            return 2
+        layout = widget.getLayout()
+        if isinstance(layout, awt.FlowLayout) or isinstance(widget, swing.JToolBar):
+            return childCount
+        elif isinstance(layout, swing.BoxLayout):
+            return childCount if self.isHorizontalBox(layout) else 1
+        elif isinstance(layout, awt.BorderLayout):
+            positions = [ [ awt.BorderLayout.WEST, awt.BorderLayout.LINE_START ],
+                          [ awt.BorderLayout.NORTH, awt.BorderLayout.PAGE_START,
+                            awt.BorderLayout.CENTER,
+                            awt.BorderLayout.SOUTH, awt.BorderLayout.PAGE_END ],
+                          [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
+            return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
         return 1
 
     def hasBorderLayoutComponent(self, col, layout, sortedChildren):
