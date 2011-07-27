@@ -512,7 +512,7 @@ class Describer(usecase.guishared.Describer):
             return 1
 
     def usesGrid(self, widget):
-        return isinstance(widget.getLayout(), swt.layout.GridLayout)
+        return self.checkInstance(widget.getLayout(), swt.layout.GridLayout)
 
     def getLayoutColumns(self, widget, childCount, *args):
         layout = widget.getLayout()
