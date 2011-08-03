@@ -249,8 +249,13 @@ class UseCaseRecorder:
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
         else:
             # Non-categorised event makes all previous ones irrelevant
-            if "pyusecase_DEFAULT" in self.applicationEvents and self.applicationEvents["pyusecase_DEFAULT"][0] == eventName:
-                eventName += " * 2"
+            if "pyusecase_DEFAULT" in self.applicationEvents:
+                existingEvent = self.applicationEvents["pyusecase_DEFAULT"][0]
+                if existingEvent == eventName:
+                    eventName += " * 2"
+                elif existingEvent.startswith(eventName + " *"):
+                    currentNumber = int(existingEvent.split()[-1])
+                    eventName += " * " + str(currentNumber + 1)
             self.applicationEvents = OrderedDict()
             self.logger.debug("Got application event '" + eventName + "' in global category with delay level " + str(delayLevel))
             self.supercededAppEventCategories = {}
