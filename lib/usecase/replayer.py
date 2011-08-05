@@ -199,7 +199,10 @@ class UseCaseReplayer:
                 commandName, argumentString = self.parseCommand(command)
                 self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
                 if commandName == waitCommandName:
-                    if not self.processWait(argumentString):
+                    if self.processWait(argumentString):
+                        self.logger.debug("Events have already happened, no waiting to do")
+                        self.applicationEventNames = set()
+                    else:
                         return False
                 else:
                     self.processCommand(commandName, argumentString)
