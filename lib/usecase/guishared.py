@@ -251,6 +251,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
                  "-r", recordScript, "-i", interface ]
 
     def replaceAutoRecordingForUsecase(self, interface):
+        self.recorder.closeScripts()
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if self.uiMap and recordScript and os.path.isfile(recordScript) and self.recorder.hasAutoRecordings:
             sys.stdout.flush()

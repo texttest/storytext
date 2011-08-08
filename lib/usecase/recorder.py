@@ -116,6 +116,10 @@ class UseCaseRecorder:
 
     def addScript(self, scriptName):
         self.scripts.append(RecordScript(scriptName))
+
+    def closeScripts(self):
+        for script in self.scripts:
+            script.close()
     
     def addSignalHandlers(self):
         signal.signal = self.appRegistersSignal
