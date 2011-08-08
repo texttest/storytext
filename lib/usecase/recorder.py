@@ -96,6 +96,7 @@ class UseCaseRecorder:
         self.signalNames = {}
         self.stateChangeEventInfo = None
         self.delayedEvents = []
+        self.hasAutoRecordings = False
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
             self.addScript(recordScript)
@@ -222,6 +223,7 @@ class UseCaseRecorder:
                 
     def record(self, line, event=None):
         self.logger.debug("Recording " + repr(line))
+        self.hasAutoRecordings |= line.startswith("Auto.")
         for script in self.getScriptsToRecord(event):
             script.record(line)
 

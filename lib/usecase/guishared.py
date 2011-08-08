@@ -250,16 +250,9 @@ class ScriptEngine(scriptengine.ScriptEngine):
         return [ "usecase_name_chooser", "-m", ",".join(mapFiles), 
                  "-r", recordScript, "-i", interface ]
 
-    def hasAutoRecordings(self, fileName):
-        # Don't start the name chooser process unnecessarily
-        for line in open(fileName):
-            if line.startswith("Auto."):
-                return True
-        return False
-
     def replaceAutoRecordingForUsecase(self, interface):
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
-        if self.uiMap and recordScript and os.path.isfile(recordScript) and self.hasAutoRecordings(recordScript):
+        if self.uiMap and recordScript and os.path.isfile(recordScript) and self.recorder.hasAutoRecordings:
             sys.stdout.flush()
             cmdArgs = self.getUsecaseNameChooserCmdArgs(recordScript, interface)
             env = self.getUsecaseNameChooserEnv()
