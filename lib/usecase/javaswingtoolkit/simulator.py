@@ -214,7 +214,7 @@ class ButtonClickEvent(SelectEvent):
         # Just doing clickOnComponent as in SelectEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
         self.widget.runKeyword("pushButton")
-
+        
     def connectRecord(self, method):
         SelectEvent.connectRecord(self, method)
         class FakeActionListener(ActionListener):
@@ -760,7 +760,7 @@ class Filter:
         return True
             
     def handleMouseEvent(self, event):
-        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), swing.JMenu) and \
+        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), (swing.JMenu, swing.JFrame)) and \
                not util.hasComplexAncestors(event.getSource())
             
     def handleKeyEvent(self, event):
