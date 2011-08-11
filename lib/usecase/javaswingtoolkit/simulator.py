@@ -21,6 +21,9 @@ swinglib = SwingLibrary()
 System.setOut(out_orig)
 
 def runKeyword(keywordName, *args):
+    # Uncomment this code in order to debug SwingLibrary issues
+    #f = open("swinglib.pyusecase", "a")
+    #f.write("runKeyword" + repr((keywordName, list(args))) + "\n")
     return swinglib.runKeyword(keywordName, list(args))
 
 def selectWindow(widget):
