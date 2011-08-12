@@ -6,7 +6,7 @@ import simulator, describer, util
 
 class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = [
-        (swing.JFrame       , [ simulator.FrameCloseEvent ]),
+        (swing.JFrame       , [ simulator.FrameCloseEvent, simulator.KeyPressForTestingEvent ]),
         (swing.JButton      , [ simulator.ButtonClickEvent ]),
         (swing.JRadioButton , [ simulator.SelectEvent ]),
         (swing.JCheckBox    , [ simulator.SelectEvent ]),
@@ -81,14 +81,18 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
                    widget.getTopLevelAncestor() in self.uiMap.windows
         isWindow = isinstance(widget, (swing.JFrame, swing.JDialog))
-        appEventButton = hasattr(widget, "getText") and str(widget.getText()).startswith("ApplicationEvent") 
+        appEventButton = hasattr(widget, "getText") and str(widget.getText()).startswith("ApplicationEvent")
+        popupMenu = isinstance(widget, swing.JPopupMenu) and not util.belongsMenubar(widget.getInvoker())
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
                 self.uiMap.monitorAndStoreWindow(widget)
                 self.setAppeared(widget)
-            elif (isinstance(widget, swing.JPopupMenu) or inWindow or appEventButton) and widget not in self.appearedWidgets:
+            elif (popupMenu or inWindow or appEventButton) and widget not in self.appearedWidgets:
+                self.logger.debug("New widget of type " + widget.__class__.__name__ + " appeared: monitoring")
                 self.uiMap.monitor(usecase.guishared.WidgetAdapter.adapt(widget))
                 self.setAppeared(widget)
+            elif isinstance(widget, swing.JPopupMenu):
+                self.setAppeared(widget.getParent())
         if self.loggerActive and (isWindow or inWindow):
             self.describer.setWidgetShown(widget)
 

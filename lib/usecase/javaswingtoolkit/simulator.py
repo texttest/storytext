@@ -2,7 +2,7 @@ import usecase.guishared, logging, util, sys, threading, time
 from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
-from java.awt.event import AWTEventListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
+from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
      WindowEvent, ComponentEvent, ContainerEvent, ActionListener, ActionEvent, InputEvent
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
@@ -130,7 +130,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
             self.widget.setName(name)
 
     def delayLevel(self):
-        return Filter.delayLevel()
+        return Filter.delayLevel(self.widget.widget)
     
     def widgetVisible(self):
         return self.widget.isShowing()
@@ -143,7 +143,23 @@ class SignalEvent(usecase.guishared.GuiEvent):
     
     def isPopupTriger(self, pressedEvent, releasedEvent):
         return pressedEvent.isPopupTrigger() or releasedEvent.isPopupTrigger()
-        
+
+# Just to be able to test recording from keyboard
+class KeyPressForTestingEvent(usecase.guishared.GuiEvent):
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "KeyPress"
+    
+    def generate(self, argument):
+        arg = argument.upper()
+        if "+" in arg:
+            parts = arg.split("+")
+            runKeyword("sendKeyboardEvent", "VK_" + parts[1], parts[0] + "_MASK")
+        else:
+            runKeyword("sendKeyboardEvent", "VK_" + arg)
+
+    def connectRecord(self, method):
+        pass
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
@@ -276,7 +292,7 @@ class ActivateEvent(SignalEvent):
     def connectRecord(self, method):
         class ActivateEventListener(ActionListener):
             def actionPerformed(lself, event):
-                method(event, self)
+                catchAll(method, event, self)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, ActivateEventListener())
         
@@ -301,6 +317,28 @@ class MenuSelectEvent(SelectEvent):
         else:    
             self.selectFromPopupMenu(self.widget.getParent(), path)
 
+    def connectRecord(self, method):
+        class MenuRecordListener(ActionListener, MouseAdapter):
+            def __init__(lself):
+                lself.mouseEvent = None
+                
+            def mousePressed(lself, event):
+                lself.mouseEvent = event
+
+            def actionPerformed(lself, event):
+                if not lself.mouseEvent:
+                    catchAll(method, event, self)
+
+            def mouseReleased(lself, event):
+                catchAll(method, lself.mouseEvent, self)
+                lself.mouseEvent = None
+
+        Filter.registerAccelerator(self.widget)
+
+        listener = MenuRecordListener()
+        util.runOnEventDispatchThread(self.widget.widget.addActionListener, listener)
+        util.runOnEventDispatchThread(self.widget.widget.addMouseListener, listener)
+        
     def selectFromPopupMenu(self, popup, path):
         System.setOut(PrintStream(NullOutputStream()))
         from org.robotframework.swing.popup import PopupMenuOperatorFactory
@@ -311,7 +349,14 @@ class MenuSelectEvent(SelectEvent):
         operator.pushMenu(path, EqualsStringComparator())
         
     def shouldRecord(self, event, *args):
-        return not isinstance(event.getSource(), swing.JMenu) and SelectEvent.shouldRecord(self, event, *args)
+        if isinstance(event.getSource(), swing.JMenu):
+            return False
+
+        if isinstance(event, MouseEvent):
+            return SelectEvent.shouldRecord(self, event, *args)
+        else:
+            # assume keyboard, try to go figure
+            return Filter.getKeyEventFromUser(self.widget.getAccelerator()) and not util.hasComplexAncestors(self.getRecordWidget())
     
     def widgetVisible(self):
         return True
@@ -527,14 +572,17 @@ class CellEditEvent(StateChangeEvent):
     def connectRecord(self, method):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event):
-                if (event.getType() == swing.event.TableModelEvent.UPDATE):                   
-                    row = self.widget.getEditingRow()
-                    column = self.widget.getEditingColumn()
-                    if row >= 0 and column >= 0:
-                        method(row, column, self)
+                catchAll(self.tryRecordUpdate, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
-    
+
+    def tryRecordUpdate(self, event, method):
+        if event.getType() == swing.event.TableModelEvent.UPDATE:
+            row = self.widget.getEditingRow()
+            column = self.widget.getEditingColumn()
+            if row >= 0 and column >= 0:
+                method(row, column, self)
+
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return ((currOutput.startswith(stateChangeOutput) and isinstance(stateChangeEvent, CellEditEvent)) or isinstance(stateChangeEvent, CellDoubleClickEvent) or isinstance(stateChangeEvent, TableSelectEvent)) and self.widget.widget is stateChangeEvent.widget.widget
@@ -591,17 +639,20 @@ class TableIndexer():
     def observeUpdates(self):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event):
-                if self.primaryKeyColumn is None:
-                    self.primaryKeyColumn, self.rowNames = self.findRowNames()
-                    self.logger.debug("Rebuilding indexer, primary key " + str(self.primaryKeyColumn) +
-                                      ", row names now " + repr(self.rowNames))
-                else:
-                    currRowNames = self.getColumn(self.primaryKeyColumn)
-                    if set(currRowNames) != set([ "<unnamed>" ]):
-                        self.rowNames = currRowNames
-                        self.logger.debug("Model changed, row names now " + repr(self.rowNames))
+                catchAll(self.updateTableInfo)
                 
         util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
+
+    def updateTableInfo(self):
+        if self.primaryKeyColumn is None:
+            self.primaryKeyColumn, self.rowNames = self.findRowNames()
+            self.logger.debug("Rebuilding indexer, primary key " + str(self.primaryKeyColumn) +
+                              ", row names now " + repr(self.rowNames))
+        else:
+            currRowNames = self.getColumn(self.primaryKeyColumn)
+            if set(currRowNames) != set([ "<unnamed>" ]):
+                self.rowNames = currRowNames
+                self.logger.debug("Model changed, row names now " + repr(self.rowNames))
 
     @classmethod
     def getIndexer(cls, table):
@@ -675,7 +726,8 @@ class TableIndexer():
 
 class Filter:
     eventsFromUser = []
-    ignoredWidgets = [swing.text.JTextComponent]
+    ignoredWidgets = swing.text.JTextComponent, swing.JMenu, swing.JFrame
+    relevantKeystrokes = []
     logger = None
     eventListener = None
     def __init__(self, uiMap):
@@ -683,11 +735,16 @@ class Filter:
         self.uiMap = uiMap
 
     @classmethod
-    def delayLevel(cls):
+    def delayLevel(cls, widget):
         # If there are events for other windows, implies we should delay as we're in a dialog
-        for event in cls.eventsFromUser:
+        if isinstance(widget, swing.JMenuItem):
+            currWindow = util.getWindow(widget)
+            delayEvents = filter(lambda e: util.getWindow(e.getSource()) != currWindow, cls.eventsFromUser)
+        else:
+            delayEvents = cls.eventsFromUser
+        for event in delayEvents:
             cls.logger.debug("Event causing delay " + repr(event)) 
-        return len(cls.eventsFromUser)
+        return len(delayEvents)
 
     @classmethod
     def getEventFromUser(cls, event):
@@ -703,21 +760,39 @@ class Filter:
                 cls.logger.debug("Rejecting event, not yet processed " + repr([ repr(e) for e in cls.eventsFromUser ]))
             return False
 
+    @classmethod
+    def getKeyEventFromUser(cls, keystroke):
+        if keystroke:
+            for event in cls.eventsFromUser:
+                if isinstance(event, KeyEvent) and cls.keyEventMatches(event, keystroke):
+                    return True
+                
+        cls.logger.debug("Rejecting: no mouse click or key event received for menu item")
+        return False
+
     @staticmethod
-    def getWindow(widget):
-        return swing.SwingUtilities.getWindowAncestor(widget)
+    def keyEventMatches(event, keystroke):
+        return event.getKeyCode() == keystroke.getKeyCode() and event.getModifiers() | event.getModifiersEx() == keystroke.getModifiers()
 
     @classmethod
     def hasEventOnWindow(cls, widget):
-        currWindow = cls.getWindow(widget)
+        currWindow = util.getWindow(widget)
         if not currWindow:
             return False
 
         for event in cls.eventsFromUser:
-            if cls.getWindow(event.getSource()) is currWindow:
+            if util.getWindow(event.getSource()) is currWindow:
                 return True
         return False
-    
+
+    @classmethod
+    def registerAccelerator(cls, widget):
+        accel = widget.getAccelerator()
+        if accel:
+            keyStrokeData = accel.getKeyCode(), accel.getModifiers()
+            cls.logger.debug("Registered accelerator " + repr(accel) + " " + repr(keyStrokeData))
+            cls.relevantKeystrokes.append(keyStrokeData)
+            
     def startListening(self, handleNewComponent):
         eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK | \
                     AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.ACTION_EVENT_MASK | AWTEvent.CONTAINER_EVENT_MASK
@@ -729,11 +804,11 @@ class Filter:
                 # Primarily to make coverage work, it doesn't get enabled in threads made by Java
                 if hasattr(threading, "_trace_hook") and threading._trace_hook:
                     sys.settrace(threading._trace_hook)
-
+    
                 if event.getID() == ComponentEvent.COMPONENT_SHOWN:
-                    handleNewComponent(event.getSource())
+                    catchAll(handleNewComponent, event.getSource())
                 elif event.getID() == ContainerEvent.COMPONENT_ADDED:
-                    handleNewComponent(event.getChild())
+                    catchAll(handleNewComponent, event.getChild())
                 else:
                     catchAll(self.handleEvent, event)
         
@@ -748,14 +823,13 @@ class Filter:
         return isinstance(event.getSource(), Component) and \
                    self.addToFilter(event) and \
                    not self.hasEventOnWindow(event.getSource()) and \
-                   not any((isinstance(event.getSource(), widgetClass) for widgetClass in self.ignoredWidgets)) and \
                    self.uiMap.scriptEngine.checkType(event.getSource())
     
     def handleEvent(self, event):
         if self.shouldAddFilter(event):
             self.logger.debug("Filter for event " + event.toString())
             self.eventsFromUser.append(event)
-    
+        
     def addToFilter(self, event):
         for cls in [ MouseEvent, KeyEvent, WindowEvent, ComponentEvent, ActionEvent ]:
             if isinstance(event, cls):
@@ -763,11 +837,21 @@ class Filter:
         return True
             
     def handleMouseEvent(self, event):
-        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), (swing.JMenu, swing.JFrame)) and \
-               not util.hasComplexAncestors(event.getSource())
+        return event.getID() == MouseEvent.MOUSE_PRESSED and not isinstance(event.getSource(), self.ignoredWidgets) and \
+               not util.hasComplexAncestors(event.getSource())                   
             
     def handleKeyEvent(self, event):
-        # TODO: to be implemented
+        if event.getID() == KeyEvent.KEY_PRESSED:
+            modifier = event.getModifiers() | event.getModifiersEx()
+            keyStroke = event.getKeyCode(), modifier
+            if keyStroke in self.relevantKeystrokes:
+                class KeyReleaseListener(KeyListener):
+                    def keyReleased(lself, levent):
+                        self.logger.debug("Key released completed " + repr(levent))
+                        event.getSource().removeKeyListener(lself)
+                        self.eventsFromUser.remove(event)
+                event.getSource().addKeyListener(KeyReleaseListener())
+                return True
         return False
         
     def handleWindowEvent(self, event):
