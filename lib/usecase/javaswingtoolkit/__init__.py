@@ -43,7 +43,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
 
     def cleanup(self, interface):
         for frame in Frame.getFrames():
-            frame.hide() # don't leave the window up, looks weird
+            frame.setVisible(False) # don't leave the window up, looks weird
         self.replaceAutoRecordingForUsecase(interface)
     
     def checkType(self, widget):
