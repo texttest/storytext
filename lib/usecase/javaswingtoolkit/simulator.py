@@ -178,7 +178,8 @@ class FrameCloseEvent(SignalEvent):
                 catchAll(method, event, self)
             
             def windowClosed(listenerSelf, event):
-                catchAll(Filter.stopListening)
+                if isinstance(self.widget.widget, swing.JFrame):
+                    catchAll(Filter.stopListening)
                         
         util.runOnEventDispatchThread(self.widget.widget.addWindowListener, WindowCloseListener())
         
@@ -232,7 +233,11 @@ class ButtonClickEvent(SelectEvent):
     def _generate(self, *args):
         # Just doing clickOnComponent as in SelectEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
-        self.widget.runKeyword("pushButton")
+        if swing.SwingUtilities.getAncestorOfClass(swing.JDialog, self.widget.widget):
+            # pushButton doesn't work properly on buttons belonging dialogs.
+            self.widget.runKeyword("clickOnComponent")
+        else:
+            self.widget.runKeyword("pushButton")
         
     def connectRecord(self, method):
         SelectEvent.connectRecord(self, method)
