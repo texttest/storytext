@@ -14,6 +14,9 @@ class Describer(usecase.guishared.Describer):
                    (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     ignoreWidgets = [ types.NoneType ]
+    # DateTime children are an implementation detail
+    # Coolbars and Expandbars describe their children directly : they have two parallel children structures    
+    ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime)
     statelessWidgets = [ swt.widgets.Sash ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,
                      swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
@@ -486,17 +489,9 @@ class Describer(usecase.guishared.Describer):
         desc += self.formatContextMenuDescriptions()
         return desc
     
-    def _getChildrenDescription(self, widget):
-        # DateTime children are an implementation detail
-        # Coolbars and Expandbars describe their children directly : they have two parallel children structures
+    def shouldDescribeChildren(self, widget):
         # Composites with StackLayout use the topControl rather than the children
-        if not isinstance(widget, swt.widgets.Composite) or \
-               isinstance(widget, (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime)) or \
-               util.getTopControl(widget):
-            return ""
-
-        visibleChildren = filter(lambda c: c.getVisible(), widget.getChildren())
-        return self.formatChildrenDescription(widget, visibleChildren)
+        return usecase.guishared.Describer.shouldDescribeChildren(self, widget) and not util.getTopControl(widget)
         
     def formatContextMenuDescriptions(self):
         text = ""

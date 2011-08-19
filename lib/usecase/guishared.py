@@ -815,10 +815,10 @@ class Describer:
         # Bit of a pain, unicode doesn't inherit from string for some reason
         return str(obj) if isinstance(obj, GridFormatter) else obj
 
-    def _getDescription(self, widget, **kw):
+    def _getDescription(self, widget):
         desc = ""
         desc = self.addToDescription(desc, self.getWidgetDescription(widget))
-        childDesc = self._getChildrenDescription(widget, **kw)
+        childDesc = self._getChildrenDescription(widget)
         if desc or not isinstance(childDesc, GridFormatter):
             desc = self.addToDescription(desc, self.convertToString(childDesc))
             return desc.rstrip()
@@ -916,6 +916,17 @@ class Describer:
 
     def formatWithSeparators(self, header, body, line):
         return line + header + "\n" + line + body + "\n" + line
+
+    def shouldDescribeChildren(self, widget):
+        return hasattr(widget, self.childrenMethodName) and not isinstance(widget, self.ignoreChildren)
+
+    def _getChildrenDescription(self, widget):
+        if not self.shouldDescribeChildren(widget):
+            return ""
+
+        children = getattr(widget, self.childrenMethodName)()
+        visibleChildren = filter(lambda c: getattr(c, self.visibleMethodName)(), children)
+        return self.formatChildrenDescription(widget, visibleChildren)
 
     def formatChildrenDescription(self, widget, children):
         sortedChildren = self.sortChildren(widget, children)

@@ -4,8 +4,10 @@ from javax import swing
 
 class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
-                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane ]
-    statelessWidgets = [swing.JScrollBar, swing.plaf.basic.BasicSplitPaneDivider ]
+                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane,
+                      swing.JScrollBar ]
+    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar)
+    statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu, swing.JProgressBar]
@@ -13,8 +15,8 @@ class Describer(usecase.guishared.Describer):
     visibleMethodName = "isVisible"
     def __init__(self):
         usecase.guishared.Describer.__init__(self)
-        self.described = set()
         self.widgetsAppeared = []
+        self.tabsDescribed = set()
         
     def describeWithUpdates(self):
         self.logger.debug("Describing with updates...")
@@ -33,7 +35,12 @@ class Describer(usecase.guishared.Describer):
         newWindows, commonParents = self.categoriseAppearedWidgets(stateChangeWidgets)
         for window in newWindows:
             self.describe(window)
+            
         descriptions = map(self.getDescriptionForVisibilityChange, commonParents)
+        if self.structureLogger.isEnabledFor(logging.DEBUG):
+            for parent in commonParents:
+                self.describeStructure(parent)
+            
         for desc in sorted(descriptions):
             self.logger.info("\nNew widgets have appeared: describing common parent :\n")
             self.logger.info(desc)
@@ -60,7 +67,6 @@ class Describer(usecase.guishared.Describer):
                 if parent is not None:
                     markedAncestor = self.getMarkedAncestor(parent, markedWidgets)
                     if markedAncestor:
-                        self.clearDescribedStatus(parent, markedAncestor)
                         if self.logger.isEnabledFor(logging.DEBUG):
                             self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " +
                                               self.getRawData(markedAncestor))
@@ -70,19 +76,11 @@ class Describer(usecase.guishared.Describer):
                 
         return newWindows, commonParents
 
-    def clearDescribedStatus(self, widget, ancestor):
-        if widget in self.described:
-            self.described.remove(widget)
-        parent = widget.getParent()
-        if parent and parent is not ancestor:
-            self.clearDescribedStatus(parent, ancestor)
-
     def getDescriptionForVisibilityChange(self, widget):
-        if isinstance(widget, swing.JMenuBar) or \
-               (isinstance(widget, swing.JToolBar) and self.isNormalToolbar(widget)):
-            return self.getDescription(widget)
+        if self.shouldDescribeChildren(widget):
+            return self.getChildrenDescription(widget)
         else:
-            return self.getChildrenDescription(widget, checkPrevious=False)
+            return self.getDescription(widget)
    
     def setWidgetShown(self, widget):
         if not isinstance(widget, (swing.Popup, swing.JScrollBar, swing.table.TableCellRenderer)) and \
@@ -113,17 +111,6 @@ class Describer(usecase.guishared.Describer):
 
     def getVerticalDividePositions(self, visibleChildren):
         return [] # for now
-
-    def shouldDescribeChild(self, child, checkPrevious):
-        return child.isVisible() and (not checkPrevious or child not in self.described)
-    
-    def _getChildrenDescription(self, widget, checkPrevious=True):
-        if not isinstance(widget, awt.Container):
-            return ""
-
-        visibleChildren = filter(lambda c: self.shouldDescribeChild(c, checkPrevious), widget.getComponents())
-        self.described.update(visibleChildren)
-        return self.formatChildrenDescription(widget, visibleChildren)
 
     def isHorizontalBox(self, layout):
         # There is no way to ask a layout for its orientation - very strange
@@ -209,6 +196,7 @@ class Describer(usecase.guishared.Describer):
     def getJTabbedPaneDescription(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
+        self.tabsDescribed.update(self.getVisibleDescendants(widget.getSelectedComponent()))
         if state:
             return "TabFolder with tabs " + state
         else:
@@ -216,6 +204,29 @@ class Describer(usecase.guishared.Describer):
         
     def getJTabbedPaneState(self, widget):
         return ", ".join(self.getTabsDescription(widget))
+
+    def getVisibleDescendants(self, widget):
+        if widget is not None and widget.isVisible():
+            descendants = [ widget ]
+            if hasattr(widget, "getComponents"):
+                for c in widget.getComponents():
+                    descendants += self.getVisibleDescendants(c)
+            return descendants
+        else:
+            return []
+
+    def describeChildrenOnStateChange(self, widget):
+        if not isinstance(widget, swing.JTabbedPane):
+            return True
+        
+        descendants = self.getVisibleDescendants(widget.getSelectedComponent())
+        return not all((widget in self.tabsDescribed for widget in descendants))
+
+    def getStateChangeDescription(self, widget, oldState, state):
+        if self.describeChildrenOnStateChange(widget):
+            return usecase.guishared.Describer.getStateChangeDescription(self, widget, oldState, state)
+        else:
+            return self.getUpdatePrefix(widget, oldState, state) + self.getWidgetDescription(widget)
 
     def getComponentState(self, widget):
         return self.getPropertyElements(widget, selected=widget.isSelected())
@@ -244,9 +255,6 @@ class Describer(usecase.guishared.Describer):
                 desc.append("selected")
             result += [self.combineElements(desc)]
         return result
-
-    def getJScrollBarDescription(self, bar):
-        self.leaveItemsWithoutDescriptions(bar, bar.getComponents())
     
     def getJDialogState(self, dialog):
         return dialog.getTitle()
@@ -286,7 +294,6 @@ class Describer(usecase.guishared.Describer):
             return "Image " + self.imageCounter.getId(image)
 
     def getJPopupMenuDescription(self, widget):
-        self.resetDescribedFlags(widget)
         return "Popup menu:\n" + self.getJMenuDescription(widget)
     
     def imagesEqual(self, icon1, icon2):
@@ -294,12 +301,6 @@ class Describer(usecase.guishared.Describer):
             return icon1.getImage() == icon2.getImage()
         else:
             return usecase.guishared.Describer.imagesEqual(self, icon1, icon2)
-
-    def resetDescribedFlags(self, widget):
-        if widget in self.described:
-            self.described.remove(widget)
-        for child in widget.getComponents():
-            self.resetDescribedFlags(child)
     
     def describeStateChangeGroups(self, widgets, stateChanges):
         for widget in widgets:
@@ -307,13 +308,11 @@ class Describer(usecase.guishared.Describer):
                 scrollPane = widget.getParent().getParent()
                 table = scrollPane.getViewport().getView()
                 if table in widgets:
-                    self.resetDescribedFlags(scrollPane)
                     self.logger.info("Updated...\n" + self.getDescription(scrollPane))
                     return filter(lambda (w, x, y): w is not widget and w is not table, stateChanges)
         return stateChanges
                 
     def getJListDescription(self, widget):
-        self.leaveItemsWithoutDescriptions(widget, skippedClasses=(swing.CellRendererPane,))
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
         if self.isTableRowHeader(widget):
@@ -405,11 +404,11 @@ class Describer(usecase.guishared.Describer):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
         else:
             return "\nUpdated "
-
-    def leaveItemsWithoutDescriptions(self, itemContainer, skippedObjects=[], skippedClasses=()):
-        for item in itemContainer.getComponents():
-            if item in skippedObjects or isinstance(item, skippedClasses):
-                self.described.add(item)
+        
+    def shouldDescribeChildren(self, widget):
+        # Composites with StackLayout use the topControl rather than the children
+        return usecase.guishared.Describer.shouldDescribeChildren(self, widget) and \
+               (not isinstance(widget, swing.JToolBar) or not self.isNormalToolbar(widget))
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
                                prefix="", selection=[]):
@@ -417,7 +416,6 @@ class Describer(usecase.guishared.Describer):
         for item in filter(lambda c: c.isVisible(), itemBar.getComponents()):
             currPrefix = prefix + " " * indent * 2
             itemDesc = self.getItemDescription(item, currPrefix, item in selection)
-            self.described.add(item)
             if itemDesc:
                 descs.append(itemDesc)
             if subItemMethod:
