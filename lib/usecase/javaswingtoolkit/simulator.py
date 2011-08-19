@@ -233,12 +233,7 @@ class ButtonClickEvent(SelectEvent):
     def _generate(self, *args):
         # Just doing clickOnComponent as in SelectEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
-        ancestor = swing.SwingUtilities.getAncestorOfClass(swing.JDialog, self.widget.widget)
-        if ancestor and ancestor.isValid():
-            # pushButton doesn't work properly on buttons belonging dialogs with valid layouts.
-            self.widget.runKeyword("clickOnComponent")
-        else:
-            self.widget.runKeyword("pushButton")
+        self.widget.runKeyword("pushButton")
         
     def connectRecord(self, method):
         SelectEvent.connectRecord(self, method)
