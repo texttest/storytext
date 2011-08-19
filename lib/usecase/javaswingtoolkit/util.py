@@ -121,7 +121,7 @@ def hasComplexAncestors(widget):
     return popup is not None and hasComplexAncestors(popup.getInvoker())
 
 def belongsMenubar(menuItem):
-    parent = menuItem.getParent()
+    parent = menuItem.getParent() if menuItem else None
     while parent is not None:
         if isinstance(parent, swing.JMenuBar):
             return True
