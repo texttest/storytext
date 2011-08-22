@@ -105,9 +105,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         util.runOnEventDispatchThread(self.describer.describeWithUpdates)
 
     def runTestThread(self):
-        while not self.frameShowing():
-            time.sleep(0.1)
-                
+        util.runOnEventDispatchThread(self.waitForApplicationToAppear)
         if self.isActive():
             self.describeAndRun(self.describe)
         else: # pragma: no cover - replayer disabled, cannot create automated tests
@@ -116,3 +114,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
 
     def frameShowing(self): # pragma: no cover - replayer disabled, cannot create automated tests
         return any((frame.isShowing() for frame in Frame.getFrames()))
+
+    def waitForApplicationToAppear(self):
+        while not self.frameShowing():
+            time.sleep(0.1)
