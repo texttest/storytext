@@ -1,6 +1,7 @@
-import usecase.guishared, time, os
+import usecase.guishared, time, os, threading, sys
 from javax import swing
-from java.awt import Frame
+from java.awt import Frame, AWTEvent, Toolkit
+from java.awt.event import AWTEventListener, ComponentEvent, ContainerEvent
 from java.lang import Thread, Runtime
 import simulator, describer, util
 
@@ -8,8 +9,8 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
     eventTypes = [
         (swing.JFrame       , [ simulator.FrameCloseEvent, simulator.KeyPressForTestingEvent ]),
         (swing.JButton      , [ simulator.ButtonClickEvent ]),
-        (swing.JRadioButton , [ simulator.SelectEvent ]),
-        (swing.JCheckBox    , [ simulator.SelectEvent ]),
+        (swing.JRadioButton , [ simulator.ClickEvent ]),
+        (swing.JCheckBox    , [ simulator.ClickEvent ]),
         (swing.JMenuItem    , [ simulator.MenuSelectEvent ]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent, simulator.TabPopupActivateEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),
@@ -73,9 +74,25 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
     def __init__(self, *args, **kw):
         usecase.guishared.ThreadedUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = describer.Describer()
-        self.filter = simulator.Filter(self.uiMap)
-        self.filter.startListening(self.handleNewComponent)
+        self.listenForComponents()
+        self.physicalEventManager = simulator.PhysicalEventManager()
+        self.physicalEventManager.startListening()
         self.appearedWidgets = set()
+
+    def listenForComponents(self):
+        class NewComponentListener(AWTEventListener):
+            def eventDispatched(listenerSelf, event):
+                # Primarily to make coverage work, it doesn't get enabled in threads made by Java
+                if hasattr(threading, "_trace_hook") and threading._trace_hook:
+                    sys.settrace(threading._trace_hook)
+    
+                if event.getID() == ComponentEvent.COMPONENT_SHOWN:
+                    simulator.catchAll(self.handleNewComponent, event.getSource())
+                elif event.getID() == ContainerEvent.COMPONENT_ADDED:
+                    simulator.catchAll(self.handleNewComponent, event.getChild())
+
+        eventMask = AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.CONTAINER_EVENT_MASK
+        util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, NewComponentListener(), eventMask)
 
     def handleNewComponent(self, widget):
         inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
