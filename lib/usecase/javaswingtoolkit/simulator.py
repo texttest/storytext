@@ -4,10 +4,12 @@ from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
      WindowEvent, ActionListener, ActionEvent, InputEvent
+from java.beans import PropertyChangeListener
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
 from javax import swing
 from abbot.tester import Robot
+from org.netbeans import jemmy
 
 # Importing writes uninteresting stuff to stdout
 out_orig = System.out
@@ -20,6 +22,8 @@ import SwingLibrary
 swinglib = SwingLibrary()
 System.setOut(out_orig)
 
+# Default is 60 seconds, which is really way too much...
+jemmy.JemmyProperties.setCurrentTimeout("JMenuOperator.PushMenuTimeout", 5000)
 
 def runKeyword(keywordName, *args):
     # Uncomment this code in order to debug SwingLibrary issues
@@ -106,7 +110,10 @@ class SignalEvent(usecase.guishared.GuiEvent):
         self.checkWidgetStatus()
         self.setNameIfNeeded()
         selectWindow(self.widget.widget)
-        self._generate(*args)
+        try:
+            self._generate(*args)
+        except jemmy.TimeoutExpiredException:
+            print "WARNING: Jemmy timeout expired while trying to execute action!"
             
     def connectRecord(self, method):
         class ClickListener(MouseAdapter):
@@ -211,8 +218,7 @@ class DoubleClickEvent(SignalEvent):
 class PopupActivateEvent(ClickEvent):
     def _generate(self, *args):
         System.setOut(PrintStream(NullOutputStream()))
-        from org.netbeans.jemmy.operators import ComponentOperator
-        operator = ComponentOperator(self.widget.widget)
+        operator = jemmy.operators.ComponentOperator(self.widget.widget)
         System.setOut(out_orig)
         operator.clickForPopup()
     
@@ -365,10 +371,9 @@ class TabSelectEvent(ClickEvent):
 class TabPopupActivateEvent(PopupActivateEvent):
     def _generate(self, title, *args):
         System.setOut(PrintStream(NullOutputStream()))
-        from org.netbeans.jemmy.operators import ComponentOperator
         index = self.widget.indexOfTab(title)
         rect = self.widget.getBoundsAt(index)
-        operator = ComponentOperator(self.widget.widget)
+        operator = jemmy.operators.ComponentOperator(self.widget.widget)
         System.setOut(out_orig)
         operator.clickForPopup(rect.x + rect.width/2, rect.y + rect.height/2)
      
@@ -431,8 +436,7 @@ class CellPopupMenuActivateEvent(PopupActivateEvent):
     def _generate(self, argumentString):
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
         System.setOut(PrintStream(NullOutputStream()))
-        from org.netbeans.jemmy.operators import JTableOperator
-        operator = JTableOperator(self.widget.widget)
+        operator = jemmy.operators.JTableOperator(self.widget.widget)
         System.setOut(out_orig)
         operator.callPopupOnCell(row, column)
 
