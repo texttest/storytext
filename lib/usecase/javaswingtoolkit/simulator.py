@@ -25,6 +25,10 @@ System.setOut(out_orig)
 # Default is 60 seconds, which is really way too much...
 jemmy.JemmyProperties.setCurrentTimeout("JMenuOperator.PushMenuTimeout", 5000)
 
+# Uncomment for Abbot logs
+#import abbot
+#abbot.Log.init([ "--debug", "all" ])
+
 def runKeyword(keywordName, *args):
     # Uncomment this code in order to debug SwingLibrary issues
     #f = open("swinglib.pyusecase", "a")
