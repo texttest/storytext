@@ -5,9 +5,10 @@ from javax import swing
 class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
                       swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane,
-                      swing.JScrollBar ]
-    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar)
-    statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider ]
+                      swing.JScrollBar, swing.plaf.basic.BasicInternalFrameTitlePane, swing.JInternalFrame.JDesktopIcon ]
+    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar,
+                      swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
+    statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu, swing.JProgressBar]
@@ -158,6 +159,10 @@ class Describer(usecase.guishared.Describer):
     
     def getJFrameState(self, window):
         return window.getTitle()
+
+    def getJInternalFrameDescription(self, widget):
+        header = "-" * 5 + " Internal Frame '" + widget.getTitle() + "' " + "-" * 5
+        return header + "\n" + self.formatChildrenDescription(widget) + "\n" + "-" * len(header) + "\n"
     
     def getJButtonDescription(self, widget):
         return self.getComponentDescription(widget, "Button")
@@ -255,7 +260,7 @@ class Describer(usecase.guishared.Describer):
                 desc.append("selected")
             result += [self.combineElements(desc)]
         return result
-    
+
     def getJDialogState(self, dialog):
         return dialog.getTitle()
     

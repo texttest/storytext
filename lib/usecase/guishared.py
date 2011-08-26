@@ -921,15 +921,12 @@ class Describer:
         return hasattr(widget, self.childrenMethodName) and not isinstance(widget, self.ignoreChildren)
 
     def _getChildrenDescription(self, widget):
-        if not self.shouldDescribeChildren(widget):
-            return ""
+        return self.formatChildrenDescription(widget) if self.shouldDescribeChildren(widget) else ""
 
+    def formatChildrenDescription(self, widget):
         children = getattr(widget, self.childrenMethodName)()
         visibleChildren = filter(lambda c: getattr(c, self.visibleMethodName)(), children)
-        return self.formatChildrenDescription(widget, visibleChildren)
-
-    def formatChildrenDescription(self, widget, children):
-        sortedChildren = self.sortChildren(widget, children)
+        sortedChildren = self.sortChildren(widget, visibleChildren)
         childDescriptions = map(self._getDescription, sortedChildren)
         if not self.usesGrid(widget):
             self.removeEmptyDescriptions(sortedChildren, childDescriptions)

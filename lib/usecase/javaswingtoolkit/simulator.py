@@ -75,7 +75,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             return util.getTextLabel(self.widget)
 
         text = ""
-        if hasattr(self.widget, "getLabel"):
+        if hasattr(self.widget, "getLabel") and not self.getContextName():
             text = self.widget.getLabel()
         else:
             return ""
@@ -91,7 +91,26 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             return self.widget.getToolTipText() or ""
         else:
             return ""
+
+    def getUIMapIdentifier(self):
+        return self.addContext(usecase.guishared.WidgetAdapter.getUIMapIdentifier(self))
+
+    def addContext(self, text):
+        if not text.endswith("="):
+            context = self.getContextName()
+            if context:
+                return text + ", Context=" + context
+        return text
+
+    def findPossibleUIMapIdentifiers(self):
+        return map(self.addContext, usecase.guishared.WidgetAdapter.findPossibleUIMapIdentifiers(self))
     
+    def getContextName(self):
+        if swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget):
+            return "Internal Frame"
+        elif swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget):
+            return "Internal Frame Icon"
+        
     def getDialogTitle(self):
         return swing.SwingUtilities.getWindowAncestor(self.widget).getTitle()
 
@@ -191,6 +210,7 @@ class FrameCloseEvent(SignalEvent):
     def getAssociatedSignal(cls, *args):
         return "Close"
 
+
 class ClickEvent(SignalEvent):
     def _generate(self, *args):
         self.widget.runKeyword("clickOnComponent")
@@ -203,7 +223,6 @@ class ClickEvent(SignalEvent):
         return event.getModifiers() & MouseEvent.BUTTON1_MASK != 0 and \
                event.getClickCount() == 1 and \
                SignalEvent.shouldRecord(self, event, *args)
-
 
 
 class DoubleClickEvent(SignalEvent):
@@ -238,9 +257,11 @@ class ButtonClickEvent(SignalEvent):
     def getAssociatedSignal(cls, *args):
         return "Click"
 
-    def _generate(self, *args):
+    def _generate(self, argument):
         # Just doing clickOnComponent as in ClickEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
+        if argument and argument != self.getButtonIdentifier():
+            raise UseCaseScriptError, "Wrong button, try a different one"
         self.widget.runKeyword("pushButton")
         
     def connectRecord(self, method):
@@ -249,6 +270,23 @@ class ButtonClickEvent(SignalEvent):
                 catchAll(self.tryApplicationEvent, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
+
+    def getButtonIdentifier(self):
+        intFrame = swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget.widget)
+        if intFrame:
+            return intFrame.getTitle()
+
+        icon = swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget.widget)
+        if icon:
+            return self.widget.widget.getLabel()
+
+    def outputForScript(self, *args):
+        argument = self.getButtonIdentifier()
+        text = SignalEvent.outputForScript(self, *args)
+        if argument:
+            return text + " " + argument
+        else:
+            return text
 
     def tryApplicationEvent(self, event, method):
         if isinstance(event.getSource(), swing.JButton) and event.getActionCommand() is not None and \
@@ -343,7 +381,7 @@ class MenuSelectEvent(SignalEvent):
         operator = factory.createPopupOperator(popup)
         System.setOut(out_orig)
         operator.pushMenu(path, EqualsStringComparator())
-        
+            
     def shouldRecord(self, event, *args):
         return not isinstance(event.getSource(), swing.JMenu) and SignalEvent.shouldRecord(self, event, *args)
     

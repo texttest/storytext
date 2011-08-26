@@ -134,14 +134,6 @@ def belongsMenubar(menuItem):
             parent = None
     return False
 
-def getWindow(widget):
-    window = swing.SwingUtilities.getWindowAncestor(widget)
-    if window:
-        return window
-
-    popup = swing.SwingUtilities.getAncestorOfClass(swing.JPopupMenu, widget)
-    return getWindow(popup.getInvoker()) if popup is not None else None
-
 
 def hasPopupMenu(widget):
     return any((isinstance(item, (swing.JPopupMenu)) for item in widget.getComponents()))
