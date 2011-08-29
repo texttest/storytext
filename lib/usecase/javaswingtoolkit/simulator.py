@@ -232,6 +232,9 @@ class DoubleClickEvent(SignalEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, ClickEvent)
 
+    def _generate(self, *args):
+        self.widget.runKeyword("clickOnComponent", 2)
+
 class PopupActivateEvent(ClickEvent):
     def _generate(self, *args):
         System.setOut(PrintStream(NullOutputStream()))
@@ -255,7 +258,8 @@ class ButtonClickEvent(SignalEvent):
         # Just doing clickOnComponent as in ClickEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
         if argument and argument != self.getButtonIdentifier():
-            raise UseCaseScriptError, "Wrong button, try a different one"
+            raise UseCaseScriptError, "Could not find internal frame '" + argument + \
+                  "', found '" + self.getButtonIdentifier() + "'"
         self.widget.runKeyword("pushButton")
         
     def connectRecord(self, method):
@@ -289,6 +293,19 @@ class ButtonClickEvent(SignalEvent):
             applicationEvent(appEventName, delayLevel=PhysicalEventManager.getAppEventDelayLevel())
         else:
             method(event, self)
+
+class InternalFrameDoubleClickEvent(DoubleClickEvent):
+    def outputForScript(self, *args):
+        return self.name + " " + self.getTitle()
+
+    def getTitle(self):
+        return self.widget.getParent().getTitle()
+
+    def _generate(self, argument):
+        if argument != self.getTitle():
+            raise UseCaseScriptError, "Could not find internal frame '" + argument + \
+                  "', found '" + self.getTitle() + "'"
+        DoubleClickEvent._generate(self, argument)
 
     
 class StateChangeEvent(ClickEvent):

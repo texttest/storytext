@@ -20,6 +20,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
                                 simulator.CellPopupMenuActivateEvent ]),
         (swing.text.JTextComponent  , [ simulator.TextEditEvent ]),
         (swing.JTextField  , [ simulator.TextEditEvent, simulator.TextActivateEvent ]),
+        (swing.plaf.basic.BasicInternalFrameTitlePane, [ simulator.InternalFrameDoubleClickEvent ])
         ]
     def run(self, options, args):
         if options.supported or options.supported_html:
