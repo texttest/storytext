@@ -22,9 +22,6 @@ import SwingLibrary
 swinglib = SwingLibrary()
 System.setOut(out_orig)
 
-# Default is 60 seconds, which is really way too much...
-jemmy.JemmyProperties.setCurrentTimeout("JMenuOperator.PushMenuTimeout", 5000)
-
 # Uncomment for Abbot logs
 #import abbot
 #abbot.Log.init([ "--debug", "all" ])
@@ -133,10 +130,7 @@ class SignalEvent(usecase.guishared.GuiEvent):
         self.checkWidgetStatus()
         self.setNameIfNeeded()
         selectWindow(self.widget.widget)
-        try:
-            self._generate(*args)
-        except jemmy.TimeoutExpiredException:
-            print "WARNING: Jemmy timeout expired while trying to execute action!"
+        self._generate(*args)
             
     def connectRecord(self, method):
         class ClickListener(MouseAdapter):
@@ -364,7 +358,7 @@ class MenuSelectEvent(SignalEvent):
         if util.belongsMenubar(self.widget):
             runKeyword("selectFromMenuAndWait", path)
         else:    
-            self.selectFromPopupMenu(self.widget.getParent(), path)
+            self.selectFromPopupMenu()
 
     def connectRecord(self, method):
         class RecordListener(ActionListener):
@@ -372,16 +366,13 @@ class MenuSelectEvent(SignalEvent):
                 catchAll(method, event, self)
 
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
-        
-    def selectFromPopupMenu(self, popup, path):
+    
+    def selectFromPopupMenu(self):
         System.setOut(PrintStream(NullOutputStream()))
-        from org.robotframework.swing.popup import PopupMenuOperatorFactory
-        from org.robotframework.swing.comparator import EqualsStringComparator
-        factory = PopupMenuOperatorFactory()
-        operator = factory.createPopupOperator(popup)
+        operator = jemmy.operators.JMenuItemOperator(self.widget.widget)
+        operator.push()
         System.setOut(out_orig)
-        operator.pushMenu(path, EqualsStringComparator())
-            
+                
     def shouldRecord(self, event, *args):
         return not isinstance(event.getSource(), swing.JMenu) and SignalEvent.shouldRecord(self, event, *args)
     
