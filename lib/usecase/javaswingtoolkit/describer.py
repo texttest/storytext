@@ -102,6 +102,8 @@ class Describer(usecase.guishared.Describer):
             elements.append("Accelerator '" + accel + "'")
         if hasattr(item, "isEnabled") and not item.isEnabled():
             elements.append("greyed out")
+        if hasattr(item, "isEditable") and not item.isEditable():
+            elements.append("read only")
         if selected:
             elements.append("selected")
         return elements

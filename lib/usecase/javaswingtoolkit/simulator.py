@@ -341,7 +341,7 @@ class TextEditEvent(StateChangeEvent):
     def shouldRecord(self, *args):
         # Can get document changes on things that aren't visible
         # Can't be caused by clicking the mouse, assume such must be programmatic changes
-        return self.widget.isShowing() and not PhysicalEventManager.hasMouseContext() and SignalEvent.shouldRecord(self, *args)
+        return self.widget.isShowing() and self.widget.isEditable() and SignalEvent.shouldRecord(self, *args)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, TextEditEvent)
@@ -781,10 +781,6 @@ class PhysicalEventManager:
             currentContext.registerRecordedEvent(event, *args)
             cls.logger.debug("Matched with physical event " + repr(currentContext.physicalEvent))
             return True
-
-    @classmethod
-    def hasMouseContext(cls):
-        return len(cls.eventContexts) > 0 and all((c.isMouseContext() for c in cls.eventContexts))
             
     def startListening(self):        
         class PhysicalEventListener(AWTEventListener):
@@ -879,7 +875,3 @@ class PhysicalEventContext:
         
     def hasGenerated(self, event, physicalEvent, *args):
         return self.recordedEvent and not event.implies(self.recordedOutput, self.recordedEvent, physicalEvent, *args)
-
-    def isMouseContext(self):
-        return isinstance(self.physicalEvent, MouseEvent) and \
-               self.physicalEvent.getModifiers() & MouseEvent.BUTTON1_MASK != 0
