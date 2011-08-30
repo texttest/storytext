@@ -111,7 +111,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
                 self.setAppeared(widget)
             elif isinstance(widget, swing.JPopupMenu):
                 self.setAppeared(widget.getParent())
-        if self.loggerActive and (isWindow or inWindow):
+        if self.loggerActive and (isWindow or inWindow or popupMenu):
             self.describer.setWidgetShown(widget)
 
     def setAppeared(self, widget):

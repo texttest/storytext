@@ -98,7 +98,7 @@ class Describer(usecase.guishared.Describer):
         if hasattr(item, "getIcon") and item.getIcon():
             elements.append(self.getImageDescription(item.getIcon()))
         if hasattr(item, "getAccelerator") and item.getAccelerator():
-            accel = item.getAccelerator().toString().replace(" pressed ", "+")
+            accel = item.getAccelerator().toString().replace(" pressed ", "+").replace("pressed ", "")
             elements.append("Accelerator '" + accel + "'")
         if hasattr(item, "isEnabled") and not item.isEnabled():
             elements.append("greyed out")
