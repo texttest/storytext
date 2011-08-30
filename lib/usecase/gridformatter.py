@@ -33,8 +33,8 @@ class GridFormatter:
         return colWidths
 
     def getCellWidth(self, row, colNum):
-        # Don't include rows which span several columns
-        if len(row) == self.numColumns:
+        # Don't include rows which are empty after the column in question
+        if colNum < len(row) - 1 or (colNum < len(row) and colNum == self.numColumns - 1):
             lines = row[colNum].splitlines()
             if lines:
                 return max((len(line) for line in lines))

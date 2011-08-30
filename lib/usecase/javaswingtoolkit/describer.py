@@ -137,7 +137,19 @@ class Describer(usecase.guishared.Describer):
                             awt.BorderLayout.SOUTH, awt.BorderLayout.PAGE_END ],
                           [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
             return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
+        elif isinstance(layout, awt.GridBagLayout):
+            return max(self.getRowWidths(layout, sortedChildren))
         return 1
+
+    def getRowWidths(self, layout, sortedChildren):
+        widths = [0]
+        for child in sortedChildren:
+            constraints = layout.getConstraints(child)
+            widths[-1] += 1
+            if constraints.gridwidth == awt.GridBagConstraints.REMAINDER: # end of line
+                widths.append(0)
+            
+        return widths
 
     def hasBorderLayoutComponent(self, col, layout, sortedChildren):
         return any((layout.getLayoutComponent(pos) in sortedChildren for pos in col))
@@ -145,13 +157,52 @@ class Describer(usecase.guishared.Describer):
     def getHorizontalSpan(self, widget, columnCount):
         if isinstance(widget.getParent(), swing.JScrollPane) and widget is widget.getParent().getColumnHeader():
             return 2
-        elif isinstance(widget.getParent().getLayout(), awt.BorderLayout):
-            constraints = widget.getParent().getLayout().getConstraints(widget)
-            fullWidth = constraints in [ awt.BorderLayout.NORTH, awt.BorderLayout.SOUTH,
-                                         awt.BorderLayout.PAGE_START, awt.BorderLayout.PAGE_END ]
-            return columnCount if fullWidth else 1
         else:
-            return 1
+            layout = widget.getParent().getLayout()
+            if isinstance(layout, awt.BorderLayout):
+                constraints = layout.getConstraints(widget)
+                fullWidth = constraints in [ awt.BorderLayout.NORTH, awt.BorderLayout.SOUTH,
+                                             awt.BorderLayout.PAGE_START, awt.BorderLayout.PAGE_END ]
+                return columnCount if fullWidth else 1
+        return 1
+
+    def getHorizontalSpans(self, children, columnCount):
+        layout = children[0].getParent().getLayout()
+        if isinstance(layout, awt.GridBagLayout):
+            return self.getGridBagSpans(layout, children, columnCount)
+        else:
+            return usecase.guishared.Describer.getHorizontalSpans(self, children, columnCount)
+
+    def getGridBagSpans(self, layout, children, columnCount):
+        spans = []
+        rowWidths = self.getRowWidths(layout, children)
+        currentRow = 0
+        rowSpan = 0
+        for child in children:
+            constraints = layout.getConstraints(child)
+            if constraints.gridwidth == awt.GridBagConstraints.REMAINDER:
+                span = columnCount - rowSpan
+                currentRow += 1
+                rowSpan = 0
+            elif constraints.gridwidth == awt.GridBagConstraints.RELATIVE:
+                span = 1 + columnCount - rowWidths[currentRow]
+                rowSpan += span
+            else:
+                span = 1
+                rowSpan += span
+            spans.append(span)
+        return spans
+
+    def getWidgetsInRow(self, layout, children, widget):
+        widgetIndex = children.index(widget)
+        ix = widgetIndex - 1
+        while ix > 0:
+            constr = layout.getConstraints(children[ix])
+            if constr.gridwidth == awt.GridBagConstraints.REMAINDER: # end of line
+                break
+            else:
+                ix -= 1
+        return widgetIndex - ix
         
     def getWindowClasses(self):
         return swing.JFrame, swing.JDialog
@@ -353,7 +404,10 @@ class Describer(usecase.guishared.Describer):
                isinstance(scrollPane.getViewport().getView(), swing.JTable)
 
     def getMaxDescriptionWidth(self, widget):
-        return None if self.isTableScrollPane(widget) else 130
+        return None if self.isTableScrollPane(widget) or self.usesGrid(widget) else 130
+
+    def usesGrid(self, widget):
+        return isinstance(widget.getLayout(), awt.GridBagLayout)
     
     def getJTextComponentState(self, widget):
         return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)

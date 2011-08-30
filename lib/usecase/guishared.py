@@ -934,13 +934,16 @@ class Describer:
         if childCount > 1:
             columns = self.getLayoutColumns(widget, childCount, sortedChildren)
             if columns > 1:
-                horizontalSpans = [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
+                horizontalSpans = self.getHorizontalSpans(sortedChildren, columns)
                 maxWidth = self.getMaxDescriptionWidth(widget)
                 grid, newColumns = self.makeGrid(childDescriptions, horizontalSpans, columns)
                 formatter = GridFormatter(grid, newColumns, maxWidth)
                 # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
                 return formatter if formatter.isHorizontalRow() else str(formatter)
         return self.formatInColumn(childDescriptions)
+
+    def getHorizontalSpans(self, sortedChildren, columns):
+        return [ self.getHorizontalSpan(c, columns) for c in sortedChildren ]
 
     def usesGrid(self, widget):
         return False
@@ -959,6 +962,10 @@ class Describer:
             else:
                 grid[-1].append(self.convertToString(cellObject))
             index += span
+            if index % numColumns != 0:
+                # If we aren't at line end, introduce extra cells for padding
+                for i in range(span - 1):
+                    grid[-1].append("")
         return grid, newColumns
 
     def removeEmptyDescriptions(self, sortedChildren, childDescriptions):
