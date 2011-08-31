@@ -132,9 +132,7 @@ class Describer(usecase.guishared.Describer):
             return childCount if self.isHorizontalBox(layout) else 1
         elif isinstance(layout, awt.BorderLayout):
             positions = [ [ awt.BorderLayout.WEST, awt.BorderLayout.LINE_START ],
-                          [ awt.BorderLayout.NORTH, awt.BorderLayout.PAGE_START,
-                            awt.BorderLayout.CENTER,
-                            awt.BorderLayout.SOUTH, awt.BorderLayout.PAGE_END ],
+                          [ awt.BorderLayout.CENTER ],
                           [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
             return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
         elif isinstance(layout, awt.GridBagLayout):
