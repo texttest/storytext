@@ -8,7 +8,7 @@ class Describer(usecase.guishared.Describer):
                       swing.JScrollBar, swing.plaf.basic.BasicInternalFrameTitlePane, swing.JInternalFrame.JDesktopIcon ]
     ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar,
                       swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
-    statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame ]
+    statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame, swing.JSeparator ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu, swing.JProgressBar]
@@ -88,7 +88,14 @@ class Describer(usecase.guishared.Describer):
                widget not in self.widgetsAppeared:
             self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
-              
+
+    def getJSeparatorDescription(self, separator):
+        basic = "-" * 15
+        if separator.getOrientation() == swing.SwingConstants.VERTICAL:
+            return basic + " (vertical)"
+        else:
+            return basic
+
     def getPropertyElements(self, item, selected=False):
         elements = []
         if isinstance(item, swing.JSeparator):
