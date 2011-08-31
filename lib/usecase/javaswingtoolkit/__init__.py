@@ -23,6 +23,7 @@ class ScriptEngine(usecase.guishared.ScriptEngine):
         (swing.JSpinner     , [ simulator.SpinnerEvent ]),
         (swing.plaf.basic.BasicInternalFrameTitlePane, [ simulator.InternalFrameDoubleClickEvent ]),
         (swing.JComponent   , [ simulator.PopupActivateEvent ]),
+        (swing.JPopupMenu   , []) # Don't monitor PopupActivateEvent here, seems to cause trouble
         ]
     def run(self, options, args):
         if options.supported or options.supported_html:
