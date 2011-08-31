@@ -243,7 +243,7 @@ class PopupActivateEvent(ClickEvent):
         operator.clickForPopup()
     
     def connectRecord(self, method):               
-        if self.widget.getComponentPopupMenu():
+        if isinstance(self.widget.widget, swing.JComponent) and self.widget.getComponentPopupMenu():
             class EventListener(AWTEventListener):
                 def eventDispatched(listenerSelf, event):
                     catchAll(self.handleEvent, event, method)
