@@ -242,6 +242,22 @@ class PopupActivateEvent(ClickEvent):
         System.setOut(out_orig)
         operator.clickForPopup()
     
+    def connectRecord(self, method):               
+        if self.widget.getComponentPopupMenu():
+            class EventListener(AWTEventListener):
+                def eventDispatched(listenerSelf, event):
+                    catchAll(self.handleEvent, event, method)
+    
+            self.eventListener = EventListener()
+            eventMask = AWTEvent.MOUSE_EVENT_MASK
+            util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, self.eventListener, eventMask)
+        else:
+            SignalEvent.connectRecord(self, method)
+    
+    def handleEvent(self, event, method):
+        if event.getID() == MouseEvent.MOUSE_PRESSED and event.getSource() == self.widget.widget:
+            catchAll(method, event, self)
+            
     @classmethod
     def getAssociatedSignal(cls, *args):
         return "PopupActivate"
