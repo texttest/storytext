@@ -6,13 +6,13 @@ class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
                       swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane,
                       swing.JScrollBar, swing.plaf.basic.BasicInternalFrameTitlePane, swing.JInternalFrame.JDesktopIcon ]
-    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar, swing.JSpinner,
+    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar, swing.JSpinner, swing.JComboBox,
                       swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
     statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame, swing.JSeparator ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu,
-                     swing.JProgressBar, swing.JSpinner ]
+                     swing.JProgressBar, swing.JSpinner, swing.JComboBox ]
     childrenMethodName = "getComponents"
     visibleMethodName = "isVisible"
     def __init__(self):
@@ -450,6 +450,13 @@ class Describer(usecase.guishared.Describer):
     def getJSpinnerDescription(self, widget):
         contents, properties = self.getJSpinnerState(widget)
         return self.getFieldDescription(widget, contents, properties)
+
+    def getJComboBoxState(self, widget):
+        return str(widget.getSelectedItem()), self.getPropertyElements(widget)
+        
+    def getJComboBoxDescription(self, widget):
+        contents, properties = self.getJComboBoxState(widget)
+        return self.getFieldDescription(widget, contents, properties)
     
     def getState(self, widget):
         return self.getSpecificState(widget)
@@ -485,12 +492,17 @@ class Describer(usecase.guishared.Describer):
         return text + "\n".join(rows)
     
     def getUpdatePrefix(self, widget, oldState, state):
+        return "\nUpdated " + self.getFieldPrefix(widget)
+
+    def getFieldPrefix(self, widget):
         if isinstance(widget, swing.text.JTextComponent):
-            return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
+            return (util.getTextLabel(widget) or "Text") +  " Field\n"
         elif isinstance(widget, swing.JSpinner):
-            return "\nUpdated " + (util.getTextLabel(widget) or "") +  " Spinner\n"
+            return (util.getTextLabel(widget) or "") +  " Spinner\n"
+        elif isinstance(widget, swing.JComboBox):
+            return (util.getTextLabel(widget) or "") +  " ComboBox\n"
         else:
-            return "\nUpdated "
+            return ""
         
     def shouldDescribeChildren(self, widget):
         # Composites with StackLayout use the topControl rather than the children

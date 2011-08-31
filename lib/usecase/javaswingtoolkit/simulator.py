@@ -68,7 +68,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return name == "frame0" or name.startswith("OptionPane") or len(name) == 0
     
     def getLabel(self):
-        if isinstance(self.widget, (swing.text.JTextComponent, swing.JSpinner)):
+        if isinstance(self.widget, (swing.text.JTextComponent, swing.JComboBox, swing.JSpinner)):
             return util.getTextLabel(self.widget)
 
         text = ""
