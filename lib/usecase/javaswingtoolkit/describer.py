@@ -6,12 +6,13 @@ class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
                       swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane,
                       swing.JScrollBar, swing.plaf.basic.BasicInternalFrameTitlePane, swing.JInternalFrame.JDesktopIcon ]
-    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar,
+    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar, swing.JSpinner,
                       swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
     statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame, swing.JSeparator ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
                     swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
-                    swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu, swing.JProgressBar]
+                    swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu,
+                     swing.JProgressBar, swing.JSpinner ]
     childrenMethodName = "getComponents"
     visibleMethodName = "isVisible"
     def __init__(self):
@@ -427,11 +428,29 @@ class Describer(usecase.guishared.Describer):
     
     def getJTextComponentDescription(self, widget):
         contents, properties = self.getJTextComponentState(widget)
+        return self.getFieldDescription(widget, contents, properties)
+
+    def getFieldDescription(self, widget, contents, properties):
         self.widgetsWithState[widget] = contents, properties
         header = "=" * 10 + " " + self.getClassDescription(widget.__class__) + " " + "=" * 10
         fullHeader = self.combineElements([ header ] + properties)
         return fullHeader + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)
 
+    def getSpinnerProperties(self, spinner):
+        model = spinner.getModel()
+        if hasattr(model, "getMaximum"):
+            return [ "min=" + str(model.getMinimum()), "max=" + str(model.getMaximum()) ]
+        else:
+            return []
+
+    def getJSpinnerState(self, spinner):
+        props = self.getSpinnerProperties(spinner) + self.getPropertyElements(spinner)
+        return str(spinner.getValue()), props
+        
+    def getJSpinnerDescription(self, widget):
+        contents, properties = self.getJSpinnerState(widget)
+        return self.getFieldDescription(widget, contents, properties)
+    
     def getState(self, widget):
         return self.getSpecificState(widget)
         
@@ -468,6 +487,8 @@ class Describer(usecase.guishared.Describer):
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, swing.text.JTextComponent):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
+        elif isinstance(widget, swing.JSpinner):
+            return "\nUpdated " + (util.getTextLabel(widget) or "") +  " Spinner\n"
         else:
             return "\nUpdated "
         

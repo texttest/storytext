@@ -68,7 +68,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         return name == "frame0" or name.startswith("OptionPane") or len(name) == 0
     
     def getLabel(self):
-        if isinstance(self.widget, swing.text.JTextComponent):
+        if isinstance(self.widget, (swing.text.JTextComponent, swing.JSpinner)):
             return util.getTextLabel(self.widget)
 
         text = ""
@@ -330,6 +330,28 @@ class StateChangeEvent(ClickEvent):
 
     def isStateChange(self, *args):
         return True
+
+class SpinnerEvent(StateChangeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, *args):
+        return "Edited"
+
+    def connectRecord(self, method):
+        class RecordListener(swing.event.ChangeListener):
+            def stateChanged(lself, e):
+                catchAll(method, e, self)
+
+        util.runOnEventDispatchThread(self.widget.addChangeListener, RecordListener())
+
+    def shouldRecord(self, *args):
+        return SignalEvent.shouldRecord(self, *args)
+
+    def getStateText(self, *args):
+        return str(self.widget.getValue())
+
+    def _generate(self, argumentString):
+        kwd = "setSpinnerNumberValue" if isinstance(self.widget.getValue(), int) else "setSpinnerStringValue"
+        self.widget.runKeyword(kwd, argumentString)
 
 
 class TextEditEvent(StateChangeEvent):
