@@ -134,7 +134,8 @@ class Describer(usecase.guishared.Describer):
         if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
             return 2
         layout = widget.getLayout()
-        if isinstance(layout, awt.FlowLayout) or isinstance(widget, swing.JToolBar):
+        if isinstance(layout, (awt.FlowLayout, swing.plaf.basic.BasicOptionPaneUI.ButtonAreaLayout)) or \
+               isinstance(widget, swing.JToolBar):
             return childCount
         elif isinstance(layout, swing.BoxLayout):
             return childCount if self.isHorizontalBox(layout) else 1
