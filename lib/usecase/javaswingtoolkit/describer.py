@@ -453,6 +453,8 @@ class Describer(usecase.guishared.Describer):
         return self.getFieldDescription(widget, contents, properties)
 
     def getJComboBoxState(self, widget):
+        if widget.isEditable():
+            return str(widget.getEditor().getItem()), self.getPropertyElements(widget)
         return str(widget.getSelectedItem()), self.getPropertyElements(widget)
         
     def getJComboBoxDescription(self, widget):

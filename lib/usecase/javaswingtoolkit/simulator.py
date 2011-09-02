@@ -3,7 +3,7 @@ from usecase import applicationEvent
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-     WindowEvent, ActionListener, ActionEvent, InputEvent
+     WindowEvent, ActionListener, ActionEvent, InputEvent, ItemListener, ItemEvent
 from java.beans import PropertyChangeListener
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
@@ -472,8 +472,8 @@ class TabPopupActivateEvent(PopupActivateEvent):
      
     def outputForScript(self, event, *args):
         index = self.widget.getSelectedIndex()        
-        return ' '.join([self.name, self.widget.getTitleAt(index)])   
-    
+        return ' '.join([self.name, self.widget.getTitleAt(index)])
+
 class ListSelectEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -504,6 +504,74 @@ class ListSelectEvent(StateChangeEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return currOutput.startswith(stateChangeOutput)
+    
+    def getRenderer(self):
+        return self.getRecordWidget().getCellRenderer()
+
+class ComboBoxEvent(StateChangeEvent):
+    def connectRecord(self, method):
+        class ItemSelectListener(ItemListener):
+            def itemStateChanged(listenerSelf, event):
+                catchAll(self.tryRecordSelection, event, method)
+        
+        class TextDocumentListener(swing.event.DocumentListener):
+            def insertUpdate(lself, event):
+                catchAll(method, None, event, self)
+                
+            changedUpdate = insertUpdate
+            removeUpdate = insertUpdate
+
+        if self.widget.isEditable():
+            util.runOnEventDispatchThread(self.widget.getEditor().getEditorComponent().getDocument().addDocumentListener, TextDocumentListener())        
+                    
+        util.runOnEventDispatchThread(self.widget.widget.addItemListener, ItemSelectListener())
+
+    def tryRecordSelection(self, event, method):
+        if event.getStateChange() == ItemEvent.SELECTED:
+            method(event.getItem(), self)
+
+    def shouldRecord(self, item, event, *args):
+        if item:
+            return SignalEvent.shouldRecord(self, item, *args)
+        else:
+            value = self.widget.getEditor().getItem()
+            
+            return value and not self.isInComboBox(value) and SignalEvent.shouldRecord(self, None, *args)
+
+    def _generate(self, argumentString):
+        self.argumentString = argumentString
+        if self.widget.isEditable() and not self.isInComboBox(argumentString):
+            self.widget.runKeyword("typeIntoComboBox", argumentString)
+        else:
+            try:
+                self.widget.runKeyword("selectFromComboBox", argumentString)#self.getIndex(argumentString))
+            except RuntimeException:
+                raise UseCaseScriptError, "Could not find item named '" + argumentString + "' to select."
+    
+    def getJComboBoxText(self, index):
+        return util.ComponentTextFinder(self.widget.widget, describe=False).getJComboBoxText(index)
+            
+    def getStateText(self, *args):
+        if self.widget.isEditable():
+            texts = [ self.widget.getEditor().getItem() ]
+        else:
+            texts = [ self.getJComboBoxText(self.widget.getSelectedIndex()) ]
+        return ", ".join(texts)
+    
+    def getIndex(self, text):
+        for i in range(self.widget.getModel().getSize()):
+            if self.getJComboBoxText(i) == text:
+                return i
+        raise UseCaseScriptError, "Could not find item labeled '" + text + "' in combo box."
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, item , *args):
+        prevString = stateChangeOutput.rsplit(None, 1)[-1]
+        return  item is None and isinstance(stateChangeEvent, ComboBoxEvent) and not self.isInComboBox(prevString)
+            
+    def isInComboBox(self, text):
+        for i in range(self.widget.getModel().getSize()):
+            if self.getJComboBoxText(i) == text:
+                return True
 
 class TableSelectEvent(ListSelectEvent):
     def __init__(self, *args):

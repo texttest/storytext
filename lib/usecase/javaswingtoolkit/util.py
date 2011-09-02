@@ -29,7 +29,7 @@ def getMenuPathString(widget):
     return "|".join(reversed(result)) 
 
 class ComponentTextFinder:
-    classesHandled = [ swing.JCheckBox, swing.JTree, swing.JTable, swing.JList ]
+    classesHandled = [ swing.JCheckBox, swing.JTree, swing.JTable, swing.JList, swing.JComboBox ]
     def __init__(self, widget, describe):
         self.widget = widget
         self.describe = describe
@@ -57,6 +57,15 @@ class ComponentTextFinder:
     def getJCheckBoxText(self, *args):
         return "[x]" if self.widget.isSelected() else "[ ]"
 
+    def getJComboBoxText(self, index):
+        value = self.widget.getModel().getElementAt(index) or ""
+        renderer = self.widget.getRenderer()
+        # Don't check isinstance, any subclasses might be doing all sorts of stuff
+        if renderer.__class__ is swing.plaf.basic.BasicComboBoxRenderer.UIResource:
+            return value
+        # Don't support custom renderer at the moment
+        return value
+    
     def getJListText(self, index):
         value = self.widget.getModel().getElementAt(index) or ""
         renderer = self.widget.getCellRenderer()
@@ -118,6 +127,8 @@ def hasComplexAncestors(widget):
     
     # If we're in a popup menu that's attached to something with complex ancestors, that's clearly even more complex :)
     popup = swing.SwingUtilities.getAncestorOfClass(swing.JPopupMenu, widget)
+    if popup and isinstance(popup.getInvoker(), swing.JComboBox):
+        return True
     return popup is not None and hasComplexAncestors(popup.getInvoker())
 
 def belongsMenubar(menuItem):
