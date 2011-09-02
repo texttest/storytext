@@ -186,20 +186,25 @@ class FrameCloseEvent(SignalEvent):
         robot = Robot()
         robot.setEventMode(Robot.EM_AWT)
         util.runOnEventDispatchThread(robot.close, self.widget.widget)
-        while self.widget.widget.isActive() and self.widget.widget.isShowing():
-            time.sleep(0.1)
+        robot.waitForIdle()
 
-    def connectRecord(self, method):
-        class WindowCloseListener(WindowAdapter):
-            def windowClosing(listenerSelf, event):
-                catchAll(method, event, self)
-            
-            def windowClosed(listenerSelf, event):
+    def connectRecord(self, method):               
+        class EventListener(AWTEventListener):
+            def eventDispatched(listenerSelf, event):
+                catchAll(self.handleEvent, event, method)
+    
+        eventListener = EventListener()
+        eventMask = AWTEvent.WINDOW_EVENT_MASK
+        util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, eventListener, eventMask)
+        
+    def handleEvent(self, event, method):
+        if event.getSource() == self.widget.widget:
+            if event.getID() == WindowEvent.WINDOW_CLOSING:
+                method(event, self)
+            elif event.getID() == WindowEvent.WINDOW_CLOSED:
                 if isinstance(self.widget.widget, swing.JFrame):
                     catchAll(PhysicalEventManager.stopListening)
-                        
-        util.runOnEventDispatchThread(self.widget.widget.addWindowListener, WindowCloseListener())
-        
+                    
     @classmethod
     def getAssociatedSignal(cls, *args):
         return "Close"
@@ -248,15 +253,15 @@ class PopupActivateEvent(ClickEvent):
                 def eventDispatched(listenerSelf, event):
                     catchAll(self.handleEvent, event, method)
     
-            self.eventListener = EventListener()
+            eventListener = EventListener()
             eventMask = AWTEvent.MOUSE_EVENT_MASK
-            util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, self.eventListener, eventMask)
+            util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, eventListener, eventMask)
         else:
             SignalEvent.connectRecord(self, method)
     
     def handleEvent(self, event, method):
         if event.getID() == MouseEvent.MOUSE_PRESSED and event.getSource() == self.widget.widget:
-            catchAll(method, event, self)
+            method(event, self)
             
     @classmethod
     def getAssociatedSignal(cls, *args):
