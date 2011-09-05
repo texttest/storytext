@@ -2,10 +2,11 @@
 """ Module for laying out text in a grid pattern. Should not depend on anything but string manipulation """
 
 class GridFormatter:
-    def __init__(self, grid, numColumns, maxWidth=None):
+    def __init__(self, grid, numColumns, maxWidth=None, columnSpacing=2):
         self.grid = grid
         self.numColumns = numColumns
         self.maxWidth = maxWidth
+        self.columnSpacing = columnSpacing
 
     def __str__(self):
         colWidths = self.findColumnWidths()
@@ -29,7 +30,7 @@ class GridFormatter:
                 colWidths.append(maxWidth)
             else:
                 # Pad two spaces between each column
-                colWidths.append(maxWidth + 2)
+                colWidths.append(maxWidth + self.columnSpacing)
         return colWidths
 
     def getCellWidth(self, row, colNum):
@@ -55,12 +56,16 @@ class GridFormatter:
             rowLines = max((desc.count("\n") + 1 for desc in row))
             for rowLine in range(rowLines):
                 lineText = ""
+                currPos = 0
                 for colNum, childDesc in enumerate(row):
                     cellLines = childDesc.splitlines()
                     if rowLine < len(cellLines):
                         cellRow = cellLines[rowLine]
                     else:
                         cellRow = ""
+                    if cellRow and len(lineText) > currPos:
+                        lineText = lineText[:currPos]
                     lineText += cellRow.ljust(colWidths[colNum])
+                    currPos += colWidths[colNum]
                 lines.append(lineText.rstrip(" ")) # don't leave trailing spaces        
         return "\n".join(lines)
