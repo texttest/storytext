@@ -55,7 +55,9 @@ class Describer(usecase.guishared.Describer):
 
     def categoriseAppearedWidgets(self, stateChangeWidgets):
         newWindows, commonParents = [], []
-        markedWidgets = self.widgetsAppeared + stateChangeWidgets
+        # Windows only get title changes described
+        stateChangesFullDescribe = filter(lambda w: not isinstance(w, self.getWindowClasses()), stateChangeWidgets)
+        markedWidgets = self.widgetsAppeared + stateChangesFullDescribe
         for widget in self.widgetsAppeared:
             if not widget.isVisible():
                 continue
