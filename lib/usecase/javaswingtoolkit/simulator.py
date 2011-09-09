@@ -976,8 +976,9 @@ class PhysicalEventContext:
                event.getKeyCode() == self.physicalEvent.getKeyCode()
 
     def matchesMouseEvent(self, event):
+        # Handle drag and drop which will set click count to 0
         return isinstance(self.physicalEvent, MouseEvent) and \
-               event.getClickCount() == self.physicalEvent.getClickCount() and \
+               event.getClickCount() in [0, self.physicalEvent.getClickCount()] and \
                event.getModifiers() == self.physicalEvent.getModifiers()
 
     def registerRecordedEvent(self, event, *args):
