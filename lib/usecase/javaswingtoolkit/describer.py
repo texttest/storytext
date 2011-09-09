@@ -59,7 +59,7 @@ class Describer(usecase.guishared.Describer):
         stateChangesFullDescribe = filter(lambda w: not isinstance(w, self.getWindowClasses()), stateChangeWidgets)
         markedWidgets = self.widgetsAppeared + stateChangesFullDescribe
         for widget in self.widgetsAppeared:
-            if not widget.isVisible():
+            if not widget.isShowing():
                 continue
             elif isinstance(widget, self.getWindowClasses()):
                 newWindows.append(widget)
