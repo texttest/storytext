@@ -55,7 +55,11 @@ class ComponentTextFinder:
             return elements[0] if elements else ""
 
     def getJCheckBoxText(self, *args):
-        return "[x]" if self.widget.isSelected() else "[ ]"
+        text = self.widget.getText()
+        if self.describe:
+            desc = "[x]" if self.widget.isSelected() else "[ ]"
+            return desc + " "  + text if text else desc
+        return text
 
     def getJComboBoxText(self, index):
         value = self.widget.getModel().getElementAt(index) or ""
