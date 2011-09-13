@@ -901,15 +901,18 @@ class PhysicalEventManager:
         self.eventListener = PhysicalEventListener()
         eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, self.eventListener, eventMask)
-    
+
     @classmethod
     def stopListening(cls):
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().removeAWTEventListener, cls.eventListener)
     
     def handleEvent(self, event):
         if event.getID() == MouseEvent.MOUSE_PRESSED:
-            context = PhysicalEventContext(event)
-            self.addMouseListener(context)
+            if hasattr(event,"getApplicationEventMessage"):
+                self.addApplicationEvent(event)
+            else:
+                context = PhysicalEventContext(event)
+                self.addMouseListener(context)
         elif event.getID() == KeyEvent.KEY_PRESSED:
             context = PhysicalEventContext(event)
             self.registerStarted(context, "Key press")
@@ -958,7 +961,9 @@ class PhysicalEventManager:
             cls.logger.debug("Got delay from " + repr(cls.eventContexts))
         return ret
     
-        
+    def addApplicationEvent(self, event):
+        applicationEvent(event.getApplicationEventMessage(), delayLevel=PhysicalEventManager.getAppEventDelayLevel())
+
 class PhysicalEventContext:
     def __init__(self, event):
         self.physicalEvent = event
