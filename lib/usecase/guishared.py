@@ -959,7 +959,6 @@ class Describer:
                 grid.append([])
             if horizontalRow and isinstance(cellObject, GridFormatter):
                 grid[-1] += cellObject.grid[-1]
-                newColumns = len(grid[-1])
             else:
                 grid[-1].append(self.convertToString(cellObject))
             index += span
@@ -967,6 +966,8 @@ class Describer:
                 # If we aren't at line end, introduce extra cells for padding
                 for i in range(span - 1):
                     grid[-1].append("")
+        if horizontalRow:
+            newColumns = len(grid[-1])
         return grid, newColumns
 
     def removeEmptyDescriptions(self, sortedChildren, childDescriptions):
