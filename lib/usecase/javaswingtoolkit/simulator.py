@@ -952,7 +952,8 @@ class PhysicalEventManager:
 
     def registerCompleted(self, context, text, event):
         self.logger.debug(text + " completed " + repr(event))
-        self.eventContexts.remove(context)
+        if context in self.eventContexts:
+            self.eventContexts.remove(context)
 
     @classmethod
     def getAppEventDelayLevel(cls):
