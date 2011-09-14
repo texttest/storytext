@@ -387,7 +387,7 @@ class TextEditEvent(StateChangeEvent):
         return self.widget.isShowing() and self.widget.isEditable() and SignalEvent.shouldRecord(self, *args)
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return isinstance(stateChangeEvent, TextEditEvent)
+        return isinstance(stateChangeEvent, TextEditEvent) and stateChangeEvent.widget.widget is self.widget.widget
 
 class ActivateEvent(SignalEvent):
     def connectRecord(self, method):
