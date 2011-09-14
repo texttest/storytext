@@ -47,7 +47,7 @@ def checkWidget(widget):
         
 class WidgetAdapter(usecase.guishared.WidgetAdapter):
     # All the standard message box texts
-    dialogTexts = [ "OK", "Cancel", "Yes", "No", "Abort", "Retry", "Ignore" ]
+    dialogTexts = [ "ok", "cancel", "yes", "no", "abort", "retry", "ignore", "close" ]
     
     def getChildWidgets(self):
         if isinstance(self.widget, swing.JMenu):
@@ -77,7 +77,7 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
         else:
             return ""
                 
-        if text in self.dialogTexts:
+        if text is not None and text.lower() in self.dialogTexts:
             dialogTitle = self.getDialogTitle()
             if dialogTitle:
                 return text + ", Dialog=" + dialogTitle
@@ -109,7 +109,8 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
             return "Internal Frame Icon"
         
     def getDialogTitle(self):
-        return swing.SwingUtilities.getWindowAncestor(self.widget).getTitle()
+        window = swing.SwingUtilities.getWindowAncestor(self.widget)
+        return window.getTitle() if window else ""
 
     def runKeyword(self, keywordName, *args):
         return runKeyword(keywordName, self.widget.getName(), *args)
