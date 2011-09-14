@@ -511,6 +511,7 @@ class UIMap:
         if not section.startswith("Name="):
             newName = widget.getUIMapIdentifier()
             if newName != section:
+                self.logger.debug("Updating section " + repr(section) + " to " + repr(newName))
                 return self.fileHandler.updateSectionName(section, newName)
         return section
 
