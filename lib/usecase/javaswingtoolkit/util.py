@@ -29,7 +29,7 @@ def getMenuPathString(widget):
     return "|".join(reversed(result)) 
 
 class ComponentTextFinder:
-    classesHandled = [ swing.JCheckBox, swing.JTree, swing.JTable, swing.JList, swing.JComboBox ]
+    classesHandled = [ swing.JCheckBox, swing.JTree, swing.JTable, swing.JList, swing.JComboBox, swing.JRadioButton ]
     def __init__(self, widget, describe):
         self.widget = widget
         self.describe = describe
@@ -54,6 +54,13 @@ class ComponentTextFinder:
         else:
             return elements[0] if elements else ""
 
+    def getJRadioButtonText(self, *args):
+        text = self.widget.getText()
+        if self.describe:
+            desc = "(*)" if self.widget.isSelected() else "( )"
+            return desc + " "  + text if text else desc
+        return text
+    
     def getJCheckBoxText(self, *args):
         text = self.widget.getText()
         if self.describe:

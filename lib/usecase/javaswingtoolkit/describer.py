@@ -255,10 +255,18 @@ class Describer(usecase.guishared.Describer):
         return "-" * 15 + " " + orientation + " divider " + "-" * 15
     
     def getJRadioButtonDescription(self, widget):
-        return self.getComponentDescription(widget, "RadioButton")
+        return self.getAndStoreState(widget)
+    
+    def getJRadioButtonState(self, widget):
+        text = "Radio button: " + util.ComponentTextFinder(widget, describe=True).getJRadioButtonText()
+        return self.combineElements([ text ] + self.getPropertyElements(widget))
     
     def getJCheckBoxDescription(self, widget):
-        return self.getComponentDescription(widget, "CheckBox")
+        return self.getAndStoreState(widget)
+    
+    def getJCheckBoxState(self, widget):
+        text = "Check box: " + util.ComponentTextFinder(widget, describe=True).getJCheckBoxText()
+        return self.combineElements([ text ] + self.getPropertyElements(widget))
         
     def getJTabbedPaneDescription(self, widget):
         state = self.getState(widget)
