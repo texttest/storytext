@@ -8,8 +8,8 @@ from java.beans import PropertyChangeListener
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
 from javax import swing
-from abbot.tester import Robot
-from org.netbeans import jemmy
+from org.robotframework.abbot.tester import Robot
+from org.robotframework.org.netbeans import jemmy
 
 # Importing writes uninteresting stuff to stdout
 out_orig = System.out
