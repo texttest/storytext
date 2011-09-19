@@ -439,12 +439,14 @@ class UIMapFileHandler:
                 return parser
 
     def updateSectionName(self, section, newName):
+        """ Note, we only add a new section, don't delete the old one as we once did
+        This is in case some other widget is using it, which is possible and not easily detected currently
+        Let the user clean away the old section if they want to."""
         writeParser = self.findWriteParser(section)
         if not writeParser.has_section(newName):
             writeParser.add_section(newName)
         for name, value in self.readParser.items(section):
             writeParser.set(newName, name, value)
-        writeParser.remove_section(section)
         return newName
 
     def write(self, *args):
