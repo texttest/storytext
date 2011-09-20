@@ -65,6 +65,10 @@ class ScriptEngine:
         if self.replayerActive():
             self.replayer.applicationEventRename(oldName, newName)
 
+    def applicationEventDelay(self, name):
+        if self.recorderActive():
+            self.recorder.applicationEventDelay(name)
+
     def run(self, options, args):
         if len(args) == 0:
             return False

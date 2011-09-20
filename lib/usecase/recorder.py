@@ -281,6 +281,12 @@ class UseCaseRecorder:
                 categories.add(newCategory)
                 self.logger.debug("Swapping for " + repr(supercedeCategory) + ": " + repr(oldCategory) + " -> " + repr(newCategory))
 
+    def applicationEventDelay(self, name):
+        for categoryName, (eventName, oldDelayLevel) in self.applicationEvents.items():
+            if eventName == name and oldDelayLevel == 0:
+                del self.applicationEvents[categoryName]
+                self.registerApplicationEvent(name, categoryName, delayLevel=1)
+
     def getCurrentApplicationEvents(self, recordingEvent):
         currEvents = []
         allEvents = self.applicationEvents.items()

@@ -1,5 +1,5 @@
 import usecase.guishared, logging, util, sys, threading, time
-from usecase import applicationEvent
+from usecase import applicationEvent, applicationEventDelay
 from usecase.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit, Component
 from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
@@ -635,9 +635,6 @@ class TableHeaderEvent(SignalEvent):
         return False
     
 class CellDoubleClickEvent(DoubleClickEvent):
-    def isStateChange(self):
-        return True
-    
     def _generate(self, argumentString):
         row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)            
         self.widget.runKeyword("clickOnTableCell", row, column, 2, "BUTTON1_MASK")
@@ -728,7 +725,7 @@ class CellEditEvent(SignalEvent):
             prevOutput = stateChangeOutput.rsplit("=", 1)[0]
             return currOutput == prevOutput
         else:
-            return isinstance(stateChangeEvent, (CellDoubleClickEvent, TableSelectEvent)) and \
+            return isinstance(stateChangeEvent, TableSelectEvent) and \
                    self.widget.widget is stateChangeEvent.widget.widget
 
     def getNewValue(self, row, col):
@@ -877,6 +874,7 @@ class PhysicalEventManager:
     eventListener = None
     def __init__(self):
         PhysicalEventManager.logger = logging.getLogger("usecase record")
+        self.allEvents = []
 
     @classmethod
     def matchPhysicalEvent(cls, event, *args):
@@ -914,6 +912,8 @@ class PhysicalEventManager:
             else:
                 context = PhysicalEventContext(event)
                 self.addMouseListener(context)
+                if event.getClickCount() == 2:
+                    self.searchForAppEventToDelay()
         elif event.getID() == KeyEvent.KEY_PRESSED:
             context = PhysicalEventContext(event)
             self.registerStarted(context, "Key press")
@@ -955,6 +955,7 @@ class PhysicalEventManager:
         self.logger.debug(text + " completed " + repr(event))
         if context in self.eventContexts:
             self.eventContexts.remove(context)
+            self.allEvents.append(context)
 
     @classmethod
     def getAppEventDelayLevel(cls):
@@ -964,7 +965,17 @@ class PhysicalEventManager:
         return ret
     
     def addApplicationEvent(self, event):
-        applicationEvent(event.getApplicationEventMessage(), delayLevel=PhysicalEventManager.getAppEventDelayLevel())
+        message = event.getApplicationEventMessage()
+        self.allEvents.append(message)
+        applicationEvent(message, delayLevel=self.getAppEventDelayLevel())
+
+    def searchForAppEventToDelay(self):
+        if len(self.allEvents) >= 2 and isinstance(self.allEvents[-1], (str, unicode)) and \
+               isinstance(self.allEvents[-2], PhysicalEventContext):
+            prevEvent = self.allEvents[-2].physicalEvent
+            if isinstance(prevEvent, MouseEvent) and prevEvent.getClickCount() == 1:
+                applicationEventDelay(self.allEvents[-1])
+            
 
 class PhysicalEventContext:
     def __init__(self, event):

@@ -15,6 +15,10 @@ def applicationEventRename(*args, **kwargs):
     if scriptEngine:
         scriptEngine.applicationEventRename(*args, **kwargs)
 
+def applicationEventDelay(*args, **kwargs):
+    if scriptEngine:
+        scriptEngine.applicationEventDelay(*args, **kwargs)
+        
 def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
     global scriptEngine
     if not scriptEngine: # pragma: no cover - cannot test with replayer disabled
