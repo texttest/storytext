@@ -283,7 +283,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
         modelFilter, realModel = self.getModels()
         methods = [ self.selection.unselect_all, self.selection.select_all, \
                     self.selection.select_iter, self.selection.unselect_iter, \
-                    self.selection.select_path, self.selection.unselect_path,
+                    self.selection.select_path, self.selection.unselect_path,self.selection.set_mode,
                     self.widget.set_model, self.widget.row_activated, self.widget.collapse_row,
                     realModel.remove, realModel.clear ]
 
