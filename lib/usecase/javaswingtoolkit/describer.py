@@ -427,9 +427,14 @@ class Describer(usecase.guishared.Describer):
 
     def usesGrid(self, widget):
         return isinstance(widget.getLayout(), (awt.GridLayout, awt.GridBagLayout))
+
+    def getTextComponentText(self, widget):
+        text = widget.getText()
+        # Don't use getEchoChar for passwords, the character used depends on the theme
+        return "*" * len(text) if isinstance(widget, swing.JPasswordField) else text
     
     def getJTextComponentState(self, widget):
-        return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)
+        return usecase.guishared.removeMarkup(self.getTextComponentText(widget)), self.getPropertyElements(widget)
 
     def getClassDescription(self, cls):
         if cls.__name__.startswith("J"):
