@@ -94,8 +94,7 @@ class ComponentTextFinder:
         
         selected = self.widget.isRowSelected(row)
         expanded = self.widget.isExpanded(row)
-        leaf = self.widget.getModel().isLeaf(rowObj)
-        component = renderer.getTreeCellRendererComponent(self.widget, rowObj, selected, expanded, leaf, row, False)
+        component = renderer.getTreeCellRendererComponent(self.widget, rowObj, selected, expanded, False, row, False)
         return self.getComponentText(component)
 
     def getJTreeText(self, row):
