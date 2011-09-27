@@ -146,6 +146,8 @@ class Describer(usecase.guishared.Describer):
                           [ awt.BorderLayout.CENTER ],
                           [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
             return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
+        elif isinstance(layout, awt.GridLayout):
+            return layout.getColumns()
         elif isinstance(layout, awt.GridBagLayout):
             return max(self.getRowWidths(layout, sortedChildren))
         return 1
@@ -424,7 +426,7 @@ class Describer(usecase.guishared.Describer):
         return None if self.isTableScrollPane(widget) or self.usesGrid(widget) else 130
 
     def usesGrid(self, widget):
-        return isinstance(widget.getLayout(), awt.GridBagLayout)
+        return isinstance(widget.getLayout(), (awt.GridLayout, awt.GridBagLayout))
     
     def getJTextComponentState(self, widget):
         return usecase.guishared.removeMarkup(widget.getText()), self.getPropertyElements(widget)
