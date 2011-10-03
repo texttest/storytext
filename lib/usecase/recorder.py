@@ -37,7 +37,8 @@ class RecordScript:
     
     def close(self):
         if self.fileForAppend:
-            self.fileForAppend.close()
+            if not self.fileForAppend.closed:
+                self.fileForAppend.close()
             self.fileForAppend = None
 
     def rerecord(self, newCommands):
