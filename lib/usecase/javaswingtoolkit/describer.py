@@ -1,6 +1,7 @@
 import usecase.guishared, logging, util, os, inspect
 import java.awt as awt
 from javax import swing
+from itertools import izip
 
 class Describer(usecase.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
@@ -177,9 +178,35 @@ class Describer(usecase.guishared.Describer):
                 return columnCount if fullWidth else 1
         return 1
 
+    def tryMakeGrid(self, widget, sortedChildren, childDescriptions):
+        layout = widget.getLayout()
+        if isinstance(layout, awt.GridBagLayout):
+            # Only for grid bags that explicitly identify the location of every child in the grid
+            grid, columns = self.tryMakeGridBagGrid(widget, sortedChildren, childDescriptions)
+            if grid:
+                return grid, columns
+        return usecase.guishared.Describer.tryMakeGrid(self, widget, sortedChildren, childDescriptions)
+
+    def tryMakeGridBagGrid(self, widget, sortedChildren, childDescriptions):
+        layout = widget.getLayout()
+        grid = []
+        for child, desc in izip(sortedChildren, childDescriptions):
+            constraints = layout.getConstraints(child)
+            x = constraints.gridx
+            y = constraints.gridy
+            if x == awt.GridBagConstraints.RELATIVE or y == awt.GridBagConstraints.RELATIVE:
+                return None, None
+            while len(grid) <= y:
+                grid.append([])
+            while len(grid[y]) <= x:
+                grid[y].append("")
+            grid[y][x] = desc
+        return grid, max((len(r) for r in grid))
+
     def getHorizontalSpans(self, children, columnCount):
         layout = children[0].getParent().getLayout()
         if isinstance(layout, awt.GridBagLayout):
+            # If we get this far, it's the kind of GridBagLayout that does everything relative to everything else
             return self.getGridBagSpans(layout, children, columnCount)
         else:
             return usecase.guishared.Describer.getHorizontalSpans(self, children, columnCount)
