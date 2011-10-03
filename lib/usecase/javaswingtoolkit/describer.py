@@ -197,7 +197,7 @@ class Describer(usecase.guishared.Describer):
             if x == awt.GridBagConstraints.RELATIVE or y == awt.GridBagConstraints.RELATIVE:
                 return None, None
             while len(grid) <= y:
-                grid.append([])
+                grid.append([ "" ])
             while len(grid[y]) <= x:
                 grid[y].append("")
             grid[y][x] = desc
