@@ -193,7 +193,10 @@ class UseCaseReplayer:
             return False
         for command in commands:
             if command in self.shortcuts:
-                self.addScript(self.shortcuts[command])
+                script = self.shortcuts[command]
+                if commands[-1].startswith(waitCommandName):
+                    script.commands.append(commands[-1])
+                self.addScript(script)
                 return self.runNextCommand()
             try:
                 commandName, argumentString = self.parseCommand(command)
