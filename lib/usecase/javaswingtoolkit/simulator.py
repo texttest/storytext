@@ -766,7 +766,7 @@ class CellEditEvent(SignalEvent):
         return True
 
         
-class TableIndexer():
+class TableIndexer:
     allIndexers = {}
     def __init__(self, table):
         self.tableModel = table.getModel()

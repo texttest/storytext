@@ -148,7 +148,8 @@ class Describer(usecase.guishared.Describer):
                           [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
             return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
         elif isinstance(layout, awt.GridLayout):
-            return layout.getColumns()
+            # getColumns may return 0 if it was built that way, in which case it means a horizontal row
+            return layout.getColumns() or childCount
         elif isinstance(layout, awt.GridBagLayout):
             return max(self.getRowWidths(layout, sortedChildren))
         return 1
