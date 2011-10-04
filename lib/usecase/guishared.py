@@ -933,22 +933,20 @@ class Describer:
         childDescriptions = map(self._getDescription, sortedChildren)
         if not self.usesGrid(widget):
             self.removeEmptyDescriptions(sortedChildren, childDescriptions)
-        grid, columns = self.tryMakeGrid(widget, sortedChildren, childDescriptions)
-        if grid:
-            maxWidth = self.getMaxDescriptionWidth(widget)
-            formatter = GridFormatter(grid, columns, maxWidth)
-            # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
-            return formatter if formatter.isHorizontalRow() else str(formatter)
-        else:
-            return self.formatInColumn(childDescriptions)
+        if len(childDescriptions) > 1:
+            grid, columns = self.tryMakeGrid(widget, sortedChildren, childDescriptions)
+            if grid:
+                maxWidth = self.getMaxDescriptionWidth(widget)
+                formatter = GridFormatter(grid, columns, maxWidth)
+                # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
+                return formatter if formatter.isHorizontalRow() else str(formatter)
+        return self.formatInColumn(childDescriptions)
 
     def tryMakeGrid(self, widget, sortedChildren, childDescriptions):
-        childCount = len(childDescriptions)
-        if childCount > 1:
-            columns = self.getLayoutColumns(widget, childCount, sortedChildren)
-            if columns > 1:
-                horizontalSpans = self.getHorizontalSpans(sortedChildren, columns)
-                return self.makeGrid(childDescriptions, horizontalSpans, columns)
+        columns = self.getLayoutColumns(widget, len(childDescriptions), sortedChildren)
+        if columns > 1:
+            horizontalSpans = self.getHorizontalSpans(sortedChildren, columns)
+            return self.makeGrid(childDescriptions, horizontalSpans, columns)
         return None, None
 
     def getHorizontalSpans(self, sortedChildren, columns):
