@@ -121,7 +121,7 @@ class Describer(usecase.guishared.Describer):
 
     def layoutSortsChildren(self, widget):
         return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane, swing.JSplitPane)) and \
-               not isinstance(widget.getLayout(), (awt.BorderLayout))
+               not isinstance(widget.getLayout(), awt.BorderLayout)
 
     def getVerticalDividePositions(self, visibleChildren):
         return [] # for now
@@ -196,7 +196,7 @@ class Describer(usecase.guishared.Describer):
             x = constraints.gridx
             y = constraints.gridy
             if x == awt.GridBagConstraints.RELATIVE or y == awt.GridBagConstraints.RELATIVE:
-                return None, None
+                return None, 0
             while len(grid) <= y:
                 grid.append([ "" ])
             while len(grid[y]) <= x:
