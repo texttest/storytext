@@ -124,12 +124,40 @@ class TreeViewHelper:
         column.set_attributes(cell, **kwargs)
         return self.insert_column(column, position)
 
+class FunctionSelectWrapper:
+    def __init__(self, method):
+        self.method = method
+        self.realFunc = None
+        self.fail_method = None
+        self.full = False
+
+    def __call__(self, func, data=None, full=False):
+        self.realFunc = func
+        self.full = full
+        if data is not None:
+            self.method(self.can_select, data=data, full=full)
+        else:
+            self.method(self.can_select, full=full)
+
+    def find_path(self, *args):
+        return args[2] if self.full else args[0]
+        
+    def can_select(self, *args):
+        retval = self.realFunc(*args)
+        if not retval:
+            path = self.find_path(*args)
+            self.fail_method(path)
+        return retval
+
 
 # Have to patch these methods, because otherwise they don't find the patch of
 # gtk.TreeViewColumn
 class TreeView(TreeViewHelper, origTreeView):
-    pass
-
+    def get_selection(self):
+        sel = origTreeView.get_selection(self)
+        if not isinstance(sel.set_select_function, FunctionSelectWrapper):
+            sel.set_select_function = FunctionSelectWrapper(sel.set_select_function)
+        return sel
 
 class PropertySetter:
     def __init__(self, cell, column, model, iter):

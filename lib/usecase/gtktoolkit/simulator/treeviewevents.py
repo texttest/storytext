@@ -261,6 +261,11 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
         return [ "changed.selection" ]
         
     def connectRecord(self, method):
+        def selection_disallowed(path):
+            method(self.selection, path, self)
+        # Must record event if the selection is rejected
+        if isinstance(self.selection.set_select_function, treeviewextract.FunctionSelectWrapper):
+            self.selection.set_select_function.fail_method = selection_disallowed
         self._connectRecord(self.selection, method)
 
     def getChangeMethod(self):
@@ -274,6 +279,9 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
             return None, model
 
     def shouldRecord(self, *args):
+        if len(args) > 1 and isinstance(args[1], tuple):
+            # from selection_disallowed above
+            return True
         ret = baseevents.StateChangeEvent.shouldRecord(self, *args)
         if not ret:
             self.getStateDescription() # update internal stores for programmatic changes
@@ -310,7 +318,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
         return False
 
     def getStateDescription(self, *args):
-        return self._getStateDescription(storeSelected=True)
+        return self._getStateDescription(args, storeSelected=True)
 
     def previousIndex(self, iter):
         try:
@@ -318,7 +326,11 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
         except ValueError:
             return len(self.prevSelected)
 
-    def _getStateDescription(self, storeSelected=False):
+    def _getStateDescription(self, args, storeSelected=False):
+        if args and isinstance(args[0], tuple):
+            # selection function returned false...
+            return self.indexer.path2string(args[0])
+
         newSelected = self.findSelectedIters()
         newSelected.sort(key=self.previousIndex)
         if storeSelected:
@@ -379,7 +391,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
                not prevLine.startswith(self.name):
             return False
         prevStateDesc = prevLine[len(self.name) + 1:]
-        currStateDesc = self._getStateDescription()
+        currStateDesc = self._getStateDescription(args[1:])
         if len(currStateDesc) > len(prevStateDesc):
             return currStateDesc.startswith(prevStateDesc)
         elif len(currStateDesc) > 0:
