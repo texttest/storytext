@@ -144,7 +144,7 @@ class FunctionSelectWrapper:
         
     def can_select(self, *args):
         retval = self.realFunc(*args)
-        if not retval:
+        if not retval and self.fail_method is not None:
             path = self.find_path(*args)
             self.fail_method(path)
         return retval
