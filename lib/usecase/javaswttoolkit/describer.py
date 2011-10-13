@@ -114,9 +114,8 @@ class Describer(usecase.guishared.Describer):
                 self.describeVisibilityChange(widget, markedWidgets, "Widgets have been repainted: describing common parent :\n")
 
     def describeClipboardChanges(self, display):
-        from org.eclipse.swt.dnd import Clipboard, TextTransfer
-        clipboard = Clipboard(display)
-        textTransfer = TextTransfer.getInstance()
+        clipboard = swt.dnd.Clipboard(display)
+        textTransfer = swt.dnd.TextTransfer.getInstance()
         if self.clipboardText is None:
             # Initially. For some reason it doesn't let us set empty strings here
             # clearContents seemed the way to go, but seems not to work on Windows
@@ -464,16 +463,14 @@ class Describer(usecase.guishared.Describer):
     def getVerticalDividePositions(self, children):
         positions = []
         for child in children:
-            if self.checkInstance(child, swt.widgets.Sash) and child.getStyle() & swt.SWT.VERTICAL:
+            if isinstance(child, swt.widgets.Sash) and child.getStyle() & swt.SWT.VERTICAL:
                  positions.append(child.getLocation().x)
         return sorted(positions)
 
     def layoutSortsChildren(self, widget):
         layout = widget.getLayout()
-        return layout is not None and (util.checkInstance(layout, swt.layout.GridLayout) or \
-                                       util.checkInstance(layout, swt.layout.FillLayout) or \
-                                       util.checkInstance(layout, swt.layout.RowLayout) or \
-                                       util.checkInstance(layout, swt.custom.StackLayout))
+        return layout is not None and isinstance(layout, (swt.layout.GridLayout, swt.layout.FillLayout,
+                                                          swt.layout.RowLayout, swt.custom.StackLayout))
 
     def _getDescription(self, widget):
         self.widgetsDescribed.add(widget)
@@ -507,7 +504,7 @@ class Describer(usecase.guishared.Describer):
             return 1
 
     def usesGrid(self, widget):
-        return self.checkInstance(widget.getLayout(), swt.layout.GridLayout)
+        return isinstance(widget.getLayout(), swt.layout.GridLayout)
 
     def getLayoutColumns(self, widget, childCount, *args):
         layout = widget.getLayout()
@@ -517,9 +514,6 @@ class Describer(usecase.guishared.Describer):
             if layout.type == swt.SWT.HORIZONTAL:
                 return childCount
         return 1
-
-    def checkInstance(self, *args):
-        return util.checkInstance(*args)
 
     def getRawDataLayoutDetails(self, layout, *args):
         return [ str(layout.numColumns) + " columns" ] if hasattr(layout, "numColumns") else []

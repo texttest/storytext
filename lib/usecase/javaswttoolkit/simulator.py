@@ -468,7 +468,7 @@ class DisplayFilter:
         if not util.isVisible(widget):
             return False
         for cls, types in self.widgetEventTypes:
-            if util.checkInstance(widget, cls) and eventType in types and not isinstance(widget.getParent(), swt.widgets.DateTime):
+            if isinstance(widget, cls) and eventType in types and not isinstance(widget.getParent(), swt.widgets.DateTime):
                 return True
         return False
 
@@ -617,7 +617,7 @@ class WidgetMonitor:
         adapters = []
         for widget in widgets + self.getPopupMenus(widgets):
             for widgetClass in self.swtbotMap.keys():
-                if util.checkInstance(widget, widgetClass):
+                if isinstance(widget, widgetClass):
                     swtbotClass = self.findSwtbotClass(widget, widgetClass)
                     try:
                         adapters.append(WidgetAdapter.adapt(swtbotClass(widget)))

@@ -4,10 +4,6 @@ from org.eclipse import swt
 from java.text import SimpleDateFormat
 import usecase.guishared
 
-def checkInstance(widget, widgetClass):
-    # Classloader problems with the swt.custom module mean isinstance doesn't work from RCP applications
-    return isinstance(widget, widgetClass) or widget.__class__.__name__ == widgetClass.__name__
-
 def getTextLabel(widget):
     return usecase.guishared.getTextLabel(widget, "getChildren", swt.widgets.Label)
 

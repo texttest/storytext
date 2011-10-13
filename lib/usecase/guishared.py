@@ -830,12 +830,12 @@ class Describer:
     
     def getWidgetDescription(self, widget):
         for widgetClass in self.stateWidgets + self.statelessWidgets:
-            if self.checkInstance(widget, widgetClass):
+            if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__.replace("$", "") + "Description"
                 return getattr(self, methodName)(widget)
 
         for widgetClass in self.ignoreWidgets:
-            if self.checkInstance(widget, widgetClass):
+            if isinstance(widget, widgetClass):
                 return ""
         
         return self.widgetTypeDescription(widget.__class__.__name__) # pragma: no cover - should be unreachable
@@ -843,16 +843,13 @@ class Describer:
     def widgetTypeDescription(self, typeName): # pragma: no cover - should be unreachable
         return "A widget of type '" + typeName + "'" 
 
-    def checkInstance(self, widget, widgetClass):
-        return isinstance(widget, widgetClass) # SWT has classloader trouble, override this
-
     def getState(self, widget):
         state = self.getSpecificState(widget)
         return state.strip()
 
     def getSpecificState(self, widget):
         for widgetClass in self.stateWidgets:
-            if self.checkInstance(widget, widgetClass):
+            if isinstance(widget, widgetClass):
                 methodName = "get" + widgetClass.__name__ + "State"
                 return getattr(self, methodName)(widget)
         return ""

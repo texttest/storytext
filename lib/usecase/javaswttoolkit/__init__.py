@@ -74,6 +74,7 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         monitor = self.setUpMonitoring()
         from simulator import runOnUIThread
         # Can't make this a member, otherwise fail with classloader problems for RCP
+        # (replayer constructed before Eclipse classloader set)
         describer = self.getDescriberClass()()
         runOnUIThread(describer.addFilters, monitor.getDisplay())
         def describe():

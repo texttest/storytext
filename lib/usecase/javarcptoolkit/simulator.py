@@ -3,10 +3,16 @@
 
 import sys
 from usecase.javaswttoolkit import simulator as swtsimulator
-from usecase.javaswttoolkit import describer as swtdescriber
 from usecase.guishared import GuiEvent
 import org.eclipse.swtbot.eclipse.finder as swtbot
 from org.eclipse.ui import IPartListener
+
+# If classes get mentioned for the first time in the event dispatch thread, they will get the wrong classloader
+# So we load everything we'll ever need here, once, where we know what the classloader is
+from org.eclipse.swt.widgets import *
+from org.eclipse.swt.custom import *
+from org.eclipse.swt.dnd import *
+from org.eclipse.swt.layout import *
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -116,14 +122,4 @@ class PartActivateEvent(GuiEvent):
         return "ActivatePart"
 
 swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent ]))
-                
-class Describer(swtdescriber.Describer):
-    def describeClipboardChanges(self, display):
-        # Unfortunately we have classloader problems here
-        # Temporarily set and reset the classloader so we can get the information
-        currClassLoader = sys.classLoader
-        sys.classLoader = display.getClass().getClassLoader()
-        try:
-            swtdescriber.Describer.describeClipboardChanges(self, display)
-        finally:
-            sys.classLoader = currClassLoader
+
