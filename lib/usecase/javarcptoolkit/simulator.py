@@ -13,6 +13,7 @@ from org.eclipse.swt.widgets import *
 from org.eclipse.swt.custom import *
 from org.eclipse.swt.dnd import *
 from org.eclipse.swt.layout import *
+from org.eclipse.swtbot.eclipse.finder.finders import *
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
