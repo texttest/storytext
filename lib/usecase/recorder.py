@@ -197,13 +197,16 @@ class UseCaseRecorder:
         willRecord = not event.delayLevel() and not event.isStateChange()
         self.writeApplicationEventDetails(haveRecorded or willRecord)
         delayLevel = event.delayLevel()
-        if event.isStateChange():
+        if event.isStateChange() and delayLevel >= self.getMaximumStoredDelay():
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel))
             self.stateChangeEventInfo = scriptOutput, event, delayLevel
         else:
             if self.recordOrDelay(scriptOutput, event, delayLevel):
                 self.processDelayedEvents(self.delayedEvents)
                 self.delayedEvents = []
+
+    def getMaximumStoredDelay(self):
+        return max((i[-1] for i in self.delayedEvents)) if self.delayedEvents else 0
 
     def recordOrDelay(self, scriptOutput, event, delayLevel):
         if delayLevel:
