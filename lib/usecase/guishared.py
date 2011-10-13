@@ -459,7 +459,7 @@ class UIMapFileHandler:
     def findSectionAndOption(self, valueString):
         for section in self.readParser.sections():
             for optionName, value in self.readParser.items(section):
-                if valueString.startswith(value):
+                if value and valueString.startswith(value):
                     return section, optionName
         return None, None
 
