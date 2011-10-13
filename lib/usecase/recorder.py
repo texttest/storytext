@@ -197,7 +197,7 @@ class UseCaseRecorder:
         willRecord = not event.delayLevel() and not event.isStateChange()
         self.writeApplicationEventDetails(haveRecorded or willRecord)
         delayLevel = event.delayLevel()
-        if event.isStateChange() and len(self.delayedEvents) == 0:
+        if event.isStateChange():
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel))
             self.stateChangeEventInfo = scriptOutput, event, delayLevel
         else:
