@@ -281,7 +281,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
     def shouldRecord(self, *args):
         if len(args) > 1 and isinstance(args[1], tuple):
             # from selection_disallowed above
-            return True
+            return not self.programmaticChange
         ret = baseevents.StateChangeEvent.shouldRecord(self, *args)
         if not ret:
             self.getStateDescription() # update internal stores for programmatic changes
