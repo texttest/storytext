@@ -183,16 +183,15 @@ class UseCaseRecorder:
         if not event.shouldRecord(*args):
             self.logger.debug("Told we should not record it : args were " + repr(args))
             return
-        
+
         haveRecorded = False 
         if self.stateChangeEventInfo:
             stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
-            if stateChangeDelayLevel >= event.delayLevel():
-                if event.implies(stateChangeOutput, stateChangeEvent, *args):
-                    self.logger.debug("Implies previous state change event, ignoring previous")
-                else:
-                    haveRecorded = self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
-                self.stateChangeEventInfo = None
+            if event.implies(stateChangeOutput, stateChangeEvent, *args):
+                self.logger.debug("Implies previous state change event, ignoring previous")
+            else:
+                haveRecorded = self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
+            self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
         willRecord = not event.delayLevel() and not event.isStateChange()
