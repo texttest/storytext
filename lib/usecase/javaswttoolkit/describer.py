@@ -67,6 +67,9 @@ class Describer(usecase.guishared.Describer):
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
+            if self.structureLogger.isEnabledFor(logging.DEBUG):
+                for widget in stateChangeWidgets:
+                    self.describeStructure(widget)
             self.describeAppearedWidgets(stateChangeWidgets)
             self.describeRepaintedWidgets(stateChangeWidgets)
             self.describeStateChanges(stateChanges)
@@ -95,6 +98,8 @@ class Describer(usecase.guishared.Describer):
                 parent = widget.getParent()
                 if not self.parentMarked(parent, markedWidgets):
                     markedWidgets.append(parent)
+                    if self.structureLogger.isEnabledFor(logging.DEBUG):
+                        self.describeStructure(parent)
                     self.logger.info(header)
                     self.logger.info(self.getChildrenDescription(parent))
                 elif self.logger.isEnabledFor(logging.DEBUG):

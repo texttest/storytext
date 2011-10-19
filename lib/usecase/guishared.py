@@ -676,6 +676,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         while True:
             describeMethod()
             if self.delay:
+                self.logger.debug("Sleeping for " + str(self.delay) + " seconds...")
                 time.sleep(self.delay)
             if not self.runNextCommand():
                 self.readingEnabled = self.waitingCompleted()
@@ -862,30 +863,36 @@ class Describer:
             return elements[0] + " (" + ", ".join(elements[1:]) + ")"
 
     ##Debug code
-    def getRawData(self, widget, useModule=False):
+    def getRawData(self, widget, useModule=False,
+                   visibleMethodNameOverride=None, layoutMethodNameOverride=None):
         basic = ""
         if useModule:
             basic = widget.__class__.__module__ + "."
         basic += widget.__class__.__name__ + " " + str(id(widget))
         if hasattr(widget, "isDisposed") and widget.isDisposed():
             return basic
-        if hasattr(widget, "getLayout"):
-            layout = widget.getLayout()
-            if layout is not None:
-                layoutText = layout.__class__.__name__
-                if useModule:
-                    layoutText = layout.__class__.__module__ + "." + layoutText
-                elements = [ layoutText ] + self.getRawDataLayoutDetails(layout, widget)
-                basic += " (" + ", ".join(elements) + ")"
-        if hasattr(widget, self.visibleMethodName) and not getattr(widget, self.visibleMethodName)():
+        layout = None
+        layoutMethodName = layoutMethodNameOverride or "getLayout"
+        if hasattr(widget, layoutMethodName):
+            layout = getattr(widget, layoutMethodName)()
+
+        if layout is not None:
+            layoutText = layout.__class__.__name__
+            if useModule:
+                layoutText = layout.__class__.__module__ + "." + layoutText
+            elements = [ layoutText ] + self.getRawDataLayoutDetails(layout, widget)
+            basic += " (" + ", ".join(elements) + ")"
+        visibleMethodName = visibleMethodNameOverride or self.visibleMethodName
+        if hasattr(widget, visibleMethodName) and not getattr(widget, visibleMethodName)():
             basic += " (invisible)"
         return basic
         
-    def describeStructure(self, widget, indent=0):
-        self.structureLogger.info("-" * 2 * indent + self.getRawData(widget, useModule=True))
+    def describeStructure(self, widget, indent=0, **kw):
+        rawData = self.getRawData(widget, useModule=True, **kw)
+        self.structureLogger.info("-" * 2 * indent + rawData)
         if hasattr(widget, self.childrenMethodName):
             for child in getattr(widget, self.childrenMethodName)():
-                self.describeStructure(child, indent+1)
+                self.describeStructure(child, indent+1, **kw)
 
     def getAndStoreState(self, widget):
         state = self.getState(widget)
