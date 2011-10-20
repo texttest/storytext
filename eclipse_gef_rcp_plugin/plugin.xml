@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         id="application"
+         point="org.eclipse.core.runtime.applications">
+      <application>
+         <run
+               class="org.eclipse.swtbot.testscript.Application">
+         </run>
+      </application>
+   </extension>
+   <extension
+         point="org.eclipse.ui.activities">
+      <activity
+            id="org.eclipse.swtbot.gef.testscript.uiIdeActivity"
+            name="UI Ide Activity">
+      </activity>
+      <activityPatternBinding
+            activityId="org.eclipse.swtbot.gef.testscript.uiIdeActivity"
+            pattern="org.eclipse.ui.ide*">
+      </activityPatternBinding>
+      <activityPatternBinding
+            activityId="org.eclipse.swtbot.gef.testscript.uiIdeActivity"
+            pattern="org\.eclipse\.ui\.ide/org.eclipse.ui.openLocalFile">
+      </activityPatternBinding>
+   </extension>
+
+</plugin>
