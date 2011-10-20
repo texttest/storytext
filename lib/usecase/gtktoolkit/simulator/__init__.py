@@ -37,7 +37,7 @@ class DialogHelper:
         self.handlers.append(self.connect_for_real(signalName, wrapped_method, *args))
 
     def run(self):
-        if gtk.main_level() == 0:
+        if gtk.main_level() == 0 or not hasattr(self, "connect_for_real"):
             # Dialog.run can be used instead of the mainloop, don't interfere then
             return origDialog.run(self)
         
