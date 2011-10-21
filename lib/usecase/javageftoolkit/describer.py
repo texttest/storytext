@@ -112,14 +112,18 @@ class FigureCanvasDescriber(guishared.Describer):
         graphics = RecorderGraphics(figure.getFont(), [ "drawString" ])
         figure.paintFigure(graphics)
         calls = graphics.calls.get("drawString", [])
-        desc = self.arrangeText(calls)
+        calls.sort(key=lambda (t, x, y): (y, x))
         colorText = colorNameFinder.getName(figure.getBackgroundColor())
-        return self.formatFigure(desc, colorText, figure.getBorder())
+        return self.formatFigure(figure, calls, colorText)
 
-    def formatFigure(self, desc, colorText, border):
+    def formatFigure(self, figure, calls, colorText):
+        desc = self.arrangeText(calls)
         if colorText != self.defaultColor:
             desc += "(" + colorText + ")"
-        if border:
+        return self.addBorder(figure, desc)
+
+    def addBorder(self, figure, desc):
+        if figure.getBorder():
             return "[ " + desc + " ]"
         else:
             return desc
@@ -130,7 +134,6 @@ class FigureCanvasDescriber(guishared.Describer):
         elif len(calls) == 1:
             return calls[0][0]
         else:
-            calls.sort(key=lambda (t, x, y): (y, x))
             grid = self.makeTextGrid(calls)
             numColumns = max((len(r) for r in grid))
             formatter = gridformatter.GridFormatter(grid, numColumns)
