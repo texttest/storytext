@@ -1026,6 +1026,67 @@ class Describer:
         else:
             return text
 
+    def describeAppearedWidgets(self, stateChangeWidgets):
+        newWindows, commonParents = self.categoriseAppearedWidgets(stateChangeWidgets)
+        for window in newWindows:
+            self.describe(window)
+            
+        descriptions = map(self.getDescriptionForVisibilityChange, commonParents)
+        if self.structureLogger.isEnabledFor(logging.DEBUG):
+            for parent in commonParents:
+                self.describeStructure(parent)
+            
+        for desc in sorted(descriptions):
+            self.logger.info("\nNew widgets have appeared: describing common parent :\n")
+            self.logger.info(desc)
+    
+    def getMarkedAncestor(self, widget, markedWidgets):
+        if widget in markedWidgets:
+            return widget
+        elif widget.getParent():
+            return self.getMarkedAncestor(widget.getParent(), markedWidgets)
+
+    def categoriseAppearedWidgets(self, stateChangeWidgets):
+        newWindows, commonParents = [], []
+        # Windows only get title changes described
+        stateChangesFullDescribe = filter(lambda w: not isinstance(w, self.getWindowClasses()), stateChangeWidgets)
+        markedWidgets = self.widgetsAppeared + stateChangesFullDescribe
+        for widget in self.widgetsAppeared:
+            if not self.widgetShowing(widget):
+                continue
+
+            if isinstance(widget, self.getWindowClasses()): 
+                newWindows.append(widget)
+            else:
+                appearedWidget = self.getWidgetToDescribeForAppearance(widget, markedWidgets)
+                if appearedWidget:
+                    markedWidgets.append(appearedWidget)
+                    commonParents.append(appearedWidget)
+                    
+        commonParents = [ w for w in commonParents if not self.hasMarkedAncestor(w, markedWidgets) ]
+        return newWindows, commonParents
+
+    def hasMarkedAncestor(self, widget, markedWidgets):
+        return widget.getParent() is not None and self.getMarkedAncestor(widget.getParent(), markedWidgets) is not None
+
+    def getWidgetToDescribeForAppearance(self, widget, markedWidgets):
+        parent = widget.getParent()
+        if parent is not None:
+            markedAncestor = self.getMarkedAncestor(parent, markedWidgets)
+            if markedAncestor:
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " +
+                                          self.getRawData(markedAncestor))
+            else:
+                return parent
+
+    def getDescriptionForVisibilityChange(self, widget):
+        if self.shouldDescribeChildren(widget):
+            return self.getChildrenDescription(widget)
+        else:
+            return self.getDescription(widget)
+
+
 
 def getExceptionString():
     type, value, traceback = sys.exc_info()

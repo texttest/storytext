@@ -29,27 +29,21 @@ class Describer(usecase.guishared.Describer):
         self.canvasCounter = usecase.guishared.WidgetCounter()
         self.contextMenuCounter = usecase.guishared.WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
-        self.widgetsRepainted = []
         self.widgetsDescribed = set()
         self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
     def setWidgetPainted(self, widget):
-        if widget in self.widgetsDescribed or widget in self.windows:
-            if widget not in self.widgetsRepainted:
-                self.widgetsRepainted.append(widget)
-        elif widget not in self.widgetsAppeared:
+        if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
+            self.logger.debug("Widget painted " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
 
     def setWidgetShown(self, widget):
         # Menu show events seem a bit spurious, they aren't really shown at this point:
         # ScrollBar shows are not relevant to anything
         if not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar)) and widget not in self.widgetsAppeared:
+            self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
-
-    def isCanvas(self, widget):
-        # Don't include subclasses which generally have some other way of being handled
-        return widget.__class__ is swt.widgets.Canvas
 
     def addFilters(self, display):
         class ShowListener(swt.widgets.Listener):
@@ -71,52 +65,17 @@ class Describer(usecase.guishared.Describer):
                 for widget in stateChangeWidgets:
                     self.describeStructure(widget)
             self.describeAppearedWidgets(stateChangeWidgets)
-            self.describeRepaintedWidgets(stateChangeWidgets)
             self.describeStateChanges(stateChanges)
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)
         self.widgetsAppeared = []
-        self.widgetsRepainted = []
         
     def shouldCheckForUpdates(self, widget, shell):
         return not isinstance(widget, swt.widgets.Menu) or widget.getShell() == shell
 
-    def parentMarked(self, widget, markedWidgets):
-        if widget in markedWidgets:
-            return True
-        elif widget.getParent():
-            return self.parentMarked(widget.getParent(), markedWidgets)
-        else:
-            return False
-
-    def describeVisibilityChange(self, widget, markedWidgets, header):
-        if not widget.isDisposed() and util.isVisible(widget):
-            if isinstance(widget, swt.widgets.Shell):
-                self.describe(widget)
-            else:
-                parent = widget.getParent()
-                if not self.parentMarked(parent, markedWidgets):
-                    markedWidgets.append(parent)
-                    if self.structureLogger.isEnabledFor(logging.DEBUG):
-                        self.describeStructure(parent)
-                    self.logger.info(header)
-                    self.logger.info(self.getChildrenDescription(parent))
-                elif self.logger.isEnabledFor(logging.DEBUG):
-                    self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " + \
-                                      repr(map(self.getRawData, markedWidgets)))
-
-    def describeAppearedWidgets(self, stateChangeWidgets):
-        markedWidgets = self.widgetsAppeared + stateChangeWidgets
-        for widget in self.widgetsAppeared:
-            self.describeVisibilityChange(widget, markedWidgets, "New widgets have appeared: describing common parent :\n")
-
-    def describeRepaintedWidgets(self, stateChangeWidgets):
-        markedWidgets = self.widgetsAppeared + self.widgetsRepainted + stateChangeWidgets
-        for widget in self.widgetsRepainted:
-            if self.isCanvas(widget):
-                # Only worry about repainting for canvas objects right now
-                self.describeVisibilityChange(widget, markedWidgets, "Widgets have been repainted: describing common parent :\n")
+    def widgetShowing(self, widget):
+        return not widget.isDisposed() and util.isVisible(widget)
 
     def describeClipboardChanges(self, display):
         clipboard = swt.dnd.Clipboard(display)
@@ -220,8 +179,11 @@ class Describer(usecase.guishared.Describer):
     def getExpandBarState(self, expandbar):
         return expandbar.getChildren(), [ item.getExpanded() for item in expandbar.getItems() ] 
 
-    def getToolBarDescription(self, toolbar, indent=1):
-        return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=indent)
+    def getToolBarDescription(self, toolbar):
+        return self.getAndStoreState(toolbar)
+
+    def getToolBarState(self, toolbar):
+        return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=1)
     
     def getCoolBarDescription(self, coolbar):
         return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1,
@@ -494,6 +456,21 @@ class Describer(usecase.guishared.Describer):
     def shouldDescribeChildren(self, widget):
         # Composites with StackLayout use the topControl rather than the children
         return usecase.guishared.Describer.shouldDescribeChildren(self, widget) and not util.getTopControl(widget)
+
+    def _getChildrenDescription(self, widget):
+        if self.shouldDescribeChildren(widget):
+            return self.formatChildrenDescription(widget)
+        else:
+            self.markDescendantsDescribed(widget)
+            return ""
+
+    def markDescendantsDescribed(self, widget):
+        if hasattr(widget, self.childrenMethodName):
+            self.logger.debug("Mark descendants for " + self.getRawData(widget))
+            children = getattr(widget, self.childrenMethodName)()
+            self.widgetsDescribed.update(children)
+            for child in children:
+                self.markDescendantsDescribed(child)
         
     def formatContextMenuDescriptions(self):
         text = ""

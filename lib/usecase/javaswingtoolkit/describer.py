@@ -34,52 +34,14 @@ class Describer(usecase.guishared.Describer):
     def shouldCheckForUpdates(self, widget, *args):
         return widget.isShowing()
     
-    def describeAppearedWidgets(self, stateChangeWidgets):
-        newWindows, commonParents = self.categoriseAppearedWidgets(stateChangeWidgets)
-        for window in newWindows:
-            self.describe(window)
-            
-        descriptions = map(self.getDescriptionForVisibilityChange, commonParents)
-        if self.structureLogger.isEnabledFor(logging.DEBUG):
-            for parent in commonParents:
-                self.describeStructure(parent)
-            
-        for desc in sorted(descriptions):
-            self.logger.info("\nNew widgets have appeared: describing common parent :\n")
-            self.logger.info(desc)
-    
-    def getMarkedAncestor(self, widget, markedWidgets):
-        if widget in markedWidgets:
-            return widget
-        elif widget.getParent():
-            return self.getMarkedAncestor(widget.getParent(), markedWidgets)
+    def widgetShowing(self, widget):
+        return widget.isShowing()
 
-    def categoriseAppearedWidgets(self, stateChangeWidgets):
-        newWindows, commonParents = [], []
-        # Windows only get title changes described
-        stateChangesFullDescribe = filter(lambda w: not isinstance(w, self.getWindowClasses()), stateChangeWidgets)
-        markedWidgets = self.widgetsAppeared + stateChangesFullDescribe
-        for widget in self.widgetsAppeared:
-            if not widget.isShowing():
-                continue
-            elif isinstance(widget, self.getWindowClasses()):
-                newWindows.append(widget)
-            elif util.hasPopupMenu(widget):
-                markedWidgets.append(widget)
-                commonParents.append(widget)
-            else:
-                parent = widget.getParent()
-                if parent is not None:
-                    markedAncestor = self.getMarkedAncestor(parent, markedWidgets)
-                    if markedAncestor:
-                        if self.logger.isEnabledFor(logging.DEBUG):
-                            self.logger.debug("Not describing " + self.getRawData(widget) + " - marked " +
-                                              self.getRawData(markedAncestor))
-                    else:
-                        markedWidgets.append(parent)
-                        commonParents.append(parent)
-                
-        return newWindows, commonParents
+    def getWidgetToDescribeForAppearance(self, widget, markedWidgets):
+        if util.hasPopupMenu(widget):
+            return widget
+        else:
+            return usecase.guishared.Describer.getWidgetToDescribeForAppearance(self, widget, markedWidgets)
 
     def getDescriptionForVisibilityChange(self, widget):
         if self.shouldDescribeChildren(widget):
