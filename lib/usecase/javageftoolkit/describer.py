@@ -100,7 +100,7 @@ class RecorderGraphics(draw2d.Graphics, object):
 class FigureCanvasDescriber(guishared.Describer):
     childrenMethodName = "getChildren"
     visibleMethodName = "isVisible"
-    statelessWidgets = [ draw2d.RectangleFigure, draw2d.Label ]
+    statelessWidgets = [ draw2d.RectangleFigure, draw2d.Label, draw2d.PolylineShape ]
     stateWidgets = []
     ignoreWidgets = [ draw2d.Figure ] # Not interested in anything except what we list
     ignoreChildren = ()
@@ -139,23 +139,30 @@ class FigureCanvasDescriber(guishared.Describer):
             formatter = gridformatter.GridFormatter(grid, numColumns)
             return str(formatter)
 
+    def usesGrid(self, figure):
+        return isinstance(figure, draw2d.RectangleFigure)
+
     def makeTextGrid(self, calls):
         grid = []
-        prevY = None
+        prevX, prevLineX, prevY = None, None, None
         for text, x, y in calls:
             if y != prevY:
+                prevLineX = prevX
                 grid.append([])
+            if x < prevLineX:
+                grid[-2].insert(0, "")
             grid[-1].append(text)
+            prevX = x
             prevY = y
         return grid
 
     def tryMakeGrid(self, figure, sortedChildren, childDescriptions):
         calls = [ (desc, child.getLocation().x, child.getLocation().y) for desc, child in zip(childDescriptions, sortedChildren) ]
         grid = self.makeTextGrid(calls)
-        return [ self.makeGridRow(r) for r in grid ], 1
-
-    def makeGridRow(self, r):
-        return [ str(gridformatter.GridFormatter([ r ], len(r), columnSpacing=1)) ]
+        if len(grid) > 0:
+            return grid, max((len(r) for r in grid))
+        else:
+            return None, 0
             
     def layoutSortsChildren(self, widget):
         return False
