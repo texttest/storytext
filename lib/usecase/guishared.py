@@ -942,11 +942,14 @@ class Describer:
             if columns > 1:
                 maxWidth = self.getMaxDescriptionWidth(widget)
                 formatter = GridFormatter(grid, columns, maxWidth)
-                # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
-                return formatter if formatter.isHorizontalRow() else str(formatter)
+                return self.handleGridFormatter(formatter)
             elif grid:
                 childDescriptions = [ row[0] for row in grid ]
         return self.formatInColumn(childDescriptions)
+
+    def handleGridFormatter(self, formatter):
+        # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
+        return formatter if formatter.isHorizontalRow() else str(formatter)
 
     def tryMakeGrid(self, widget, sortedChildren, childDescriptions):
         columns = self.getLayoutColumns(widget, len(childDescriptions), sortedChildren)
@@ -992,6 +995,8 @@ class Describer:
         return 130 # About a screen or so...
 
     def formatInColumn(self, childDescriptions):
+        if len(childDescriptions) == 1:
+            return childDescriptions[0]
         desc = ""
         for childDesc in childDescriptions:
             desc = self.addToDescription(desc, self.convertToString(childDesc))
