@@ -163,7 +163,7 @@ class Describer(usecase.guishared.Describer):
                 grid.append([ "" ])
             while len(grid[y]) <= x:
                 grid[y].append("")
-            grid[y][x] = desc
+            grid[y][x] = str(desc)
         return grid, max((len(r) for r in grid))
 
     def getHorizontalSpans(self, children, columnCount):
