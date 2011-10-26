@@ -82,5 +82,9 @@ class UseCaseReplayer(usecase.guishared.ThreadedUseCaseReplayer):
         self.describeAndRun(describe)
 
     def getDescriberClass(self):
-        from describer import Describer
-        return Describer
+        try:
+            from draw2ddescriber import Describer
+            return Describer
+        except ImportError:
+            from describer import Describer
+            return Describer

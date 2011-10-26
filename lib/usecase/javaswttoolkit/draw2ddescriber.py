@@ -3,7 +3,6 @@ from usecase.javaswttoolkit import describer as swtdescriber
 from usecase import guishared, gridformatter
 import org.eclipse.draw2d as draw2d
 from org.eclipse import swt
-import sys
 
 class ColorNameFinder:
     abbrevations = [ ("dark", "+"), ("dull", "#"), ("very", "+"),

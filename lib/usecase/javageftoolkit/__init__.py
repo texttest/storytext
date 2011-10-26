@@ -17,7 +17,7 @@ class UseCaseReplayer(javarcptoolkit.UseCaseReplayer):
         try:
             from customwidgetevents import Describer
         except ImportError:
-            from describer import Describer
+            from usecase.javaswttoolkit.draw2ddescriber import Describer
         return Describer
     
     def getMonitorClass(self):
