@@ -603,7 +603,7 @@ class WidgetMonitor:
                     menuFinder = swtbot.finders.ContextMenuFinder(widget)
                     menus += menuFinder.findMenus(IsAnything())
                 except TypeError:
-                    print "WARNING, got widget of type", widget.__class__.__name__, " (not a control?) causing TypeError to be thrown"
+                    print "WARNING, classloader problems with ContextMenuFinder, could not find context menus."
         return menus
 
     def findSwtbotClass(self, widget, widgetClass):
