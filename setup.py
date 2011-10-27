@@ -30,7 +30,8 @@ class windows_install_scripts(install_scripts):
         for script in scripts:
             localName = os.path.basename(script)
             try:
-                script_path = self._quoted_path(os.path.join(self.install_dir, localName))
+                bin_dir = os.path.join(sys.prefix, 'bin')
+                script_path = self._quoted_path(os.path.join(bin_dir, localName))
                 python_exe = self._quoted_path(sys.executable)
                 args = '%*'
                 batch_str = "@%s %s %s" % (python_exe, script_path, args)
