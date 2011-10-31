@@ -1,7 +1,7 @@
 
 """ Don't load any Eclipse stuff at global scope, needs to be importable previous to Eclipse starting """
 
-import sys, threading
+import sys, threading, logging
 from usecase import javaswttoolkit
 from java.lang import Runnable, Thread
 
@@ -13,6 +13,7 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
         import org.eclipse.equinox.launcher as launcher
         cmdArgs = [ "-application", self.getTestscriptPlugin(),
                     "-testApplication" ] + args
+        logging.getLogger().debug("Starting application with args : " + " ".join(cmdArgs))
         launcher.Main.main(cmdArgs)
 
     def getTestscriptPlugin(self):
