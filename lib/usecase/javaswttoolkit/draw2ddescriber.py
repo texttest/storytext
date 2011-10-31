@@ -156,12 +156,20 @@ class FigureCanvasDescriber(guishared.Describer):
         return grid
 
     def tryMakeGrid(self, figure, sortedChildren, childDescriptions):
-        calls = [ (desc, child.getLocation().x, child.getLocation().y) for desc, child in zip(childDescriptions, sortedChildren) ]
+        calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
         grid = self.makeTextGrid(calls)
         if len(grid) > 0:
             return grid, max((len(r) for r in grid))
         else:
             return None, 0
+
+    def makeCall(self, desc, child):
+        loc = child.getLocation()
+        # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
+        return desc, self.getInt(loc.x), self.getInt(loc.y)
+
+    def getInt(self, intOrMethod):
+        return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()
             
     def layoutSortsChildren(self, widget):
         return False
