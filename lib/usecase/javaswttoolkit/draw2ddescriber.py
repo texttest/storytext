@@ -143,17 +143,30 @@ class FigureCanvasDescriber(guishared.Describer):
 
     def makeTextGrid(self, calls):
         grid = []
-        prevX, prevLineX, prevY = None, None, None
+        prevY = None
+        xColumns = []
         for text, x, y in calls:
             if y != prevY:
-                prevLineX = prevX
                 grid.append([])
-            if x < prevLineX:
-                grid[-2].insert(0, "")
+            if x not in xColumns:
+                if len(grid) == 1:
+                    xColumns.append(x)
+                else:
+                    index = self.findIndex(x, xColumns)
+                    xColumns.insert(index, x)
+                    for row in range(len(grid) - 1):
+                        if index < len(grid[row]):
+                            grid[row].insert(index, "")
             grid[-1].append(text)
-            prevX = x
             prevY = y
         return grid
+
+    def findIndex(self, x, xColumns):
+        # linear search, replace with bisect?
+        for ix, currX in enumerate(xColumns):
+            if x < currX:
+                return ix
+        return len(xColumns)
 
     def tryMakeGrid(self, figure, sortedChildren, childDescriptions):
         calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
