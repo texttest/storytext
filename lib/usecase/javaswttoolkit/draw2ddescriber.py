@@ -103,7 +103,6 @@ class FigureCanvasDescriber(guishared.Describer):
     stateWidgets = []
     ignoreWidgets = [ draw2d.Figure ] # Not interested in anything except what we list
     ignoreChildren = ()
-    defaultColor = "white"
     def getLabelDescription(self, figure):
         return figure.getText()
     
@@ -112,12 +111,16 @@ class FigureCanvasDescriber(guishared.Describer):
         figure.paintFigure(graphics)
         calls = graphics.calls.get("drawString", [])
         calls.sort(key=lambda (t, x, y): (y, x))
-        colorText = colorNameFinder.getName(figure.getBackgroundColor())
+        color = figure.getBackgroundColor()
+        colorText = colorNameFinder.getName(color) if self.changedColor(color, figure) else ""
         return self.formatFigure(figure, calls, colorText)
+
+    def changedColor(self, color, figure):
+        return color != figure.getParent().getBackgroundColor()
 
     def formatFigure(self, figure, calls, colorText):
         desc = self.arrangeText(calls)
-        if colorText != self.defaultColor:
+        if colorText:
             desc += "(" + colorText + ")"
         return self.addBorder(figure, desc)
 
@@ -150,6 +153,7 @@ class FigureCanvasDescriber(guishared.Describer):
                 grid.append([])
             if x not in xColumns:
                 if len(grid) == 1:
+                    index = len(xColumns)
                     xColumns.append(x)
                 else:
                     index = self.findIndex(x, xColumns)
@@ -157,6 +161,10 @@ class FigureCanvasDescriber(guishared.Describer):
                     for row in range(len(grid) - 1):
                         if index < len(grid[row]):
                             grid[row].insert(index, "")
+            else:
+                index = xColumns.index(x)
+            while len(grid[-1]) < index:
+                grid[-1].append("")
             grid[-1].append(text)
             prevY = y
         return grid
