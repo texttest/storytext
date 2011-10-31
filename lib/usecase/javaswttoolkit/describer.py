@@ -225,8 +225,47 @@ class Describer(usecase.guishared.Describer):
             elements.append(self.getImageDescription(item.getImage(colIndex)))
         return self.combineElements(elements)
 
+    def getControlDecoration(self, item):
+        listener = self.getControlDecorationListener(item)
+        if listener:
+            return self.getEnclosingInstance(listener)
+
+    def getControlDecorationListener(self, item):
+        for typedListener in item.getListeners(swt.SWT.FocusIn):
+            if hasattr(typedListener, "getEventListener"):
+                focusListener = typedListener.getEventListener() 
+                if "ControlDecoration" in focusListener.__class__.__name__:
+                    return focusListener
+
+    def getEnclosingInstance(self, listener):
+        cls = listener.getClass()
+        for field in cls.getDeclaredFields():
+            if field.getName().startswith("this"):
+                field.setAccessible(True)
+                return field.get(listener)
+       
+    def getControlDecorationDescription(self, item):
+        deco = self.getControlDecoration(item)
+        if deco and self.decorationVisible(deco):
+            text = "Decoration " + self.getImageDescription(deco.getImage())
+            desc = deco.getDescriptionText()
+            if desc:
+                text += "\n'" + desc + "'"
+            return text
+
+    def decorationVisible(self, deco):
+        if hasattr(deco, "isVisible"): # added in 3.6
+            return deco.isVisible()
+
+        method = deco.getClass().getDeclaredMethod("shouldShowDecoration", None)
+        method.setAccessible(True)
+        return method.invoke(deco, None)
+
     def getPropertyElements(self, item, selected=False):
         elements = []
+        decoText = self.getControlDecorationDescription(item)
+        if decoText:
+            elements.append(decoText)
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
         elements += self.getStyleDescriptions(item)
@@ -319,8 +358,8 @@ class Describer(usecase.guishared.Describer):
         contents, properties = self.getState(widget)
         self.widgetsWithState[widget] = contents, properties
         header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
-        fullHeader = self.combineElements([ header ] + properties)
-        return fullHeader + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)    
+        desc = header + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)
+        return self.combineElements([ desc ] + properties)
 
     def getComboDescription(self, widget):
         return self.getTextDescription(widget)

@@ -860,7 +860,36 @@ class Describer:
         if len(elements) <= 1:
             return "".join(elements)
         else:
-            return elements[0] + " (" + ", ".join(elements[1:]) + ")"
+            rows = elements[0].split("\n")
+            rows[0] += " ("
+            basicLengths = map(len, rows)
+            for elIx, el in enumerate(elements[1:]):
+                elRows = el.split("\n")
+                if len(elRows) > 1:
+                    self.equaliseRows(rows)
+
+                for i, elRow in enumerate(elRows):
+                    while len(rows) <= i:
+                        rows.append(" " * len(rows[-1]))
+                    rows[i] += elRow
+                if len(elRows) > 1:
+                    self.equaliseRows(rows)
+                if elIx != len(elements) - 2:
+                    rows[0] += ", "
+            strippedRows = [ r.rstrip() for r in rows ]
+            strippedRows[self.getLastDetailRow(strippedRows, basicLengths)] += ")"
+            return "\n".join(strippedRows)
+
+    def getLastDetailRow(self, rows, basicLengths):
+        for ix in range(-1, -1 - len(rows), -1):
+            if len(rows[ix]) > basicLengths[ix]:
+                return ix
+        
+    def equaliseRows(self, rows):
+        if len(rows) > 1:
+            maxLen = max((len(r) for r in rows))
+            for i, r in enumerate(rows):
+                rows[i] = r.ljust(maxLen)
 
     ##Debug code
     def getRawData(self, widget, useModule=False,
