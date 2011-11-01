@@ -246,6 +246,7 @@ class TextEvent(StateChangeEvent):
         return "Modify"
 
     def _generate(self, argumentString):
+        self.widget.setFocus()
         self.widget.setText(argumentString)
 
     def getStateText(self, *args):
