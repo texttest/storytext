@@ -25,8 +25,9 @@ class GridFormatter:
     def findColumnWidths(self):
         colWidths = []
         for colNum in range(self.numColumns):
-            maxWidth = max((self.getCellWidth(row, colNum) for row in self.grid))
-            if colNum == self.numColumns - 1:
+            cellWidths = set((self.getCellWidth(row, colNum) for row in self.grid))
+            maxWidth = max(cellWidths) or -min(cellWidths)
+            if colNum == self.numColumns - 1 or maxWidth == 0:
                 colWidths.append(maxWidth)
             else:
                 # Pad two spaces between each column
@@ -34,11 +35,16 @@ class GridFormatter:
         return colWidths
 
     def getCellWidth(self, row, colNum):
-        # Don't include rows which are empty after the column in question
-        if colNum < len(row) - 1 or (colNum < len(row) and colNum == self.numColumns - 1):
+        if colNum < len(row):
             lines = row[colNum].splitlines()
             if lines:
-                return max((len(line) for line in lines))
+                maxWidth = max((len(line) for line in lines))
+                if (colNum == len(row) -1 and colNum != self.numColumns - 1):
+                    # Don't include rows which are empty after the column in question
+                    # Unless there is nothing else in their column
+                    return -maxWidth
+                else:
+                    return maxWidth
         return 0
 
     def formatColumnsInGrid(self):
