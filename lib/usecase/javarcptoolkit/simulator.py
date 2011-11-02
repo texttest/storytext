@@ -48,6 +48,8 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allViews = set()
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
+        # Do this here, when things will be loaded with the right classloader 
+        self.uiMap.scriptEngine.importCustomEventTypesFromSimulator()
         
     def createSwtBot(self):
         return swtbot.SWTWorkbenchBot()

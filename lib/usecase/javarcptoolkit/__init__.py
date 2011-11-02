@@ -22,6 +22,9 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
     def importCustomEventTypes(self):
         pass # Otherwise they get loaded too early and hence get the wrong classloader
 
+    def importCustomEventTypesFromSimulator(self):
+        javaswttoolkit.ScriptEngine.importCustomEventTypes(self) # Our hook to do it for real...
+
 
 class TestRunner(Runnable):
     def __init__(self, method):
