@@ -53,7 +53,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         return swtbot.SWTWorkbenchBot()
     
     def monitorAllWidgets(self, *args, **kw):
-        WidgetAdapter.setAdapterClass(WidgetAdapter)
+        self.setWidgetAdapter()
         swtsimulator.runOnUIThread(self.cacheAndMonitorViews)
         swtsimulator.WidgetMonitor.monitorAllWidgets(self, *args, **kw)
         
@@ -68,8 +68,10 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
                 adapter = ViewAdapter(swtbotView)
                 self.uiMap.monitorWidget(adapter)
-        
 
+    def setWidgetAdapter(self):
+        WidgetAdapter.setAdapterClass(WidgetAdapter)
+        
 class ViewAdapter(swtsimulator.WidgetAdapter):
     def getUIMapIdentifier(self):
         viewId = self.widget.getViewReference().getId()

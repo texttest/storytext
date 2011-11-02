@@ -21,6 +21,9 @@ class UseCaseReplayer(javarcptoolkit.UseCaseReplayer):
         return Describer
     
     def getMonitorClass(self):
-        from simulator import WidgetMonitor
+        try:
+            from customwidgetevents import WidgetMonitor
+        except ImportError:
+            from simulator import WidgetMonitor
         return WidgetMonitor
     
