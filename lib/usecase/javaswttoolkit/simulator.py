@@ -469,9 +469,12 @@ class DisplayFilter:
         if not util.isVisible(widget):
             return False
         for cls, types in self.widgetEventTypes:
-            if isinstance(widget, cls) and eventType in types and not isinstance(widget.getParent(), swt.widgets.DateTime):
+            if isinstance(widget, cls) and eventType in types and not self.hasComplexAncestors(widget):
                 return True
         return False
+
+    def hasComplexAncestors(self, widget):
+        return isinstance(widget.getParent(), swt.widgets.DateTime)
 
     def getAllEventTypes(self):
         eventTypeSet = set()
@@ -511,7 +514,10 @@ class WidgetMonitor:
         self.widgetsMonitored = set()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
-        self.displayFilter = DisplayFilter(self.getWidgetEventTypes())
+        self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
+
+    def getDisplayFilterClass(self):
+        return DisplayFilter
 
     def createSwtBot(self):
         return swtbot.SWTBot()
