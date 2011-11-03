@@ -8,7 +8,15 @@ from java.beans import PropertyChangeListener
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
 from javax import swing
-from org.robotframework.abbot.tester import Robot
+
+try:
+    from org.robotframework.abbot.tester import Robot
+except ImportError:
+    sys.stderr.write("ERROR: Could not find RobotFramework SwingLibrary jar file. \n" +
+                     "Please download it and add it to your CLASSPATH as described at :\n" +
+                     "http://www.texttest.org/index.php?page=ui_testing&n=pyusecase_and_swing\n")
+    sys.exit(1)
+    
 from org.robotframework.org.netbeans import jemmy
 
 # Importing writes uninteresting stuff to stdout
