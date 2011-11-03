@@ -515,6 +515,7 @@ class WidgetMonitor:
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
+        self.findingDescendants = False
 
     def getDisplayFilterClass(self):
         return DisplayFilter
@@ -546,8 +547,9 @@ class WidgetMonitor:
         self.forceShellActive()
         self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
-        self.widgetsMonitored.update(allWidgets)
-        self.monitorAllWidgets(self.getActiveShell(), allWidgets)
+        newWidgets = set(allWidgets).difference(self.widgetsMonitored)
+        self.widgetsMonitored.update(newWidgets)
+        self.monitorAllWidgets(self.getActiveShell(), list(newWidgets))
         
     def forceShellActive(self):
         if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
@@ -574,12 +576,17 @@ class WidgetMonitor:
         return monitorListener
 
     def widgetShown(self, parent, eventType):
-        if parent in self.widgetsMonitored:
+        if parent in self.widgetsMonitored or self.findingDescendants:
             return
 
         if eventType == swt.SWT.Show:
             self.bot.getFinder().setShouldFindInvisibleControls(True)
-        widgets = self.findDescendants(parent)
+        try:
+            # SWTBot seems to cause more show events, don't handle them recursively...
+            self.findingDescendants = True
+            widgets = self.findDescendants(parent)
+        finally:
+            self.findingDescendants = False
         if eventType == swt.SWT.Show:
             self.bot.getFinder().setShouldFindInvisibleControls(False)
 
@@ -587,7 +594,11 @@ class WidgetMonitor:
         self.monitorAllWidgets(parent, widgets)
         
     def findDescendants(self, widget):
-        return self.bot.widgets(IsAnything(), widget)
+        matcher = IsAnything()
+        if isinstance(widget, swt.widgets.Menu):
+            return self.bot.getFinder().findMenus(widget, matcher, True)
+        else:
+            return self.bot.widgets(matcher, widget)
 
     def monitorAllWidgets(self, parent, widgets):
         self.uiMap.logger.debug("Showing/painting widget of type " +
@@ -606,11 +617,8 @@ class WidgetMonitor:
         menus = []
         for widget in widgets:
             if isinstance(widget, swt.widgets.Control):
-                try:
-                    menuFinder = swtbot.finders.ContextMenuFinder(widget)
-                    menus += menuFinder.findMenus(IsAnything())
-                except TypeError:
-                    print "WARNING, classloader problems with ContextMenuFinder, could not find context menus."
+                menuFinder = swtbot.finders.ContextMenuFinder(widget)
+                menus += menuFinder.findMenus(IsAnything())
         return menus
 
     def findSwtbotClass(self, widget, widgetClass):
@@ -641,6 +649,7 @@ class WidgetMonitor:
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotToolbarDropDownButton , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
