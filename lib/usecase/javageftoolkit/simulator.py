@@ -3,51 +3,18 @@
 from usecase.javarcptoolkit import simulator as rcpsimulator
 import org.eclipse.swtbot.eclipse.gef.finder as gefbot
 from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
+from org.eclipse.jface.viewers import ISelectionChangedListener
+from org.eclipse.ui.internal import EditorReference
 # Force classloading in the test thread where it works...
 from org.eclipse.draw2d import *
 from org.eclipse.gef import *
 from usecase.guishared import GuiEvent
 from org.eclipse import swt
 
-class WidgetAdapter(rcpsimulator.WidgetAdapter):
-    def getType(self):
-        if self.isGefWidget():
-            return self.widget.part().__class__.__name__
-        else:
-            return rcpsimulator.WidgetAdapter.getType(self)
-    
-    def getName(self):
-        if self.isGefWidget():
-            model = self.widget.part().getModel()
-            name = str(model)
-            if hasattr(model, "getName"):
-                name = model.getName()
-            return name
-        else:
-            return rcpsimulator.WidgetAdapter.getName(self)
-    
-    def getUIMapIdentifier(self):
-        if self.isGefWidget():
-            return self.getIdentifier()
-        else:
-            return rcpsimulator.WidgetAdapter.getUIMapIdentifier(self)
-    
-    def findPossibleUIMapIdentifiers(self):
-        if self.isGefWidget():
-            return [ self.getIdentifier()]
-        else:
-            return rcpsimulator.WidgetAdapter.findPossibleUIMapIdentifiers(self)
-    
-    def getIdentifier(self):
-        return "Name=" + self.getName() + "," + "Type=" + self.getType()
-    
-    def isGefWidget(self):
-        return isinstance(self.widget, gefbot.widgets.SWTBotGefEditPart)
-    
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
-        rcpsimulator.swtsimulator.WidgetMonitor.swtbotMap[EditPart] = (gefbot.widgets.SWTBotGefEditPart, [])
+        rcpsimulator.swtsimulator.WidgetMonitor.swtbotMap[GraphicalViewer] = (gefbot.widgets.SWTBotGefViewer, [])
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
 
     def createSwtBot(self):
@@ -61,14 +28,16 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         for view in self.bot.views():
             if view.getViewReference() not in self.allPartRefs:
                 for viewer in  self.getViewers(view):
-                    self.addEditParts(viewer.rootEditPart())
+                    adapter = GefViewerAdapter(viewer, view.getViewReference())
+                    self.uiMap.monitorWidget(adapter)
                 self.allPartRefs.add(view.getViewReference())
         for editor in self.bot.editors():
             if editor.getReference() not in self.allPartRefs:
                 for viewer in  self.getViewers(editor):
-                    self.addEditParts(viewer.rootEditPart())
+                    adapter = GefViewerAdapter(viewer, editor.getReference())
+                    self.uiMap.monitorWidget(adapter)
                 self.allPartRefs.add(editor.getReference())
-
+                
     def getViewers(self, part):
         # Default implementation returns only one viewer.
         viewers = []
@@ -85,44 +54,95 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
             pass
         return viewer
 
-    def addEditParts(self, root):
-        # Skip the root
-        for editPart in root.children():
-            self.addEditPart(editPart)
 
-    def addEditPart(self, botPart):
-        self.monitorEditParts(botPart)
-        self.addEditPartChildren(botPart)
+class GefViewerAdapter(rcpsimulator.WidgetAdapter):
+    def __init__(self, widget, partRef):
+        self.partReference = partRef
+        rcpsimulator.WidgetAdapter.__init__(self, widget)
 
-    def addEditPartChildren(self, part):        
-        for child in part.children():
-            self.addEditPart(child)
-    
-    def monitorEditParts(self, botPart):
-        adapter = WidgetAdapter.adapt(botPart)
-        self.uiMap.monitorWidget(adapter)
-    
-    def setWidgetAdapter(self):
-        WidgetAdapter.setAdapterClass(WidgetAdapter)
+    def getUIMapIdentifier(self):
+        partId = self.partReference.getId()
+        if isinstance(self.partReference, EditorReference):
+            return self.encodeToLocale("Editor=" + partId + ", " +"Viewer")
+        else:
+            return self.encodeToLocale("View=" + partId + ", " +"Viewer")
 
-class EditPartSelectEvent(GuiEvent): 
-    def connectRecord(self, method):
-        class RecordListener(EditPartListener.Stub):                
-            def selectedStateChanged(lself, editPart):
-                if editPart.getSelected() == EditPart.SELECTED_PRIMARY:
-                    method(editPart, self)
-                
-        rcpsimulator.swtsimulator.runOnUIThread( self.widget.widget.part().addEditPartListener, RecordListener())   
+    def findPossibleUIMapIdentifiers(self):
+        return [ self.getUIMapIdentifier() ]
     
-    def generate(self, *args):
-        self.widget.click()
-        
+    def getType(self):
+        return "Viewer"
+
+class ViewerEvent(GuiEvent):
+    def outputForScript(self, *args):
+        desc = [self.getObjectDescription(editPart) for editPart in self.widget.selectedEditParts()]
+        desc = ','.join(desc)
+        return ' '.join([self.name, desc ])
+
+    def getObjectDescription(self, editPart):
+        # Default implementation
+        model = editPart.part().getModel()
+        name = str(model)
+        if hasattr(model, "getName"):
+            name = model.getName()
+        return name
+
+    def findEditPart(self, editPart, description):
+        if self.getObjectDescription(editPart) == description:
+            return editPart
+        else:
+            return self.findEditPartChildren(editPart, description)
+
+    def findEditPartChildren(self, editPart, description):        
+        for child in editPart.children():
+            finded = self.findEditPart(child, description) 
+            if finded:
+                return self.findEditPart(child, description)
+
+    def shouldRecord(self, part, *args):
+        return not rcpsimulator.swtsimulator.DisplayFilter.hasEvents()
+
     @classmethod
     def getSignalsToFilter(cls):
         return []
+    
+    def getBotViewer(self):
+        viewerField = self.widget.widget.getClass().getDeclaredField("graphicalViewer")
+        viewerField.setAccessible(True)
+        return viewerField.get(self.widget.widget)
+
+class ViewerSelectEvent(ViewerEvent):
+    def connectRecord(self, method):
+        class SelectionListener(ISelectionChangedListener):
+            def selectionChanged(lself, event):
+                selection = event.getSelection()
+                for editPart in selection.toList():
+                    method(editPart, self)
+
+        rcpsimulator.swtsimulator.runOnUIThread(self.getBotViewer().addSelectionChangedListener, SelectionListener())
+
+    def generate(self, description, *args):
+        parts = []
+        for part in description.split(","):
+            editPart = self.findEditPart(self.widget.rootEditPart(), part)
+            if editPart:
+                parts.append(editPart)
+        if len(parts) > 0:
+            self.widget.select(parts)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Select"
-       
-rcpsimulator.swtsimulator.eventTypes.append((gefbot.widgets.SWTBotGefEditPart, [ EditPartSelectEvent ]))
+
+    def shouldRecord(self, part, *args):
+        currOutput = self.outputForScript(*args).split(None, 1)
+        return len(currOutput) > 1 and ViewerEvent.shouldRecord(self, part, *args)
+
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        return currOutput.startswith(stateChangeOutput)
+    
+    def isStateChange(self, *args):
+        return True
+    
+rcpsimulator.swtsimulator.eventTypes.append((gefbot.widgets.SWTBotGefViewer, [ ViewerSelectEvent ]))
