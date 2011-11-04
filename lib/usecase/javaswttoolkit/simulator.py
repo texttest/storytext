@@ -7,6 +7,7 @@ import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
 from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException
 from java.text import ParseException
+from java.util import ArrayList
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
@@ -515,7 +516,6 @@ class WidgetMonitor:
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
-        self.findingDescendants = False
 
     def getDisplayFilterClass(self):
         return DisplayFilter
@@ -576,17 +576,13 @@ class WidgetMonitor:
         return monitorListener
 
     def widgetShown(self, parent, eventType):
-        if parent in self.widgetsMonitored or self.findingDescendants:
+        if parent in self.widgetsMonitored:
             return
 
         if eventType == swt.SWT.Show:
             self.bot.getFinder().setShouldFindInvisibleControls(True)
-        try:
-            # SWTBot seems to cause more show events, don't handle them recursively...
-            self.findingDescendants = True
-            widgets = self.findDescendants(parent)
-        finally:
-            self.findingDescendants = False
+
+        widgets = self.findDescendants(parent)
         if eventType == swt.SWT.Show:
             self.bot.getFinder().setShouldFindInvisibleControls(False)
 
@@ -596,7 +592,7 @@ class WidgetMonitor:
     def findDescendants(self, widget):
         matcher = IsAnything()
         if isinstance(widget, swt.widgets.Menu):
-            return self.bot.getFinder().findMenus(widget, matcher, True)
+            return ArrayList(list(widget.getItems()))
         else:
             return self.bot.widgets(matcher, widget)
 
