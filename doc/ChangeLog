@@ -372,3 +372,50 @@ SWT/Eclipse RCP bugfixes:
 PyGTK bugfixes:
     - Recorder now works on code where dialogs/windows are destroyed from handlers attached to child widgets
     - gtk.Dialog.connect now returns handler IDs, so subsequent disconnect etc operations should work correctly
+
+Version 3.6
+-----------
+Support for Java Swing GUIs added.
+    - Based on RobotFramework's SwingLibrary.
+	Regard as Beta status for now. Used on two real GUIs so far. See website for details.
+
+Beginning of support for GEF (extension of SWT) applications.
+    - Not production ready for real applications. Next release hopefully will be.
+
+General enhancements:
+    - Usecase name chooser gained a Cancel button
+	so you aren't forced to enter names if you really don't know what you did
+    - Handle application events that happen many times
+	We now count the number of times it happens
+	
+SWT/Eclipse RCP enhancements:
+    - Support for drop-down ToolItems added (i.e. using the drop down menu)
+    - Interacting with Text widgets now sets the focus
+	Can be important in some contexts
+    - Description support added for JFace ControlDecorations
+
+PyGTK enhancements:
+    - Support recording of Tree Selections that are disallowed via set_select_function 
+	(to test that they ae disallowed...)
+
+General bugfixes:
+    - Error messages don't write misleading things about actions with no usecase name entered
+    - Use of shortcuts no longer suppresses following application events
+    - Reset application events in replayer also when events have already happened
+    - When new names are introduced, copy rather than remove old sections in UI map file
+	Not all widgets matched by the old section have necessarily been named
+    - Handle situation where an application event is triggered in a listener
+	Make sure recording happens in the right order
+    - Application event printouts should be deterministic now
+
+SWT/Eclipse RCP bugfixes:
+    - Custom widget plugin now working for Eclipse RCP
+    - Installer bugs under Windows fixed
+    - Fixed race condition which led to occasional ClassLoader exceptions finding context menus
+    - Job handling more reliable and deterministic
+	Less prone to missing events at the start of the usecase
+	
+PyGTK bugfixes:
+    - TreeSelections programatically changed by set_mode no longer get recorded.
+    - Now handles dialogs that existed before PyUseCase was enabled
+	In case it's enabled programmatically

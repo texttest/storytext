@@ -1,6 +1,7 @@
 Code Maintainers:
 
-    Geoff Bache (PyGTK/Tkinter/SWT/Eclipse RCP/Console)
+    Geoff Bache and Daniel Galdames
+       (PyGTK/Tkinter/Swing/SWT/Eclipse RCP/GEF/Console)
     Cliff Xuan  (wxPython)
 
 Developers:

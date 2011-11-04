@@ -4,10 +4,9 @@ Summary of what it is:
         What follows is just a brief summary.
 
         PyUseCase is a record/replay layer for Python GUIs. It currently has extensive support for PyGTK GUIs
-        (including a proof of concept for the hildon extension), beta status support for SWT/Eclipse RCP GUIs and 
-        Tkinter GUIs, and alpha 
-        status support for wxPython. Besides providing a mechanism for recording and playing back UI interaction, 
-        it also generates a log of the UI appearance. 
+        (including a proof of concept for the hildon extension), beta status support for Swing, SWT/Eclipse RCP and 
+        Tkinter GUIs, and alpha status support for wxPython. Besides providing a mechanism for recording and 
+        playing back UI interaction, it also generates a log of the UI appearance. 
         On UNIX-based systems it can also be useful on console programs to record and simulate signals 
         received by the process.
 
@@ -43,7 +42,7 @@ Summary of what it is:
 
 System requirements:
 
-    At least Python 2.5
+    At least Python 2.5 (Jython 2.5 for the Java UIs)
     At least PyGTK 2.12 for the PyGTK part
 
 Other Open Source Software packaged with it/used by it:
