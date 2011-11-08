@@ -2,11 +2,12 @@
 """ Module for laying out text in a grid pattern. Should not depend on anything but string manipulation """
 
 class GridFormatter:
-    def __init__(self, grid, numColumns, maxWidth=None, columnSpacing=2):
+    def __init__(self, grid, numColumns, maxWidth=None, columnSpacing=2, allowOverlap=True):
         self.grid = grid
         self.numColumns = numColumns
         self.maxWidth = maxWidth
         self.columnSpacing = columnSpacing
+        self.allowOverlap = allowOverlap
 
     def __str__(self):
         colWidths = self.findColumnWidths()
@@ -23,29 +24,40 @@ class GridFormatter:
         return len(self.grid) == 1 and self.numColumns > 1
 
     def findColumnWidths(self):
-        colWidths = []
-        for colNum in range(self.numColumns):
-            cellWidths = set((self.getCellWidth(row, colNum) for row in self.grid))
+        colWidths = [ 0 ] * self.numColumns
+        for colNum in reversed(range(self.numColumns)):
+            cellWidths = set((self.getCellWidth(rowIx, row, colNum, colWidths) for rowIx, row in enumerate(self.grid)))
             maxWidth = max(cellWidths) or -min(cellWidths)
-            if colNum == self.numColumns - 1 or maxWidth == 0:
-                colWidths.append(maxWidth)
-            else:
-                # Pad two spaces between each column
-                colWidths.append(maxWidth + self.columnSpacing)
+            colWidths[colNum] = maxWidth
         return colWidths
 
-    def getCellWidth(self, row, colNum):
+    def getCellWidth(self, rowIx, row, colNum, colWidths):
         if colNum < len(row):
-            lines = row[colNum].splitlines()
+            cellText = row[colNum]
+            lines = cellText.splitlines()
             if lines:
-                maxWidth = max((len(line) for line in lines))
-                if (colNum == len(row) -1 and colNum != self.numColumns - 1):
-                    # Don't include rows which are empty after the column in question
-                    # Unless there is nothing else in their column
-                    return -maxWidth
+                realMaxWidth = max((len(line) for line in lines))
+                if colNum != len(row) - 1 and realMaxWidth > 0:
+                    realMaxWidth += self.columnSpacing
+                if not self.allowOverlap or not self.allowOverlapInCell(rowIx, colNum, cellText):
+                    return realMaxWidth
+                
+                c = colNum + 1
+                maxWidth = realMaxWidth
+                # If the following columns are empty, assume we can overlap them
+                while maxWidth > 0 and c < self.numColumns and (c >= len(row) or len(row[c]) == 0):
+                    maxWidth -= colWidths[c]
+                    c += 1
+                maxWidth = max(maxWidth, 0)
+                if realMaxWidth and not maxWidth:
+                    return -realMaxWidth # our way of saying 'use this if there is nothing else in this column'
                 else:
                     return maxWidth
         return 0
+
+    def allowOverlapInCell(self, row, colNum, cellText):
+        # Hook for derived classes to allow overlapping in some grid regions and not others
+        return True
 
     def formatColumnsInGrid(self):
         desc = ""

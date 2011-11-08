@@ -821,7 +821,10 @@ class Describer:
 
     def _getDescription(self, widget):
         desc = ""
-        desc = self.addToDescription(desc, self.getWidgetDescription(widget))
+        widgetDesc = self.getWidgetDescription(widget)
+        if isinstance(widgetDesc, GridFormatter):
+            return widgetDesc
+        desc = self.addToDescription(desc, widgetDesc)
         childDesc = self._getChildrenDescription(widget)
         if desc or not isinstance(childDesc, GridFormatter):
             desc = self.addToDescription(desc, self.convertToString(childDesc))
@@ -944,7 +947,7 @@ class Describer:
         if columnCount == 0:
             return ""
 
-        colWidths = GridFormatter([ headerRow ] + rows, columnCount).findColumnWidths()
+        colWidths = GridFormatter([ headerRow ] + rows, columnCount, allowOverlap=False).findColumnWidths()
         header = GridFormatter([ headerRow ], columnCount).formatCellsInGrid(colWidths)
         body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
         line = "_" * sum(colWidths) + "\n"
