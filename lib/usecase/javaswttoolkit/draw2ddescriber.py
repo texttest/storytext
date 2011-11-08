@@ -66,12 +66,12 @@ class AttrRecorder:
         self.recorder = recorder
         
     def __call__(self, *args):
-        self.recorder.calls.setdefault(self.name, []).append(args)
+        self.recorder.registerCall(self.name, args)
 
         
 class RecorderGraphics(draw2d.Graphics, object):
     def __init__(self, font, methodNames):
-        self.calls = {}
+        self.calls = []
         self.currFont = font
         self.methodNames = methodNames
         
@@ -96,6 +96,25 @@ class RecorderGraphics(draw2d.Graphics, object):
     def setFont(self, font):
         self.currFont = font
 
+    def registerCall(self, methodName, args):
+        self.calls.append((methodName, args))
+
+    def getCallArgs(self, methodName):
+        return [ c[1] for c in self.calls if c[0] == methodName ]
+
+    def getCallGroups(self, methodNames):
+        result = []
+        prevIx = len(methodNames)
+        for methodName, args in self.calls:
+            if methodName in methodNames:
+                ix = methodNames.index(methodName)
+                if ix <= prevIx:
+                    result.append([ None ] * len(methodNames))
+                result[-1][ix] = args
+                prevIx = ix
+        return result
+
+
 class FigureCanvasDescriber(guishared.Describer):
     childrenMethodName = "getChildren"
     visibleMethodName = "isVisible"
@@ -103,23 +122,50 @@ class FigureCanvasDescriber(guishared.Describer):
     stateWidgets = []
     ignoreWidgets = [ draw2d.Figure ] # Not interested in anything except what we list
     ignoreChildren = ()
+    pixelTolerance = 2
     def getLabelDescription(self, figure):
         return figure.getText()
     
     def getRectangleFigureDescription(self, figure):
-        graphics = RecorderGraphics(figure.getFont(), [ "drawString" ])
+        font = figure.getFont()
+        graphics = RecorderGraphics(font, [ "drawString", "setBackgroundColor", "fillRectangle" ])
         figure.paintFigure(graphics)
-        calls = graphics.calls.get("drawString", [])
-        calls.sort(key=lambda (t, x, y): (y, x))
+        calls = graphics.getCallArgs("drawString")
+        callGroups = graphics.getCallGroups([ "setBackgroundColor", "fillRectangle" ])
         color = figure.getBackgroundColor()
+        filledRectangles = []
+        bounds = figure.getBounds()
+        fontSize = font.getFontData()[0].getHeight()
+        for colorArgs, rectArgs in callGroups:
+            rect = draw2d.geometry.Rectangle(*rectArgs)
+            filledRectangles.append(rect)
+            colorText = ""
+            if colorArgs is not None:
+                rectColor = colorArgs[0]
+                if rectColor != color:
+                    colorText = "(" + colorNameFinder.getName(rectColor) + ")"
+                if rect != bounds and colorText:
+                    self.addColouredRectangle(calls, colorText, rect, fontSize)
+        calls.sort(key=lambda (t, x, y): (y, x))
         colorText = colorNameFinder.getName(color) if self.changedColor(color, figure) else ""
-        return self.formatFigure(figure, calls, colorText)
+        return self.formatFigure(figure, calls, colorText, filledRectangles)
+
+    def addColouredRectangle(self, calls, colorText, rect, fontSize):
+        # Find some text to apply it to, if we can
+        for i, (text, x, y) in enumerate(calls):
+            # Adding pixels to "user space units". Is this always allowed?
+            if rect.contains(x, y) or rect.contains(x, y + fontSize):
+                calls[i] = text + colorText, x, y
+                return
+        calls.append((colorText, self.getInt(rect.x), self.getInt(rect.y)))
 
     def changedColor(self, color, figure):
         return color != figure.getParent().getBackgroundColor()
 
-    def formatFigure(self, figure, calls, colorText):
+    def formatFigure(self, figure, calls, colorText, filledRectangles):
         desc = self.arrangeText(calls)
+        if isinstance(desc, gridformatter.GridFormatter):
+            return desc
         if colorText:
             desc += "(" + colorText + ")"
         return self.addBorder(figure, desc)
@@ -136,10 +182,11 @@ class FigureCanvasDescriber(guishared.Describer):
         elif len(calls) == 1:
             return calls[0][0]
         else:
-            grid = self.makeTextGrid(calls)
-            numColumns = max((len(r) for r in grid))
-            formatter = gridformatter.GridFormatter(grid, numColumns)
-            return str(formatter)
+            grid, numColumns = self.makeTextGrid(calls)
+            return self.formatGrid(grid, numColumns)
+
+    def formatGrid(self, grid, numColumns):
+        return gridformatter.GridFormatter(grid, numColumns)
 
     def usesGrid(self, figure):
         return isinstance(figure, draw2d.RectangleFigure)
@@ -149,9 +196,10 @@ class FigureCanvasDescriber(guishared.Describer):
         prevY = None
         xColumns = []
         for text, x, y in calls:
-            if y != prevY:
+            if prevY is None or abs(y - prevY) > self.pixelTolerance: # some pixel forgiveness...
                 grid.append([])
-            if x not in xColumns:
+            index = self.findExistingColumn(x, xColumns)
+            if index is None:
                 if len(grid) == 1:
                     index = len(xColumns)
                     xColumns.append(x)
@@ -161,13 +209,20 @@ class FigureCanvasDescriber(guishared.Describer):
                     for row in range(len(grid) - 1):
                         if index < len(grid[row]):
                             grid[row].insert(index, "")
-            else:
-                index = xColumns.index(x)
             while len(grid[-1]) < index:
                 grid[-1].append("")
             grid[-1].append(text)
             prevY = y
-        return grid
+
+        if len(grid) > 0:
+            return grid, max((len(r) for r in grid))
+        else:
+            return None, 0
+
+    def findExistingColumn(self, x, xColumns): # more pixel forgiveness
+        for attempt in xrange(x - self.pixelTolerance, x + self.pixelTolerance + 1):
+            if attempt in xColumns:
+                return xColumns.index(attempt)    
 
     def findIndex(self, x, xColumns):
         # linear search, replace with bisect?
@@ -177,17 +232,21 @@ class FigureCanvasDescriber(guishared.Describer):
         return len(xColumns)
 
     def tryMakeGrid(self, figure, sortedChildren, childDescriptions):
-        calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
-        grid = self.makeTextGrid(calls)
-        if len(grid) > 0:
-            return grid, max((len(r) for r in grid))
+        if all((isinstance(c, gridformatter.GridFormatter) for c in childDescriptions)):
+            newGrid = []
+            for i, childDesc in enumerate(childDescriptions):
+                newGrid += childDesc.grid
+                if i != len(childDescriptions) - 1:
+                    newGrid.append([ "" ])
+            return newGrid, max((c.numColumns for c in childDescriptions))
         else:
-            return None, 0
+            calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
+            return self.makeTextGrid(calls)
 
     def makeCall(self, desc, child):
-        loc = child.getLocation()
+        loc = child.getLocation()            
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
-        return desc, self.getInt(loc.x), self.getInt(loc.y)
+        return str(desc), self.getInt(loc.x), self.getInt(loc.y)
 
     def getInt(self, intOrMethod):
         return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()
@@ -197,3 +256,6 @@ class FigureCanvasDescriber(guishared.Describer):
     
     def getVerticalDividePositions(self, visibleChildren):
         return []
+
+    def handleGridFormatter(self, formatter):
+        return formatter # It's not a horizontal row, but we want to be able to combine grids with each other
