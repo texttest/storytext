@@ -75,9 +75,11 @@ class GefViewerAdapter(rcpsimulator.WidgetAdapter):
 
 class ViewerEvent(GuiEvent):
     def outputForScript(self, *args):
-        desc = [self.getObjectDescription(editPart) for editPart in self.widget.selectedEditParts()]
-        desc = ','.join(desc)
-        return ' '.join([self.name, desc ])
+        return ' '.join([self.name, self.getStateDescription(*args) ])
+
+    def getStateDescription(self, *args):
+        descs = [self.getObjectDescription(editPart) for editPart in self.widget.selectedEditParts()]
+        return ','.join(descs)
 
     def getObjectDescription(self, editPart):
         # Default implementation
@@ -135,8 +137,7 @@ class ViewerSelectEvent(ViewerEvent):
         return "Select"
 
     def shouldRecord(self, part, *args):
-        currOutput = self.outputForScript(*args).split(None, 1)
-        return len(currOutput) > 1 and ViewerEvent.shouldRecord(self, part, *args)
+        return len(self.getStateDescription(*args)) > 0 and ViewerEvent.shouldRecord(self, part, *args)
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
