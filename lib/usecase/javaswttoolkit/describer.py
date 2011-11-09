@@ -2,9 +2,10 @@
 import usecase.guishared, util, types, os, logging
 from usecase.definitions import UseCaseScriptError
 from usecase.gridformatter import GridFormatter
+from usecase import applicationEvent
 from org.eclipse import swt
-from java.util import Date        
-        
+from java.util import Date
+import xml.sax
         
 class Describer(usecase.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
@@ -30,6 +31,7 @@ class Describer(usecase.guishared.Describer):
         self.contextMenuCounter = usecase.guishared.WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
         self.widgetsDescribed = set()
+        self.browserStates = {}
         self.clipboardText = None
         usecase.guishared.Describer.__init__(self)
 
@@ -323,12 +325,35 @@ class Describer(usecase.guishared.Describer):
 
     def getLinkState(self, widget):
         return "Link '" + widget.getText() + "'"
-        
-    def getBrowserDescription(self, widget):
-        return "Browser browsing '" + (widget.getUrl() or "about:blank") + "'"
 
+    def getBrowserDescription(self, widget):
+        if widget not in self.browserStates:
+            # Browsers load their stuff in the background, must wait for them to finish
+            class BrowserProgressListener(swt.browser.ProgressListener):
+                def completed(lself, e):
+                    newState = self.getBrowserState(widget)
+                    oldState = self.browserStates[widget]
+                    if newState != oldState:
+                        applicationEvent("browser to finish loading")
+                        self.browserStates[widget] = newState
+            state = self.getBrowserState(widget)
+            self.browserStates[widget] = state
+            widget.addProgressListener(BrowserProgressListener())
+        else:
+            state = self.browserStates.get(widget)
+
+        self.widgetsWithState[widget] = state
+        return self.addHeaderAndFooter(widget, state)
+
+    def getBrowserState(self, widget):
+        url = widget.getUrl()
+        if url and url != "about:blank":
+            return url
+        else:
+            return BrowserHtmlParser().parse(widget.getText())
+        
     def getUpdatePrefix(self, widget, oldState, state):
-        if isinstance(widget, self.getTextEntryClass()):
+        if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
         elif isinstance(widget, swt.widgets.Combo):
             return "\nUpdated " + util.getTextLabel(widget) + " Combo Box\n"
@@ -357,9 +382,12 @@ class Describer(usecase.guishared.Describer):
     def getTextDescription(self, widget):
         contents, properties = self.getState(widget)
         self.widgetsWithState[widget] = contents, properties
-        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
-        desc = header + "\n" + self.fixLineEndings(contents.rstrip()) + "\n" + "=" * len(header)
+        desc = self.addHeaderAndFooter(widget, contents)
         return self.combineElements([ desc ] + properties)
+
+    def addHeaderAndFooter(self, widget, text):
+        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
+        return header + "\n" + self.fixLineEndings(text.rstrip()) + "\n" + "=" * len(header)
 
     def getComboDescription(self, widget):
         return self.getTextDescription(widget)
@@ -538,3 +566,34 @@ class Describer(usecase.guishared.Describer):
 
     def getRawDataLayoutDetails(self, layout, *args):
         return [ str(layout.numColumns) + " columns" ] if hasattr(layout, "numColumns") else []
+
+class BrowserHtmlParser(xml.sax.ContentHandler):
+    def __init__(self):
+        xml.sax.ContentHandler.__init__(self)
+        self.text = ""
+        self.grid = []
+        self.activeElements = set()
+        
+    def parse(self, text):
+        xml.sax.parseString(text, self)
+        return self.text
+
+    def startElement(self, name, attrs):
+        self.activeElements.add(name)
+        if name == "tr":
+            self.grid.append([])
+        elif name == "td":
+            self.grid[-1].append("")
+
+    def endElement(self, name):
+        self.activeElements.remove(name)
+        if name == "table":
+            formatter = GridFormatter(self.grid, max((len(r) for r in self.grid)), allowOverlap=False)
+            self.text += str(formatter)
+            self.grid = []
+
+    def characters(self, content):
+        if "td" in self.activeElements:
+            self.grid[-1][-1] += content.rstrip()
+        elif "body" in self.activeElements:
+            self.text += content.rstrip()
