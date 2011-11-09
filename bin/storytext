@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Name-chooser UI for PyUseCase
+### Command-line version of StoryText
 
 import os, sys
 
@@ -9,5 +9,5 @@ install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath
 sys.path.insert(0, os.path.join(install_root, "lib"))
 
 if __name__ == "__main__":    
-    from storytext.namechooser import main
-    main()
+    from storytext.cmdline import main
+    main(install_root)

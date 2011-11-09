@@ -32,10 +32,10 @@ class=FileHandler
 #args=(os.devnull, 'a')
 args=('gui_log.sample', 'a')
 
-# ======= Section for usecase replay log ======
-[logger_usecase replay log]
+# ======= Section for storytext replay log ======
+[logger_storytext replay log]
 handlers=gui log
-qualname=usecase replay log
+qualname=storytext replay log
 level=INFO
 
 # ====== The following are disabled by default ======
@@ -99,24 +99,24 @@ formatter=debug
 args=(os.devnull, 'a')
 #args=('guimap.sample', 'a')
 
-# ======= Section for usecase record ======
-[logger_usecase record]
-handlers=usecase record
-qualname=usecase record
+# ======= Section for storytext record ======
+[logger_storytext record]
+handlers=storytext record
+qualname=storytext record
 #level=INFO
 
-[handler_usecase record]
+[handler_storytext record]
 class=FileHandler
 formatter=debug
 args=(os.devnull, 'a')
-#args=('usecaserecord.sample', 'a')
+#args=('storytextrecord.sample', 'a')
 
 # ====== Cruft that python logging module needs ======
 [loggers]
-keys=root,gui log,usecase replay log,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui map,usecase record
+keys=root,gui log,storytext replay log,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui map,storytext record
 
 [handlers]
-keys=root,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,usecase record
+keys=root,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,storytext record
 
 [formatters]
 keys=timed,debug

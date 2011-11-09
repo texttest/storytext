@@ -3,14 +3,14 @@ from distutils.core import setup
 from distutils.command.install_scripts import install_scripts
 import sys
 sys.path.insert(0, "lib")
-from usecase import __version__
+from storytext import __version__
 import os
 
 mod_files = [ "ordereddict" ]
 if sys.version_info[:2] < (2, 6):
     mod_files.append("ConfigParser26")
 
-scripts = ["bin/pyusecase"]
+scripts = ["bin/storytext"]
 jython = os.name == "java"
 if jython:
     # Revolting way to check if we're on Windows! Neither os.name nor sys.platform help when using Jython
@@ -23,7 +23,7 @@ else:
 # Lifted from bzr setup.py, use for Jython on Windows which has no native installer
 class windows_install_scripts(install_scripts):
     """ Customized install_scripts distutils action.
-    Create pyusecase.bat for win32.
+    Create storytext.bat for win32.
     """
     def run(self):
         install_scripts.run(self)   # standard action
@@ -67,15 +67,15 @@ if windows:
 		scripts = newscripts
 
 
-setup(name='PyUseCase',
+setup(name='StoryText',
       version=__version__,
       author="Geoff Bache",
       author_email="geoff.bache@pobox.com",
       url="http://www.texttest.org/index.php?page=ui_testing",
       description="An unconvential GUI-testing tool for UIs written with PyGTK, Tkinter, wxPython, Swing, SWT or Eclipse RCP",
-      long_description='PyUseCase is an unconventional GUI testing tool, with support for PyGTK, Tkinter, wxPython, Swing, SWT and Eclipse RCP. Instead of recording GUI mechanics directly, it asks the user for descriptive names and hence builds up a "domain language" along with a "UI map file" that translates it into the current GUI layout. The point is to reduce coupling, allow very expressive tests, and ensure that GUI changes mean changing the UI map file but not all the tests. Instead of an "assertion" mechanism, it auto-generates a log of the GUI appearance and changes to it. The point is then to use that as a baseline for text-based testing, using e.g. TextTest. It also includes support for instrumenting code so that "waits" can be recorded, making it far easier for a tester to record correctly synchronized tests without having to explicitly plan for this.',
-      packages=["usecase", "usecase.gtktoolkit", "usecase.gtktoolkit.simulator", "usecase.gtktoolkit.describer",
-                "usecase.javaswttoolkit", "usecase.javarcptoolkit", "usecase.javageftoolkit", "usecase.javaswingtoolkit" ],
+      long_description='StoryText is an unconventional GUI testing tool, with support for PyGTK, Tkinter, wxPython, Swing, SWT and Eclipse RCP. Instead of recording GUI mechanics directly, it asks the user for descriptive names and hence builds up a "domain language" along with a "UI map file" that translates it into the current GUI layout. The point is to reduce coupling, allow very expressive tests, and ensure that GUI changes mean changing the UI map file but not all the tests. Instead of an "assertion" mechanism, it auto-generates a log of the GUI appearance and changes to it. The point is then to use that as a baseline for text-based testing, using e.g. TextTest. It also includes support for instrumenting code so that "waits" can be recorded, making it far easier for a tester to record correctly synchronized tests without having to explicitly plan for this.',
+      packages=["storytext", "storytext.gtktoolkit", "storytext.gtktoolkit.simulator", "storytext.gtktoolkit.describer",
+                "storytext.javaswttoolkit", "storytext.javarcptoolkit", "storytext.javageftoolkit", "storytext.javaswingtoolkit" ],
       package_dir={ "" : "lib"},
       py_modules=mod_files,
       classifiers=[ "Programming Language :: Python",
