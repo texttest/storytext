@@ -327,30 +327,13 @@ class Describer(storytext.guishared.Describer):
         return "Link '" + widget.getText() + "'"
 
     def getBrowserDescription(self, widget):
-        if widget not in self.browserStates:
-            # Browsers load their stuff in the background, must wait for them to finish
-            class BrowserProgressListener(swt.browser.ProgressListener):
-                def completed(lself, e):
-                    newState = self.getBrowserState(widget)
-                    oldState = self.browserStates[widget]
-                    if newState != oldState:
-                        applicationEvent("browser to finish loading")
-                        self.browserStates[widget] = newState
-            state = self.getBrowserState(widget)
-            self.browserStates[widget] = state
-            widget.addProgressListener(BrowserProgressListener())
-        else:
-            state = self.browserStates.get(widget)
-
+        state = self.getBrowserState(widget)
         self.widgetsWithState[widget] = state
         return self.addHeaderAndFooter(widget, state)
 
     def getBrowserState(self, widget):
-        url = widget.getUrl()
-        if url and url != "about:blank":
-            return url
-        else:
-            return BrowserHtmlParser().parse(widget.getText())
+        url = util.getRealUrl(widget)
+        return url or BrowserHtmlParser().parse(widget.getText())
         
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):
@@ -578,14 +561,16 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         xml.sax.parseString(text, self)
         return self.text
 
-    def startElement(self, name, attrs):
+    def startElement(self, rawname, attrs):
+        name = rawname.lower()
         self.activeElements.add(name)
         if name == "tr":
             self.grid.append([])
         elif name == "td":
             self.grid[-1].append("")
 
-    def endElement(self, name):
+    def endElement(self, rawname):
+        name = rawname.lower()
         self.activeElements.remove(name)
         if name == "table":
             formatter = GridFormatter(self.grid, max((len(r) for r in self.grid)), allowOverlap=False)
