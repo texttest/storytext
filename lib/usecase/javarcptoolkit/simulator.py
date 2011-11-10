@@ -36,6 +36,16 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
         else:
             return text
 
+    def getNameForAppEvent(self):
+        name = self.getName()
+        if name:
+            return name
+        viewId = self.widgetViewIds.get(self.widget.widget)
+        if viewId:
+            return viewId.lower().split(".")[-1]
+        else:
+            return self.getType().lower()
+
     @classmethod
     def storeIdWithChildren(cls, widget, viewId):
         cls.widgetViewIds[widget] = viewId

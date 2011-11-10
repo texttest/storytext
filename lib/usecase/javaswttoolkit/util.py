@@ -4,6 +4,10 @@ from org.eclipse import swt
 from java.text import SimpleDateFormat
 import usecase.guishared
 
+def getRealUrl(browser):
+    url = browser.getUrl()
+    return url if url != "about:blank" else ""
+
 def getTextLabel(widget):
     return usecase.guishared.getTextLabel(widget, "getChildren", swt.widgets.Label)
 

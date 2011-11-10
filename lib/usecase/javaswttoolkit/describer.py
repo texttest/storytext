@@ -327,30 +327,13 @@ class Describer(usecase.guishared.Describer):
         return "Link '" + widget.getText() + "'"
 
     def getBrowserDescription(self, widget):
-        if widget not in self.browserStates:
-            # Browsers load their stuff in the background, must wait for them to finish
-            class BrowserProgressListener(swt.browser.ProgressListener):
-                def completed(lself, e):
-                    newState = self.getBrowserState(widget)
-                    oldState = self.browserStates[widget]
-                    if newState != oldState:
-                        applicationEvent("browser to finish loading")
-                        self.browserStates[widget] = newState
-            state = self.getBrowserState(widget)
-            self.browserStates[widget] = state
-            widget.addProgressListener(BrowserProgressListener())
-        else:
-            state = self.browserStates.get(widget)
-
+        state = self.getBrowserState(widget)
         self.widgetsWithState[widget] = state
         return self.addHeaderAndFooter(widget, state)
 
     def getBrowserState(self, widget):
-        url = widget.getUrl()
-        if url and url != "about:blank":
-            return url
-        else:
-            return BrowserHtmlParser().parse(widget.getText())
+        url = util.getRealUrl(widget)
+        return url or BrowserHtmlParser().parse(widget.getText())
         
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):

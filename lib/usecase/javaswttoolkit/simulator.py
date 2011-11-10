@@ -68,6 +68,9 @@ class WidgetAdapter(usecase.guishared.WidgetAdapter):
     def getName(self):
         return self.widget.getId() or ""
 
+    def getNameForAppEvent(self):
+        return self.getName() or self.getType().lower()
+
     def getFromUIThread(self, method, *args):
         try:
             return runOnUIThread(method, *args)
@@ -490,6 +493,22 @@ class FakeSWTBotTabFolder(swtbot.widgets.AbstractSWTBot):
 class FakeSWTBotCTabFolder(swtbot.widgets.AbstractSWTBot):
     pass
 
+class BrowserUpdateMonitor(swt.browser.ProgressListener):
+    def __init__(self, widget):
+        self.widget = widget
+        self.urlOrText = self.getUrlOrText()
+
+    def getUrlOrText(self):
+        return util.getRealUrl(self.widget) or self.widget.getText()
+
+    def completed(self, e):
+        newText = self.getUrlOrText()
+        if newText != self.urlOrText:
+            applicationEvent(self.widget.getNameForAppEvent() + " to finish loading")
+            self.urlOrText = newText
+
+
+
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
                                          [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio) ]),
@@ -509,7 +528,9 @@ class WidgetMonitor:
                   swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
                   swt.widgets.TabFolder: (FakeSWTBotTabFolder, []),
                   swt.custom.CTabFolder: (FakeSWTBotCTabFolder, []),
-                  swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, [])}
+                  swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []),
+                  swt.browser.Browser  : (swtbot.widgets.SWTBotBrowser, [])
+                  }
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
         self.widgetsMonitored = set()
@@ -540,7 +561,8 @@ class WidgetMonitor:
             for swtBotClass in [ defaultSwtbotClass] + [ cls for x, cls in styleSwtbotInfo ]:
                 for eventClass in eventTypeDict.get(swtBotClass, []):
                     currEventTypes.update(method(eventClass))
-            allEventTypes.append((widgetClass, currEventTypes))
+            if currEventTypes:
+                allEventTypes.append((widgetClass, currEventTypes))
         return allEventTypes
     
     def setUp(self):
@@ -601,6 +623,13 @@ class WidgetMonitor:
                                 parent.__class__.__name__ + ", monitoring found widgets")
         for widget in self.makeAdapters(widgets):
             self.uiMap.monitorWidget(widget)
+            self.monitorAsynchronousUpdates(widget)
+
+    def monitorAsynchronousUpdates(self, widget):
+        # Browsers load their stuff in the background, must wait for them to finish
+        if widget.isInstanceOf(swtbot.widgets.SWTBotBrowser):
+            monitor = BrowserUpdateMonitor(widget)
+            runOnUIThread(widget.widget.widget.addProgressListener, monitor)
 
     def findAllWidgets(self):
         matcher = IsAnything()
@@ -627,17 +656,21 @@ class WidgetMonitor:
     def makeAdapters(self, widgets):
         adapters = []
         for widget in widgets + self.getPopupMenus(widgets):
-            for widgetClass in self.swtbotMap.keys():
-                if isinstance(widget, widgetClass):
-                    swtbotClass = self.findSwtbotClass(widget, widgetClass)
-                    try:
-                        adapters.append(WidgetAdapter.adapt(swtbotClass(widget)))
-                        break
-                    except RuntimeException:
-                        # Sometimes widgets are already disposed
-                        pass
+            adapter = self.makeAdapter(widget)
+            if adapter:
+                adapters.append(adapter)
         return adapters
 
+    def makeAdapter(self, widget):
+        for widgetClass in self.swtbotMap.keys():
+            if isinstance(widget, widgetClass):
+                swtbotClass = self.findSwtbotClass(widget, widgetClass)
+                try:
+                    return WidgetAdapter.adapt(swtbotClass(widget))
+                except RuntimeException:
+                    # Sometimes widgets are already disposed
+                    pass
+        
     def getActiveShell(self):
         return self.bot.getFinder().activeShell()
 
