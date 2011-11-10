@@ -578,14 +578,16 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         xml.sax.parseString(text, self)
         return self.text
 
-    def startElement(self, name, attrs):
+    def startElement(self, rawname, attrs):
+        name = rawname.lower()
         self.activeElements.add(name)
         if name == "tr":
             self.grid.append([])
         elif name == "td":
             self.grid[-1].append("")
 
-    def endElement(self, name):
+    def endElement(self, rawname):
+        name = rawname.lower()
         self.activeElements.remove(name)
         if name == "table":
             formatter = GridFormatter(self.grid, max((len(r) for r in self.grid)), allowOverlap=False)
