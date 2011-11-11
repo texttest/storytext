@@ -375,6 +375,15 @@ PyGTK bugfixes:
 
 Version 3.6
 -----------
+Renamed to StoryText
+    - The Py is misleading now we support Java (Swing/Eclipse). Also "UseCase" is a bit too RUP-like.
+	Agile talks about Story testing a lot now.
+	In any case, any existing test suites will need to:
+	  - use TextTest 3.22
+	  - rename pyusecase_files to storytext_files
+	  - update all references to the new name
+	  - TextTest 3.22 will now set STORYTEXT_HOME instead of USECASE_HOME. StoryText alone understands either.
+
 Support for Java Swing GUIs added.
     - Based on RobotFramework's SwingLibrary.
 	Regard as Beta status for now. Used on two real GUIs so far. See website for details.
@@ -387,7 +396,7 @@ General enhancements:
 	so you aren't forced to enter names if you really don't know what you did
     - Handle application events that happen many times
 	We now count the number of times it happens
-	
+
 SWT/Eclipse RCP enhancements:
     - Support for drop-down ToolItems added (i.e. using the drop down menu)
     - Interacting with Text widgets now sets the focus
@@ -414,8 +423,12 @@ SWT/Eclipse RCP bugfixes:
     - Fixed race condition which led to occasional ClassLoader exceptions finding context menus
     - Job handling more reliable and deterministic
 	Less prone to missing events at the start of the usecase
-	
+    - Browser description improved
+	Now handles HTML text that is set as well as URLs. Also parses HTML tables if they exist.
+    - Grid layout descriptions made more compact
+	If overlapping the descriptions is possible because of blank cells, it will, which leads to less wide files.
+
 PyGTK bugfixes:
     - TreeSelections programatically changed by set_mode no longer get recorded.
-    - Now handles dialogs that existed before PyUseCase was enabled
+    - Now handles dialogs that existed before StoryText was enabled
 	In case it's enabled programmatically
