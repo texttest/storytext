@@ -8,6 +8,10 @@ install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath
 # Find our own "lib" directory
 sys.path.insert(0, os.path.join(install_root, "lib"))
 
+binDir = os.path.normpath(os.path.dirname(__file__))
+if binDir in sys.path:
+   sys.path.remove(binDir)
+
 if __name__ == "__main__":    
     from storytext.namechooser import main
     main()
