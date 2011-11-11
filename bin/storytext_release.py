@@ -39,9 +39,9 @@ def exportDir(product, artefact, targetName, dest, tag=""):
     shutil.rmtree(os.path.join(destDir, ".bzr"))
 
 def exportFromBzr(dest, tagName):
-    exportDir("PyUseCase", "source", "source", dest, tagName)
+    exportDir("StoryText", "source", "source", dest, tagName)
     os.mkdir(os.path.join(dest, "tests"))
-    exportDir("PyUseCase", "tests", "tests", dest, tagName)
+    exportDir("StoryText", "tests", "tests", dest, tagName)
         
 def createSource(reldir):
     versionFile = os.path.join(reldir, "source", "lib", "storytext", "definitions.py")

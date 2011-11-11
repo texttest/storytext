@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-### Name-chooser UI for PyUseCase
+### Name-chooser UI for StoryText
 
 import os, sys
 
