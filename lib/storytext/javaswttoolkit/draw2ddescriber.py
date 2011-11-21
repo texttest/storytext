@@ -195,7 +195,17 @@ class FigureCanvasDescriber(guishared.Describer):
         grid = []
         prevY = None
         xColumns = []
-        for text, x, y in calls:
+        hasSubGrids = False
+        for i, (text, x, y) in enumerate(calls):
+            if hasSubGrids:
+                grid.append([ "" ])
+            if isinstance(text, gridformatter.GridFormatter):
+                grid += text.grid
+                prevY = y
+                hasSubGrids = True
+                xColumns.append(x)
+                continue
+            
             if prevY is None or abs(y - prevY) > self.pixelTolerance: # some pixel forgiveness...
                 grid.append([])
             index = self.findExistingColumn(x, xColumns)
@@ -232,21 +242,13 @@ class FigureCanvasDescriber(guishared.Describer):
         return len(xColumns)
 
     def tryMakeGrid(self, figure, sortedChildren, childDescriptions):
-        if all((isinstance(c, gridformatter.GridFormatter) for c in childDescriptions)):
-            newGrid = []
-            for i, childDesc in enumerate(childDescriptions):
-                newGrid += childDesc.grid
-                if i != len(childDescriptions) - 1:
-                    newGrid.append([ "" ])
-            return newGrid, max((c.numColumns for c in childDescriptions))
-        else:
-            calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
-            return self.makeTextGrid(calls)
+        calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
+        return self.makeTextGrid(calls)
 
     def makeCall(self, desc, child):
         loc = child.getLocation()            
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
-        return str(desc), self.getInt(loc.x), self.getInt(loc.y)
+        return desc, self.getInt(loc.x), self.getInt(loc.y)
 
     def getInt(self, intOrMethod):
         return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()
