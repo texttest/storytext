@@ -146,9 +146,19 @@ class FigureCanvasDescriber(guishared.Describer):
                     colorText = "(" + colorNameFinder.getName(rectColor) + ")"
                 if rect != bounds and colorText:
                     self.addColouredRectangle(calls, colorText, rect, fontSize)
-        calls.sort(key=lambda (t, x, y): (y, x))
+        calls.sort(cmp=self.compareCalls)
         colorText = colorNameFinder.getName(color) if self.changedColor(color, figure) else ""
         return self.formatFigure(figure, calls, colorText, filledRectangles)
+
+    def compareCalls(self, call1, call2):
+        t1, x1, y1 = call1
+        t2, x2, y2 = call2
+        if abs(y1 - y2) > self.pixelTolerance:
+            return cmp(y1, y2)
+        elif abs(x1 - x2) > self.pixelTolerance:
+            return cmp(x1, x2)
+        else:
+            return 0
 
     def addColouredRectangle(self, calls, colorText, rect, fontSize):
         # Find some text to apply it to, if we can
