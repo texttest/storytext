@@ -77,20 +77,31 @@ class ViewerEvent(GuiEvent):
     def outputForScript(self, *args):
         return ' '.join([self.name, self.getStateDescription(*args) ])
 
-    def getStateDescription(self, *args):
-        descs = [self.getObjectDescription(editPart) for editPart in self.widget.selectedEditParts()]
+    def getStateDescription(self, part, *args):
+        if self.isMainEditPart(part):
+            return self.getObjectDescription(part)
+        descs = [self.getObjectDescription(editPart.part()) for editPart in self.widget.selectedEditParts()]
         return ','.join(descs)
 
     def getObjectDescription(self, editPart):
         # Default implementation
-        model = editPart.part().getModel()
+        model = editPart.getModel()
         name = str(model)
         if hasattr(model, "getName"):
             name = model.getName()
         return name
 
+    def isMainEditPart(self, editPart):
+        return self.widget.mainEditPart().part() == editPart
+
+    def isInSelection(self, part):
+        for editPart in self.widget.selectedEditParts():
+            if editPart.part() == part:
+                return True
+        return False
+
     def findEditPart(self, editPart, description):
-        if self.getObjectDescription(editPart) == description:
+        if self.getObjectDescription(editPart.part()) == description:
             return editPart
         else:
             return self.findEditPartChildren(editPart, description)
@@ -127,6 +138,8 @@ class ViewerSelectEvent(ViewerEvent):
         parts = []
         for part in description.split(","):
             editPart = self.findEditPart(self.widget.rootEditPart(), part)
+            if editPart == self.widget.mainEditPart():
+                return self.widget.click(editPart)
             if editPart:
                 parts.append(editPart)
         if len(parts) > 0:
