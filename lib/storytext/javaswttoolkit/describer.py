@@ -1,5 +1,5 @@
 
-import storytext.guishared, util, types, os, logging
+import storytext.guishared, util, types, os, logging, sys
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
 from storytext import applicationEvent
@@ -259,9 +259,11 @@ class Describer(storytext.guishared.Describer):
         if hasattr(deco, "isVisible"): # added in 3.6
             return deco.isVisible()
 
-        method = deco.getClass().getDeclaredMethod("shouldShowDecoration", None)
+        # Workaround for reflection bug in Jython 2.5.1
+        args = (None,) if sys.version_info[:3] <= (2, 5, 1) else ()
+        method = deco.getClass().getDeclaredMethod("shouldShowDecoration", *args)
         method.setAccessible(True)
-        return method.invoke(deco, None)
+        return method.invoke(deco, *args)
 
     def getPropertyElements(self, item, selected=False):
         elements = []
