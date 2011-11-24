@@ -766,6 +766,10 @@ class Describer:
                 # If the frame where it existed has been removed, for example...
                 message = "Warning: The following exception has been thrown:\n"
                 self.logger.debug(message + getExceptionString())
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    exc = sys.exc_info()[1]
+                    if hasattr(exc, "printStackTrace"):
+                        exc.printStackTrace()
                 defunctWidgets.append(widget)
                 continue
 
