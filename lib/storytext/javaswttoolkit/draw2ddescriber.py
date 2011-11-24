@@ -90,6 +90,9 @@ class RecorderGraphics(draw2d.Graphics, object):
     def setLineAttributes(self, *args):
         pass # throws NotImplemented by default
 
+    def setAlpha(self, *args):
+        pass # throws NotImplemented by default
+
     def getFont(self):
         return self.currFont
 
