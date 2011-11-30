@@ -6,10 +6,9 @@ from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
 from org.eclipse.jface.viewers import ISelectionChangedListener
 from org.eclipse.ui.internal import EditorReference
 # Force classloading in the test thread where it works...
-from org.eclipse.draw2d import *
+from org.eclipse.draw2d import * #@UnusedWildImport
 from org.eclipse.gef import *
 from storytext.guishared import GuiEvent
-from org.eclipse import swt
 
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
@@ -127,7 +126,7 @@ class ViewerEvent(GuiEvent):
 class ViewerSelectEvent(ViewerEvent):
     def connectRecord(self, method):
         class SelectionListener(ISelectionChangedListener):
-            def selectionChanged(lself, event):
+            def selectionChanged(lself, event): #@NoSelf
                 selection = event.getSelection()
                 for editPart in selection.toList():
                     method(editPart, self)

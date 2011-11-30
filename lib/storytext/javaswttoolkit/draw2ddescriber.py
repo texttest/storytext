@@ -128,14 +128,18 @@ class FigureCanvasDescriber(guishared.Describer):
     pixelTolerance = 2
     def getLabelDescription(self, figure):
         return figure.getText()
-    
+
+    def getBackgroundColor(self, figure, *args):
+        # So derived classes can reinterpret this if needed, e.g. if the whole area is covered by some other colour
+        return figure.getBackgroundColor()
+
     def getRectangleFigureDescription(self, figure):
         font = figure.getFont()
         graphics = RecorderGraphics(font, [ "drawString", "setBackgroundColor", "fillRectangle" ])
         figure.paintFigure(graphics)
         calls = graphics.getCallArgs("drawString")
         callGroups = graphics.getCallGroups([ "setBackgroundColor", "fillRectangle" ])
-        color = figure.getBackgroundColor()
+        color = self.getBackgroundColor(figure, callGroups)
         filledRectangles = []
         bounds = figure.getBounds()
         fontSize = font.getFontData()[0].getHeight()
@@ -154,8 +158,8 @@ class FigureCanvasDescriber(guishared.Describer):
         return self.formatFigure(figure, calls, colorText, filledRectangles)
 
     def compareCalls(self, call1, call2):
-        t1, x1, y1 = call1
-        t2, x2, y2 = call2
+        _, x1, y1 = call1
+        _, x2, y2 = call2
         if abs(y1 - y2) > self.pixelTolerance:
             return cmp(y1, y2)
         elif abs(x1 - x2) > self.pixelTolerance:
@@ -209,7 +213,7 @@ class FigureCanvasDescriber(guishared.Describer):
         prevY = None
         xColumns = []
         hasSubGrids = False
-        for i, (text, x, y) in enumerate(calls):
+        for _, (text, x, y) in enumerate(calls):
             if hasSubGrids:
                 grid.append([ "" ])
             if isinstance(text, gridformatter.GridFormatter):

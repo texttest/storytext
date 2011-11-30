@@ -1,10 +1,9 @@
-import storytext.guishared, logging, util, sys, threading, time
+import storytext.guishared, logging, util, sys
 from storytext import applicationEvent, applicationEventDelay
 from storytext.definitions import UseCaseScriptError
-from java.awt import AWTEvent, Toolkit, Component
-from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, WindowAdapter, \
-     WindowEvent, ActionListener, ActionEvent, InputEvent, ItemListener, ItemEvent
-from java.beans import PropertyChangeListener
+from java.awt import AWTEvent, Toolkit
+from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, \
+     WindowEvent, ActionListener, ItemListener, ItemEvent
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
 from javax import swing
@@ -113,7 +112,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getContextName(self):
         if swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget):
             return "Internal Frame"
-        elif swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget):
+        elif swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget): #@UndefinedVariable
             return "Internal Frame Icon"
         
     def getDialogTitle(self):
@@ -143,7 +142,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
             
     def connectRecord(self, method):
         class ClickListener(MouseAdapter):
-            def mousePressed(listenerSelf, event):
+            def mousePressed(listenerSelf, event): #@NoSelf
                 catchAll(method, event, self)
 
         util.runOnEventDispatchThread(self.getRecordWidget().addMouseListener, ClickListener())
@@ -199,7 +198,7 @@ class FrameCloseEvent(SignalEvent):
 
     def connectRecord(self, method):               
         class EventListener(AWTEventListener):
-            def eventDispatched(listenerSelf, event):
+            def eventDispatched(listenerSelf, event): #@NoSelf
                 catchAll(self.handleEvent, event, method)
     
         eventListener = EventListener()
@@ -259,7 +258,7 @@ class PopupActivateEvent(ClickEvent):
     def connectRecord(self, method):               
         if isinstance(self.widget.widget, swing.JComponent) and self.widget.getComponentPopupMenu():
             class EventListener(AWTEventListener):
-                def eventDispatched(listenerSelf, event):
+                def eventDispatched(listenerSelf, event): #@NoSelf
                     catchAll(self.handleEvent, event, method)
     
             eventListener = EventListener()
@@ -294,7 +293,7 @@ class ButtonClickEvent(SignalEvent):
         
     def connectRecord(self, method):
         class RecordListener(ActionListener):
-            def actionPerformed(lself, event):
+            def actionPerformed(lself, event): #@NoSelf
                 catchAll(self.tryApplicationEvent, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
@@ -304,7 +303,7 @@ class ButtonClickEvent(SignalEvent):
         if intFrame:
             return intFrame.getTitle()
 
-        icon = swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget.widget)
+        icon = swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget.widget) #@UndefinedVariable
         if icon:
             return self.widget.widget.getLabel()
 
@@ -352,7 +351,7 @@ class SpinnerEvent(StateChangeEvent):
 
     def connectRecord(self, method):
         class RecordListener(swing.event.ChangeListener):
-            def stateChanged(lself, e):
+            def stateChanged(lself, e): #@NoSelf
                 catchAll(method, e, self)
 
         util.runOnEventDispatchThread(self.widget.addChangeListener, RecordListener())
@@ -371,7 +370,7 @@ class SpinnerEvent(StateChangeEvent):
 class TextEditEvent(StateChangeEvent):
     def connectRecord(self, method):
         class TextDocumentListener(swing.event.DocumentListener):
-            def insertUpdate(lself, event):
+            def insertUpdate(lself, event): #@NoSelf
                 catchAll(method, event, self)
                 
             changedUpdate = insertUpdate
@@ -401,7 +400,7 @@ class TextEditEvent(StateChangeEvent):
 class ActivateEvent(SignalEvent):
     def connectRecord(self, method):
         class ActivateEventListener(ActionListener):
-            def actionPerformed(lself, event):
+            def actionPerformed(lself, event): #@NoSelf
                 catchAll(method, event, self)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, ActivateEventListener())
@@ -431,7 +430,7 @@ class MenuSelectEvent(SignalEvent):
 
     def connectRecord(self, method):
         class RecordListener(ActionListener):
-            def actionPerformed(lself, event):
+            def actionPerformed(lself, event): #@NoSelf
                 catchAll(method, event, self)
 
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
@@ -520,11 +519,11 @@ class ListSelectEvent(StateChangeEvent):
 class ComboBoxEvent(StateChangeEvent):
     def connectRecord(self, method):
         class ItemSelectListener(ItemListener):
-            def itemStateChanged(listenerSelf, event):
+            def itemStateChanged(listenerSelf, event): #@NoSelf
                 catchAll(self.tryRecordSelection, event, method)
         
         class TextDocumentListener(swing.event.DocumentListener):
-            def insertUpdate(lself, event):
+            def insertUpdate(lself, event): #@NoSelf
                 catchAll(method, None, event, self)
                 
             changedUpdate = insertUpdate
@@ -715,7 +714,7 @@ class CellEditEvent(SignalEvent):
     
     def connectRecord(self, method):
         class TableListener(swing.event.TableModelListener):
-            def tableChanged(listenerSelf, event):
+            def tableChanged(listenerSelf, event): #@NoSelf
                 catchAll(self.tryRecordUpdate, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
@@ -788,7 +787,7 @@ class TableIndexer:
 
     def observeUpdates(self):
         class TableListener(swing.event.TableModelListener):
-            def tableChanged(listenerSelf, event):
+            def tableChanged(listenerSelf, event): #@NoSelf
                 catchAll(self.updateTableInfo)
                 
         util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
@@ -902,7 +901,7 @@ class PhysicalEventManager:
             
     def startListening(self):        
         class PhysicalEventListener(AWTEventListener):
-            def eventDispatched(listenerSelf, event):
+            def eventDispatched(listenerSelf, event): #@NoSelf
                 catchAll(self.handleEvent, event)
         
         self.eventListener = PhysicalEventListener()
@@ -938,7 +937,7 @@ class PhysicalEventManager:
     def addMouseListener(self, context):
         text = "Mouse click"
         class MouseReleaseListener(MouseAdapter):
-            def mouseReleased(lself, event):
+            def mouseReleased(lself, event): #@NoSelf
                 for currContext in filter(lambda c: c.matchesMouseEvent(event), self.eventContexts):
                     currContext.getWidget().removeMouseListener(lself)
                     self.registerCompleted(currContext, text, event)
@@ -948,7 +947,7 @@ class PhysicalEventManager:
 
     def addKeyListener(self, context, event):
         class KeyReleaseListener(KeyListener):
-            def keyReleased(lself, levent):
+            def keyReleased(lself, levent): #@NoSelf
                 event.getSource().removeKeyListener(lself)
                 self.registerCompleted(context, "Key press", levent)
 

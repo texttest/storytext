@@ -82,7 +82,7 @@ storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 class SignalEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
         class RecordListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 method(e, self)
 
         eventType = getattr(swt.SWT, self.getAssociatedSignal(self.widget))
@@ -96,7 +96,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
         self.checkWidgetStatus()
         try:
             self._generate(*args)
-        except (IllegalStateException, IndexOutOfBoundsException), e:
+        except (IllegalStateException, IndexOutOfBoundsException), _:
             pass # get these for actions that close the UI. But only after the action is done :)
 
     def shouldRecord(self, event, *args):
@@ -200,7 +200,7 @@ class ShellCloseEvent(SignalEvent):
     def _generate(self, *args):
         # SWTBotShell.close appears to close things twice, just use the ordinary one for now...
         class CloseRunnable(swtbot.results.VoidResult):
-            def run(resultSelf):
+            def run(resultSelf): #@NoSelf
                 self.widget.widget.widget.close()
                 
         swtbot.finders.UIThreadRunnable.asyncExec(CloseRunnable())
@@ -449,7 +449,7 @@ class DisplayFilter:
         
     def addFilters(self, display, monitorListener):
         class DisplayListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
                     DisplayFilter.eventsFromUser.append(e)
@@ -465,7 +465,7 @@ class DisplayFilter:
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
         class ApplicationEventListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 applicationEvent(e.text)
         runOnUIThread(display.addFilter, applicationEventType, ApplicationEventListener())
         
@@ -482,7 +482,7 @@ class DisplayFilter:
 
     def getAllEventTypes(self):
         eventTypeSet = set()
-        for swtbotClass, eventTypes in self.widgetEventTypes:
+        for _, eventTypes in self.widgetEventTypes:
             eventTypeSet.update(eventTypes)
         return eventTypeSet
     
@@ -558,7 +558,7 @@ class WidgetMonitor:
         eventTypeDict = dict(eventTypes)
         for widgetClass, (defaultSwtbotClass, styleSwtbotInfo) in cls.swtbotMap.items():
             currEventTypes = set()
-            for swtBotClass in [ defaultSwtbotClass] + [ cls for x, cls in styleSwtbotInfo ]:
+            for swtBotClass in [ defaultSwtbotClass] + [ cls for _, cls in styleSwtbotInfo ]:
                 for eventClass in eventTypeDict.get(swtBotClass, []):
                     currEventTypes.update(method(eventClass))
             if currEventTypes:
@@ -589,7 +589,7 @@ class WidgetMonitor:
 
     def addMonitorFilter(self, display):
         class MonitorListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 self.widgetShown(e.widget, e.type)
 
         monitorListener = MonitorListener()

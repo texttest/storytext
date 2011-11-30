@@ -2,7 +2,7 @@
 """ Generic module for any kind of Python UI, as distinct from the classes these derive from which contains 
 stuff also applicable even without this """
 
-import scriptengine, replayer, recorder, definitions, os, sys, logging, subprocess, time, re
+import scriptengine, replayer, definitions, os, sys, logging, subprocess, time, re
 from gridformatter import GridFormatter
 from itertools import izip
 from ordereddict import OrderedDict
@@ -11,9 +11,9 @@ from traceback import format_exception
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
 if sys.version_info[:2] >= (2, 6):
-    from ConfigParser import ConfigParser
+    from ConfigParser import ConfigParser #@UnusedImport
 else: # pragma: no cover - not currently running older than 2.5 in regular tests
-    from ConfigParser26 import ConfigParser
+    from ConfigParser26 import ConfigParser #@Reimport
 
 class WidgetAdapter:
     adapterClass = None
@@ -258,7 +258,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
             cmdArgs = self.getUsecaseNameChooserCmdArgs(recordScript, interface)
             env = self.getUsecaseNameChooserEnv()
             if os.name == "posix":
-                os.execvpe(cmdArgs[0], cmdArgs, env)
+                os.execvpe(cmdArgs[0], cmdArgs, env) #@UndefinedVariable
             else:
                 subprocess.call(cmdArgs, env=env)
 
@@ -298,7 +298,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
             exec "import " + args[0] + " as _className"
             # Java doesn't use the standard convention of having the first item in args be the
             # actual program name
-            _className.main(args[1:])
+            _className.main(args[1:]) #@UndefinedVariable
 
     def describeSupportedWidgets(self, html=False):
         toolkit, module, actionWord, linkPrefix = self.getDescriptionInfo()
@@ -1015,7 +1015,7 @@ class Describer:
             index += span
             if index % numColumns != 0:
                 # If we aren't at line end, introduce extra cells for padding
-                for i in range(span - 1):
+                for _ in range(span - 1):
                     grid[-1].append("")
         if horizontalRow:
             newColumns = len(grid[-1])
