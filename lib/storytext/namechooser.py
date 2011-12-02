@@ -113,7 +113,7 @@ class UseCaseNameChooser:
         except ImportError:
             # If we haven't even got any such interface, don't worry about this mechanism
             return signalName
-        desc = ScriptEngine.getDisplayName(signalName)
+        desc = ScriptEngine.getDisplayName(signalName) #@UndefinedVariable
         if desc:
             return desc
         if signalName == "activate":
@@ -142,7 +142,7 @@ class UseCaseNameChooser:
         remaining = parts[0]
         if remaining == "toggled":
             remaining = ".".join([ remaining, parts[-1] ])
-        return ScriptEngine.getColumnDisplayName(remaining) + " '" + columnName + "'"
+        return ScriptEngine.getColumnDisplayName(remaining) + " '" + columnName + "'" #@UndefinedVariable
         
     def splitAutoCommand(self, command):
         for cmd in self.allEntries.keys():
