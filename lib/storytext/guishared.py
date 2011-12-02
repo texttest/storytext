@@ -2,10 +2,16 @@
 """ Generic module for any kind of Python UI, as distinct from the classes these derive from which contains 
 stuff also applicable even without this """
 
-import scriptengine, replayer, definitions, os, sys, logging, subprocess, time, re
+import scriptengine, replayer, definitions
+import os, sys, logging, subprocess, time, re
 from gridformatter import GridFormatter
 from itertools import izip
-from ordereddict import OrderedDict
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
+
 from locale import getdefaultlocale
 from traceback import format_exception
 
@@ -74,6 +80,8 @@ class WidgetAdapter:
         return ""
 
     def encodeToLocale(self, unicodeText):
+        if sys.version_info[0] == 3:
+            return unicodeText # don't need to mess about if we're in Python 3 anyway
         if unicodeText:
             try:
                 encoding = getdefaultlocale()[1] or "utf-8"

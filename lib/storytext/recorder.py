@@ -3,7 +3,10 @@
 
 import os, sys, signal, logging
 from replayer import ReplayScript
-from ordereddict import OrderedDict
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 from definitions import *
 
 # Take care not to record empty files...
@@ -106,7 +109,7 @@ class UseCaseRecorder:
 
         for entry in dir(signal):
             if entry.startswith("SIG") and not entry.startswith("SIG_"):
-                exec "number = signal." + entry
+                number = getattr(signal, entry)
                 self.signalNames[number] = entry
 
     def notifyExit(self):

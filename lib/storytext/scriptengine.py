@@ -1,7 +1,8 @@
 
 """ Basic engine class, inherited in guishared.py and implemented by each GUI toolkit code """
 
-import recorder, replayer, os, sys, imp
+import recorder, replayer
+import os, sys, imp
 
 try:
     # In Py 2.x, the builtins were in __builtin__

@@ -1,9 +1,13 @@
 
 # Experimental and rather basic support for Tkinter
 
-import guishared, os, time, Tkinter, logging, re
+import guishared
+import os, time, Tkinter, logging, re
 from definitions import UseCaseScriptError
-from ordereddict import OrderedDict
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 def getWidgetOption(widget, optionName):
     try:
@@ -557,11 +561,8 @@ class Describer(guishared.Describer):
         return window.title()
 
     def getPackSlavesDescription(self, widget, slaves):
-        packSlaves = widget.pack_slaves()
-        if len(packSlaves) == 0:
-            return ""
         sideGroups = {}
-        for slave in packSlaves:
+        for slave in widget.pack_slaves():
             try:
                 info = slave.pack_info()
                 slaves.add(slave)
@@ -569,7 +570,9 @@ class Describer(guishared.Describer):
             except Tkinter.TclError: 
                 # Weirdly, sometimes get things in here that then deny they know anything about packing...
                 pass
-
+        if len(sideGroups) == 0:
+            return ""
+        
         menuDesc = "\n\n".join(sideGroups.get("Menus", []))
         topDesc = "\n".join(sideGroups.get(Tkinter.TOP, []))
         bottomDesc = "\n".join(list(reversed(sideGroups.get(Tkinter.BOTTOM, []))))
