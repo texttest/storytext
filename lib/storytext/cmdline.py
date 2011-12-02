@@ -31,6 +31,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="Configure StoryText logging via the log configuration file at FILE. A suitable sample file can be find with the source tree under the 'log' directory.", metavar="FILE")
     parser.add_option("-m", "--mapfiles", default=os.path.join(scriptengine.ScriptEngine.storytextHome, "ui_map.conf"),
                       help="Use the UI map file(s) at FILE1,... If not set StoryText will read and write such a file at the location determined by $STORYTEXT_HOME/ui_map.conf. If run standalone $STORYTEXT_HOME defaults to ~/.storytext, while TextTest will point it to a 'storytext_files' subdirectory of the root test suite. If multiple files are provided, the last in the list will be used for writing.", metavar="FILE1,...")
+    parser.add_option("-M", "--maxoutputwidth",
+                      help="maximum output width for side-by-side output in the auto-generated output")
     parser.add_option("-p", "--replay", 
                       help="replay script from FILE. Also enabled via the environment variable USECASE_REPLAY_SCRIPT.", metavar="FILE")
     parser.add_option("-r", "--record", 

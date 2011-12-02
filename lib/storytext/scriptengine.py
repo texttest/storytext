@@ -76,9 +76,13 @@ class ScriptEngine:
         if len(args) == 0:
             return False
         else:
+            self.handleAdditionalOptions(options)
             self.runSystemUnderTest(args)
             return True
 
+    def handleAdditionalOptions(self, options):
+        pass
+    
     def runSystemUnderTest(self, args):
         # By default, just assume it's a python program. Allow this to be overridden
         self.run_python_file(args)

@@ -413,7 +413,8 @@ class Describer(storytext.guishared.Describer):
                isinstance(scrollPane.getViewport().getView(), swing.JTable)
 
     def getMaxDescriptionWidth(self, widget):
-        return None if self.isTableScrollPane(widget) or self.usesGrid(widget) else 130
+        return None if self.isTableScrollPane(widget) or self.usesGrid(widget) else \
+            storytext.guishared.Describer.getMaxDescriptionWidth(self, widget)
 
     def usesGrid(self, widget):
         return isinstance(widget.getLayout(), (awt.GridLayout, awt.GridBagLayout))

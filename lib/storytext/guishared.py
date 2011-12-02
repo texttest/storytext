@@ -289,6 +289,10 @@ class ScriptEngine(scriptengine.ScriptEngine):
                 if not options.disable_usecase_names:
                     self.replaceAutoRecordingForUsecase(options.interface)
 
+    def handleAdditionalOptions(self, options):
+        if options.maxoutputwidth:
+            Describer.maxOutputWidth = int(options.maxoutputwidth)
+
     def run_python_or_java(self, args):
         # Two options here: either a Jython program and hence a .py file, or a Java class
         # If it's a file, assume it's Python
@@ -722,6 +726,7 @@ class WidgetCounter:
 
 # Base class for everything except GTK's describer, which works a bit differently
 class Describer:
+    maxOutputWidth = 130
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
@@ -1028,7 +1033,7 @@ class Describer:
                 childDescriptions.remove(desc)
 
     def getMaxDescriptionWidth(self, widget):
-        return 130 # About a screen or so...
+        return self.maxOutputWidth # About a screen or so...
 
     def formatInColumn(self, childDescriptions):
         if len(childDescriptions) == 1:
