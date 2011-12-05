@@ -592,7 +592,7 @@ class Describer(guishared.Describer):
         row_count = widget.grid_size()[-1]
         gridDesc = ""
         for x in range(row_count):
-            rowSlaves = filter(lambda w: w in children, widget.grid_slaves(row=x))
+            rowSlaves = filter(lambda w: w in children and w not in slaves, widget.grid_slaves(row=x))
             slaves.update(rowSlaves)
             allDescs = map(self.getDescription, rowSlaves)
             gridDesc += " | ".join(reversed(allDescs)) + "\n"
