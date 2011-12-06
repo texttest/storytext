@@ -5,7 +5,7 @@
 
 # Used by the command-line interface to store the instance it creates
 scriptEngine = None
-from definitions import __version__
+from .definitions import __version__
 
 def applicationEvent(*args, **kwargs):
     if scriptEngine:
@@ -23,7 +23,7 @@ def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
     global scriptEngine
     if not scriptEngine: # pragma: no cover - cannot test with replayer disabled
         # Only available for GTK currently
-        import gtktoolkit
+        from . import gtktoolkit
         scriptEngine = gtktoolkit.ScriptEngine(universalLogging=False,
                                                uiMapFiles=uiMapFiles,
                                                customEventTypes=customEventTypes)

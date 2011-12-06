@@ -56,12 +56,18 @@ def create_script_engine(options, install_root):
     if options.interface == "console":
         return scriptengine.ScriptEngine()
 
-    exec "from " + options.interface + "toolkit import ScriptEngine"
+    cmd = "from storytext." + options.interface + "toolkit import ScriptEngine"
+    # This is a bit weird, but it's apparently necessary in python 3...
+    # See http://bugs.python.org/issue6862
+    d = {}
+    exec(cmd, d)
+    ScriptEngine = d["ScriptEngine"]
     logEnabled = logLevel != "OFF" and not options.supported and not options.supported_html
     mapFiles = []
     if options.mapfiles:
         mapFiles = options.mapfiles.split(",")
-    return ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled, binDir=os.path.join(install_root, "bin"))
+    return ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled,
+                        binDir=os.path.join(install_root, "bin"))
     
 def set_up_environment(options):
     if options.record:

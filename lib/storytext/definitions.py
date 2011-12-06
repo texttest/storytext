@@ -29,7 +29,7 @@ class UserEvent:
     def outputForScript(self, *args): # pragma: no cover - just documenting interface
         return self.name
     def generate(self, argumentString): # pragma: no cover - just documenting interface
-        raise UseCaseScriptError, "Don't know how to generate for " + repr(self.outputForScript(argumentString))
+        raise UseCaseScriptError("Don't know how to generate for " + repr(self.outputForScript(argumentString)))
     def isStateChange(self):
         # If this is true, recorder will wait before recording and only record if a different event comes in
         return False
