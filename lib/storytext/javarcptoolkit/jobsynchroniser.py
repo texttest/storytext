@@ -30,7 +30,7 @@ class JobListener(JobChangeAdapter):
             self.setComplete()
 
     def setComplete(self):
-        applicationEvent("completion of " + self.nonSystemEventName)
+        applicationEvent("completion of " + self.nonSystemEventName, category="jobs")
         self.nonSystemEventName = None
 
     def alterJobCount(self, value):

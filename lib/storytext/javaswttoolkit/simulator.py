@@ -466,7 +466,7 @@ class DisplayFilter:
             runOnUIThread(display.addFilter, eventType, DisplayListener())
         class ApplicationEventListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                applicationEvent(e.text)
+                applicationEvent(e.text, "system")
         runOnUIThread(display.addFilter, applicationEventType, ApplicationEventListener())
         
     def shouldCheckWidget(self, widget, eventType):
