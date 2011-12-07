@@ -252,7 +252,16 @@ class UseCaseRecorder:
                 return arg
             
     def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
-        if category:
+        category = category or "storytext_DEFAULT"
+        if category in self.applicationEvents:
+            existingEvent = self.applicationEvents[category][0]
+            if existingEvent == eventName:
+                eventName += " * 2"
+            elif existingEvent.startswith(eventName + " *"):
+                currentNumber = int(existingEvent.split()[-1])
+                eventName += " * " + str(currentNumber + 1)
+            
+        if category != "storytext_DEFAULT":
             self.applicationEvents[category] = eventName, delayLevel
             self.logger.debug("Got application event '" + eventName + "' in category " + repr(category) +
                               " with delay level " + str(delayLevel))
@@ -264,13 +273,6 @@ class UseCaseRecorder:
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
         else:
             # Non-categorised event makes all previous ones irrelevant
-            if "storytext_DEFAULT" in self.applicationEvents:
-                existingEvent = self.applicationEvents["storytext_DEFAULT"][0]
-                if existingEvent == eventName:
-                    eventName += " * 2"
-                elif existingEvent.startswith(eventName + " *"):
-                    currentNumber = int(existingEvent.split()[-1])
-                    eventName += " * " + str(currentNumber + 1)
             self.applicationEvents = OrderedDict()
             self.logger.debug("Got application event '" + eventName + "' in global category with delay level " + str(delayLevel))
             self.supercededAppEventCategories = {}
