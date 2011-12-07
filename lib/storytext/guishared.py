@@ -199,8 +199,10 @@ class ScriptEngine(scriptengine.ScriptEngine):
         try:
             from customwidgetevents import customEventTypes
             self.addCustomEventTypes(customEventTypes)
-        except ImportError:
-            pass
+        except ImportError, e:
+            msg = str(e).strip()
+            if msg != "No module named customwidgetevents":
+                raise
 
     def addCustomEventTypes(self, customEventTypes):
         for customWidgetClass, customEventClasses in customEventTypes:
