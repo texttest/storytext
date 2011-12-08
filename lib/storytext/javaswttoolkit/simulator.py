@@ -597,8 +597,11 @@ class WidgetMonitor:
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
         return monitorListener
 
+    def doNotShow(self, parent):
+        return parent in self.widgetsMonitored
+    
     def widgetShown(self, parent, eventType):
-        if parent in self.widgetsMonitored:
+        if self.doNotShow(parent):
             return
 
         if eventType == swt.SWT.Show:

@@ -10,6 +10,11 @@ from org.eclipse.draw2d import * #@UnusedWildImport
 from org.eclipse.gef import *
 from storytext.guishared import GuiEvent
 
+def getGefViewer(botViewer):
+    viewerField = botViewer.getClass().getDeclaredField("graphicalViewer")
+    viewerField.setAccessible(True)
+    return viewerField.get(botViewer)
+
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
@@ -19,6 +24,9 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def createSwtBot(self):
         return gefbot.SWTGefBot()
 
+    def doNotShow(self, parent):
+        return rcpsimulator.WidgetMonitor.doNotShow(self, parent) and not isinstance(parent, FigureCanvas)
+    
     def monitorAllWidgets(self, parent, widgets):
         rcpsimulator.WidgetMonitor.monitorAllWidgets(self, parent, widgets)
         self.monitorGefWidgets()
@@ -52,7 +60,6 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         except WidgetNotFoundException:
             pass
         return viewer
-
 
 class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     def __init__(self, widget, partRef):
