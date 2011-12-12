@@ -597,14 +597,10 @@ class WidgetMonitor:
         runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
         return monitorListener
-
-    def doNotShow(self, parent):
-        return parent in self.widgetsMonitored
     
     def widgetShown(self, parent, eventType):
-        if self.doNotShow(parent):
+        if parent in self.widgetsMonitored:
             return
-
         if eventType == swt.SWT.Show:
             self.bot.getFinder().setShouldFindInvisibleControls(True)
 

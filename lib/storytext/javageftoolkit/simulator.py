@@ -1,6 +1,7 @@
 
 
 from storytext.javarcptoolkit import simulator as rcpsimulator
+from storytext.javaswttoolkit import simulator as swtsimulator
 import org.eclipse.swtbot.eclipse.gef.finder as gefbot
 from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
 from org.eclipse.jface.viewers import ISelectionChangedListener
@@ -9,6 +10,7 @@ from org.eclipse.ui.internal import EditorReference
 from org.eclipse.draw2d import * #@UnusedWildImport
 from org.eclipse.gef import *
 from storytext.guishared import GuiEvent
+from org.eclipse import swt
 
 def getGefViewer(botViewer):
     viewerField = botViewer.getClass().getDeclaredField("graphicalViewer")
@@ -24,13 +26,23 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def createSwtBot(self):
         return gefbot.SWTGefBot()
 
-    def doNotShow(self, parent):
-        return rcpsimulator.WidgetMonitor.doNotShow(self, parent) and not isinstance(parent, FigureCanvas)
+    def widgetShown(self, parent, eventType):
+        if isinstance(parent, FigureCanvas):
+            self.monitorGefMenus(parent)
+        rcpsimulator.WidgetMonitor.widgetShown(self, parent, eventType)
     
     def monitorAllWidgets(self, parent, widgets):
         rcpsimulator.WidgetMonitor.monitorAllWidgets(self, parent, widgets)
         self.monitorGefWidgets()
 
+    def monitorGefMenus(self, parent):
+        for view in self.bot.views():
+            for viewer in  self.getViewers(view):
+                menu = getGefViewer(viewer).getControl().getMenu()
+                for item in self.getMenuItems(menu):
+                    adapter = self.makeAdapter(item)
+                    self.uiMap.monitorWidget(adapter)
+        
     def monitorGefWidgets(self):
         for view in self.bot.views():
             if view.getViewReference() not in self.allPartRefs:
@@ -60,6 +72,16 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         except WidgetNotFoundException:
             pass
         return viewer
+
+    def getMenuItems(self, menu):
+        items = []
+        if menu is not None:
+            for item in menu.getItems():
+                if item.getMenu():
+                    self.getMenuItems(item.getMenu())
+                else:
+                    items.append(item)
+        return items
 
 class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     def __init__(self, widget, partRef):
