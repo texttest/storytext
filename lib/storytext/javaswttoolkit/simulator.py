@@ -80,6 +80,10 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
         
 class SignalEvent(storytext.guishared.GuiEvent):
+    def __init__(self, name, widget, argumentParseData, *args):
+        self.generationModifiers = argumentParseData.split(",") if argumentParseData else []
+        storytext.guishared.GuiEvent.__init__(self, name, widget, *args)
+        
     def connectRecord(self, method):
         class RecordListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
@@ -251,11 +255,13 @@ class TextEvent(StateChangeEvent):
 
     def _generate(self, argumentString):
         self.widget.setFocus()
-        self.widget.setText(argumentString)
+        if "typed" in self.generationModifiers:
+            self.widget.typeText(argumentString)
+        else:
+            self.widget.setText(argumentString)
 
     def getStateText(self, *args):
         return self.widget.getText()
-        
 
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
