@@ -464,6 +464,10 @@ class DisplayFilter:
                     self.disposedShells.append(e.widget)
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
+            
+        self.addApplicationEventFilter(display)
+        
+    def addApplicationEventFilter(self, display):
         class ApplicationEventListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 if e.text:
