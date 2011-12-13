@@ -20,7 +20,7 @@ def getGefViewer(botViewer):
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
-        rcpsimulator.swtsimulator.WidgetMonitor.swtbotMap[GraphicalViewer] = (gefbot.widgets.SWTBotGefViewer, [])
+        self.swtbotMap[GraphicalViewer] = (gefbot.widgets.SWTBotGefViewer, [])
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
 
     def createSwtBot(self):
@@ -40,8 +40,10 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
             for viewer in  self.getViewers(view):
                 menu = getGefViewer(viewer).getControl().getMenu()
                 for item in self.getMenuItems(menu):
-                    adapter = self.makeAdapter(item)
-                    self.uiMap.monitorWidget(adapter)
+                    if item not in self.widgetsMonitored:
+                        adapter = self.makeAdapter(item)
+                        self.uiMap.monitorWidget(adapter)
+                        self.widgetsMonitored.add(item)
         
     def monitorGefWidgets(self):
         for view in self.bot.views():
