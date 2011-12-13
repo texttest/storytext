@@ -9,7 +9,6 @@ from threading import Lock
 
 class JobListener(JobChangeAdapter):
     def __init__(self):
-        JobChangeAdapter.__init__(self)
         self.nonSystemEventName = None
         self.jobCount = 0
         self.jobCountLock = Lock()
