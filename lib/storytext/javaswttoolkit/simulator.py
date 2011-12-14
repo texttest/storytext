@@ -256,12 +256,17 @@ class TextEvent(StateChangeEvent):
     def _generate(self, argumentString):
         self.widget.setFocus()
         if "typed" in self.generationModifiers:
+            self.widget.selectAll()
             self.widget.typeText(argumentString)
         else:
             self.widget.setText(argumentString)
 
     def getStateText(self, *args):
         return self.widget.getText()
+    
+    def implies(self, stateChangeOutput, *args):
+        currOutput = self.outputForScript(*args)
+        return currOutput.startswith(stateChangeOutput)
 
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
