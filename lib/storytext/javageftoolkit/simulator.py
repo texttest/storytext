@@ -143,7 +143,7 @@ class ViewerEvent(GuiEvent):
                 return self.findEditPart(child, description)
 
     def shouldRecord(self, part, *args):
-        return not rcpsimulator.swtsimulator.DisplayFilter.hasEvents()
+        return not swtsimulator.DisplayFilter.instance.hasEvents()
 
     @classmethod
     def getSignalsToFilter(cls):

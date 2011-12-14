@@ -113,11 +113,11 @@ class PartActivateEvent(GuiEvent):
 
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return self.widget.getViewReference().getId() == part.getSite().getId() and not swtsimulator.DisplayFilter.hasEvents()
+        return self.widget.getViewReference().getId() == part.getSite().getId() and not swtsimulator.DisplayFilter.instance.hasEvents()
 
     def delayLevel(self):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return len(swtsimulator.DisplayFilter.eventsFromUser)
+        return len(swtsimulator.DisplayFilter.instance.eventsFromUser)
 
     def isStateChange(self):
         return True

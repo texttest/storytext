@@ -104,11 +104,11 @@ class SignalEvent(storytext.guishared.GuiEvent):
             pass # get these for actions that close the UI. But only after the action is done :)
 
     def shouldRecord(self, event, *args):
-        return DisplayFilter.getEventFromUser(event)
+        return DisplayFilter.instance.getEventFromUser(event)
 
     def delayLevel(self):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return len(DisplayFilter.eventsFromUser)
+        return len(DisplayFilter.instance.eventsFromUser)
 
     def widgetDisposed(self):
         return self.widget.widget.widget.isDisposed()
@@ -243,7 +243,7 @@ class CTabCloseEvent(SignalEvent):
 
     def shouldRecord(self, event, *args):
         shell = event.widget.getParent().getShell()
-        return DisplayFilter.getEventFromUser(event) and shell not in DisplayFilter.disposedShells
+        return DisplayFilter.instance.getEventFromUser(event) and shell not in DisplayFilter.instance.disposedShells
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return stateChangeEvent.isImpliedByCTabClose(self.widget.widget.widget)
@@ -301,7 +301,7 @@ class TreeEvent(SignalEvent):
             return self.name
         else:
             # Text may have changed since the application listeners have been applied
-            text = DisplayFilter.itemTextCache.pop(event.item, event.item.getText())
+            text = DisplayFilter.instance.itemTextCache.pop(event.item, event.item.getText())
             return ' '.join([self.name, text])
 
 
@@ -330,7 +330,8 @@ class TreeClickEvent(TreeEvent):
 
     def shouldRecord(self, event, *args):
         # Seem to get selection events even when nothing has been selected...
-        return DisplayFilter.getEventFromUser(event) and (event.item is None or event.item in event.widget.getSelection())
+        return DisplayFilter.instance.getEventFromUser(event) and \
+            (event.item is None or event.item in event.widget.getSelection())
 
     def generateItem(self, item):
         item.select()
@@ -410,31 +411,30 @@ class DateTimeEvent(StateChangeEvent):
                   "', not of format '" + self.dateFormat.toPattern() + "'."
 
 class DisplayFilter:
-    eventsFromUser = []
-    disposedShells = []
-    itemTextCache = {}
-    logger = None
-    @classmethod
-    def getEventFromUser(cls, event):
-        if event in cls.eventsFromUser:
-            cls.eventsFromUser.remove(event)
+    instance = None
+    def getEventFromUser(self, event):
+        if event in self.eventsFromUser:
+            self.eventsFromUser.remove(event)
             return True
         else:
-            if len(cls.eventsFromUser) == 0:
-                cls.logger.debug("Rejecting event, it has not yet been seen in the display filter")
+            if len(self.eventsFromUser) == 0:
+                self.logger.debug("Rejecting event, it has not yet been seen in the display filter")
             else:
-                cls.logger.debug("Received event " + event.toString())
-                cls.logger.debug("Rejecting event, not yet processed " + repr([ e.toString() for e in cls.eventsFromUser ]))
+                self.logger.debug("Received event " + event.toString())
+                self.logger.debug("Rejecting event, not yet processed " + repr([ e.toString() for e in self.eventsFromUser ]))
             return False
         
-    @classmethod
-    def hasEvents(cls):
-        return len(cls.eventsFromUser) > 0
+    def hasEvents(self):
+        return len(self.eventsFromUser) > 0
 
     def __init__(self, widgetEventTypes):
-        DisplayFilter.logger = logging.getLogger("storytext record")
         self.widgetEventTypes = widgetEventTypes
-
+        self.eventsFromUser = []
+        self.disposedShells = []
+        self.itemTextCache = {}
+        self.logger = logging.getLogger("storytext record")
+        DisplayFilter.instance = self
+        
     def getShell(self, widget):
         # Note : widget might be an Item rather than a widget!
         if widget is not None and not widget.isDisposed():
@@ -458,10 +458,10 @@ class DisplayFilter:
             def handleEvent(listenerSelf, e): #@NoSelf
                 if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
-                    DisplayFilter.eventsFromUser.append(e)
+                    self.eventsFromUser.append(e)
                     if e.item:
                         # Safe guard against the application changing the text before we can record
-                        DisplayFilter.itemTextCache[e.item] = e.item.getText()
+                        self.itemTextCache[e.item] = e.item.getText()
                     # This is basically a failsafe - shouldn't be needed but in case
                     # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
                     # this is a safeguard against never recording anything again.
