@@ -74,7 +74,7 @@ class Describer(storytext.guishared.Describer):
         self.widgetsAppeared = []
         
     def shouldCheckForUpdates(self, widget, shell):
-        return not isinstance(widget, swt.widgets.Menu) or widget.getShell() == shell
+        return not isinstance(widget, swt.widgets.Menu) or (not widget.isDisposed() and widget.getShell() == shell)
 
     def widgetShowing(self, widget):
         return not widget.isDisposed() and util.isVisible(widget)
