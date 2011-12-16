@@ -125,14 +125,6 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
-# Jython has problems with exceptions thrown from Java callbacks
-# Print them out and continue, don't just lose them...
-def catchAll(method, *args):
-    try:
-        method(*args)
-    except:
-        sys.stderr.write(storytext.guishared.getExceptionString() + "\n")
-
 class SignalEvent(storytext.guishared.GuiEvent):
     def generate(self, *args):
         self.checkWidgetStatus()
@@ -143,7 +135,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
         class ClickListener(MouseAdapter):
             def mousePressed(listenerSelf, event): #@NoSelf
-                catchAll(method, event, self)
+                storytext.guishared.catchAll(method, event, self)
 
         util.runOnEventDispatchThread(self.getRecordWidget().addMouseListener, ClickListener())
 
@@ -199,7 +191,7 @@ class FrameCloseEvent(SignalEvent):
     def connectRecord(self, method):               
         class EventListener(AWTEventListener):
             def eventDispatched(listenerSelf, event): #@NoSelf
-                catchAll(self.handleEvent, event, method)
+                storytext.guishared.catchAll(self.handleEvent, event, method)
     
         eventListener = EventListener()
         eventMask = AWTEvent.WINDOW_EVENT_MASK
@@ -211,7 +203,7 @@ class FrameCloseEvent(SignalEvent):
                 method(event, self)
             elif event.getID() == WindowEvent.WINDOW_CLOSED:
                 if isinstance(self.widget.widget, swing.JFrame):
-                    catchAll(PhysicalEventManager.stopListening)
+                    storytext.guishared.catchAll(PhysicalEventManager.stopListening)
                     
     @classmethod
     def getAssociatedSignal(cls, *args):
@@ -259,7 +251,7 @@ class PopupActivateEvent(ClickEvent):
         if isinstance(self.widget.widget, swing.JComponent) and self.widget.getComponentPopupMenu():
             class EventListener(AWTEventListener):
                 def eventDispatched(listenerSelf, event): #@NoSelf
-                    catchAll(self.handleEvent, event, method)
+                    storytext.guishared.catchAll(self.handleEvent, event, method)
     
             eventListener = EventListener()
             eventMask = AWTEvent.MOUSE_EVENT_MASK
@@ -294,7 +286,7 @@ class ButtonClickEvent(SignalEvent):
     def connectRecord(self, method):
         class RecordListener(ActionListener):
             def actionPerformed(lself, event): #@NoSelf
-                catchAll(self.tryApplicationEvent, event, method)
+                storytext.guishared.catchAll(self.tryApplicationEvent, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
 
@@ -352,7 +344,7 @@ class SpinnerEvent(StateChangeEvent):
     def connectRecord(self, method):
         class RecordListener(swing.event.ChangeListener):
             def stateChanged(lself, e): #@NoSelf
-                catchAll(method, e, self)
+                storytext.guishared.catchAll(method, e, self)
 
         util.runOnEventDispatchThread(self.widget.addChangeListener, RecordListener())
 
@@ -371,7 +363,7 @@ class TextEditEvent(StateChangeEvent):
     def connectRecord(self, method):
         class TextDocumentListener(swing.event.DocumentListener):
             def insertUpdate(lself, event): #@NoSelf
-                catchAll(method, event, self)
+                storytext.guishared.catchAll(method, event, self)
                 
             changedUpdate = insertUpdate
             removeUpdate = insertUpdate
@@ -401,7 +393,7 @@ class ActivateEvent(SignalEvent):
     def connectRecord(self, method):
         class ActivateEventListener(ActionListener):
             def actionPerformed(lself, event): #@NoSelf
-                catchAll(method, event, self)
+                storytext.guishared.catchAll(method, event, self)
                     
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, ActivateEventListener())
         
@@ -431,7 +423,7 @@ class MenuSelectEvent(SignalEvent):
     def connectRecord(self, method):
         class RecordListener(ActionListener):
             def actionPerformed(lself, event): #@NoSelf
-                catchAll(method, event, self)
+                storytext.guishared.catchAll(method, event, self)
 
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
     
@@ -520,11 +512,11 @@ class ComboBoxEvent(StateChangeEvent):
     def connectRecord(self, method):
         class ItemSelectListener(ItemListener):
             def itemStateChanged(listenerSelf, event): #@NoSelf
-                catchAll(self.tryRecordSelection, event, method)
+                storytext.guishared.catchAll(self.tryRecordSelection, event, method)
         
         class TextDocumentListener(swing.event.DocumentListener):
             def insertUpdate(lself, event): #@NoSelf
-                catchAll(method, None, event, self)
+                storytext.guishared.catchAll(method, None, event, self)
                 
             changedUpdate = insertUpdate
             removeUpdate = insertUpdate
@@ -715,7 +707,7 @@ class CellEditEvent(SignalEvent):
     def connectRecord(self, method):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event): #@NoSelf
-                catchAll(self.tryRecordUpdate, event, method)
+                storytext.guishared.catchAll(self.tryRecordUpdate, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
 
@@ -788,7 +780,7 @@ class TableIndexer:
     def observeUpdates(self):
         class TableListener(swing.event.TableModelListener):
             def tableChanged(listenerSelf, event): #@NoSelf
-                catchAll(self.updateTableInfo)
+                storytext.guishared.catchAll(self.updateTableInfo)
                 
         util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
 
@@ -902,7 +894,7 @@ class PhysicalEventManager:
     def startListening(self):        
         class PhysicalEventListener(AWTEventListener):
             def eventDispatched(listenerSelf, event): #@NoSelf
-                catchAll(self.handleEvent, event)
+                storytext.guishared.catchAll(self.handleEvent, event)
         
         self.eventListener = PhysicalEventListener()
         eventMask = AWTEvent.MOUSE_EVENT_MASK | AWTEvent.KEY_EVENT_MASK

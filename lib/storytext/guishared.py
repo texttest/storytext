@@ -1172,3 +1172,12 @@ def getTextLabel(widget, childrenMethodName, labelClass):
 def removeMarkup(text):
     removed = re.sub("<[^>]*>", "", text)
     return text if removed == text else removed.strip()
+
+# Jython has problems with exceptions thrown from Java callbacks
+# Print them out and continue, don't just lose them...
+def catchAll(method, *args):
+    try:
+        method(*args)
+    except:
+        sys.stderr.write(getExceptionString() + "\n")
+

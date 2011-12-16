@@ -92,9 +92,9 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
                     sys.settrace(threading._trace_hook)
     
                 if event.getID() == ComponentEvent.COMPONENT_SHOWN:
-                    simulator.catchAll(self.handleNewComponent, event.getSource())
+                    storytext.guishared.catchAll(self.handleNewComponent, event.getSource())
                 elif event.getID() == ContainerEvent.COMPONENT_ADDED:
-                    simulator.catchAll(self.handleNewComponent, event.getChild())
+                    storytext.guishared.catchAll(self.handleNewComponent, event.getChild())
 
         eventMask = AWTEvent.COMPONENT_EVENT_MASK | AWTEvent.CONTAINER_EVENT_MASK
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, NewComponentListener(), eventMask)
