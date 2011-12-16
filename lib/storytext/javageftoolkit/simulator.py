@@ -9,7 +9,7 @@ from org.eclipse.ui.internal import EditorReference
 # Force classloading in the test thread where it works...
 from org.eclipse.draw2d import * #@UnusedWildImport
 from org.eclipse.gef import *
-from storytext.guishared import GuiEvent
+import storytext.guishared
 from org.eclipse import swt
 
 def getGefViewer(botViewer):
@@ -103,7 +103,7 @@ class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     def getType(self):
         return "Viewer"
 
-class ViewerEvent(GuiEvent):
+class ViewerEvent(storytext.guishared.GuiEvent):
     def outputForScript(self, *args):
         return ' '.join([self.name, self.getStateDescription(*args) ])
 
@@ -158,6 +158,9 @@ class ViewerSelectEvent(ViewerEvent):
     def connectRecord(self, method):
         class SelectionListener(ISelectionChangedListener):
             def selectionChanged(lself, event): #@NoSelf
+                storytext.guishared.catchAll(lself._selectionChanged, event)
+                
+            def _selectionChanged(lself, event): #@NoSelf
                 selection = event.getSelection()
                 for editPart in selection.toList():
                     method(editPart, self)

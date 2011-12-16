@@ -87,7 +87,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
         class RecordListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                method(e, self)
+                storytext.guishared.catchAll(method, e, self)
 
         eventType = getattr(swt.SWT, self.getAssociatedSignal(self.widget))
         try:
@@ -461,6 +461,9 @@ class DisplayFilter:
     def addFilters(self, display, monitorListener):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
+                storytext.guishared.catchAll(listenerSelf._handleEvent, e)
+
+            def _handleEvent(listenerSelf, e): #@NoSelf
                 if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
                     self.logger.debug("Filter for event " + e.toString())
                     self.eventsFromUser.append(e)
@@ -473,6 +476,7 @@ class DisplayFilter:
                     monitorListener.handleEvent(e)
                 elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
                     self.disposedShells.append(e.widget)
+
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
             
@@ -482,7 +486,7 @@ class DisplayFilter:
         class ApplicationEventListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 if e.text:
-                    applicationEvent(e.text, "system")
+                    storytext.guishared.catchAll(applicationEvent, e.text, "system")
         runOnUIThread(display.addFilter, applicationEventType, ApplicationEventListener())
         
     def shouldCheckWidget(self, widget, eventType):
@@ -516,8 +520,11 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
 
     def getUrlOrText(self):
         return util.getRealUrl(self.widget) or self.widget.getText()
-
+    
     def completed(self, e):
+        storytext.guishared.catchAll(self.onCompleted, e)
+        
+    def onCompleted(self, e):
         newText = self.getUrlOrText()
         if newText != self.urlOrText:
             applicationEvent(self.widget.getNameForAppEvent() + " to finish loading")
@@ -606,7 +613,7 @@ class WidgetMonitor:
     def addMonitorFilter(self, display):
         class MonitorListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                self.widgetShown(e.widget, e.type)
+                storytext.guishared.catchAll(self.widgetShown, e.widget, e.type)
 
         monitorListener = MonitorListener()
         runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)

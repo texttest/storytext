@@ -3,7 +3,7 @@
 
 import sys
 from storytext.javaswttoolkit import simulator as swtsimulator
-from storytext.guishared import GuiEvent
+import storytext.guishared
 import org.eclipse.swtbot.eclipse.finder as swtbot
 from org.eclipse.ui import IPartListener
 
@@ -95,11 +95,11 @@ class ViewAdapter(swtsimulator.WidgetAdapter):
     def getType(self):
         return "View"
 
-class PartActivateEvent(GuiEvent):
+class PartActivateEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
         class RecordListener(IPartListener):
-            def partActivated(listenerSelf, part):
-                method(part, self)
+            def partActivated(listenerSelf, part):#@NoSelf
+                storytext.guishared.catchAll(method, part, self)
         page = self.widget.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
 
