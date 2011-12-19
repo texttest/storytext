@@ -284,7 +284,10 @@ class Describer(storytext.guishared.Describer):
 
     def getLabelState(self, label):
         if label.getStyle() & swt.SWT.SEPARATOR:
-            return "-" * 10
+            if label.getStyle() & swt.SWT.VERTICAL:
+                return "-" * 5 + "vertical" + "-" * 5
+            else:
+                return "-" * 10
         elements = []
         if label.getText():
             elements.append("'" + label.getText() + "'")
