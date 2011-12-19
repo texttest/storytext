@@ -14,6 +14,7 @@ from org.eclipse.swt.custom import *
 from org.eclipse.swt.dnd import *
 from org.eclipse.swt.layout import *
 from org.eclipse.swtbot.swt.finder.finders import *
+from org.eclipse.ui.dialogs import FilteredTree
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -53,6 +54,17 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
             for child in widget.getChildren():
                 cls.storeIdWithChildren(child, viewId)
 
+class DisplayFilter(swtsimulator.DisplayFilter):
+    def hasComplexAncestors(self, widget):
+        return self.isFilterTreeText(widget) or swtsimulator.DisplayFilter.hasComplexAncestors(self, widget)
+    
+    def isFilterTreeText(self, widget):
+        # This field changes its contents the whole time depending on which window is in focus
+        # causing trouble for the recorder.
+        # It's part of the Eclipse platform so testing it is usually not interesting.
+        return isinstance(widget, Text) and widget.getParent() is not None and \
+            isinstance(widget.getParent().getParent(), FilteredTree)
+
 
 class WidgetMonitor(swtsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
@@ -63,6 +75,9 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         
     def createSwtBot(self):
         return swtbot.SWTWorkbenchBot()
+    
+    def getDisplayFilterClass(self):
+        return DisplayFilter
     
     def monitorAllWidgets(self, *args, **kw):
         self.setWidgetAdapter()
