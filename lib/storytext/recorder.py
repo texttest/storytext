@@ -253,6 +253,7 @@ class UseCaseRecorder:
             
     def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
         category = category or "storytext_DEFAULT"
+        delayLevel = max(delayLevel, self.getMaximumStoredDelay())
         if category in self.applicationEvents:
             existingEvent = self.applicationEvents[category][0]
             if existingEvent == eventName:
