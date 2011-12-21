@@ -534,7 +534,8 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
 
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
-                                         [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio) ]),
+                                         [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio),
+                                          (swt.SWT.CHECK, swtbot.widgets.SWTBotCheckBox) ]),
                   swt.widgets.MenuItem : (swtbot.widgets.SWTBotMenu, []),
                   swt.widgets.Shell    : (swtbot.widgets.SWTBotShell, []),
                   swt.widgets.ToolItem : ( swtbot.widgets.SWTBotToolbarPushButton,
@@ -713,4 +714,5 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
                 (FakeSWTBotCTabFolder                   , [ CTabSelectEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ CTabCloseEvent ]),
-                (swtbot.widgets.SWTBotDateTime          , [ DateTimeEvent ]) ]
+                (swtbot.widgets.SWTBotDateTime          , [ DateTimeEvent ]),
+                (swtbot.widgets.SWTBotCheckBox          , [ SelectEvent ]) ]
