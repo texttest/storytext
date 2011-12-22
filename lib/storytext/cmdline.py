@@ -25,6 +25,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-i", "--interface", metavar="INTERFACE",
                       help="type of interface used by application, should be 'console', 'gtk' or 'tkinter' ('gtk' is default)", 
                       default="gtk")
+    parser.add_option("-I", "--imagedescription",
+                      help="determines how images are described by the auto-generated output, should be 'name' or 'number'")
     parser.add_option("-l", "--loglevel", default="INFO", 
                       help="produce logging at level LEVEL, should be 'info', 'debug', 'config' or 'off'. 'info' will point the auto-generated GUI log at standard output. 'debug' will produce a large amount of StoryText debug information on standard output. 'off' will disable the auto-generated log. 'config' will enabled the auto-generated log but not set any global log level: it is a way to tell StoryText that your application will configure its logging via its own log configuration files.", metavar="LEVEL")
     parser.add_option("-L", "--logconfigfile",
@@ -35,6 +37,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="maximum output width for side-by-side output in the auto-generated output")
     parser.add_option("-p", "--replay", 
                       help="replay script from FILE. Also enabled via the environment variable USECASE_REPLAY_SCRIPT.", metavar="FILE")
+    parser.add_option("-P", "--pathstoimages",
+                      help="Comma separated absolute paths to image files")
     parser.add_option("-r", "--record", 
                       help="record script to FILE. Also enabled via the environment variable USECASE_RECORD_SCRIPT.", metavar="FILE")
     parser.add_option("-s", "--supported", action="store_true",

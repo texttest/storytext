@@ -6,7 +6,9 @@ from storytext import applicationEvent
 from org.eclipse import swt
 from java.util import Date
 import xml.sax
-        
+from java.io import File, FilenameFilter
+from org.eclipse.jface.resource import ImageDescriptor
+
 class Describer(storytext.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
                    (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
@@ -33,6 +35,9 @@ class Describer(storytext.guishared.Describer):
         self.widgetsDescribed = set()
         self.browserStates = {}
         self.clipboardText = None
+        self.imageDescriptorToNames = {}
+        self.imageToName = {}
+        self.handleImages()
         storytext.guishared.Describer.__init__(self)
 
     def setWidgetPainted(self, widget):
@@ -201,7 +206,35 @@ class Describer(storytext.guishared.Describer):
     def getImageDescription(self, image):
         # Seems difficult to get any sensible image information out, there is
         # basically no query API for this in SWT
-        return "Image " + self.imageCounter.getId(image)
+        if self.imageDescriptionType == "name":
+            return self.getImageNameDescription(image)
+        else:
+            return self.getDefaultImageDescription(image)
+        
+    def getImageNameDescription(self, image):
+        desc = self.getImageName(image)
+        if desc is not None:
+            return "Icon '" + desc + "'"
+        else:
+            return "Unknown Image"
+
+    def getDefaultImageDescription(self, image):
+        name = "Image"
+        if self.imageDescriptionType == "number":
+            name += " " + self.imageCounter.getId(image)
+        return name
+    
+    def getImageName(self, image):
+        name = self.imageToName.get(image)
+        if name is not None:
+            return name
+        for img in sorted(self.imageDescriptorToNames, key=lambda x: self.imageDescriptorToNames[x]):
+            newImage = img.createImage()
+            if newImage.getImageData().data == image.getImageData().data:
+                name = self.imageDescriptorToNames.get(img)                
+                self.imageToName[image] = name                
+                break
+        return name
 
     def getCanvasDescription(self, widget):
         return "Canvas " + self.canvasCounter.getId(widget)
@@ -248,8 +281,10 @@ class Describer(storytext.guishared.Describer):
        
     def getControlDecorationDescription(self, item):
         deco = self.getControlDecoration(item)
-        if deco and self.decorationVisible(deco):
-            text = "Decoration " + self.getImageDescription(deco.getImage())
+        if deco:
+            imgDesc = self.getControlDecorationImageDescription(deco.getImage())
+        if deco and self.decorationVisible(deco): 
+            text = "Decoration " + imgDesc
             desc = deco.getDescriptionText()
             if desc:
                 text += "\n'" + desc + "'"
@@ -265,6 +300,13 @@ class Describer(storytext.guishared.Describer):
         method.setAccessible(True)
         return method.invoke(deco, *args)
 
+    def getControlDecorationImageDescription(self, image):
+        # Hard coded. It gets indeterministic results
+        if self.imageDescriptionType == "name":
+            return "Unknown Image"
+        else:
+            return self.getDefaultImageDescription(image)
+        
     def getPropertyElements(self, item, selected=False):
         elements = []
         decoText = self.getControlDecorationDescription(item)
@@ -554,6 +596,43 @@ class Describer(storytext.guishared.Describer):
 
     def getRawDataLayoutDetails(self, layout, *args):
         return [ str(layout.numColumns) + " columns" ] if hasattr(layout, "numColumns") else []
+
+    def handleImages(self):
+        if self.imageDescriptionType:
+            self.buildImages()
+    
+    def buildImages(self):
+        self.buildImagesFromPaths()
+
+    def buildImagesFromPaths(self):
+        for path in self.imagePaths:
+            self.findFiles(File(path))
+
+    def getImageFiles(self, path):
+        d = File(path)
+        class Filter(FilenameFilter):
+            def accept(lself, d, fileName):#@NoSelf
+                return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
+
+        return d.listFiles(Filter())
+    
+    def makeImageDescriptor(self, url):
+        imgDesc = ImageDescriptor.createFromURL(url)
+        name = url.getFile().split("/")[-1]
+        if imgDesc is not None:
+            #print "FILE", url.getFile()
+            self.imageDescriptorToNames[imgDesc] = name
+
+    def findFiles(self, pathAsFile):
+        if pathAsFile.isFile() and self.isImageType(pathAsFile.getName()):
+            self.makeImageDescriptor(pathAsFile.toURI().toURL())
+        elif pathAsFile.isDirectory():
+            for f in pathAsFile.listFiles():
+                if f is not None:
+                    self.findFiles(f)
+
+    def isImageType(self, fileName):
+        return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
 
 class BrowserHtmlParser(xml.sax.ContentHandler):
     def __init__(self):

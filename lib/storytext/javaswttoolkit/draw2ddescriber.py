@@ -278,3 +278,6 @@ class FigureCanvasDescriber(guishared.Describer):
 
     def handleGridFormatter(self, formatter):
         return formatter # It's not a horizontal row, but we want to be able to combine grids with each other
+    
+    def getPolylineShapeDescription(self, widget):
+        pass

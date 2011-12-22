@@ -302,6 +302,10 @@ class ScriptEngine(scriptengine.ScriptEngine):
     def handleAdditionalOptions(self, options):
         if options.maxoutputwidth:
             Describer.maxOutputWidth = int(options.maxoutputwidth)
+        if options.imagedescription:
+            Describer.imageDescriptionType = options.imagedescription
+        if options.pathstoimages:
+            Describer.imagePaths = options.pathstoimages.split(",")
 
     def run_python_or_java(self, args):
         # Two options here: either a Jython program and hence a .py file, or a Java class
@@ -738,8 +742,10 @@ class WidgetCounter:
 
 
 # Base class for everything except GTK's describer, which works a bit differently
-class Describer:
+class Describer(object):
     maxOutputWidth = 130
+    imagePaths = []
+    imageDescriptionType = None
     def __init__(self):
         self.logger = logging.getLogger("gui log")
         self.windows = set()
