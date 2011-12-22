@@ -551,6 +551,9 @@ class UIMap:
             signalName, argumentParseData = self.parseSignature(signature)
             if self.autoInstrument(eventName, signalName, widget, argumentParseData, widgetType):
                 signaturesInstrumented.add(signature)
+                # sometimes extra data is optional configuration, need to note that we don't need 
+                # several variants in the recorder
+                signaturesInstrumented.add(signalName) 
                 return True
         except definitions.UseCaseScriptError, e:
             sys.stderr.write("ERROR in UI map file: " + str(e) + "\n")

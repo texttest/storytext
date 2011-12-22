@@ -24,7 +24,7 @@ class UserEvent:
         self.name = name
     def shouldRecord(self, *args): # pragma: no cover - just documenting interface
         return True
-    def delayLevel(self):
+    def delayLevel(self, *args):
         return False
     def outputForScript(self, *args): # pragma: no cover - just documenting interface
         return self.name

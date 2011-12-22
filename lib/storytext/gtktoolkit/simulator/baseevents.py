@@ -36,7 +36,7 @@ class GtkEvent(GuiEvent):
         else:
             return gobject.signal_lookup(signalName, widget.widget) != 0
         
-    def delayLevel(self):
+    def delayLevel(self, *args):
         # If we get this when in dialog.run, the event that cause us has not yet been
         # recorded, so we should delay
         topLevel = self.widget.get_toplevel()

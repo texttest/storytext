@@ -190,7 +190,7 @@ class UseCaseRecorder:
         haveRecorded = False 
         if self.stateChangeEventInfo:
             stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
-            if stateChangeDelayLevel >= event.delayLevel():
+            if stateChangeDelayLevel >= event.delayLevel(*args):
                 if event.implies(stateChangeOutput, stateChangeEvent, *args):
                     self.logger.debug("Implies previous state change event, ignoring previous")
                 else:
@@ -198,9 +198,9 @@ class UseCaseRecorder:
                 self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
-        willRecord = not event.delayLevel() and not event.isStateChange()
+        willRecord = not event.delayLevel(*args) and not event.isStateChange()
         self.writeApplicationEventDetails(haveRecorded or willRecord)
-        delayLevel = event.delayLevel()
+        delayLevel = event.delayLevel(*args)
         if event.isStateChange() and delayLevel >= self.getMaximumStoredDelay():
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel))
             self.stateChangeEventInfo = scriptOutput, event, delayLevel

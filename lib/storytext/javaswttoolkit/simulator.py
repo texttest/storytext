@@ -106,9 +106,9 @@ class SignalEvent(storytext.guishared.GuiEvent):
     def shouldRecord(self, event, *args):
         return DisplayFilter.instance.getEventFromUser(event)
 
-    def delayLevel(self):
+    def delayLevel(self, event, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return len(DisplayFilter.instance.eventsFromUser)
+        return DisplayFilter.instance.otherEventCount(event)
 
     def widgetDisposed(self):
         return self.widget.widget.widget.isDisposed()
@@ -417,9 +417,14 @@ class DateTimeEvent(StateChangeEvent):
 
 class DisplayFilter:
     instance = None
+    def otherEventCount(self, event):
+        if event in self.eventsFromUser:
+            return len(self.eventsFromUser) - 1
+        else:
+            return len(self.eventsFromUser)
+        
     def getEventFromUser(self, event):
         if event in self.eventsFromUser:
-            self.eventsFromUser.remove(event)
             return True
         else:
             if len(self.eventsFromUser) == 0:
@@ -461,27 +466,34 @@ class DisplayFilter:
     def addFilters(self, display, monitorListener):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                storytext.guishared.catchAll(listenerSelf._handleEvent, e)
-
-            def _handleEvent(listenerSelf, e): #@NoSelf
-                if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
-                    self.logger.debug("Filter for event " + e.toString())
-                    self.eventsFromUser.append(e)
-                    if e.item:
-                        # Safe guard against the application changing the text before we can record
-                        self.itemTextCache[e.item] = e.item.getText()
-                    # This is basically a failsafe - shouldn't be needed but in case
-                    # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
-                    # this is a safeguard against never recording anything again.
-                    monitorListener.handleEvent(e)
-                elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
-                    self.disposedShells.append(e.widget)
+                storytext.guishared.catchAll(self.handleFilterEvent, e, monitorListener)
 
         for eventType in self.getAllEventTypes():
             runOnUIThread(display.addFilter, eventType, DisplayListener())
             
         self.addApplicationEventFilter(display)
-        
+
+    def handleFilterEvent(self, e, monitorListener):
+        if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
+            self.logger.debug("Filter for event " + e.toString())
+            self.eventsFromUser.append(e)
+            class EventFinishedListener(swt.widgets.Listener):
+                def handleEvent(listenerSelf, e2): #@NoSelf
+                    if e2 is e:
+                        self.logger.debug("Filter removed for event " + e.toString())
+                        self.eventsFromUser.remove(e)
+                    
+            runOnUIThread(e.widget.addListener, e.type, EventFinishedListener())
+            if e.item:
+                # Safe guard against the application changing the text before we can record
+                self.itemTextCache[e.item] = e.item.getText()
+            # This is basically a failsafe - shouldn't be needed but in case
+            # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
+            # this is a safeguard against never recording anything again.
+            monitorListener.handleEvent(e)
+        elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
+            self.disposedShells.append(e.widget)
+
     def addApplicationEventFilter(self, display):
         class ApplicationEventListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
@@ -535,7 +547,7 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
                                          [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio),
-                                          (swt.SWT.CHECK, swtbot.widgets.SWTBotCheckBox) ]),
+                                           (swt.SWT.CHECK, swtbot.widgets.SWTBotCheckBox) ]),
                   swt.widgets.MenuItem : (swtbot.widgets.SWTBotMenu, []),
                   swt.widgets.Shell    : (swtbot.widgets.SWTBotShell, []),
                   swt.widgets.ToolItem : ( swtbot.widgets.SWTBotToolbarPushButton,
@@ -595,7 +607,9 @@ class WidgetMonitor:
         allWidgets = self.findAllWidgets()
         newWidgets = set(allWidgets).difference(self.widgetsMonitored)
         self.widgetsMonitored.update(newWidgets)
+        self.uiMap.logger.debug("Monitoring all widgets in active shell...")
         self.monitorAllWidgets(self.getActiveShell(), list(newWidgets))
+        self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
         
     def forceShellActive(self):
         if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
@@ -631,8 +645,12 @@ class WidgetMonitor:
         if eventType == swt.SWT.Show:
             self.bot.getFinder().setShouldFindInvisibleControls(False)
 
-        self.widgetsMonitored.update(widgets)
-        self.monitorAllWidgets(parent, widgets)
+        self.uiMap.logger.debug("Showing/painting widget of type " +
+                                parent.__class__.__name__ + " " + str(id(parent)) + ", monitoring found widgets")
+        newWidgets = [ w for w in widgets if w not in self.widgetsMonitored ]
+        self.widgetsMonitored.update(newWidgets)
+        self.monitorAllWidgets(parent, newWidgets)
+        self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + parent.__class__.__name__ + ".")
         
     def findDescendants(self, widget):
         matcher = IsAnything()
@@ -642,8 +660,6 @@ class WidgetMonitor:
             return self.bot.widgets(matcher, widget)
 
     def monitorAllWidgets(self, parent, widgets):
-        self.uiMap.logger.debug("Showing/painting widget of type " +
-                                parent.__class__.__name__ + ", monitoring found widgets")
         for widget in self.makeAdapters(widgets):
             self.uiMap.monitorWidget(widget)
             self.monitorAsynchronousUpdates(widget)
@@ -666,7 +682,7 @@ class WidgetMonitor:
         for widget in widgets:
             if isinstance(widget, swt.widgets.Control):
                 menuFinder = swtbot.finders.ContextMenuFinder(widget)
-                menus += menuFinder.findMenus(IsAnything())
+                menus += filter(lambda m: m not in self.widgetsMonitored, menuFinder.findMenus(IsAnything()))
         return menus
 
     def findSwtbotClass(self, widget, widgetClass):
