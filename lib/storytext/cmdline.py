@@ -2,7 +2,7 @@
 
 import scriptengine, definitions
 import os, sys, logging.config, optparse
-
+    
 def create_option_parser():
     usage = """usage: %prog [options] <program> <program_args> ...
 
@@ -22,9 +22,11 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.disable_interspersed_args() # don't try to parse the application's args
     parser.add_option("-d", "--delay", metavar="SECONDS", 
                       help="amount of time to wait between each action when replaying. Also enabled via the environment variable USECASE_REPLAY_DELAY.")
+    
+    default_interface = "gtk" if sys.version_info[0] == 2 else "tkinter"
     parser.add_option("-i", "--interface", metavar="INTERFACE",
-                      help="type of interface used by application, should be 'console', 'gtk' or 'tkinter' ('gtk' is default)", 
-                      default="gtk")
+                      help="type of interface used by application, should be 'console', 'gtk', 'tkinter', 'wx', 'javaswing', 'javaswt', 'javarcp' or 'javagef' ('" + default_interface + "' is default)", 
+                      default=default_interface)
     parser.add_option("-I", "--imagedescription",
                       help="determines how images are described by the auto-generated output, should be 'name' or 'number'")
     parser.add_option("-l", "--loglevel", default="INFO", 
