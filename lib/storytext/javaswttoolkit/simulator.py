@@ -266,7 +266,9 @@ class TextEvent(StateChangeEvent):
     
     def implies(self, stateChangeOutput, *args):
         currOutput = self.outputForScript(*args)
-        return currOutput.startswith(stateChangeOutput)
+        return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
+            (currOutput.startswith(stateChangeOutput) or \
+             stateChangeOutput.startswith(currOutput))
 
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
