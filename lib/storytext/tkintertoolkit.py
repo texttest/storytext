@@ -4,6 +4,8 @@
 import guishared
 import os, time, Tkinter, logging, re
 from definitions import UseCaseScriptError
+from gridformatter import GridFormatter
+
 try:
     from collections import OrderedDict
 except ImportError:
@@ -590,13 +592,18 @@ class Describer(guishared.Describer):
 
     def getGridSlavesDescription(self, widget, slaves, children):
         row_count = widget.grid_size()[-1]
-        gridDesc = ""
+        grid = []
+        if row_count == 0:
+            return ""
         for x in range(row_count):
             rowSlaves = filter(lambda w: w in children and w not in slaves, widget.grid_slaves(row=x))
+            rowSlaves.reverse()
             slaves.update(rowSlaves)
-            allDescs = map(self.getDescription, rowSlaves)
-            gridDesc += " | ".join(reversed(allDescs)) + "\n"
-        return gridDesc
+            allDescs = [ self.getDescription(w) for w in rowSlaves ] or [ "" ]
+            grid.append(allDescs)
+        column_count = max((len(row) for row in grid))
+        # More conventional str() fails on unicode!
+        return GridFormatter(grid, column_count).__str__()
 
     def isPopupMenu(self, child, parent):
         return isinstance(child, Tkinter.Menu) and not isinstance(parent, (Tkinter.Menu, Tkinter.Menubutton))
