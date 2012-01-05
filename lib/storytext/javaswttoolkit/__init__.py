@@ -11,8 +11,8 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
         self.testThread = None
         storytext.guishared.ScriptEngine.__init__(self, *args, **kw)
         
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
 
     def setTestThreadAction(self, method):
         self.testThread = Thread(target=method)
@@ -48,9 +48,9 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
 
         
 class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
-    def __init__(self, *args):
+    def __init__(self, *args, **kw):
         # Set up used for recording
-        storytext.guishared.ThreadedUseCaseReplayer.__init__(self, *args)
+        storytext.guishared.ThreadedUseCaseReplayer.__init__(self, *args, **kw)
         self.setThreadCallbacks()
 
     def setThreadCallbacks(self):

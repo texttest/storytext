@@ -45,6 +45,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="record script to FILE. Also enabled via the environment variable USECASE_RECORD_SCRIPT.", metavar="FILE")
     parser.add_option("-s", "--supported", action="store_true",
                       help="list which PyGTK widgets and signals are currently supported 'out-of-the-box'")
+    parser.add_option("-t", "--timeout", metavar="SECONDS", default=60, action="store", type="int",
+                      help="amount of time to wait for application events before giving up and trying to proceed.")
     parser.add_option("--supported-html", action="store_true", help=optparse.SUPPRESS_HELP)
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
@@ -60,7 +62,7 @@ def create_script_engine(options, install_root):
         logging.basicConfig(level=level, stream=sys.stdout, format="%(message)s")
 
     if options.interface == "console":
-        return scriptengine.ScriptEngine()
+        return scriptengine.ScriptEngine(timeout=options.timeout)
 
     cmd = "from storytext." + options.interface + "toolkit import ScriptEngine"
     # This is a bit weird, but it's apparently necessary in python 3...
@@ -73,7 +75,7 @@ def create_script_engine(options, install_root):
     if options.mapfiles:
         mapFiles = options.mapfiles.split(",")
     return ScriptEngine(uiMapFiles=mapFiles, universalLogging=logEnabled,
-                        binDir=os.path.join(install_root, "bin"))
+                        binDir=os.path.join(install_root, "bin"), timeout=options.timeout)
     
 def set_up_environment(options):
     if options.record:

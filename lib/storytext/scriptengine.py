@@ -52,8 +52,8 @@ class ScriptEngine:
                 shortcuts.append(replayer.ReplayScript(fullPath))
         return shortcuts
 
-    def createReplayer(self, **kwargs):
-        return replayer.UseCaseReplayer()
+    def createReplayer(self, **kw):
+        return replayer.UseCaseReplayer(**kw)
 
     def applicationEvent(self, name, category=None, supercedeCategories=[], timeDelay=0.001, delayLevel=0):
         # Small time delay to avoid race conditions: see replayer

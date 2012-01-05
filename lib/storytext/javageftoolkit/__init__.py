@@ -5,8 +5,8 @@ from storytext import javarcptoolkit
 import sys
 
 class ScriptEngine(javarcptoolkit.ScriptEngine):
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
 
     def getTestscriptPlugin(self):
         return "org.eclipse.swtbot.gef.testscript.application"

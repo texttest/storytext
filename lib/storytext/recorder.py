@@ -3,11 +3,12 @@
 
 import os, sys, signal, logging
 from replayer import ReplayScript
+from definitions import *
+
 try:
     from collections import OrderedDict
 except ImportError:
     from ordereddict import OrderedDict
-from definitions import *
 
 # Take care not to record empty files...
 class RecordScript:
@@ -130,7 +131,7 @@ class UseCaseRecorder:
         # Don't record SIGCHLD unless told to, these are generally ignored
         # Also don't record SIGCONT, which is sent by LSF when suspension resumed
         # SIGBUS and SIGSEGV are usually internaly errors
-        ignoreSignals = [ signal.SIGCHLD, signal.SIGCONT, signal.SIGBUS, signal.SIGSEGV ]
+        ignoreSignals = [ signal.SIGCHLD, signal.SIGCONT, signal.SIGBUS, signal.SIGSEGV ] #@UndefinedVariable
         for signum in range(signal.NSIG):
             try:
                 if signum not in ignoreSignals:

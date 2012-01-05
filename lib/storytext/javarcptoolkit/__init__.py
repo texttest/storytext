@@ -6,8 +6,8 @@ from storytext import javaswttoolkit
 from java.lang import Runnable, Thread
 
 class ScriptEngine(javaswttoolkit.ScriptEngine):
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
 
     def runSystemUnderTest(self, args):
         import org.eclipse.equinox.launcher as launcher

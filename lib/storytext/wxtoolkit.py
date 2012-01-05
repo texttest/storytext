@@ -201,8 +201,8 @@ class ScriptEngine(guishared.ScriptEngine):
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
 
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
         
     def getDescriptionInfo(self):
         return "wxPython", "wx", "actions", "http://www.wxpython.org/docs/api/"

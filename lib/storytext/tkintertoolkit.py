@@ -473,8 +473,8 @@ class ScriptEngine(guishared.ScriptEngine):
         guishared.ScriptEngine.__init__(self, *args, **kw)
         Menu.replayActive = self.replayerActive()
          
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
 
     def _createSignalEvent(self, eventName, eventDescriptor, widget, argumentParseData):
         for eventClass in self.findEventClassesFor(widget):

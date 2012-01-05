@@ -40,8 +40,8 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
 
         return storytext.scriptengine.ScriptEngine.run(self, options, args)
     
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
     
     def runSystemUnderTest(self, args):
         self.run_python_or_java(args)

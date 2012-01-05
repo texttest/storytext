@@ -1,8 +1,8 @@
 
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
-import os, sys, signal, time, stat, logging
-from threading import Thread
+import os, sys, signal, time, logging
+from threading import Thread, Timer
 from definitions import *
 
 class ReplayScript:
@@ -62,7 +62,8 @@ class ReplayScript:
         
     
 class UseCaseReplayer:
-    def __init__(self):
+    defaultEventHappenedMessage = "Expected application event '%s' occurred, proceeding."
+    def __init__(self, timeout=60):
         self.logger = logging.getLogger("storytext replay log")
         self.scripts = []
         self.shortcuts = {}
@@ -71,6 +72,9 @@ class UseCaseReplayer:
         self.applicationEventNames = set()
         self.replayThread = None
         self.timeDelayNextCommand = 0
+        self.eventHappenedMessage = self.defaultEventHappenedMessage
+        self.appEventTimer = None
+        self.appEventTimeout = timeout
         if os.name == "posix":
             os.setpgrp() # Makes it easier to kill subprocesses
 
@@ -117,6 +121,18 @@ class UseCaseReplayer:
         self.replayThread.start()
         #gtk.idle_add(method)
 
+    def notifyWaitingCompleted(self):
+        if self.replayThread:
+            self.replayThread.join()
+        self.applicationEventNames = set()
+        self.enableReading()
+
+    def timeoutApplicationEvents(self):
+        self.logger.debug("Waiting aborted after " + str(self.appEventTimeout) + " seconds.")
+        self.eventHappenedMessage = "ERROR: Expected application event '%s' timed out after " + \
+            str(self.appEventTimeout) + " seconds! Trying to proceed."
+        self.notifyWaitingCompleted()
+        
     def registerApplicationEvent(self, eventName, timeDelay):
         origEventName = eventName
         count = 2
@@ -128,10 +144,11 @@ class UseCaseReplayer:
         self.timeDelayNextCommand = timeDelay
         if len(self.waitingForEvents) > 0 and self.waitingCompleted():
             self.logger.debug("Waiting completed, proceeding...")
-            if self.replayThread:
-                self.replayThread.join()
-            self.applicationEventNames = set()
-            self.enableReading()
+            self.eventHappenedMessage = self.defaultEventHappenedMessage
+            if self.appEventTimer:
+                self.appEventTimer.cancel()
+                self.appEventTimer = None
+            self.notifyWaitingCompleted()
             
     def applicationEventRename(self, oldName, newName):
         toRename = filter(lambda eventName: oldName in eventName and newName not in eventName,
@@ -179,7 +196,7 @@ class UseCaseReplayer:
         if len(eventNames):
             self.write("")
         for eventName in eventNames:
-            self.write("Expected application event '" + eventName + "' occurred, proceeding.")
+            self.write(self.eventHappenedMessage % eventName)
 
     def runNextCommand(self):
         self.describeAppEventsHappened(self.waitingForEvents)
@@ -211,7 +228,7 @@ class UseCaseReplayer:
                     self.processCommand(commandName, argumentString)
             except UseCaseScriptError:
                 # We don't terminate scripts if they contain errors
-                type, value, traceback = sys.exc_info()
+                type, value, _ = sys.exc_info()
                 self.write("ERROR: " + str(value))
         return not self.checkTermination()
     
@@ -239,7 +256,7 @@ class UseCaseReplayer:
                     event.generate(argumentString)
                     return
                 except UseCaseScriptError:
-                    type, value, traceback = sys.exc_info()
+                    type, value, _ = sys.exc_info()
                     self.logger.debug("Error, trying another: " + str(value))  
             possibleEvents[0].generate(argumentString)
             
@@ -272,8 +289,12 @@ class UseCaseReplayer:
         eventsToWaitFor = applicationEventStr.split(", ")
         self.describeAppEventsWaiting(eventsToWaitFor)
         self.waitingForEvents += eventsToWaitFor
-        return self.waitingCompleted()
-
+        complete = self.waitingCompleted()
+        if not complete:
+            self.appEventTimer = Timer(self.appEventTimeout, self.timeoutApplicationEvents)
+            self.appEventTimer.start()
+        return complete
+    
     def processSignalCommand(self, signalArg):
         signalNum = getattr(signal, signalArg)
         self.write("")
@@ -282,5 +303,5 @@ class UseCaseReplayer:
         if os.name == "java":
             os.kill(os.getpid(), signalNum)
         else:
-            os.killpg(os.getpgid(0), signalNum) # So we can generate signals for ourselves...
+            os.killpg(os.getpgid(0), signalNum) # So we can generate signals for ourselves... @UndefinedVariable
         self.logger.debug("Signal " + signalArg + " has been sent")

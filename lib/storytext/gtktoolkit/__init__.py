@@ -168,8 +168,8 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
     def getShortcutFileName(self, buttonName):
         return os.path.join(os.environ["STORYTEXT_HOME"], buttonName.replace(" ", "_") + ".shortcut")
 
-    def createReplayer(self, universalLogging=False):
-        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder)
+    def createReplayer(self, universalLogging=False, **kw):
+        return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
                                 
     def _createSignalEvent(self, eventName, signalName, widget, argumentParseData):
         stdSignalName = signalName.replace("_", "-")
@@ -208,8 +208,8 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
 
 # Use the GTK idle handlers instead of a separate thread for replay execution
 class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
-    def __init__(self, *args):
-        storytext.guishared.IdleHandlerUseCaseReplayer.__init__(self, *args)
+    def __init__(self, *args, **kw):
+        storytext.guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         # Anyone calling events_pending doesn't mean to include our logging events
         # so we intercept it and return the right answer for them...
         self.orig_events_pending = gtk.events_pending

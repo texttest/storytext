@@ -185,12 +185,12 @@ class ProgrammaticChangeIntercept(MethodIntercept):
 class ScriptEngine(scriptengine.ScriptEngine):
     defaultMapFile = os.path.join(scriptengine.ScriptEngine.storytextHome, "ui_map.conf")
     def __init__(self, enableShortcuts=False, uiMapFiles=[ defaultMapFile ],
-                 customEventTypes=[], universalLogging=True, binDir=""):
+                 customEventTypes=[], universalLogging=True, binDir="", **kw):
         self.uiMap = self.createUIMap(uiMapFiles)
         self.binDir = binDir
         self.addCustomEventTypes(customEventTypes)
         self.importCustomEventTypes()
-        scriptengine.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging)
+        scriptengine.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging, **kw)
 
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
@@ -593,8 +593,8 @@ class UIMap:
         
 # Base class for all replayers using a GUI
 class UseCaseReplayer(replayer.UseCaseReplayer):
-    def __init__(self, uiMap, universalLogging, recorder):
-        replayer.UseCaseReplayer.__init__(self)
+    def __init__(self, uiMap, universalLogging, recorder, **kw):
+        replayer.UseCaseReplayer.__init__(self, **kw)
         self.readingEnabled = False
         self.uiMap = uiMap
         self.loggerActive = universalLogging
@@ -616,8 +616,8 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
 # Use the idle handlers instead of a separate thread for replay execution
 # Used for GTK, tkinter, wxPython
 class IdleHandlerUseCaseReplayer(UseCaseReplayer):
-    def __init__(self, *args):
-        UseCaseReplayer.__init__(self, *args)
+    def __init__(self, *args, **kw):
+        UseCaseReplayer.__init__(self, *args, **kw)
         self.idleHandler = None
         self.tryAddDescribeHandler()
 
