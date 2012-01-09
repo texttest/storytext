@@ -116,14 +116,14 @@ class Describer(storytext.guishared.Describer):
         descs = []
         for item in itemBar.getItems():
             currPrefix = prefix + " " * indent * 2
-            itemDesc = self.getItemDescription(item, currPrefix, item in selection)
+            selected = item in selection
             if columnCount:
-                row = [ itemDesc ]
-                for colIndex in range(1, columnCount):
-                    row.append(self.getItemColumnDescription(item, colIndex))
+                row = [ self.getItemColumnDescription(item, i, currPrefix, selected) for i in range(columnCount) ]
                 descs.append(row)
-            elif itemDesc:
-                descs.append(itemDesc)
+            else:
+                itemDesc = self.getItemDescription(item, currPrefix, selected)
+                if itemDesc:
+                    descs.append(itemDesc)
             if subItemMethod:
                 descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount)
         return descs
@@ -254,11 +254,19 @@ class Describer(storytext.guishared.Describer):
                 descs.append(tryStyle.lower().replace("_", " ").replace("separator", "---"))
         return descs
 
-    def getItemColumnDescription(self, item, colIndex):
+    def getItemColumnDescription(self, item, colIndex, prefix, *args):
         elements = [ item.getText(colIndex) ]
-        if item.getImage(colIndex):
-            elements.append(self.getImageDescription(item.getImage(colIndex)))
-        return self.combineElements(elements)
+        if colIndex:
+            if item.getImage(colIndex):
+                elements.append(self.getImageDescription(item.getImage(colIndex)))
+        else:
+            elements += self.getPropertyElements(item, *args)
+        
+        desc = self.combineElements(elements)
+        if desc and colIndex == 0:
+            return prefix + desc
+        else:
+            return desc
 
     def getControlDecoration(self, item):
         listener = self.getControlDecorationListener(item)
