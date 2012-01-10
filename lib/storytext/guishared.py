@@ -990,6 +990,9 @@ class Describer(object):
     def _getChildrenDescription(self, widget):
         return self.formatChildrenDescription(widget) if self.shouldDescribeChildren(widget) else ""
 
+    def shouldFormatAsGrid(self, columns):
+        return columns > 1
+
     def formatChildrenDescription(self, widget):
         children = getattr(widget, self.childrenMethodName)()
         visibleChildren = filter(lambda c: getattr(c, self.visibleMethodName)(), children)
@@ -999,7 +1002,7 @@ class Describer(object):
             self.removeEmptyDescriptions(sortedChildren, childDescriptions)
         if len(childDescriptions) > 1:
             grid, columns = self.tryMakeGrid(widget, sortedChildren, childDescriptions)
-            if columns > 1:
+            if self.shouldFormatAsGrid(columns):
                 maxWidth = self.getMaxDescriptionWidth(widget)
                 formatter = GridFormatter(grid, columns, maxWidth)
                 return self.handleGridFormatter(formatter)
