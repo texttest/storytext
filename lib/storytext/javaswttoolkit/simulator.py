@@ -284,6 +284,10 @@ class ComboTextEvent(TextEvent):
                 raise UseCaseScriptError, e.getMessage()
 
 class TableColumnHeaderEvent(SignalEvent):
+    def __init__(self, *args):
+        SignalEvent.__init__(self, *args)
+        self.columnsFound = set()
+    
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
@@ -292,9 +296,18 @@ class TableColumnHeaderEvent(SignalEvent):
     def getAssociatedSignatures(cls, widget):
         return [ "ColumnSelection" ]
     
-    def addListeners(self, *args):
+    def addColumnListeners(self, *args):
         for column in self.widget.widget.widget.getColumns():
-            column.addListener(*args)
+            if column not in self.columnsFound:
+                self.columnsFound.add(column)
+                column.addListener(*args)
+
+    def addListeners(self, *args):
+        self.addColumnListeners(*args)            
+        class PaintListener(swt.widgets.Listener):
+            def handleEvent(lself, e): #@NoSelf
+                self.addColumnListeners(*args)
+        self.widget.widget.widget.addListener(swt.SWT.Paint, PaintListener())
         
     def outputForScript(self, event, *args):
         return " ".join([ self.name, event.widget.getText() ])
@@ -681,7 +694,8 @@ class WidgetMonitor:
         newWidgets = [ w for w in widgets if w not in self.widgetsMonitored ]
         self.widgetsMonitored.update(newWidgets)
         self.monitorAllWidgets(parent, newWidgets)
-        self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + parent.__class__.__name__ + ".")
+        self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + 
+                                parent.__class__.__name__ + " " + str(id(parent)) + ".")
         
     def findDescendants(self, widget):
         matcher = IsAnything()
