@@ -91,10 +91,13 @@ class SignalEvent(storytext.guishared.GuiEvent):
 
         eventType = getattr(swt.SWT, self.getAssociatedSignal(self.widget))
         try:
-            # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
-            runOnUIThread(self.widget.widget.widget.addListener, eventType, RecordListener())
+            runOnUIThread(self.addListeners, eventType, RecordListener())
         except: # Get 'widget is disposed' sometimes, don't know why...
             pass
+        
+    def addListeners(self, *args):
+        # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
+        return self.widget.widget.widget.addListener(*args)
 
     def generate(self, *args):
         self.checkWidgetStatus()
@@ -279,6 +282,30 @@ class ComboTextEvent(TextEvent):
                 self.widget.setSelection(argumentString)
             except RuntimeException, e:
                 raise UseCaseScriptError, e.getMessage()
+
+class TableColumnHeaderEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Selection"
+    
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "ColumnSelection" ]
+    
+    def addListeners(self, *args):
+        for column in self.widget.widget.widget.getColumns():
+            column.addListener(*args)
+        
+    def outputForScript(self, event, *args):
+        return " ".join([ self.name, event.widget.getText() ])
+    
+    def _generate(self, argumentString):
+        try:
+            column = self.widget.header(argumentString)
+            column.click()
+        except swtbot.exceptions.WidgetNotFoundException:
+            raise UseCaseScriptError, "Could not find column labelled '" + argumentString + "' in table."
+    
 
 class TreeEvent(SignalEvent):
     def _generate(self, argumentString):
@@ -561,6 +588,8 @@ class WidgetMonitor:
                   swt.widgets.Link     : (swtbot.widgets.SWTBotLink, []),
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
                   swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
+                  swt.widgets.Table    : (swtbot.widgets.SWTBotTable, []),
+                  swt.widgets.TableColumn : (swtbot.widgets.SWTBotTableColumn, []),
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
                   swt.widgets.ExpandBar: (swtbot.widgets.SWTBotExpandBar, []),
                   swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
@@ -724,6 +753,8 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
+                (swtbot.widgets.SWTBotTable             , [ TableColumnHeaderEvent ]),
+                (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
