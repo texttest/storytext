@@ -1,7 +1,4 @@
 from storytext.javaswttoolkit import describer as swtdescriber
-from org.eclipse.core.runtime import Platform
-from org.eclipse.ui.plugin import AbstractUIPlugin
-from org.eclipse.jface.resource import ImageDescriptor
 from org.eclipse.core.internal.runtime import InternalPlatform
 
 class Describer(swtdescriber.Describer):
