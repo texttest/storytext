@@ -1,8 +1,7 @@
 
-import storytext.guishared, util, types, os, logging, sys
+import storytext.guishared, util, types, logging, sys
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
-from storytext import applicationEvent
 from org.eclipse import swt
 from java.util import Date
 import xml.sax
