@@ -12,7 +12,9 @@ class GridFormatter:
     def __str__(self):
         colWidths = self.findColumnWidths()
         totalWidth = sum(colWidths)
-        if self.maxWidth is not None and totalWidth > self.maxWidth: # After a while, excessively wide grids just get too hard to read
+        if self.maxWidth is not None and len(self.grid) == 1 and totalWidth > self.maxWidth: 
+            # After a while, excessively wide grids just get too hard to read
+            # If they're only one row, write them in a column so it's easier to follow
             header = "." * 6 + " " + str(self.numColumns) + "-Column Layout " + "." * 6
             desc = self.formatColumnsInGrid()
             footer = "." * len(header)
