@@ -69,7 +69,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
         # Eclipse doesn't return control to the python interpreter
         # So we terminate coverage manually at this point if we're measuring it
         try:
-            import coverage
+            import coverage #@UnresolvedImport
             coverage.process_shutdown()
         except: # pragma: no cover - Obviously can't measure coverage here!
             pass
@@ -77,11 +77,22 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def getMonitorClass(self):
         from simulator import WidgetMonitor
         return WidgetMonitor
+    
+    def shouldReraise(self, e, clsName):
+        msg = str(e).strip()
+        allowedMessages = [ "No module named customwidgetevents",
+                            "cannot import name " + clsName ]
+        return msg not in allowedMessages
 
     def getDescriberClass(self):
         try:
-            from draw2ddescriber import Describer
-            return Describer
-        except ImportError:
-            from describer import Describer
-            return Describer
+            from customwidgetevents import Describer
+        except ImportError, e:
+            if self.shouldReraise(e, "Describer"):
+                raise
+            try:
+                from draw2ddescriber import Describer
+                return Describer
+            except ImportError:
+                from describer import Describer
+        return Describer
