@@ -267,6 +267,9 @@ class TextEvent(StateChangeEvent):
     def getStateText(self, *args):
         return self.widget.getText()
     
+    def shouldRecord(self, event, *args):
+        return (not event.widget.getStyle() & swt.SWT.READ_ONLY) and StateChangeEvent.shouldRecord(self, event, *args)
+    
     def implies(self, stateChangeOutput, *args):
         currOutput = self.outputForScript(*args)
         return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
@@ -282,6 +285,10 @@ class ComboTextEvent(TextEvent):
                 self.widget.setSelection(argumentString)
             except RuntimeException, e:
                 raise UseCaseScriptError, e.getMessage()
+            
+    def shouldRecord(self, event, *args):
+        # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
+        return StateChangeEvent.shouldRecord(self, event, *args)
 
 class TableColumnHeaderEvent(SignalEvent):
     def __init__(self, *args):
