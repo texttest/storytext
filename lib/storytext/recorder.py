@@ -156,7 +156,7 @@ class UseCaseRecorder:
             return script
 
     def recordSignal(self, signum, stackFrame):
-        self.writeApplicationEventDetails(recordingEvent=True)
+        self.writeApplicationEventDetails()
         self.record(signalCommandName + " " + self.signalNames[signum])
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
@@ -188,19 +188,17 @@ class UseCaseRecorder:
             self.logger.debug("Told we should not record it : args were " + repr(args))
             return
         
-        haveRecorded = False 
         if self.stateChangeEventInfo:
             stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
             if stateChangeDelayLevel >= event.delayLevel(*args):
                 if event.implies(stateChangeOutput, stateChangeEvent, *args):
                     self.logger.debug("Implies previous state change event, ignoring previous")
                 else:
-                    haveRecorded = self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
+                    self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
                 self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
-        willRecord = not event.delayLevel(*args) and not event.isStateChange()
-        self.writeApplicationEventDetails(haveRecorded or willRecord)
+        self.writeApplicationEventDetails()
         delayLevel = event.delayLevel(*args)
         if event.isStateChange() and delayLevel >= self.getMaximumStoredDelay():
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel))
@@ -229,7 +227,7 @@ class UseCaseRecorder:
             for scriptOutput, event, delayLevel in events:
                 if delayLevel == level:
                     self.record(scriptOutput, event)
-                    if not event.isStateChange():
+                    if event and not event.isStateChange():
                         self.processDelayedEvents(nextLevelEvents, level + 1)
                         nextLevelEvents = []
                 else:
@@ -300,25 +298,21 @@ class UseCaseRecorder:
                 del self.applicationEvents[categoryName]
                 self.registerApplicationEvent(name, categoryName, delayLevel=1)
 
-    def getCurrentApplicationEvents(self, recordingEvent):
+    def getCurrentApplicationEvents(self):
         currEvents = []
         allEvents = self.applicationEvents.items()
-        for categoryName, (eventName, delayLevel) in allEvents:
-            if delayLevel == 0:
-                currEvents.append(eventName)
-                del self.applicationEvents[categoryName]
-            elif recordingEvent:
-                self.logger.debug("Delaying application event " + eventName + ", level now " + str(delayLevel - 1))
-                self.applicationEvents[categoryName] = eventName, delayLevel - 1
-            else:
-                self.logger.debug("Ignoring delaying application event " + eventName + ", as not recording anyway")
-        return sorted(currEvents)
+        delayLevel = 0
+        for categoryName, (eventName, currDelayLevel) in allEvents:
+            currEvents.append(eventName)
+            del self.applicationEvents[categoryName]
+            delayLevel = max(delayLevel, currDelayLevel)
+        return sorted(currEvents), delayLevel
                             
-    def writeApplicationEventDetails(self, recordingEvent):
-        eventNames = self.getCurrentApplicationEvents(recordingEvent)
+    def writeApplicationEventDetails(self):
+        eventNames, delayLevel = self.getCurrentApplicationEvents()
         if len(eventNames) > 0:
             eventString = ", ".join(eventNames)
-            self.record(waitCommandName + " " + eventString)
+            self.recordOrDelay(waitCommandName + " " + eventString, None, delayLevel)
 
     def registerShortcut(self, replayScript):
         for script in self.scripts:

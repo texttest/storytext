@@ -1187,9 +1187,9 @@ def removeMarkup(text):
 
 # Jython has problems with exceptions thrown from Java callbacks
 # Print them out and continue, don't just lose them...
-def catchAll(method, *args):
+def catchAll(method, *args, **kw):
     try:
-        method(*args)
+        method(*args, **kw)
     except:
         sys.stderr.write(getExceptionString() + "\n")
 

@@ -547,7 +547,7 @@ class DisplayFilter:
         class ApplicationEventListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 if e.text:
-                    storytext.guishared.catchAll(applicationEvent, e.text, "system")
+                    storytext.guishared.catchAll(applicationEvent, e.text, "system", delayLevel=len(self.eventsFromUser))
         runOnUIThread(display.addFilter, applicationEventType, ApplicationEventListener())
         
     def shouldCheckWidget(self, widget, eventType):
