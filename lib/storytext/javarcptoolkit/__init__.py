@@ -73,11 +73,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
             coverage.process_shutdown()
         except: # pragma: no cover - Obviously can't measure coverage here!
             pass
-    
-    def getMonitorClass(self):
-        from simulator import WidgetMonitor
-        return WidgetMonitor
-    
+        
     def shouldReraise(self, e, clsName):
         msg = str(e).strip()
         allowedMessages = [ "No module named customwidgetevents",
@@ -96,3 +92,12 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
             except ImportError:
                 from describer import Describer
         return Describer
+    
+    def getMonitorClass(self):
+        try:
+            from customwidgetevents import WidgetMonitor
+        except ImportError, e:
+            if self.shouldReraise(e, "WidgetMonitor"):
+                raise
+            from simulator import WidgetMonitor
+        return WidgetMonitor
