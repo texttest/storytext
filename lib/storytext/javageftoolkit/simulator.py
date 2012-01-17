@@ -105,14 +105,43 @@ class GefViewerAdapter(rcpsimulator.WidgetAdapter):
         return "Viewer"
 
 class ViewerEvent(storytext.guishared.GuiEvent):
+    def __init__(self, *args, **kw):
+        storytext.guishared.GuiEvent.__init__(self, *args, **kw)
+        self.allDescriptions = {}
+
     def outputForScript(self, *args):
         return ' '.join([self.name, self.getStateDescription(*args) ])
 
     def getStateDescription(self, part, *args):
         if self.isMainEditPart(part):
-            return self.getObjectDescription(part)
-        descs = [self.getObjectDescription(editPart.part()) for editPart in self.widget.selectedEditParts()]
+            return self.storeObjectDescription(part)
+        descs = [self.storeObjectDescription(editPart.part()) for editPart in self.widget.selectedEditParts()]
         return ','.join(descs)
+
+    def addSuffix(self, desc):
+        if desc.endswith(")"):
+            startPos = desc.rfind("(") + 1
+            intVal = desc[startPos:-1]
+            if intVal.isdigit():
+                val = int(intVal)
+                return desc[:startPos] + str(val + 1) + ")"
+        return desc + " (2)"
+
+    def storeObjectDescription(self, part, checkParent=True):
+        if part in self.allDescriptions:
+            return self.allDescriptions.get(part)
+        if checkParent:
+            parent = part.getParent() 
+            if parent and parent not in self.allDescriptions:
+                self.storeObjectDescription(parent)
+                for child in parent.getChildren():
+                    self.storeObjectDescription(child, checkParent=False)
+                return self.allDescriptions.get(part)
+        desc = self.getObjectDescription(part)
+        while desc and desc in self.allDescriptions.values():
+            desc = self.addSuffix(desc)
+        self.allDescriptions[part] = desc
+        return desc
 
     def getObjectDescription(self, editPart):
         # Default implementation
@@ -132,7 +161,7 @@ class ViewerEvent(storytext.guishared.GuiEvent):
         return False
 
     def findEditPart(self, editPart, description):
-        currDesc = self.getObjectDescription(editPart.part())
+        currDesc = self.storeObjectDescription(editPart.part(), checkParent=False)
         if currDesc == description:
             return editPart
         else:
@@ -140,9 +169,9 @@ class ViewerEvent(storytext.guishared.GuiEvent):
 
     def findEditPartChildren(self, editPart, description):        
         for child in editPart.children():
-            finded = self.findEditPart(child, description) 
-            if finded:
-                return self.findEditPart(child, description)
+            found = self.findEditPart(child, description) 
+            if found:
+                return found
 
     def shouldRecord(self, part, *args):
         return not swtsimulator.DisplayFilter.instance.hasEvents()
