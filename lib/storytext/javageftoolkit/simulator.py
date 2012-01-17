@@ -2,6 +2,7 @@
 
 from storytext.javarcptoolkit import simulator as rcpsimulator
 from storytext.javaswttoolkit import simulator as swtsimulator
+from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.gef.finder as gefbot
 from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
 from org.eclipse.jface.viewers import ISelectionChangedListener
@@ -131,7 +132,8 @@ class ViewerEvent(storytext.guishared.GuiEvent):
         return False
 
     def findEditPart(self, editPart, description):
-        if self.getObjectDescription(editPart.part()) == description:
+        currDesc = self.getObjectDescription(editPart.part())
+        if currDesc == description:
             return editPart
         else:
             return self.findEditPartChildren(editPart, description)
@@ -177,6 +179,8 @@ class ViewerSelectEvent(ViewerEvent):
                 parts.append(editPart)
         if len(parts) > 0:
             self.widget.select(parts)
+        else:
+            raise UseCaseScriptError, "Could not find any objects in viewer matching description " + repr(description)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
