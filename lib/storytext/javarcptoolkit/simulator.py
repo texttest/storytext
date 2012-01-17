@@ -1,19 +1,19 @@
 
 """ Simulation stuff specific to using Eclipse RCP. For example View IDs and Editor IDs etc."""
 
-import sys
 from storytext.javaswttoolkit import simulator as swtsimulator
 import storytext.guishared
+from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.finder as swtbot
 from org.eclipse.ui import IPartListener
 
 # If classes get mentioned for the first time in the event dispatch thread, they will get the wrong classloader
 # So we load everything we'll ever need here, once, where we know what the classloader is
-from org.eclipse.swt.widgets import *
-from org.eclipse.swt.custom import *
-from org.eclipse.swt.dnd import *
-from org.eclipse.swt.layout import *
-from org.eclipse.swtbot.swt.finder.finders import *
+from org.eclipse.swt.widgets import * #@UnusedWildImport
+from org.eclipse.swt.custom import * #@UnusedWildImport
+from org.eclipse.swt.dnd import * #@UnusedWildImport
+from org.eclipse.swt.layout import * #@UnusedWildImport
+from org.eclipse.swtbot.swt.finder.finders import * #@UnusedWildImport
 from org.eclipse.ui.dialogs import FilteredTree
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
@@ -118,21 +118,27 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         page = self.widget.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
 
-    def generate(self, *args):
+    def generate(self, argumentString):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
         #self.widget.setFocus()
-        page = self.widget.getViewReference().getPage()
-        view = self.widget.getViewReference().getView(False)
-        swtsimulator.runOnUIThread(page.activate, view)
+        if self.widget.getViewReference().getTitle() == argumentString:
+            page = self.widget.getViewReference().getPage()
+            view = self.widget.getViewReference().getView(False)
+            swtsimulator.runOnUIThread(page.activate, view)
+        else:
+            raise UseCaseScriptError, "Could not find View named " + repr(argumentString) + " to activate."
 
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return self.widget.getViewReference().getId() == part.getSite().getId() and not swtsimulator.DisplayFilter.instance.hasEvents()
+        return self.widget.getViewReference().getTitle() == part.getTitle() and not swtsimulator.DisplayFilter.instance.hasEvents()
 
     def delayLevel(self, part, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
         return swtsimulator.DisplayFilter.instance.otherEventCount(part)
+    
+    def outputForScript(self, *args):
+        return ' '.join([self.name, self.widget.getViewReference().getTitle() ])
 
     def isStateChange(self):
         return True
