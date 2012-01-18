@@ -808,11 +808,12 @@ class Describer(object):
     def shouldCheckForUpdates(self, *args):
         return True
 
-    def describeStateChanges(self, stateChanges):
+    def describeStateChanges(self, stateChanges, describedForAppearance=[]):
         for widget, oldState, state in stateChanges:
-            changeDesc = self.getStateChangeDescription(widget, oldState, state).rstrip()
-            if changeDesc:
-                self.logger.info(changeDesc)
+            if not describedForAppearance or not self.hasMarkedAncestor(widget, describedForAppearance):
+                changeDesc = self.getStateChangeDescription(widget, oldState, state).rstrip()
+                if changeDesc:
+                    self.logger.info(changeDesc)
 
     def describeUpdates(self):
         stateChanges = self.findStateChanges()
@@ -1107,6 +1108,7 @@ class Describer(object):
         for desc in sorted(descriptions):
             self.logger.info("\nNew widgets have appeared: describing common parent :\n")
             self.logger.info(desc)
+        return commonParents
     
     def getMarkedAncestor(self, widget, markedWidgets):
         if widget in markedWidgets:

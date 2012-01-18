@@ -70,8 +70,8 @@ class Describer(storytext.guishared.Describer):
             if self.structureLogger.isEnabledFor(logging.DEBUG):
                 for widget in stateChangeWidgets:
                     self.describeStructure(widget)
-            self.describeAppearedWidgets(stateChangeWidgets)
-            self.describeStateChanges(stateChanges)
+            describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets)
+            self.describeStateChanges(stateChanges, describedForAppearance)
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)

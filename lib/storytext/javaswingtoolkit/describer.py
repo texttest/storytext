@@ -25,9 +25,9 @@ class Describer(storytext.guishared.Describer):
         self.logger.debug("Describing with updates...")
         stateChanges = self.findStateChanges()
         stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
-        self.describeAppearedWidgets(stateChangeWidgets)
+        describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets)
         stateChanges = self.describeStateChangeGroups(stateChangeWidgets, stateChanges)
-        self.describeStateChanges(stateChanges)
+        self.describeStateChanges(stateChanges, describedForAppearance)
         self.widgetsAppeared = []
         self.logger.debug("Finished describing with updates")
 
