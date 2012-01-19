@@ -95,6 +95,13 @@ class RecorderGraphics(draw2d.Graphics, object):
 
     def getFont(self):
         return self.currFont
+    
+    def getFontMetrics(self):
+        # Only works on Linux
+        # Assumes the only interesting thing requested will be the height
+        if hasattr(swt.graphics.FontMetrics, "gtk_new"):
+            fontHeight = self.currFont.getFontData()[0].getHeight()
+            return swt.graphics.FontMetrics.gtk_new(0, 0, 0, 0, fontHeight)
 
     def setFont(self, font):
         self.currFont = font
