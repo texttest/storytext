@@ -108,6 +108,7 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     def __init__(self, *args, **kw):
         storytext.guishared.GuiEvent.__init__(self, *args, **kw)
         self.allDescriptions = {}
+        self.allParts = {}
 
     def outputForScript(self, *args):
         return ' '.join([self.name, self.getStateDescription(*args) ])
@@ -130,6 +131,7 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     def storeObjectDescription(self, part, checkParent=True):
         if part in self.allDescriptions:
             return self.allDescriptions.get(part)
+        
         if checkParent:
             parent = part.getParent() 
             if parent and parent not in self.allDescriptions:
@@ -138,9 +140,13 @@ class ViewerEvent(storytext.guishared.GuiEvent):
                     self.storeObjectDescription(child, checkParent=False)
                 return self.allDescriptions.get(part)
         desc = self.getObjectDescription(part)
-        while desc and desc in self.allDescriptions.values():
-            desc = self.addSuffix(desc)
+        while desc and desc in self.allParts:
+            if self.allParts[desc].isActive():
+                desc = self.addSuffix(desc)
+            else:
+                break
         self.allDescriptions[part] = desc
+        self.allParts[desc] = part
         return desc
 
     def getObjectDescription(self, editPart):
