@@ -11,19 +11,27 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
 
     def runSystemUnderTest(self, args):
         import org.eclipse.equinox.launcher as launcher
-        cmdArgs = [ "-application", self.getTestscriptPlugin(),
+        cmdArgs = [ "-application", self.testscriptPlugin + ".application",
                     "-testApplication" ] + args
         logging.getLogger().debug("Starting application with args : " + " ".join(cmdArgs))
         launcher.Main.main(cmdArgs)
+        
 
-    def getTestscriptPlugin(self):
-        return "org.eclipse.swtbot.testscript.application"
+    def getDefaultTestscriptPluginName(self):
+        return "org.eclipse.swtbot.testscript"
 
     def importCustomEventTypes(self):
         pass # Otherwise they get loaded too early and hence get the wrong classloader
 
     def importCustomEventTypesFromSimulator(self):
         javaswttoolkit.ScriptEngine.importCustomEventTypes(self) # Our hook to do it for real...
+        
+    def handleAdditionalOptions(self, options):
+        if options.testscriptpluginid:
+            self.testscriptPlugin = options.testscriptpluginid
+        else:
+            self.testscriptPlugin = self.getDefaultTestscriptPluginName()
+        javaswttoolkit.ScriptEngine.handleAdditionalOptions(self, options)
 
 
 class TestRunner(Runnable):

@@ -8,10 +8,9 @@ class ScriptEngine(javarcptoolkit.ScriptEngine):
     def createReplayer(self, universalLogging=False, **kw):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
 
-    def getTestscriptPlugin(self):
-        return "org.eclipse.swtbot.gef.testscript.application"
+    def getDefaultTestscriptPluginName(self):
+        return "org.eclipse.swtbot.gef.testscript"
 
-        
 class UseCaseReplayer(javarcptoolkit.UseCaseReplayer):
     def getDescriberClass(self):
         try:
