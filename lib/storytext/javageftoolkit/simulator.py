@@ -226,7 +226,7 @@ class ViewerSelectEvent(ViewerEvent):
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
-        return currOutput.startswith(stateChangeOutput)
+        return currOutput == stateChangeOutput or currOutput.startswith(stateChangeOutput + ",")
     
     def isStateChange(self, *args):
         return True
