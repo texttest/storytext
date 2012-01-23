@@ -279,6 +279,7 @@ class TextEvent(StateChangeEvent):
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
         try:
+            self.widget.setFocus()
             self.widget.setText(argumentString)
         except RuntimeException: # if it's readonly...
             try:
