@@ -52,7 +52,7 @@ class Describer(swtdescriber.Describer):
             return swtdescriber.Describer.getCanvasDescription(self, widget)
 
     def getCanvasState(self, widget):
-        return FigureCanvasDescriber().getDescription(widget.getContents())
+        return FigureCanvasDescriber(widget).getDescription(widget.getContents())
             
     def getUpdatePrefix(self, widget, *args):
         if self.hasFigureCanvasAPI(widget):
@@ -70,9 +70,10 @@ class AttrRecorder:
 
         
 class RecorderGraphics(draw2d.Graphics, object):
-    def __init__(self, font, methodNames):
+    def __init__(self, canvas, font, methodNames):
         self.calls = []
         self.currFont = font
+        self.parentCanvas = canvas
         self.methodNames = methodNames
         
     def __getattribute__(self, name):
@@ -97,11 +98,10 @@ class RecorderGraphics(draw2d.Graphics, object):
         return self.currFont
     
     def getFontMetrics(self):
-        # Only works on Linux
-        # Assumes the only interesting thing requested will be the height
-        if hasattr(swt.graphics.FontMetrics, "gtk_new"):
-            fontHeight = self.currFont.getFontData()[0].getHeight()
-            return swt.graphics.FontMetrics.gtk_new(0, 0, 0, 0, fontHeight)
+        gc = swt.graphics.GC(self.parentCanvas)
+        metrics = gc.getFontMetrics()
+        gc.dispose()
+        return metrics
 
     def setFont(self, font):
         self.currFont = font
@@ -133,6 +133,10 @@ class FigureCanvasDescriber(guishared.Describer):
     ignoreWidgets = [ draw2d.Figure ] # Not interested in anything except what we list
     ignoreChildren = ()
     pixelTolerance = 2
+    def __init__(self, canvas, *args, **kw):
+        guishared.Describer.__init__(self, *args, **kw)
+        self.canvas = canvas
+        
     def getLabelDescription(self, figure):
         return figure.getText()
 
@@ -142,7 +146,7 @@ class FigureCanvasDescriber(guishared.Describer):
 
     def getRectangleFigureDescription(self, figure):
         font = figure.getFont()
-        graphics = RecorderGraphics(font, [ "drawString", "setBackgroundColor", "fillRectangle" ])
+        graphics = RecorderGraphics(self.canvas, font, [ "drawString", "setBackgroundColor", "fillRectangle" ])
         figure.paintFigure(graphics)
         calls = graphics.getCallArgs("drawString")
         callGroups = graphics.getCallGroups([ "setBackgroundColor", "fillRectangle" ])
