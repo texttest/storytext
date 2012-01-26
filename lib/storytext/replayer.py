@@ -37,10 +37,10 @@ class ReplayScript:
         else:
             return False
 
-    def getCommand(self, name=""):
+    def getCommand(self, names=[]):
         if not self.hasTerminated():
             nextCommand = self.commands[self.pointer]
-            if len(name) == 0 or nextCommand.startswith(name):
+            if len(names) == 0 or any((nextCommand.startswith(name) for name in names)):
                 # Filter blank lines and comments
                 self.pointer += 1
                 return nextCommand
@@ -54,7 +54,7 @@ class ReplayScript:
             return []
 
         # Process application events together with the previous command so the log comes out sensibly...
-        waitCommand = self.getCommand(waitCommandName)
+        waitCommand = self.getCommand([ waitCommandName ])
         if waitCommand:
             return [ command, waitCommand ]
         else:
@@ -104,12 +104,19 @@ class UseCaseReplayer:
             self.runScript(script)
 
     def runScript(self, script):
+        if self.shortcuts:
+            scriptCommand = script.getCommand(self.shortcuts.keys())
+            if scriptCommand:
+                newScript = self.shortcuts[scriptCommand]
+                return self.addScript(newScript)
+        
         if self.processInitialWait(script):
             self.enableReading()
-
+            
     def processInitialWait(self, script):
-        waitCommand = script.getCommand(waitCommandName)
+        waitCommand = script.getCommand([ waitCommandName ])
         if waitCommand:
+            self.logger.debug("Initial " + repr(waitCommand) + ", not starting replayer")
             return self.processWait(self.getArgument(waitCommand, waitCommandName))
         else:
             return True

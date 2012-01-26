@@ -23,9 +23,9 @@ class ScriptEngine:
         self.enableShortcuts = enableShortcuts
         self.recorder = recorder.UseCaseRecorder()
         self.replayer = self.createReplayer(**kwargs)
-        self.replayer.tryRunScript()
         self.registerShortcuts()
-
+        self.replayer.tryRunScript()
+        
     def recorderActive(self):
         return self.enableShortcuts or self.recorder.isActive()
 
