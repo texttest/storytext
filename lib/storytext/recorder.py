@@ -65,12 +65,17 @@ class ShortcutTracker:
 
     def reset(self):
         self.replayScript = ReplayScript(self.replayScript.name)
-        self.currCommand = self.replayScript.getCommand()
+        self.argsUsed = []
+        self.currRegexp = self.replayScript.getCommandRegexp()
 
     def updateCompletes(self, line):
-        if line == self.currCommand:
-            self.currCommand = self.replayScript.getCommand()
-            return not self.currCommand
+        if self.currRegexp is None:
+            return False # We already reached the end and should forever be ignored...
+        match = self.currRegexp.match(line)
+        if match:
+            self.currRegexp = self.replayScript.getCommandRegexp()
+            self.argsUsed += match.groups()
+            return not self.currRegexp
         else:
             self.unmatchedCommands += self.replayScript.getCommandsSoFar()
             self.unmatchedCommands.append(line)
@@ -78,8 +83,9 @@ class ShortcutTracker:
             return False
 
     def getNewCommands(self):
+        shortcutName = self.replayScript.getShortcutNameWithArgs(self.argsUsed)
         self.reset()
-        self.unmatchedCommands.append(self.replayScript.getShortcutName().lower())
+        self.unmatchedCommands.append(shortcutName)
         return self.unmatchedCommands
     
     def isLongerThan(self, otherTracker):

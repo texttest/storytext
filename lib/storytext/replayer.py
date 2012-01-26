@@ -1,9 +1,10 @@
 
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
-import os, sys, signal, time, logging
+import os, sys, signal, time, logging, re
 from threading import Thread, Timer
 from definitions import *
+waitRegexp = re.compile(waitCommandName + ".*")
 
 class ReplayScript:
     def __init__(self, scriptName):
@@ -24,6 +25,18 @@ class ReplayScript:
     def getShortcutName(self):
         return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
 
+    def getShortcutRegexp(self):
+        return self.getRegexp(self.getShortcutName())
+
+    def getShortcutNameWithArgs(self, args):
+        name = self.getShortcutName().lower()
+        for arg in args:
+            name = name.replace("?", arg, 1)
+        return name
+
+    def getRegexp(self, command):
+        return re.compile(command.replace("?", "(.*)")) if command else None
+
     def hasTerminated(self):
         return self.pointer >= len(self.commands)
 
@@ -37,24 +50,35 @@ class ReplayScript:
         else:
             return False
 
-    def getCommand(self, names=[]):
+    def getCommandRegexp(self):
+        return self.getRegexp(self.getCommand())
+
+    def getCommand(self, args=[], matching=[]):
         if not self.hasTerminated():
             nextCommand = self.commands[self.pointer]
-            if len(names) == 0 or any((nextCommand.startswith(name) for name in names)):
+            if len(matching) == 0 or any((regexp.match(nextCommand) for regexp in matching)):
                 # Filter blank lines and comments
                 self.pointer += 1
-                return nextCommand
+                return self.replaceArgs(nextCommand, args)
+
+    def replaceArgs(self, nextCommand, args):
+        if args and "?" in nextCommand:
+            currArg = args.pop(0)
+            args.append(currArg) # cycle through them...
+            return nextCommand.replace("?", currArg)
+        else:
+            return nextCommand
             
     def getCommandsSoFar(self):
         return self.commands[:self.pointer - 1] if self.pointer else []
 
-    def getCommands(self):
-        command = self.getCommand()
+    def getCommands(self, args):
+        command = self.getCommand(args)
         if not command:
             return []
 
         # Process application events together with the previous command so the log comes out sensibly...
-        waitCommand = self.getCommand([ waitCommandName ])
+        waitCommand = self.getCommand(args, [ waitRegexp ])
         if waitCommand:
             return [ command, waitCommand ]
         else:
@@ -66,7 +90,7 @@ class UseCaseReplayer:
     def __init__(self, timeout=60):
         self.logger = logging.getLogger("storytext replay log")
         self.scripts = []
-        self.shortcuts = {}
+        self.shortcuts = []
         self.events = {}
         self.waitingForEvents = []
         self.applicationEventNames = set()
@@ -80,41 +104,41 @@ class UseCaseReplayer:
 
         replayScript = os.getenv("USECASE_REPLAY_SCRIPT")
         if replayScript:
-            self.scripts.append(ReplayScript(replayScript))
+            self.scripts.append((ReplayScript(replayScript), []))
                 
     def isActive(self):
         return len(self.scripts) > 0
 
     def registerShortcut(self, shortcut):
-        self.shortcuts[shortcut.getShortcutName()] = shortcut
+        self.shortcuts.append((shortcut.getShortcutRegexp(), shortcut))
 
     def getShortcuts(self):
-        return sorted(self.shortcuts.items())
+        return sorted(((r.pattern, shortcut) for r, shortcut in self.shortcuts))
     
     def addEvent(self, event):
         self.events.setdefault(event.name, []).append(event)
     
-    def addScript(self, script):
-        self.scripts.append(script)
+    def addScript(self, script, arguments=[]):
+        self.scripts.append((script, arguments))
         self.runScript(script)
 
     def tryRunScript(self):
         if self.isActive():
-            script = self.scripts[-1]
+            script, args = self.scripts[-1]
             self.runScript(script)
 
     def runScript(self, script):
         if self.shortcuts:
-            scriptCommand = script.getCommand(self.shortcuts.keys())
+            scriptCommand = script.getCommand(matching=[ r for r, _ in self.shortcuts ])
             if scriptCommand:
-                newScript = self.shortcuts[scriptCommand]
-                return self.addScript(newScript)
+                newScript, args = self.findShortcut(scriptCommand)
+                return self.addScript(newScript, args)
         
         if self.processInitialWait(script):
             self.enableReading()
             
     def processInitialWait(self, script):
-        waitCommand = script.getCommand([ waitCommandName ])
+        waitCommand = script.getCommand(matching=[ waitRegexp ])
         if waitCommand:
             self.logger.debug("Initial " + repr(waitCommand) + ", not starting replayer")
             return self.processWait(self.getArgument(waitCommand, waitCommandName))
@@ -175,7 +199,8 @@ class UseCaseReplayer:
             pass
 
     def getCommands(self):
-        nextCommands = self.scripts[-1].getCommands()
+        script, scriptArgs = self.scripts[-1]
+        nextCommands = script.getCommands(scriptArgs)
         if len(nextCommands) > 0:
             return nextCommands
 
@@ -188,7 +213,8 @@ class UseCaseReplayer:
     def checkTermination(self):
         if len(self.scripts) == 0:
             return True
-        if self.scripts[-1].checkTermination():
+        script, scriptArgs = self.scripts[-1]
+        if script.checkTermination():
             del self.scripts[-1]
             return self.checkTermination()
         else:
@@ -205,6 +231,13 @@ class UseCaseReplayer:
         for eventName in eventNames:
             self.write(self.eventHappenedMessage % eventName)
 
+    def findShortcut(self, command):
+        for regex, shortcut in self.shortcuts:
+            match = regex.match(command)
+            if match:
+                return shortcut, list(match.groups())
+        return None, None
+
     def runNextCommand(self):
         self.describeAppEventsHappened(self.waitingForEvents)
         self.waitingForEvents = []
@@ -216,11 +249,11 @@ class UseCaseReplayer:
         if len(commands) == 0:
             return False
         for command in commands:
-            if command in self.shortcuts:
-                script = self.shortcuts[command]
+            script, arguments = self.findShortcut(command)
+            if script:
                 if commands[-1].startswith(waitCommandName):
                     script.commands.append(commands[-1])
-                self.addScript(script)
+                self.addScript(script, arguments)
                 return self.runNextCommand()
             try:
                 commandName, argumentString = self.parseCommand(command)
