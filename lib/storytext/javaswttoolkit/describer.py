@@ -397,7 +397,9 @@ class Describer(storytext.guishared.Describer):
         elif util.getTopControl(widget):
             return "\n"
         elif isinstance(widget, swt.widgets.Menu):
-            return "\nUpdated " + widget.getParentItem().getText() + " Menu:\n"
+            parentItem = widget.getParentItem()
+            menuName = parentItem.getText() if parentItem else "Context"
+            return "\nUpdated " + menuName + " Menu:\n"
         elif isinstance(widget, (swt.widgets.Label, swt.custom.CLabel)) and len(state) == 0:
             return "\nLabel now empty, previously " + oldState
         else:
@@ -535,7 +537,7 @@ class Describer(storytext.guishared.Describer):
         positions = []
         for child in children:
             if isinstance(child, swt.widgets.Sash) and child.getStyle() & swt.SWT.VERTICAL:
-                 positions.append(child.getLocation().x)
+                positions.append(child.getLocation().x)
         return sorted(positions)
 
     def layoutSortsChildren(self, widget):
