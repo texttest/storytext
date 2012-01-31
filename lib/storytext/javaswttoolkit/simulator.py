@@ -76,6 +76,14 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
             return runOnUIThread(method, *args)
         except:
             return ""
+    
+    def getContextName(self):
+        parent = runOnUIThread(self.widget.widget.getParent)
+        if isinstance(parent, swt.widgets.Table):
+            return "TableCell"
+        else:
+            return ""
+        
 
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
         
@@ -275,6 +283,15 @@ class TextEvent(StateChangeEvent):
         return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
             (currOutput.startswith(stateChangeOutput) or \
              stateChangeOutput.startswith(currOutput))
+            
+class TextActivateEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "DefaultSelection"    
+    
+    def _generate(self, argumentString):
+        self.widget.setFocus()
+        self.widget.typeText("\n")
 
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
@@ -291,6 +308,58 @@ class ComboTextEvent(TextEvent):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return StateChangeEvent.shouldRecord(self, event, *args)
 
+class TableSelectEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "MouseDown"
+    
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "CellSelection" ]
+    
+    def _generate(self, argumentString):
+        indexer = TableIndexer.getIndexer(self.widget.widget.widget)
+        row, col = indexer.getViewCellIndices(argumentString)
+        self.widget.click(row, col)
+        
+    def outputForScript(self, event, *args):
+        row, col = self.findCell(event)
+        indexer = TableIndexer.getIndexer(self.widget.widget.widget)
+        return " ".join([ self.name, indexer.getCellDescription(row, col) ])
+    
+    def shouldRecord(self, event, *args):
+        row, _ = self.findCell(event)
+        return row is not None and SignalEvent.shouldRecord(self, event, *args)
+    
+    def findCell(self, event):
+        pt = swt.graphics.Point(event.x, event.y)
+        table = event.widget
+        firstRow = table.getTopIndex()
+        for rowIndex in range(firstRow, firstRow + table.getItemCount()):
+            item = table.getItem(rowIndex)
+            for col in range(table.getColumnCount()):
+                rect = item.getBounds(col)
+                if rect.contains(pt):
+                    return rowIndex, col
+        return None, None
+    
+class TableIndexer(storytext.guishared.TableIndexer):
+    def getRowCount(self):
+        return self.table.getItemCount()
+
+    def getCellValue(self, row, col):
+        return self.table.getItem(row).getText(col)
+    
+    def getColumnText(self, col):
+        return self.table.getColumn(col).getText()
+    
+    def findColumnIndex(self, columnName):
+        return runOnUIThread(storytext.guishared.TableIndexer.findColumnIndex, self, columnName)
+    
+    def findRowNames(self):
+        return runOnUIThread(storytext.guishared.TableIndexer.findRowNames, self)
+    
+    
 class TableColumnHeaderEvent(SignalEvent):
     def __init__(self, *args):
         SignalEvent.__init__(self, *args)
@@ -773,9 +842,9 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarDropDownButton , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
-                (swtbot.widgets.SWTBotText              , [ TextEvent ]),
+                (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
-                (swtbot.widgets.SWTBotTable             , [ TableColumnHeaderEvent ]),
+                (swtbot.widgets.SWTBotTable             , [ TableColumnHeaderEvent, TableSelectEvent ]),
                 (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),

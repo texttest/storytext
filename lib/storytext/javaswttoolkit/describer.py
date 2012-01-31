@@ -17,7 +17,7 @@ class Describer(storytext.guishared.Describer):
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     ignoreWidgets = [ types.NoneType ]
     # DateTime children are an implementation detail
-    # Coolbars and Expandbars describe their children directly : they have two parallel children structures    
+    # Coolbars and Expandbars describe their children directly : they have two parallel children structures
     ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime)
     statelessWidgets = [ swt.widgets.Sash ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,

@@ -95,19 +95,6 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
             return self.widget.getToolTipText() or ""
         else:
             return ""
-
-    def getUIMapIdentifier(self):
-        return self.addContext(storytext.guishared.WidgetAdapter.getUIMapIdentifier(self))
-
-    def addContext(self, text):
-        if not text.endswith("="):
-            context = self.getContextName()
-            if context:
-                return text + ", Context=" + context
-        return text
-
-    def findPossibleUIMapIdentifiers(self):
-        return map(self.addContext, storytext.guishared.WidgetAdapter.findPossibleUIMapIdentifiers(self))
     
     def getContextName(self):
         if swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget):
@@ -765,17 +752,13 @@ class CellEditEvent(SignalEvent):
         return True
 
         
-class TableIndexer:
-    allIndexers = {}
+class TableIndexer(storytext.guishared.TableIndexer):
     def __init__(self, table):
         self.tableModel = table.getModel()
-        self.table = table
-        self.textFinder = util.ComponentTextFinder(self.table, describe=False)
+        self.textFinder = util.ComponentTextFinder(table, describe=False)
         self.getColumnText = self.textFinder.getJTableHeaderText
-        self.logger = logging.getLogger("TableModelIndexer")
-        self.primaryKeyColumn, self.rowNames = self.findRowNames()
+        storytext.guishared.TableIndexer.__init__(self, table)
         self.observeUpdates()
-        self.logger.debug("Creating table indexer with rows " + repr(self.rowNames))
 
     def observeUpdates(self):
         class TableListener(swing.event.TableModelListener):
@@ -794,75 +777,23 @@ class TableIndexer:
             if set(currRowNames) != set([ "<unnamed>" ]):
                 self.rowNames = currRowNames
                 self.logger.debug("Model changed, row names now " + repr(self.rowNames))
-
-    @classmethod
-    def getIndexer(cls, table):
-        # Don't just do setdefault, shouldn't create the TableIndexer if it already exists
-        if table in cls.allIndexers:
-            return cls.allIndexers.get(table)
-        else:
-            return cls.allIndexers.setdefault(table, cls(table))
+                
+    def getRowCount(self):
+        return self.table.getRowCount()
 
     def getCellValue(self, row, col):
         return self.textFinder.getJTableText(row, col) or "<unnamed>"
-        
-    def getColumn(self, col):
-        return [ self.getCellValue(row, col) for row in range(self.table.getRowCount()) ]
-
-    def findRowNames(self):
-        if self.table.getRowCount() > 1:
-            for colIndex in range(self.table.getColumnCount()):
-                column = self.getColumn(colIndex)
-                if len(column) > 1 and len(set(column)) == len(column):
-                    return colIndex, column
-                else:
-                    self.logger.debug("Rejecting column " + str(colIndex) + " as primary key : names were " + repr(column))
-        # No unique columns to use as row names. Use the first column and add numbers
-        return None, self.addIndexes(self.getColumn(0))
-        
-    def getIndexedValue(self, index, value, mapping):
-        indices = mapping.get(value)
-        if len(indices) == 1:
-            return value
-        else:
-            return value + " (" + str(indices.index(index) + 1) + ")"
-
-    def addIndexes(self, values):
-        mapping = {}
-        for i, value in enumerate(values):
-            mapping.setdefault(value, []).append(i)
-
-        return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
-
-    def findColumnIndex(self, columnName):
-        for col in range(self.table.getColumnCount()):
-            if self.getColumnText(col) == columnName:
-                return col
-
-        raise UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
-
-    def parseDescription(self, description):
-        if " for " in description:
-            columnName, rowName = description.split(" for ")
-            return rowName, self.findColumnIndex(columnName)    
-        else:
-            return description, 0
+    
+    def getCellDescription(self, row, *args, **kw):
+        rowModelIndex = self.table.convertRowIndexToModel(row)
+        return storytext.guishared.TableIndexer.getCellDescription(self, rowModelIndex, *args, **kw)
     
     def getViewCellIndices(self, description):
-        rowName, columnIndex = self.parseDescription(description)
-        try:
-            rowModelIndex = self.rowNames.index(rowName)
-            rowIndex = self.table.convertRowIndexToView(rowModelIndex)
-            return rowIndex, columnIndex
-        except ValueError:
-            raise UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table."
-                    
-    def getCellDescription(self, row, col, checkSelectionModel=True):
-        rowName = self.rowNames[self.table.convertRowIndexToModel(row)]
-        if self.table.getColumnCount() == 1 or (checkSelectionModel and not self.table.getCellSelectionEnabled()):
-            return rowName
-        else:
-            return self.getColumnText(col) + " for " + rowName
+        rowModelIndex, col = storytext.guishared.TableIndexer.getViewCellIndices(self, description)
+        return self.table.convertRowIndexToView(rowModelIndex), col
+    
+    def useColumnTextInDescription(self, checkSelectionModel=True):
+        return self.table.getColumnCount() > 1 and (not checkSelectionModel or self.table.getCellSelectionEnabled())
 
 
 class PhysicalEventManager:
