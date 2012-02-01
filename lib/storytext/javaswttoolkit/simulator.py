@@ -308,7 +308,7 @@ class ComboTextEvent(TextEvent):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return StateChangeEvent.shouldRecord(self, event, *args)
 
-class TableSelectEvent(SignalEvent):
+class TableSelectEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "MouseDown"
@@ -322,14 +322,14 @@ class TableSelectEvent(SignalEvent):
         row, col = indexer.getViewCellIndices(argumentString)
         self.widget.click(row, col)
         
-    def outputForScript(self, event, *args):
+    def getStateText(self, event, *args):
         row, col = self.findCell(event)
         indexer = TableIndexer.getIndexer(self.widget.widget.widget)
-        return " ".join([ self.name, indexer.getCellDescription(row, col) ])
+        return indexer.getCellDescription(row, col)
     
     def shouldRecord(self, event, *args):
         row, _ = self.findCell(event)
-        return row is not None and SignalEvent.shouldRecord(self, event, *args)
+        return row is not None and StateChangeEvent.shouldRecord(self, event, *args)
     
     def findCell(self, event):
         pt = swt.graphics.Point(event.x, event.y)
@@ -343,9 +343,18 @@ class TableSelectEvent(SignalEvent):
                     return rowIndex, col
         return None, None
     
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        return currOutput == stateChangeOutput
+    
+    
 class TableIndexer(storytext.guishared.TableIndexer):
+    def __init__(self, table):
+        storytext.guishared.TableIndexer.__init__(self, table)
+        self.cachedRowCount = 0
+        
     def getRowCount(self):
-        return self.table.getItemCount()
+        return runOnUIThread(self.table.getItemCount)
 
     def getCellValue(self, row, col):
         return self.table.getItem(row).getText(col)
@@ -357,7 +366,21 @@ class TableIndexer(storytext.guishared.TableIndexer):
         return runOnUIThread(storytext.guishared.TableIndexer.findColumnIndex, self, columnName)
     
     def findRowNames(self):
-        return runOnUIThread(storytext.guishared.TableIndexer.findRowNames, self)
+        column, rowNames = runOnUIThread(storytext.guishared.TableIndexer.findRowNames, self)
+        self.cachedRowCount = len(rowNames)
+        return column, rowNames
+    
+    def checkNameCache(self):
+        if self.getRowCount() != self.cachedRowCount:
+            self.primaryKeyColumn, self.rowNames = self.findRowNames()
+    
+    def getCellDescription(self, *args, **kw):
+        self.checkNameCache()
+        return storytext.guishared.TableIndexer.getCellDescription(self, *args, **kw)
+
+    def getViewCellIndices(self, *args, **kw):
+        self.checkNameCache()
+        return storytext.guishared.TableIndexer.getViewCellIndices(self, *args, **kw)
     
     
 class TableColumnHeaderEvent(SignalEvent):
@@ -727,7 +750,6 @@ class WidgetMonitor:
         self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
         newWidgets = set(allWidgets).difference(self.widgetsMonitored)
-        self.widgetsMonitored.update(newWidgets)
         self.uiMap.logger.debug("Monitoring all widgets in active shell...")
         self.monitorAllWidgets(self.getActiveShell(), list(newWidgets))
         self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
@@ -769,7 +791,6 @@ class WidgetMonitor:
         self.uiMap.logger.debug("Showing/painting widget of type " +
                                 parent.__class__.__name__ + " " + str(id(parent)) + ", monitoring found widgets")
         newWidgets = [ w for w in widgets if w not in self.widgetsMonitored ]
-        self.widgetsMonitored.update(newWidgets)
         self.monitorAllWidgets(parent, newWidgets)
         self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + 
                                 parent.__class__.__name__ + " " + str(id(parent)) + ".")
@@ -782,7 +803,9 @@ class WidgetMonitor:
             return self.bot.widgets(matcher, widget)
 
     def monitorAllWidgets(self, parent, widgets):
-        for widget in self.makeAdapters(widgets):
+        widgetsAndMenus = widgets + self.getPopupMenus(widgets)
+        self.widgetsMonitored.update(widgetsAndMenus)
+        for widget in self.makeAdapters(widgetsAndMenus):
             self.uiMap.monitorWidget(widget)
             self.monitorAsynchronousUpdates(widget)
 
@@ -816,7 +839,7 @@ class WidgetMonitor:
 
     def makeAdapters(self, widgets):
         adapters = []
-        for widget in widgets + self.getPopupMenus(widgets):
+        for widget in widgets:
             adapter = self.makeAdapter(widget)
             if adapter:
                 adapters.append(adapter)
