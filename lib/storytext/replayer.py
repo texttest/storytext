@@ -31,11 +31,11 @@ class ReplayScript:
     def getShortcutNameWithArgs(self, args):
         name = self.getShortcutName().lower()
         for arg in args:
-            name = name.replace("?", arg, 1)
+            name = name.replace("$", arg, 1)
         return name
 
     def getRegexp(self, command):
-        return re.compile(command.replace("?", "(.*)")) if command else None
+        return re.compile(command.replace("$", "(.*)")) if command else None
 
     def hasTerminated(self):
         return self.pointer >= len(self.commands)
@@ -62,10 +62,10 @@ class ReplayScript:
                 return self.replaceArgs(nextCommand, args)
 
     def replaceArgs(self, nextCommand, args):
-        if args and "?" in nextCommand:
+        if args and "$" in nextCommand:
             currArg = args.pop(0)
             args.append(currArg) # cycle through them...
-            return nextCommand.replace("?", currArg)
+            return nextCommand.replace("$", currArg)
         else:
             return nextCommand
             
