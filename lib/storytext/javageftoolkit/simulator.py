@@ -37,14 +37,17 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         self.monitorGefWidgets()
 
     def monitorGefMenus(self, parent):
+        self.uiMap.logger.debug("Showing FigureCanvas " + str(id(parent)) + ", monitoring GEF menus")
         for view in self.bot.views():
-            for viewer in  self.getViewers(view):
+            for viewer in self.getViewers(view):
                 menu = getGefViewer(viewer).getControl().getMenu()
-                for item in self.getMenuItems(menu):
-                    if item not in self.widgetsMonitored:
-                        adapter = self.makeAdapter(item)
-                        self.uiMap.monitorWidget(adapter)
-                        self.widgetsMonitored.add(item)
+                if menu is not None:
+                    for item in self.getMenuItems(menu):
+                        if item not in self.widgetsMonitored:
+                            adapter = self.makeAdapter(item)
+                            self.uiMap.monitorWidget(adapter)
+                            self.widgetsMonitored.add(item)
+        self.uiMap.logger.debug("Done Monitoring GEF menus for FigureCanvas " + str(id(parent)))
         
     def monitorGefWidgets(self):
         for view in self.bot.views():
@@ -76,15 +79,6 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
             pass
         return viewer
 
-    def getMenuItems(self, menu):
-        items = []
-        if menu is not None:
-            for item in menu.getItems():
-                if item.getMenu():
-                    self.getMenuItems(item.getMenu())
-                else:
-                    items.append(item)
-        return items
 
 class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     def __init__(self, widget, partRef):

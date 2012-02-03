@@ -796,11 +796,21 @@ class WidgetMonitor:
                                 parent.__class__.__name__ + " " + str(id(parent)) + ".")
         
     def findDescendants(self, widget):
-        matcher = IsAnything()
         if isinstance(widget, swt.widgets.Menu):
-            return ArrayList(list(widget.getItems()))
+            return ArrayList(self.getMenuItems(widget))
         else:
+            matcher = IsAnything()
             return self.bot.widgets(matcher, widget)
+
+    def getMenuItems(self, menu):
+        items = []
+        for item in menu.getItems():
+            submenu = item.getMenu()
+            if submenu:
+                items += self.getMenuItems(submenu)
+            else:
+                items.append(item)
+        return items
 
     def monitorAllWidgets(self, parent, widgets):
         widgetsAndMenus = widgets + self.getPopupMenus(widgets)
