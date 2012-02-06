@@ -279,10 +279,13 @@ class TextEvent(StateChangeEvent):
         return (not event.widget.getStyle() & swt.SWT.READ_ONLY) and StateChangeEvent.shouldRecord(self, event, *args)
     
     def implies(self, stateChangeOutput, *args):
-        currOutput = self.outputForScript(*args)
-        return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
-            (currOutput.startswith(stateChangeOutput) or \
-             stateChangeOutput.startswith(currOutput))
+        if "typed" in self.generationModifiers:
+            currOutput = self.outputForScript(*args)
+            return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
+                (currOutput.startswith(stateChangeOutput) or \
+                 stateChangeOutput.startswith(currOutput))
+        else:
+            return StateChangeEvent.implies(self, stateChangeOutput, *args)
             
 class TextActivateEvent(SignalEvent):
     @classmethod
