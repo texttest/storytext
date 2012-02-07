@@ -233,7 +233,7 @@ class FigureCanvasDescriber(guishared.Describer):
                 hasSubGrids = True
                 xColumns.append(x)
                 continue
-            
+
             if prevY is None or abs(y - prevY) > self.pixelTolerance: # some pixel forgiveness...
                 grid.append([])
             index = self.findExistingColumn(x, xColumns)
@@ -271,6 +271,7 @@ class FigureCanvasDescriber(guishared.Describer):
 
     def tryMakeGrid(self, figure, sortedChildren, childDescriptions):
         calls = [ self.makeCall(desc, child) for desc, child in zip(childDescriptions, sortedChildren) ]
+        calls.sort(cmp=self.compareCalls)
         return self.makeTextGrid(calls)
 
     def makeCall(self, desc, child):
