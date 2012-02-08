@@ -711,10 +711,10 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         if not self.readingEnabled:
             self.waitForReenable()
         while True:
-            describeMethod()
             if self.delay:
                 self.logger.debug("Sleeping for " + str(self.delay) + " seconds...")
                 time.sleep(self.delay)
+            describeMethod()
             if not self.runNextCommand():
                 self.readingEnabled = self.waitingCompleted()
                 if self.readingEnabled:
