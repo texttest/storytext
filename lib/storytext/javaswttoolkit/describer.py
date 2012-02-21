@@ -3,8 +3,8 @@ import storytext.guishared, util, types, logging, sys
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
 from org.eclipse import swt
+from browserhtmlparser import BrowserHtmlParser
 from java.util import Date
-import xml.sax
 from java.io import File, FilenameFilter
 from org.eclipse.jface.resource import ImageDescriptor
 
@@ -387,7 +387,8 @@ class Describer(storytext.guishared.Describer):
 
     def getBrowserState(self, widget):
         url = util.getRealUrl(widget)
-        return url or BrowserHtmlParser().parse(widget.getText())
+        text = storytext.guishared.encodeToLocale(widget.getText())
+        return url or BrowserHtmlParser().parse(text)
         
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):
@@ -643,35 +644,3 @@ class Describer(storytext.guishared.Describer):
     def isImageType(self, fileName):
         return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
 
-class BrowserHtmlParser(xml.sax.ContentHandler):
-    def __init__(self):
-        xml.sax.ContentHandler.__init__(self)
-        self.text = ""
-        self.grid = []
-        self.activeElements = set()
-        
-    def parse(self, text):
-        xml.sax.parseString(text, self)
-        return self.text
-
-    def startElement(self, rawname, attrs):
-        name = rawname.lower()
-        self.activeElements.add(name)
-        if name == "tr":
-            self.grid.append([])
-        elif name == "td":
-            self.grid[-1].append("")
-
-    def endElement(self, rawname):
-        name = rawname.lower()
-        self.activeElements.remove(name)
-        if name == "table":
-            formatter = GridFormatter(self.grid, max((len(r) for r in self.grid)), allowOverlap=False)
-            self.text += str(formatter)
-            self.grid = []
-
-    def characters(self, content):
-        if "td" in self.activeElements:
-            self.grid[-1][-1] += content.rstrip()
-        elif "body" in self.activeElements:
-            self.text += content.rstrip()

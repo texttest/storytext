@@ -20,6 +20,20 @@ if sys.version_info[:2] >= (2, 6):
     from ConfigParser import ConfigParser #@UnusedImport
 else: # pragma: no cover - not currently running older than 2.5 in regular tests
     from ConfigParser26 import ConfigParser #@Reimport
+    
+def encodeToLocale(unicodeText):
+    if sys.version_info[0] == 3:
+        return unicodeText # don't need to mess about if we're in Python 3 anyway
+    if unicodeText:
+        try:
+            encoding = getdefaultlocale()[1] or "utf-8"
+            return unicodeText.encode(encoding, 'replace')
+        except ValueError:
+            # Get this if locale is invalid for example
+            # Return the text as-is and hope for the best
+            return unicodeText
+    else:
+        return ""
 
 class WidgetAdapter:
     adapterClass = None
@@ -75,23 +89,12 @@ class WidgetAdapter:
         if tooltip:
             return "Tooltip=" + tooltip
         return "Type=" + self.getType()
+    
+    def encodeToLocale(self, text):
+        return encodeToLocale(text)
 
     def getTooltip(self):
         return ""
-
-    def encodeToLocale(self, unicodeText):
-        if sys.version_info[0] == 3:
-            return unicodeText # don't need to mess about if we're in Python 3 anyway
-        if unicodeText:
-            try:
-                encoding = getdefaultlocale()[1] or "utf-8"
-                return unicodeText.encode(encoding, 'replace')
-            except ValueError:
-                # Get this if locale is invalid for example
-                # Return the text as-is and hope for the best
-                return unicodeText
-        else:
-            return ""
 
     def findPossibleBasicUIMapIdentifiers(self):
         return [ "Name=" + self.getName(), "Title=" + self.encodeToLocale(self.getTitle()), 
