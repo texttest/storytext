@@ -4,6 +4,7 @@
 import os, sys, signal, time, logging, re
 from threading import Thread, Timer
 from definitions import *
+from copy import copy
 waitRegexp = re.compile(waitCommandName + ".*")
 
 class ReplayScript:
@@ -238,8 +239,8 @@ class UseCaseReplayer:
                 return shortcut, list(match.groups())
         return None, None
 
-    def runNextCommand(self):
-        self.describeAppEventsHappened(self.waitingForEvents)
+    def runNextCommand(self, **kw):
+        eventsHappened = copy(self.waitingForEvents)
         self.waitingForEvents = []
         if self.timeDelayNextCommand:
             self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
@@ -255,21 +256,17 @@ class UseCaseReplayer:
                     script.commands.append(commands[-1])
                 self.addScript(script, arguments)
                 return self.runNextCommand()
-            try:
-                commandName, argumentString = self.parseCommand(command)
-                self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
-                if commandName == waitCommandName:
-                    if self.processWait(argumentString):
-                        self.logger.debug("Events have already happened, no waiting to do")
-                        self.applicationEventNames = set()
-                    else:
-                        return False
+            if command.startswith(waitCommandName):
+                eventName = self.getArgument(command, waitCommandName)
+                if self.processWait(eventName):
+                    self.logger.debug("Event '" + eventName + "' has already happened, no waiting to do")
+                    self.applicationEventNames = set()
                 else:
-                    self.processCommand(commandName, argumentString)
-            except UseCaseScriptError:
-                # We don't terminate scripts if they contain errors
-                type, value, _ = sys.exc_info()
-                self.write("ERROR: " + str(value))
+                    self.logger.debug("Suspending replay waiting for event '" + eventName + "'")
+                    return False
+            else:
+                self.parseAndProcess(command, eventsHappened, **kw)
+            
         return not self.checkTermination()
     
     def write(self, line):
@@ -279,6 +276,17 @@ class UseCaseReplayer:
             # Can get interrupted system call here as it tries to close the file
             # This isn't worth crashing over!
             pass
+
+    def parseAndProcess(self, command, eventsHappened, **kw):
+        try:
+            self.describeAppEventsHappened(eventsHappened)
+            commandName, argumentString = self.parseCommand(command)
+            self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
+            self.processCommand(commandName, argumentString)
+        except UseCaseScriptError:
+            # We don't terminate scripts if they contain errors
+            type, value, _ = sys.exc_info()
+            self.write("ERROR: " + str(value))
 
     def processCommand(self, commandName, argumentString):
         if commandName == signalCommandName:
@@ -314,8 +322,6 @@ class UseCaseReplayer:
         return scriptCommand.replace(commandName, "").strip()
 
     def findCommandName(self, command):
-        if command.startswith(waitCommandName):
-            return waitCommandName
         if command.startswith(signalCommandName):
             return signalCommandName
 

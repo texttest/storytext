@@ -717,13 +717,40 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
             if self.delay:
                 self.logger.debug("Sleeping for " + str(self.delay) + " seconds...")
                 time.sleep(self.delay)
-            describeMethod()
-            if not self.runNextCommand():
+            if not self.runNextCommand(describeMethod=describeMethod):
                 self.readingEnabled = self.waitingCompleted()
                 if self.readingEnabled:
                     break
                 else:
                     self.waitForReenable()
+
+    def tryParseRepeatedly(self, command):
+        attemptCount = 30
+        for attempt in range(attemptCount):
+            try:
+                return self.parseCommand(command)
+            except definitions.UseCaseScriptError:
+                # We don't terminate scripts if they contain errors
+                if attempt == attemptCount - 1:
+                    value = sys.exc_info()[1]
+                    self.write("ERROR: " + str(value))
+                else:
+                    time.sleep(0.1)
+        
+        return None, None
+
+    def parseAndProcess(self, command, eventsHappened, describeMethod):
+        commandName, argumentString = self.tryParseRepeatedly(command)
+        if commandName:
+            describeMethod()
+            self.describeAppEventsHappened(eventsHappened)
+            self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
+            try:
+                self.processCommand(commandName, argumentString)
+            except definitions.UseCaseScriptError:
+                value = sys.exc_info()[1]
+                self.write("ERROR: " + str(value))
+                
 
 
 class WidgetCounter:
