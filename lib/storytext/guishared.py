@@ -1296,20 +1296,20 @@ def getExceptionString():
     type, value, traceback = sys.exc_info()
     return "".join(format_exception(type, value, traceback))
 
-def getTextLabel(widget, childrenMethodName, labelClass):
+def getTextLabel(widget, childrenMethodName, labelClass, ignoreLabels=[]):
     """ Text widgets often are preceeded by a label, use this as their text, if it exists """
     parent = widget.getParent()
     if parent:
         children = getattr(parent, childrenMethodName)()
         if len(children) == 1:
-            return getTextLabel(parent, childrenMethodName, labelClass)
+            return getTextLabel(parent, childrenMethodName, labelClass, ignoreLabels)
     
         textPos = children.index(widget)
         while textPos > 0:
             prevWidget = children[textPos -1]
             if isinstance(prevWidget, labelClass):
                 text = prevWidget.getText()
-                if text:
+                if text and text not in ignoreLabels:
                     return text
                 else:
                     textPos -= 1

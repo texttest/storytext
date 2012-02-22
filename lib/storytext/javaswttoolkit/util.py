@@ -8,8 +8,9 @@ def getRealUrl(browser):
     url = browser.getUrl()
     return url if url != "about:blank" else ""
 
+ignoreLabels = []
 def getTextLabel(widget):
-    return storytext.guishared.getTextLabel(widget, "getChildren", swt.widgets.Label)
+    return storytext.guishared.getTextLabel(widget, "getChildren", swt.widgets.Label, ignoreLabels)
 
 def getDateFormat(dateType):
     if dateType == swt.SWT.TIME:
