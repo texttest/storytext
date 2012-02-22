@@ -192,6 +192,11 @@ class UseCaseRecorder:
         self.logger.debug("Event of type " + event.__class__.__name__ + " for recording")
         if not event.shouldRecord(*args):
             self.logger.debug("Told we should not record it : args were " + repr(args))
+            if event.checkPreviousWhenRejected() and self.stateChangeEventInfo:
+                stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
+                if event.implies(stateChangeOutput, stateChangeEvent, *args):
+                    self.logger.debug("Discarded event implies previous state change event, ignoring previous also")
+                    self.stateChangeEventInfo = None
             return
         
         if self.stateChangeEventInfo:

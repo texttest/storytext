@@ -36,3 +36,8 @@ class UserEvent:
     def implies(self, stateChangeLine, stateChangeEvent, *args):
         # If this is true, recorder will not record the state change if immediately followed by this event
         return self is stateChangeEvent
+    def checkPreviousWhenRejected(self):
+        # If this is true, 'implies' will be called even when 'shouldRecord' returns false
+        # Historical assumption has been that 'shouldRecord' often takes out events that are totally irrelevant
+        # But in some circumstances they can still be relevant in that sense
+        return False
