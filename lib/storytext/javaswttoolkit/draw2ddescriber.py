@@ -3,12 +3,16 @@ from storytext.javaswttoolkit import describer as swtdescriber
 from storytext import guishared, gridformatter
 import org.eclipse.draw2d as draw2d
 from org.eclipse import swt
+from java.awt import Color
 
 class ColorNameFinder:
     abbrevations = [ ("dark", "+"), ("dull", "#"), ("very", "+"),
                      ("light", "-"), ("normal", ""), ("bright", "*") ]
     def __init__(self):
         self.names = {}
+        # Add java.awt colors  
+        self.addColors(Color, True)
+        # Add swt colors
         self.addColors(draw2d.ColorConstants)
     
     def shortenColorName(self, name):
@@ -17,12 +21,16 @@ class ColorNameFinder:
             ret = ret.replace(text, repl)
         return ret
 
-    def addColors(self, cls):
+    def addColors(self, cls, addAwtMark=False):
         for name in sorted(cls.__dict__):
             if not name.startswith("__"):
-                color = getattr(cls, name)
-                if hasattr(color, "getRed"):
-                    self.names[self.getRGB(color)] = self.shortenColorName(name)
+                try:
+                    color = getattr(cls, name)
+                    if hasattr(color, "getRed"):
+                        newName = name + "&" if addAwtMark else name
+                        self.names[self.getRGB(color)] = self.shortenColorName(newName)
+                except AttributeError:
+                    pass
 
     def getRGB(self, color):
         return color.getRed(), color.getGreen(), color.getBlue()
