@@ -164,6 +164,8 @@ class UseCaseRecorder:
     def recordSignal(self, signum, stackFrame):
         self.writeApplicationEventDetails()
         self.record(signalCommandName + " " + self.signalNames[signum])
+        self.processDelayedEvents(self.delayedEvents)
+        self.delayedEvents = []
         # Reset the handler and send the signal to ourselves again...
         realHandler = self.realSignalHandlers[signum]
         # If there was no handler-override installed, resend the signal with the handler reset
@@ -205,7 +207,7 @@ class UseCaseRecorder:
                 if event.implies(stateChangeOutput, stateChangeEvent, *args):
                     self.logger.debug("Implies previous state change event, ignoring previous")
                 else:
-                    self.recordOrDelay(stateChangeOutput, stateChangeEvent, stateChangeDelayLevel)
+                    self.recordOrDelay(stateChangeOutput, stateChangeDelayLevel, stateChangeEvent)
                 self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
@@ -215,34 +217,50 @@ class UseCaseRecorder:
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel))
             self.stateChangeEventInfo = scriptOutput, event, delayLevel
         else:
-            if self.recordOrDelay(scriptOutput, event, delayLevel):
+            if self.recordOrDelay(scriptOutput, delayLevel, event):
                 self.processDelayedEvents(self.delayedEvents)
                 self.delayedEvents = []
 
     def getMaximumStoredDelay(self):
-        return max((i[-1] for i in self.delayedEvents)) if self.delayedEvents else 0
+        return max((i[1] for i in self.delayedEvents)) if self.delayedEvents else 0
 
-    def recordOrDelay(self, scriptOutput, event, delayLevel):
+    def recordOrDelay(self, scriptOutput, delayLevel, source):
         if delayLevel:
             self.logger.debug("Delaying event " + repr(scriptOutput) + " at level " + repr(delayLevel))
-            self.delayedEvents.append((scriptOutput, event, delayLevel))
+            self.delayedEvents.append((scriptOutput, delayLevel, source))
             return False
         else:
-            self.record(scriptOutput, event)
+            self.record(scriptOutput, source)
             return True
 
+    def restoreDelayedAppEvents(self, level, source):
+        # An application event is the last thing we have
+        # Don't record it directly, it might be superceded by other things...
+        self.logger.debug("Restoring delayed application events...")
+        newDelayLevel = level - 1
+        # Must reset this, or we can't register new events without them colliding with our stored ones...
+        self.delayedEvents = []
+        for eventName, category in source:
+            self.registerApplicationEvent(eventName, category, delayLevel=newDelayLevel)
+        
+        self.logger.debug("Done restoring delayed application events.")
+        
     def processDelayedEvents(self, events, level=1):
         if len(events):
             self.logger.debug("Processing delayed events at level " + str(level))
             nextLevelEvents = []
-            for scriptOutput, event, delayLevel in events:
+            for i, (scriptOutput, delayLevel, source) in enumerate(events):
                 if delayLevel == level:
-                    self.record(scriptOutput, event)
-                    if event and not event.isStateChange():
-                        self.processDelayedEvents(nextLevelEvents, level + 1)
-                        nextLevelEvents = []
+                    userSource = isinstance(source, UserEvent)
+                    if not userSource and i == len(events) -1:
+                        self.restoreDelayedAppEvents(level, source)
+                    else:
+                        self.record(scriptOutput, source)
+                        if userSource and not source.isStateChange():
+                            self.processDelayedEvents(nextLevelEvents, level + 1)
+                            nextLevelEvents = []
                 else:
-                    nextLevelEvents.append((scriptOutput, event, delayLevel))
+                    nextLevelEvents.append((scriptOutput, delayLevel, source))
                 
     def record(self, line, event=None):
         self.logger.debug("Recording " + repr(line))
@@ -251,7 +269,7 @@ class UseCaseRecorder:
             script.record(line)
 
     def getScriptsToRecord(self, event):   
-        if event and (event.name in self.eventsBlockedTopLevel):
+        if isinstance(event, UserEvent) and (event.name in self.eventsBlockedTopLevel):
             return self.scripts[:-1]
         else:
             return self.scripts
@@ -292,7 +310,6 @@ class UseCaseRecorder:
     def applicationEventRename(self, oldName, newName, oldCategory, newCategory):
         for categoryName, (oldEventName, delayLevel) in self.applicationEvents.items():
             if oldCategory in categoryName:
-                newCategoryName = categoryName.replace(oldCategory, newCategory)
                 del self.applicationEvents[categoryName]
                 newEventName = oldEventName.replace(oldName, newName)
                 self.registerApplicationEvent(newEventName, newCategory, delayLevel=delayLevel)
@@ -314,7 +331,7 @@ class UseCaseRecorder:
         allEvents = self.applicationEvents.items()
         delayLevel = 0
         for categoryName, (eventName, currDelayLevel) in allEvents:
-            currEvents.append(eventName)
+            currEvents.append((eventName, categoryName))
             del self.applicationEvents[categoryName]
             delayLevel = max(delayLevel, currDelayLevel)
         return sorted(currEvents), delayLevel
@@ -322,8 +339,8 @@ class UseCaseRecorder:
     def writeApplicationEventDetails(self):
         eventNames, delayLevel = self.getCurrentApplicationEvents()
         if len(eventNames) > 0:
-            eventString = ", ".join(eventNames)
-            self.recordOrDelay(waitCommandName + " " + eventString, None, delayLevel)
+            eventString = ", ".join((e[0] for e in eventNames))
+            self.recordOrDelay(waitCommandName + " " + eventString, delayLevel, eventNames)
 
     def registerShortcut(self, replayScript):
         for script in self.scripts:
