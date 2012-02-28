@@ -14,10 +14,28 @@ import storytext.guishared
 from org.eclipse import swt
 import time
 
-def getGefViewer(botViewer):
-    viewerField = botViewer.getClass().getDeclaredField("graphicalViewer")
-    viewerField.setAccessible(True)
-    return viewerField.get(botViewer)
+class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
+    def clickOnCenter(self, editPart):
+        # getAbsoluteBounds method has private access modifier
+        declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [gefbot.widgets.SWTBotGefEditPart])
+        declaredMethod.setAccessible(True)
+        bounds = declaredMethod.invoke(self, [editPart])
+        center = bounds.getCenter()
+        self.click(center.x, center.y)
+        
+    def getViewer(self):
+        viewerField = self.getClass().getSuperclass().getDeclaredField("graphicalViewer")
+        viewerField.setAccessible(True)
+        return viewerField.get(self)
+    
+    def getFigureCanvas(self):
+        return self.getCanvas()
+    
+    def setFigureCanvas(self, figureCanvas):
+        # canvas instance variable has protected access modifier. It is read only in Jython.
+        viewerField = self.getClass().getSuperclass().getDeclaredField("canvas")
+        viewerField.setAccessible(True)
+        viewerField.set(self, figureCanvas)
 
 class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
     def mouseDrag(self, fromX, fromY, toX, toY):
@@ -39,10 +57,10 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         counterX, counterY = self.getCounters(fromX, toX, fromY, toY)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, fromX, toX, fromY, toY, counterX*10, counterY*10)
         self.moveDragged(fromX, toX, fromY, toY)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseUp, toX, toY)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
 
     def startDrag(self, fromX, toX, fromY, toY, offsetX, offsetY):
-        self.postMouseDown(fromX, fromY)
+        self.postMouseDown()
         self.postMouseMove( fromX + offsetX, fromY + offsetY, 0)
        
     def getCounters(self, x1, x2, y1, y2):
@@ -63,6 +81,13 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
             rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, startX, startY, 0)
             rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, startX, startY)
 
+    def mouseMoveLeftClick(self, x, y):
+        displayLoc = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, displayLoc.x, displayLoc.y, 0)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, displayLoc.x, displayLoc.y)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseDown)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
+       
     def postMouseMove(self, x ,y, button):
         event = swt.widgets.Event()
         event.type = swt.SWT.MouseMove
@@ -70,13 +95,13 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         event.y = y
         self.display.post(event)
 
-    def postMouseDown(self, x, y):
+    def postMouseDown(self):
         event = swt.widgets.Event()
         event.type = swt.SWT.MouseDown
         event.button = 1
         self.display.post(event)
 
-    def postMouseUp(self, x, y):
+    def postMouseUp(self):
         event = swt.widgets.Event()
         event.type = swt.SWT.MouseUp
         event.button = 1
@@ -89,10 +114,18 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         while self.widget.getDisplay().getCursorLocation().x != x and self.widget.getDisplay().getCursorLocation().y != y:
             time.sleep(0.1)
 
+class DisplayFilter(rcpsimulator.DisplayFilter):
+    def shouldCheckWidget(self, widget, eventType):
+        if isinstance(widget, FigureCanvas):
+            return True
+        else:
+            return rcpsimulator.DisplayFilter.shouldCheckWidget(self, widget, eventType)
+
+
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
-        self.swtbotMap[GraphicalViewer] = (gefbot.widgets.SWTBotGefViewer, [])
+        self.swtbotMap[GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
 
     def createSwtBot(self):
@@ -111,7 +144,7 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         self.uiMap.logger.debug("Showing FigureCanvas " + str(id(parent)) + ", monitoring GEF menus")
         for view in self.bot.views():
             for viewer in self.getViewers(view):
-                menu = getGefViewer(viewer).getControl().getMenu()
+                menu = viewer.getViewer().getControl().getMenu()
                 if menu is not None:
                     for item in self.getMenuItems(menu):
                         if item not in self.widgetsMonitored:
@@ -152,10 +185,11 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         return viewer
 
     def setFigureCanvas(self, viewer):
-        gefControl = getGefViewer(viewer).getControl()
-        viewerField = viewer.getClass().getDeclaredField("canvas")
-        viewerField.setAccessible(True)
-        viewerField.set(viewer, StoryTextSWTBotGefFigureCanvas(gefControl))
+        gefControl = viewer.getViewer().getControl()
+        viewer.setFigureCanvas(StoryTextSWTBotGefFigureCanvas(gefControl))
+        
+    def getDisplayFilterClass(self):
+        return DisplayFilter
 
 class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     def __init__(self, widget, partRef):
@@ -254,29 +288,27 @@ class ViewerEvent(storytext.guishared.GuiEvent):
                 return found
 
     def shouldRecord(self, part, *args):
-        return not swtsimulator.DisplayFilter.instance.hasEvents()
+        return not DisplayFilter.instance.hasEvents()
 
     @classmethod
     def getSignalsToFilter(cls):
         return []
     
-    def getBotViewer(self):
-        viewerField = self.widget.widget.getClass().getDeclaredField("graphicalViewer")
-        viewerField.setAccessible(True)
-        return viewerField.get(self.widget.widget)
+    def getGefViewer(self):
+        return self.widget.getViewer()
 
 class ViewerSelectEvent(ViewerEvent):
     def connectRecord(self, method):
         class SelectionListener(ISelectionChangedListener):
             def selectionChanged(lself, event): #@NoSelf
-                storytext.guishared.catchAll(lself._selectionChanged, event)
+                storytext.guishared.catchAll(self.applyToSelected, event, method)
                 
-            def _selectionChanged(lself, event): #@NoSelf
-                selection = event.getSelection()
-                for editPart in selection.toList():
-                    method(editPart, self)
+        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().addSelectionChangedListener, SelectionListener())
 
-        rcpsimulator.swtsimulator.runOnUIThread(self.getBotViewer().addSelectionChangedListener, SelectionListener())
+    def applyToSelected(self, event, method):
+        selection = event.getSelection()
+        for editPart in selection.toList():
+            method(editPart, self)
 
     def generate(self, description, *args):
         parts = []
@@ -286,7 +318,10 @@ class ViewerSelectEvent(ViewerEvent):
                 return self.widget.click(editPart)
             if editPart:
                 parts.append(editPart)
-        if len(parts) > 0:
+
+        if len(parts) == 1:
+            self.widget.clickOnCenter(parts[0])
+        elif len(parts) > 1:
             self.widget.select(parts)
         else:
             raise UseCaseScriptError, "Could not find any objects in viewer matching description " + repr(description)
@@ -296,7 +331,12 @@ class ViewerSelectEvent(ViewerEvent):
         return "Select"
 
     def shouldRecord(self, part, *args):
-        return len(self.getStateDescription(*args)) > 0 and ViewerEvent.shouldRecord(self, part, *args)
+        if self.isMainEditPart(part):
+            return ViewerEvent.shouldRecord(self, part, *args)
+        elif len(self.widget.selectedEditParts()) == 1:
+            return DisplayFilter.instance.hasEventOfType(swt.SWT.MouseDown, self.getGefViewer().getControl())
+        else:
+            return len(self.getStateDescription(part, *args)) > 0 and ViewerEvent.shouldRecord(self, part, *args)
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
@@ -317,15 +357,15 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def connectRecord(self, method):
         class DDListener(swt.events.DragDetectListener):
             def dragDetected(lself, event):#@NoSelf
-                storytext.guishared.catchAll(lself.handleDrag, event)
-            
-            def handleDrag(lself, event):#@NoSelf
-                if len(self.widget.selectedEditParts()) > 0:
-                    DragHolder.draggedPart = self.widget.selectedEditParts()[0].part()#self.getBotViewer().findObjectAt(p)
-                    DragHolder.sourceEvent = self
+                storytext.guishared.catchAll(self.applyToDragged, event, method)
 
-        rcpsimulator.swtsimulator.runOnUIThread(self.getBotViewer().getControl().addDragDetectListener, DDListener())
+        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addDragDetectListener, DDListener())
         self.addDropListener(method)
+
+    def applyToDragged(self, event, method):
+        if len(self.widget.selectedEditParts()) > 0:
+            DragHolder.draggedPart = self.widget.selectedEditParts()[0].part()#self.getGefViewer().findObjectAt(p)
+            DragHolder.sourceEvent = self
 
     def addDropListener(self, method):
         class MListener(swt.events.MouseAdapter):
@@ -333,7 +373,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
                 storytext.guishared.catchAll(method, DragHolder.draggedPart, event.x, event.y, DragHolder.sourceEvent)
                 DragHolder.reset()
 
-        rcpsimulator.swtsimulator.runOnUIThread(self.getBotViewer().getControl().addMouseListener, MListener())
+        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addMouseListener, MListener())
 
     def getStateDescription(self, part, *args):
         partDesc = self.storeObjectDescription(part)
@@ -363,4 +403,4 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, ViewerSelectEvent)
 
-rcpsimulator.swtsimulator.eventTypes.append((gefbot.widgets.SWTBotGefViewer, [ ViewerSelectEvent, ViewerDragAndDropEvent ]))
+rcpsimulator.swtsimulator.eventTypes.append((StoryTextSWTBotGefViewer, [ ViewerSelectEvent, ViewerDragAndDropEvent ]))

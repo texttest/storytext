@@ -610,10 +610,10 @@ class DisplayFilter:
         if not currShell:
             return False
 
-        for event in self.eventsFromUser:
-            if self.getShell(event.widget) is currShell:
-                return True
-        return False
+        return any((self.getShell(event.widget) is currShell for event in self.eventsFromUser))
+    
+    def hasEventOfType(self, eventType, widget):
+        return any((event.type == eventType and event.widget is widget for event in self.eventsFromUser))
         
     def addFilters(self, display, monitorListener):
         class DisplayListener(swt.widgets.Listener):
@@ -685,14 +685,19 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
     def getUrlOrText(self):
         return util.getRealUrl(self.widget) or self.widget.getText()
     
+    def changed(self, e):
+        pass
+    
     def completed(self, e):
         storytext.guishared.catchAll(self.onCompleted, e)
         
     def onCompleted(self, e):
         newText = self.getUrlOrText()
         if newText != self.urlOrText:
-            applicationEvent(self.widget.getNameForAppEvent() + " to finish loading")
-            self.urlOrText = newText
+            self.sendApplicationEvent(self.widget.getNameForAppEvent() + " to finish loading", "browser")
+
+    def sendApplicationEvent(self, *args):
+        applicationEvent(*args)
 
 
 
@@ -832,8 +837,11 @@ class WidgetMonitor:
     def monitorAsynchronousUpdates(self, widget):
         # Browsers load their stuff in the background, must wait for them to finish
         if widget.isInstanceOf(swtbot.widgets.SWTBotBrowser):
-            monitor = BrowserUpdateMonitor(widget)
+            monitor = self.getBrowserUpdateMonitorClass()(widget)
             runOnUIThread(widget.widget.widget.addProgressListener, monitor)
+            
+    def getBrowserUpdateMonitorClass(self):
+        return BrowserUpdateMonitor
 
     def findAllWidgets(self):
         matcher = IsAnything()
