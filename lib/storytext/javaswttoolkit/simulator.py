@@ -264,10 +264,13 @@ class TextEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Modify"
 
+    def selectAll(self):
+        self.widget.selectAll()
+
     def _generate(self, argumentString):
         self.widget.setFocus()
-        if "typed" in self.generationModifiers:
-            self.widget.selectAll()
+        if "typed" in self.generationModifiers and argumentString:
+            self.selectAll()
             self.widget.typeText(argumentString)
         else:
             self.widget.setText(argumentString)
@@ -299,14 +302,18 @@ class TextActivateEvent(SignalEvent):
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
         try:
-            self.widget.setFocus()
-            self.widget.setText(argumentString)
+            TextEvent._generate(self, argumentString)
         except RuntimeException: # if it's readonly...
             try:
                 self.widget.setSelection(argumentString)
             except RuntimeException, e:
                 raise UseCaseScriptError, e.getMessage()
             
+    def selectAll(self):
+        # Strangely, there is no selectAll method...
+        selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
+        runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
+    
     def shouldRecord(self, event, *args):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return StateChangeEvent.shouldRecord(self, event, *args)
