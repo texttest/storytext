@@ -19,7 +19,7 @@ class App(origApp):
 
     def MainLoop(self):
         self.setUpHandlers()
-        origApp.MainLoop(self)
+        return origApp.MainLoop(self)
 
 wx.App = App
         
@@ -27,14 +27,14 @@ origDialog = wx.Dialog
 class DialogHelper:
     def ShowModal(self):
         self.uiMap.scriptEngine.replayer.runMainLoopWithReplay()
-        origDialog.ShowModal(self)
+        return origDialog.ShowModal(self)
 
 class Dialog(DialogHelper, origDialog):
     pass
 
 class WidgetAdapter(guishared.WidgetAdapter):
     def getChildWidgets(self):
-        return self.widget.GetChildren()
+        return filter(lambda w: not isinstance(w, wx.Dialog), self.widget.GetChildren())
         
     def getWidgetTitle(self):
         return self.widget.GetTitle()
@@ -95,6 +95,9 @@ class TextCtrlEvent(SignalEvent):
     def outputForScript(self, *args):
         text = self.widget.GetValue()
         return ' '.join([self.name, text])
+
+    def implies(self, prevOutput, prevEvent, *args):
+        return self.widget is prevEvent.widget
 
 class ListCtrlEvent(SignalEvent):
     event = wx.EVT_LIST_ITEM_SELECTED
@@ -214,8 +217,8 @@ class ScriptEngine(guishared.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 class Describer(guishared.Describer):
-    ignoreWidgets = [ wx.ScrolledWindow, wx.Window ]
-    statelessWidgets = [ wx.Button ]
+    ignoreWidgets = [ wx.ScrolledWindow, wx.Window, wx.Dialog ]
+    statelessWidgets = [ wx.Button, wx.StaticText ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
     visibleMethodName = "not_used"
     childrenMethodName = "GetChildren"
@@ -227,7 +230,8 @@ class Describer(guishared.Describer):
             return ""
         desc = ""
         for child in children:
-            desc = self.addToDescription(desc, self.getDescription(child))
+            if not isinstance(child, wx.Dialog):
+                desc = self.addToDescription(desc, self.getDescription(child))
         
         return desc.rstrip()
 
@@ -240,6 +244,9 @@ class Describer(guishared.Describer):
     def getWindowString(self):
         return "Frame" # wx has different terminology
 
+    def getDialogDescription(self, *args):
+        return "" # don't describe it as a child of the main window
+        
     def getWindowClasses(self):
         return wx.Frame, wx.Dialog
 
@@ -251,6 +258,9 @@ class Describer(guishared.Describer):
             return "Updated state\n"
         else:
             return guishared.Describer.getUpdatePrefix(self, widget, *args)
+
+    def getStaticTextDescription(self, widget):
+        return "'" + widget.GetLabel() + "'"
 
     def getButtonDescription(self, widget):
         text = "Button"
