@@ -152,10 +152,14 @@ class FigureCanvasDescriber(guishared.Describer):
         # So derived classes can reinterpret this if needed, e.g. if the whole area is covered by some other colour
         return figure.getBackgroundColor()
 
+    def paintFigure(self, figure, graphics):
+        # So derived classes can reinterpret this if needed, e.g. adding customization to how this is called
+        return figure.paintFigure(graphics)
+
     def getRectangleFigureDescription(self, figure):
         font = figure.getFont()
         graphics = RecorderGraphics(self.canvas, font, [ "drawString", "setBackgroundColor", "fillRectangle" ])
-        figure.paintFigure(graphics)
+        self.paintFigure(figure, graphics)
         calls = graphics.getCallArgs("drawString")
         callGroups = graphics.getCallGroups([ "setBackgroundColor", "fillRectangle" ])
         color = self.getBackgroundColor(figure, callGroups)
