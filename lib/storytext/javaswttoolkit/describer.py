@@ -585,10 +585,10 @@ class Describer(storytext.guishared.Describer):
             text += "\n\nContext Menu " + str(menuId) + ":\n" + self.getMenuDescription(contextMenu)
         return text
 
-    def getHorizontalSpan(self, widget, *args):
+    def getHorizontalSpan(self, widget, columns):
         layout = widget.getLayoutData()
         if hasattr(layout, "horizontalSpan"):
-            return layout.horizontalSpan
+            return min(layout.horizontalSpan, columns)
         else:
             return 1
 
