@@ -1,6 +1,6 @@
-import xml.sax
+import xml.sax, sys
 from storytext.gridformatter import GridFormatter
-
+from storytext.guishared import getExceptionString
 class BrowserHtmlParser(xml.sax.ContentHandler):
     def __init__(self):
         xml.sax.ContentHandler.__init__(self)
@@ -9,7 +9,11 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         self.text = ""
         
     def parse(self, text):
-        xml.sax.parseString(text, self)
+        try:
+            xml.sax.parseString(text, self)
+        except:
+            sys.stderr.write("Failed to parse browser text:\n")
+            sys.stderr.write(getExceptionString())
         return self.text
 
     def startElement(self, rawname, attrs):
