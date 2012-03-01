@@ -694,6 +694,7 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
     def onCompleted(self, e):
         newText = self.getUrlOrText()
         if newText != self.urlOrText:
+            self.urlOrText = newText
             self.sendApplicationEvent(self.widget.getNameForAppEvent() + " to finish loading", "browser")
 
     def sendApplicationEvent(self, *args):
