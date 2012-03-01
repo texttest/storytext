@@ -387,7 +387,9 @@ class Describer(storytext.guishared.Describer):
 
     def getBrowserState(self, widget):
         url = util.getRealUrl(widget)
-        text = storytext.guishared.encodeToLocale(widget.getText())
+        # Ignore non-breaking spaces, they are invisible anyway
+        rawText = widget.getText().replace(u"\xa0", " ")
+        text = storytext.guishared.encodeToLocale(rawText)
         return url or BrowserHtmlParser().parse(text)
         
     def getUpdatePrefix(self, widget, oldState, state):
