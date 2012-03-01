@@ -11,7 +11,7 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
     def parse(self, text):
         try:
             xml.sax.parseString(text, self)
-        except:
+        except xml.sax.SAXException:
             sys.stderr.write("Failed to parse browser text:\n")
             sys.stderr.write(getExceptionString())
         return self.text
