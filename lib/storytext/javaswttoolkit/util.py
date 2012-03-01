@@ -12,6 +12,9 @@ ignoreLabels = []
 def getTextLabel(widget):
     return storytext.guishared.getTextLabel(widget, "getChildren", swt.widgets.Label, ignoreLabels)
 
+def getInt(intOrMethod):
+    return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()
+
 def getDateFormat(dateType):
     if dateType == swt.SWT.TIME:
         # Default format is locale-dependent, no reason to make tests fail in different locales

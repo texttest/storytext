@@ -2,6 +2,7 @@
 
 from storytext.javarcptoolkit import simulator as rcpsimulator
 from storytext.javaswttoolkit import simulator as swtsimulator
+from storytext.javaswttoolkit.util import getInt
 from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.gef.finder as gefbot
 from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
@@ -15,18 +16,27 @@ from org.eclipse import swt
 import time
 
 class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
+    def __init__(self, botOrGefViewer):
+        gefViewer = self._getViewer(botOrGefViewer) if isinstance(botOrGefViewer, gefbot.widgets.SWTBotGefViewer) else botOrGefViewer
+        gefbot.widgets.SWTBotGefViewer.__init__(self, gefViewer)
+
     def clickOnCenter(self, editPart):
         # getAbsoluteBounds method has private access modifier
         declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [gefbot.widgets.SWTBotGefEditPart])
         declaredMethod.setAccessible(True)
         bounds = declaredMethod.invoke(self, [editPart])
         center = bounds.getCenter()
-        self.click(center.x, center.y)
+        # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
+        self.click(getInt(center.x), getInt(center.y))
         
     def getViewer(self):
-        viewerField = self.getClass().getSuperclass().getDeclaredField("graphicalViewer")
+        return self._getViewer(self)
+    
+    @staticmethod
+    def _getViewer(obj):
+        viewerField = gefbot.widgets.SWTBotGefViewer.getDeclaredField("graphicalViewer")
         viewerField.setAccessible(True)
-        return viewerField.get(self)
+        return viewerField.get(obj)
     
     def getFigureCanvas(self):
         return self.getCanvas()
@@ -37,7 +47,7 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         viewerField.setAccessible(True)
         viewerField.set(self, figureCanvas)
 
-class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
+class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):    
     def mouseDrag(self, fromX, fromY, toX, toY):
         # Hard coded offset found in swtbot. It's wrongly added to destination location, so we have to remove it
         offset = 7/2 + 1
@@ -169,25 +179,23 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
                 
     def getViewers(self, part):
         # Default implementation returns only one viewer.
-        viewers = []
         viewer = self.getViewer(part.getTitle())
-        if viewer:
-            viewers.append(viewer)
-        return viewers
-            
+        return [ viewer ] if viewer else []
+                
     def getViewer(self, name):
         viewer = None
         try:
-            viewer = self.bot.gefViewer(name)
+            botViewer = self.bot.gefViewer(name)
+            viewer = StoryTextSWTBotGefViewer(botViewer)
             self.setFigureCanvas(viewer)
         except WidgetNotFoundException:
             pass
         return viewer
-
+        
     def setFigureCanvas(self, viewer):
         gefControl = viewer.getViewer().getControl()
         viewer.setFigureCanvas(StoryTextSWTBotGefFigureCanvas(gefControl))
-        
+
     def getDisplayFilterClass(self):
         return DisplayFilter
 
@@ -370,8 +378,9 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def addDropListener(self, method):
         class MListener(swt.events.MouseAdapter):
             def mouseUp(lself, event):#@NoSelf
-                storytext.guishared.catchAll(method, DragHolder.draggedPart, event.x, event.y, DragHolder.sourceEvent)
-                DragHolder.reset()
+                if DragHolder.sourceEvent is not None:
+                    storytext.guishared.catchAll(method, DragHolder.draggedPart, event.x, event.y, DragHolder.sourceEvent)
+                    DragHolder.reset()
 
         rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addMouseListener, MListener())
 

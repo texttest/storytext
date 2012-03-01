@@ -1,6 +1,7 @@
 
 from storytext.javaswttoolkit import describer as swtdescriber
 from storytext import guishared, gridformatter
+from util import getInt
 import org.eclipse.draw2d as draw2d
 from org.eclipse import swt
 from java.awt import Color
@@ -197,7 +198,7 @@ class FigureCanvasDescriber(guishared.Describer):
             if rect.contains(x, y) or rect.contains(x, y + fontSize):
                 calls[i] = text + colorText, x, y
                 return
-        calls.append((colorText, self.getInt(rect.x), self.getInt(rect.y)))
+        calls.append((colorText, getInt(rect.x), getInt(rect.y)))
 
     def changedColor(self, color, figure):
         return color != figure.getParent().getBackgroundColor()
@@ -289,10 +290,7 @@ class FigureCanvasDescriber(guishared.Describer):
     def makeCall(self, desc, child):
         loc = child.getLocation()            
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
-        return desc, self.getInt(loc.x), self.getInt(loc.y)
-
-    def getInt(self, intOrMethod):
-        return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()
+        return desc, getInt(loc.x), getInt(loc.y)
             
     def layoutSortsChildren(self, widget):
         return False
