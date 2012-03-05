@@ -218,8 +218,8 @@ class ScriptEngine(guishared.ScriptEngine):
 
 class Describer(guishared.Describer):
     ignoreWidgets = [ wx.ScrolledWindow, wx.Window, wx.Dialog ]
-    statelessWidgets = [ wx.Button, wx.StaticText ]
-    stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl ]
+    statelessWidgets = [ wx.Button ]
+    stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl, wx.StaticText ]
     visibleMethodName = "not_used"
     childrenMethodName = "GetChildren"
     def _getChildrenDescription(self, widget):
@@ -254,12 +254,12 @@ class Describer(guishared.Describer):
         return wx.TextCtrl
 
     def getUpdatePrefix(self, widget, *args):
-        if isinstance(widget, wx.ListCtrl):
-            return "Updated state\n"
-        else:
-            return guishared.Describer.getUpdatePrefix(self, widget, *args)
-
+        return "\nUpdated "
+        
     def getStaticTextDescription(self, widget):
+        return self.getAndStoreState(widget)
+
+    def getStaticTextState(self, widget):
         return "'" + widget.GetLabel() + "'"
 
     def getButtonDescription(self, widget):
@@ -270,13 +270,12 @@ class Describer(guishared.Describer):
         return text
 
     def getListCtrlState(self, widget):
-        text = ".................\n"
+        text = "List :\n"
         for i in range(widget.ItemCount):
             if widget.IsSelected(i):
                 text += "-> " + widget.GetItemText(i) + "   ***\n"
             else:
                 text += "-> " + widget.GetItemText(i) + "\n"
-        text += ".................\n"
         return text
 
     def getListCtrlDescription(self, widget):
