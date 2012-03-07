@@ -5,7 +5,7 @@ from storytext.javaswttoolkit import simulator as swtsimulator
 import storytext.guishared
 from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.finder as swtbot
-from org.eclipse.ui import IPartListener
+from org.eclipse.ui import IPartListener, IPropertyListener, IWorkbenchPartConstants
 
 # If classes get mentioned for the first time in the event dispatch thread, they will get the wrong classloader
 # So we load everything we'll ever need here, once, where we know what the classloader is
@@ -15,6 +15,8 @@ from org.eclipse.swt.dnd import * #@UnusedWildImport
 from org.eclipse.swt.layout import * #@UnusedWildImport
 from org.eclipse.swtbot.swt.finder.finders import * #@UnusedWildImport
 from org.eclipse.ui.dialogs import FilteredTree
+from org.eclipse.swt.widgets import Event
+from org.eclipse.swt import SWT
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -95,10 +97,29 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
                 adapter = ViewAdapter(swtbotView)
                 self.uiMap.monitorWidget(adapter)
+                self.monitorViewMenus(swtbotView)
+                self.addTitleChangedListener(swtbotView)
 
     def setWidgetAdapter(self):
         WidgetAdapter.setAdapterClass(WidgetAdapter)
-        
+    
+    def addTitleChangedListener(self, botView):
+        class PropertyListener(IPropertyListener):
+            def propertyChanged(lself, source, propertyId):
+                if propertyId == IWorkbenchPartConstants.PROP_PART_NAME:
+                    self.monitorViewMenus(botView)
+
+        view = botView.getViewReference().getView(False)
+        view.addPropertyListener(PropertyListener())
+
+    def monitorViewMenus(self, botView):
+        pane = botView.getViewReference().getPane()
+        if pane.hasViewMenu():            
+            menuManager = pane.getMenuManager()
+            menu = menuManager.createContextMenu(pane.getControl().getParent())
+            menuManager.updateAll(True)
+            menu.notifyListeners(SWT.Show, Event())
+
 class ViewAdapter(swtsimulator.WidgetAdapter):
     def getUIMapIdentifier(self):
         viewId = self.widget.getViewReference().getId()
