@@ -427,10 +427,6 @@ class Describer(storytext.guishared.Describer):
         desc = self.addHeaderAndFooter(widget, contents)
         return self.combineElements([ desc ] + properties)
 
-    def addHeaderAndFooter(self, widget, text):
-        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
-        return header + "\n" + self.fixLineEndings(text.rstrip()) + "\n" + "=" * len(header)
-
     def getComboDescription(self, widget):
         return self.getTextDescription(widget)
 

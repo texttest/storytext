@@ -217,23 +217,38 @@ class ScriptEngine(guishared.ScriptEngine):
         return Describer.statelessWidgets + Describer.stateWidgets
 
 class Describer(guishared.Describer):
-    ignoreWidgets = [ wx.ScrolledWindow, wx.Window, wx.Dialog ]
+    ignoreWidgets = [ wx.ScrolledWindow, wx.Window, wx.Dialog, wx.Sizer ]
     statelessWidgets = [ wx.Button ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl, wx.StaticText ]
-    visibleMethodName = "not_used"
-    childrenMethodName = "GetChildren"
-    def _getChildrenDescription(self, widget):
+    visibleMethodName = "IsShown"
+    def getWidgetChildren(self, widgetOrSizer):
+        # Involve the Sizers, otherwise we have no chance of describing things properly
+        # ordinary children structure is not sorted.
         try:
-            children = widget.GetChildren()
+            if isinstance(widgetOrSizer, wx.Sizer):
+                children = []
+                for item in widgetOrSizer.GetChildren():
+                    if item.GetWindow():
+                        children.append(item.GetWindow())
+                    elif item.GetSizer():
+                        children.append(item.GetSizer())
+                return children
+            elif widgetOrSizer.GetSizer():
+                return [ widgetOrSizer.GetSizer() ]
+            else:
+                return filter(lambda c: not isinstance(c, wx.Dialog), widgetOrSizer.GetChildren())
         except wx._core.PyDeadObjectError:
             # Gets thrown on Windows intermittently, don't know why
-            return ""
-        desc = ""
-        for child in children:
-            if not isinstance(child, wx.Dialog):
-                desc = self.addToDescription(desc, self.getDescription(child))
-        
-        return desc.rstrip()
+            return []
+
+    def isVisible(self, widget):
+        return widget.IsShown() if isinstance(widget, wx.Window) else True
+
+    def shouldDescribeChildren(self, widget):
+        return True # no hindrances right now...
+
+    def getLayoutColumns(self, widget, *args):
+        return widget.GetCols() if isinstance(widget, wx.GridSizer) else 1
 
     def widgetTypeDescription(self, typeName): # pragma: no cover - should be unreachable
         if "DeadObject" in typeName: # mystery guests on Windows occasionally
@@ -254,7 +269,10 @@ class Describer(guishared.Describer):
         return wx.TextCtrl
 
     def getUpdatePrefix(self, widget, *args):
-        return "\nUpdated "
+        if isinstance(widget, self.getTextEntryClass()):
+            return "\nUpdated Text Field\n"
+        else:
+            return "\nUpdated "
         
     def getStaticTextDescription(self, widget):
         return self.getAndStoreState(widget)
@@ -284,12 +302,9 @@ class Describer(guishared.Describer):
         return state
 
     def getTextCtrlDescription(self, widget):
-        text = "TextCtrl"
-        state = self.getState(widget)
-        self.widgetsWithState[widget] = state
-        if state:
-            text += " value '" + state + "'"
-        return text
+        contents = self.getState(widget)
+        self.widgetsWithState[widget] = contents
+        return self.addHeaderAndFooter(widget, contents)
 
     def getTextCtrlState(self, widget):
         return widget.GetValue()

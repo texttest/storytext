@@ -993,14 +993,23 @@ class Describer(object):
         if hasattr(widget, visibleMethodName) and not getattr(widget, visibleMethodName)():
             basic += " (invisible)"
         return basic
+
+    def addHeaderAndFooter(self, widget, text):
+        header = "=" * 10 + " " + widget.__class__.__name__ + " " + "=" * 10
+        return header + "\n" + self.fixLineEndings(text.rstrip()) + "\n" + "=" * len(header)
+
+    def getRawDataLayoutDetails(self, *args):
+        return []
+
+    def getWidgetChildren(self, widget):
+        return getattr(widget, self.childrenMethodName)() if hasattr(widget, self.childrenMethodName) else []
         
     def describeStructure(self, widget, indent=0, **kw):
         rawData = self.getRawData(widget, useModule=True, **kw)
         self.structureLogger.info("-" * 2 * indent + rawData)
-        if hasattr(widget, self.childrenMethodName):
-            for child in getattr(widget, self.childrenMethodName)():
-                self.describeStructure(child, indent+1, **kw)
-
+        for child in self.getWidgetChildren(widget):
+            self.describeStructure(child, indent+1, **kw)
+                
     def getAndStoreState(self, widget):
         state = self.getState(widget)
         self.widgetsWithState[widget] = state
@@ -1040,9 +1049,18 @@ class Describer(object):
     def shouldFormatAsGrid(self, columns):
         return columns > 1
 
+    def layoutSortsChildren(self, widget):
+        return True
+
+    def isVisible(self, widget):
+        return getattr(widget, self.visibleMethodName)()
+
+    def getHorizontalSpan(self, *args):
+        return 1
+
     def formatChildrenDescription(self, widget):
-        children = getattr(widget, self.childrenMethodName)()
-        visibleChildren = filter(lambda c: getattr(c, self.visibleMethodName)(), children)
+        children = self.getWidgetChildren(widget)
+        visibleChildren = filter(self.isVisible, children)
         sortedChildren = self.sortChildren(widget, visibleChildren)
         childDescriptions = map(self._getDescription, sortedChildren)
         if not self.usesGrid(widget):
