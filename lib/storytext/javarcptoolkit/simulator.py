@@ -110,7 +110,8 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                     self.monitorViewMenus(botView)
 
         view = botView.getViewReference().getView(False)
-        view.addPropertyListener(PropertyListener())
+        if view is not None:
+            view.addPropertyListener(PropertyListener())
 
     def monitorViewMenus(self, botView):
         pane = botView.getViewReference().getPane()
