@@ -141,28 +141,27 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def createSwtBot(self):
         return gefbot.SWTGefBot()
 
-    def widgetShown(self, parent, eventType):
-        if isinstance(parent, FigureCanvas):
-            self.monitorGefMenus(parent)
-        rcpsimulator.WidgetMonitor.widgetShown(self, parent, eventType)
-    
     def monitorAllWidgets(self, parent, widgets):
         rcpsimulator.WidgetMonitor.monitorAllWidgets(self, parent, widgets)
         self.monitorGefWidgets()
 
-    def monitorGefMenus(self, parent):
-        self.uiMap.logger.debug("Showing FigureCanvas " + str(id(parent)) + ", monitoring GEF menus")
-        for view in self.bot.views():
-            for viewer in self.getViewers(view):
-                menu = viewer.getViewer().getControl().getMenu()
-                if menu is not None:
-                    for item in self.getMenuItems(menu):
-                        if item not in self.widgetsMonitored:
-                            adapter = self.makeAdapter(item)
-                            self.uiMap.monitorWidget(adapter)
-                            self.widgetsMonitored.add(item)
-        self.uiMap.logger.debug("Done Monitoring GEF menus for FigureCanvas " + str(id(parent)))
-        
+    def monitorViewContentsMenus(self, botView):
+        for viewer in self.getViewers(botView):
+            menu = viewer.getViewer().getControl().getMenu()
+            if menu:
+                self.monitorMenu(menu)
+    
+    def monitorMenu(self, menu):
+        if menu.getItemCount() == 0:
+            # The menu is a Contribution defined in plugin.xml. We have to send an extra
+            # SHOW event to instantiate it.
+            menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
+        menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
+        for item in menu.getItems():
+            submenu = item.getMenu()
+            if submenu:
+                self.monitorMenu(submenu)
+
     def monitorGefWidgets(self):
         for view in self.bot.views():
             if view.getViewReference() not in self.allPartRefs:

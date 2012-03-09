@@ -97,7 +97,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
                 adapter = ViewAdapter(swtbotView)
                 self.uiMap.monitorWidget(adapter)
-                self.monitorViewMenus(swtbotView)
+                self.monitorMenus(swtbotView)
                 self.addTitleChangedListener(swtbotView)
 
     def setWidgetAdapter(self):
@@ -105,14 +105,18 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     
     def addTitleChangedListener(self, botView):
         class PropertyListener(IPropertyListener):
-            def propertyChanged(lself, source, propertyId):
+            def propertyChanged(lself, source, propertyId):#@NoSelf
                 if propertyId == IWorkbenchPartConstants.PROP_PART_NAME:
-                    self.monitorViewMenus(botView)
+                    self.monitorMenus(botView)
 
         view = botView.getViewReference().getView(False)
         if view is not None:
             view.addPropertyListener(PropertyListener())
 
+    def monitorMenus(self, botView):
+        self.monitorViewMenus(botView)
+        self.monitorViewContentsMenus(botView)
+        
     def monitorViewMenus(self, botView):
         pane = botView.getViewReference().getPane()
         if pane.hasViewMenu():            
@@ -120,6 +124,9 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
             menu = menuManager.createContextMenu(pane.getControl().getParent())
             menuManager.updateAll(True)
             menu.notifyListeners(SWT.Show, Event())
+    
+    def monitorViewContentsMenus(self, botView):
+        pass
 
 class ViewAdapter(swtsimulator.WidgetAdapter):
     def getUIMapIdentifier(self):
