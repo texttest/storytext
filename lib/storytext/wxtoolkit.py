@@ -353,3 +353,7 @@ class Describer(guishared.Describer):
 
     def getFrameState(self, widget):
         return widget.GetTitle()
+
+    def shouldCheckForUpdates(self, widget, *args):
+        # Hack. How to trace the fact that objects in wxPython can change class?!
+        return "Dead" not in widget.__class__.__name__
