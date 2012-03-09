@@ -205,17 +205,28 @@ class FigureCanvasDescriber(guishared.Describer):
 
     def formatFigure(self, figure, calls, colorText, filledRectangles):
         desc = self.arrangeText(calls)
-        if isinstance(desc, gridformatter.GridFormatter):
-            return desc
-        if colorText:
+        if colorText and not isinstance(desc, gridformatter.GridFormatter):
             desc += "(" + colorText + ")"
         return self.addBorder(figure, desc)
 
     def addBorder(self, figure, desc):
-        if figure.getBorder():
-            return "[ " + desc + " ]"
+        # don't describe transparent borders!
+        if figure.getBorder() and figure.getBorder().isOpaque():
+            if isinstance(desc, gridformatter.GridFormatter):
+                self.addBorderToGrid(desc)
+                return desc
+            else:   
+                return "[ " + desc + " ]"
         else:
             return desc
+        
+    def addBorderToGrid(self, formatter):
+        colWidths = formatter.findColumnWidths()
+        for row in formatter.grid:
+            row[0] = "[ " + row[0]
+            while len(row) < formatter.numColumns:
+                row.append("")
+            row[-1] = row[-1].ljust(colWidths[-1]) + " ]"
 
     def arrangeText(self, calls):
         if len(calls) == 0:
