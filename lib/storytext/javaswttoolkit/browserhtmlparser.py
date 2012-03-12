@@ -1,4 +1,4 @@
-import xml.sax, sys
+import xml.sax, sys, os
 from storytext.gridformatter import GridFormatter
 from storytext.guishared import getExceptionString
 class BrowserHtmlParser(xml.sax.ContentHandler):
@@ -7,9 +7,11 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         self.currentTableParsers = []
         self.inBody = False
         self.text = ""
-        
+
     def parse(self, text):
         try:
+            if os.pathsep == ";":
+                text = self.fixWinText(text)
             xml.sax.parseString(text, self)
         except xml.sax.SAXException:
             sys.stderr.write("Failed to parse browser text:\n")
@@ -24,7 +26,7 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
             self.currentTableParsers[-1].startElement(name)
         elif name == "body":
             self.inBody = True
-        
+
     def endElement(self, rawname):
         name = rawname.lower()
         if name == "table":
@@ -36,14 +38,18 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
                 self.text += currText
         elif self.currentTableParsers:
             self.currentTableParsers[-1].endElement(name)
-        
+
     def characters(self, content):
         if self.currentTableParsers:
             self.currentTableParsers[-1].characters(content)
         elif self.inBody:
             self.text += content.rstrip()
-        
-            
+
+    def fixWinText(self, text):
+        # Nested tbody tags doesn't seem to work on window.    
+        text = text.replace("<tbody>", "")
+        return text.replace("</tbody>", "")
+
 class TableParser:
     def __init__(self):
         self.grid = []
