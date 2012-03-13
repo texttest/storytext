@@ -805,12 +805,12 @@ class Describer(object):
         return image1 == image2
 
     def describe(self, window):
-        if window in self.windows:
+        if window in self.windows or not self.checkWindow(window):
             return
         
         if self.structureLogger.isEnabledFor(logging.DEBUG):
             self.describeStructure(window)
-            
+
         self.windows.add(window)
         title = self.getSpecificState(window)
         message = "-" * 10 + " " + self.getWindowString() + " '" + title + "' " + "-" * 10
@@ -819,6 +819,9 @@ class Describer(object):
         self.logger.info(self.getWindowContentDescription(window))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
+
+    def checkWindow(self, window):
+        return True
 
     def getWindowContentDescription(self, window):
         return self.getChildrenDescription(window)

@@ -27,8 +27,8 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         bounds = declaredMethod.invoke(self, [editPart])
         center = bounds.getCenter()
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
-        self.click(getInt(center.x), getInt(center.y))
-        
+        self.getFigureCanvas().mouseMoveLeftClick(getInt(center.x), getInt(center.y))
+
     def getViewer(self):
         return self._getViewer(self)
     

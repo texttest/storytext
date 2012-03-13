@@ -642,3 +642,6 @@ class Describer(storytext.guishared.Describer):
     def isImageType(self, fileName):
         return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
 
+    def checkWindow(self, window):
+        # Don't describe tooltips
+        return (window.getStyle() & swt.SWT.TOOL) == 0
