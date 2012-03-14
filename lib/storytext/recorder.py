@@ -327,20 +327,19 @@ class UseCaseRecorder:
                 self.registerApplicationEvent(name, categoryName, delayLevel=1)
 
     def getCurrentApplicationEvents(self):
-        currEvents = []
         allEvents = self.applicationEvents.items()
-        delayLevel = 0
+        appEventInfo = {}
         for categoryName, (eventName, currDelayLevel) in allEvents:
-            currEvents.append((eventName, categoryName))
+            appEventInfo.setdefault(currDelayLevel, []).append((eventName, categoryName))
             del self.applicationEvents[categoryName]
-            delayLevel = max(delayLevel, currDelayLevel)
-        return sorted(currEvents), delayLevel
+        return appEventInfo
                             
     def writeApplicationEventDetails(self):
-        eventNames, delayLevel = self.getCurrentApplicationEvents()
-        if len(eventNames) > 0:
-            eventString = ", ".join((e[0] for e in eventNames))
-            self.recordOrDelay(waitCommandName + " " + eventString, delayLevel, eventNames)
+        appEventInfo = self.getCurrentApplicationEvents()
+        for delayLevel, eventInfo in appEventInfo.items():
+            eventNames = sorted((e[0] for e in eventInfo))
+            eventString = ", ".join(eventNames)
+            self.recordOrDelay(waitCommandName + " " + eventString, delayLevel, eventInfo)
 
     def registerShortcut(self, replayScript):
         for script in self.scripts:
