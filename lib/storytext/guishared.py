@@ -502,6 +502,10 @@ class UIMapFileHandler:
                     return section, optionName
         return None, None
 
+    def hasInfo(self):
+        return len(self.readParser.sections()) > 0
+
+
 class UIMap:
     ignoreWidgetTypes = []
     def __init__(self, scriptEngine, uiMapFiles):
@@ -539,7 +543,7 @@ class UIMap:
 
     def monitorWidget(self, widget):
         signaturesInstrumented, autoInstrumented = self.instrumentFromMapFile(widget)
-        if self.scriptEngine.recorderActive():
+        if self.scriptEngine.recorderActive() or not self.fileHandler.hasInfo():
             widgetType = widget.getType()
             for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
                 identifier = widget.getUIMapIdentifier().replace("'", "<APOSTROPHE>")
