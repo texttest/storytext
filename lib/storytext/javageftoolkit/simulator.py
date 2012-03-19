@@ -340,10 +340,12 @@ class ViewerSelectEvent(ViewerEvent):
     def shouldRecord(self, part, *args):
         if self.isMainEditPart(part):
             return ViewerEvent.shouldRecord(self, part, *args)
-        elif len(self.widget.selectedEditParts()) == 1:
-            return DisplayFilter.instance.hasEventOfType(swt.SWT.MouseDown, self.getGefViewer().getControl())
         else:
-            return len(self.getStateDescription(part, *args)) > 0 and ViewerEvent.shouldRecord(self, part, *args)
+            hasMouseDown = DisplayFilter.instance.hasEventOfType(swt.SWT.MouseDown, self.getGefViewer().getControl())
+            if len(self.widget.selectedEditParts()) == 1:
+                return hasMouseDown 
+            else:
+                return len(self.getStateDescription(part, *args)) > 0 and (hasMouseDown or ViewerEvent.shouldRecord(self, part, *args))
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
