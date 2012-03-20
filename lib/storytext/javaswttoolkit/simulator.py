@@ -168,11 +168,20 @@ class LinkSelectEvent(SelectEvent):
         hyperlinkText = text[startPos:endPos]
         self.widget.click(hyperlinkText)
         
-
+        
 class RadioSelectEvent(SelectEvent):
     def shouldRecord(self, event, *args):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
-
+    
+    def _generate(self, *args):
+        if "3.5" in swt.__file__ and "2.0.4" in swtbot.__file__:
+            # Workaround for bug in SWTBot 2.0.4 which doesn't handle Eclipse 3.5 radio buttons properly
+            method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", None)
+            method.setAccessible(True)
+            selectedButton = method.invoke(self.widget.widget, None)
+            runOnUIThread(selectedButton.widget.setSelection, False)
+        SelectEvent._generate(self)
+    
 class TabSelectEvent(SelectEvent):
     swtbotItemClass = swtbot.widgets.SWTBotTabItem
     def findTabWithText(self, text):
