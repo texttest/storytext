@@ -345,7 +345,7 @@ class UseCaseRecorder:
         for script in self.scripts:
             script.registerShortcut(replayScript)
             
-    def unregisterApplicationEvent(self, name, category, supercedeCategories=[]):
-        for categoryName, (eventName, oldDelayLevel) in self.applicationEvents.items():
-            if eventName == name:
+    def unregisterApplicationEvent(self, name):
+        for categoryName, (eventName, _) in self.applicationEvents.items():
+            if eventName == name or eventName.startswith(name + " *"):
                 del self.applicationEvents[categoryName]
