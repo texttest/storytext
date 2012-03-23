@@ -194,28 +194,68 @@ class MenuEvent(SignalEvent):
     signal = "Menu"
     separator = "~~~"
  
+    # getIdFromLabel
+    #   Search menu recursively for an item matching compound_label.
+    #   A compound label is of the form menuA~~~submenuB~~~item with 
+    #      one or more occurrences of the separator ~~~.
+    #   Return a pair (bool found, int menuitem id).
+
+    def getIdFromLabel(self, menu, compound_label):
+        menuname, _, tail = compound_label.partition(MenuEvent.separator)
+        if menuname != menu.GetTitle():
+            return False, 0
+        for item in menu.GetMenuItems():
+            submenu = item.GetSubMenu()
+            if submenu != None:
+                found, id = self.getIdFromLabel(submenu, tail)
+                if found:
+                    return True, id
+                continue
+            label = item.GetItemLabelText()
+            if label == tail:
+                return True, item.GetId()
+        return False, 0
+ 
     def generate(self, argumentString):
         if self.widget.isInstanceOf(wx.Frame):
-           menubar = self.widget.GetMenuBar()
-           if menubar is not None:
-               menu, _, item = argumentString.partition(MenuEvent.separator)
-               id = menubar.FindMenuItem(menu, item)
-               if id != wx.NOT_FOUND:
-                   self.widget.ProcessCommand(id)
+            menubar = self.widget.GetMenuBar()
+            if menubar is not None:
+                for menu, _ in menubar.GetMenus():
+                    found, id = self.getIdFromLabel(menu, argumentString)
+                    if found:
+                        self.widget.ProcessCommand(id)
+                        return
+                raise UseCaseScriptError, "Could not find menu item '" + argumentString + "'."
+
+
+    # getLabelFromId
+    #   Search menu recursively for an item matching the input id.
+    #   Return a bool which, if true, means an item with id was found,
+    #   and label_list contains all the labels from menu down to the 
+    #   item, perhaps with one or more submenu labels in between.
+
+    def getLabelFromId(self, menu, id, label_list):
+        label_list.append(menu.GetTitle())
+        for item in menu.GetMenuItems():
+            submenu = item.GetSubMenu()
+            if submenu != None:
+                if self.getLabelFromId(submenu, id, label_list):
+                    return True
+                continue
+            if id == item.GetId():
+                label_list.append(item.GetItemLabelText())
+                return True
+        label_list.pop()
+        return False
 
     def outputForScript(self, event, *args):
         evtId = event.GetId()
-        label = str(evtId)        
+        label = str(evtId)
         if self.widget.isInstanceOf(wx.Frame) and self.widget.GetMenuBar() is not None:
-            foundLabel = False;
             for menu, _ in self.widget.GetMenuBar().GetMenus():
-                menu.GetTitle()
-                for menuitem in menu.GetMenuItems():
-                    if menuitem.GetId() == evtId:
-                        label = menu.GetTitle() + MenuEvent.separator + menuitem.GetItemLabelText();
-                        foundLabel = True;
-                        break;
-                if foundLabel:
+                label_list = []
+                if self.getLabelFromId(menu, evtId, label_list):
+                    label = MenuEvent.separator.join(label_list)
                     break
         return ' '.join([self.name, label])
 
