@@ -21,15 +21,18 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         gefbot.widgets.SWTBotGefViewer.__init__(self, gefViewer)
 
     def clickOnCenter(self, editPart, keyModifiers=0):
-        # getAbsoluteBounds method has private access modifier
-        declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [gefbot.widgets.SWTBotGefEditPart])
-        declaredMethod.setAccessible(True)
-        bounds = declaredMethod.invoke(self, [editPart])
+        bounds = self.getBoundsInternal(editPart)
         visibleBounds = self.getFigureCanvas().getIntersection(bounds)
         centreX = visibleBounds.x + visibleBounds.width / 2
         centreY = visibleBounds.y + visibleBounds.height / 2
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
         self.getFigureCanvas().mouseMoveLeftClick(centreX, centreY, keyModifiers)
+
+    def getBoundsInternal(self, editPart):
+        # getAbsoluteBounds method has private access modifier
+        declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [gefbot.widgets.SWTBotGefEditPart])
+        declaredMethod.setAccessible(True)
+        return declaredMethod.invoke(self, [editPart])
 
     def getViewer(self):
         return self._getViewer(self)
@@ -49,13 +52,17 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         viewerField.setAccessible(True)
         viewerField.set(self, figureCanvas)
 
-class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):    
-    def mouseDrag(self, fromX, fromY, toX, toY):
-        # Hard coded offset found in swtbot. It's wrongly added to destination location, so we have to remove it
+    def drag(self, editPart, toX, toY, keyModifiers=0):
+        bounds = self.getBoundsInternal(editPart)
+        # Hard coded offset found in swtbot.
         offset = 7/2 + 1
-        self._mouseDrag( fromX, fromY, toX - offset, toY - offset)
+        self.getFigureCanvas().mouseDrag(getInt(bounds.x) + offset, getInt(bounds.y) + offset, toX, toY, keyModifiers)
 
-    def _mouseDrag(self, fromX, fromY, toX, toY):
+class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):    
+    def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
+        self._mouseDrag( fromX, fromY, toX, toY, keyModifiers)
+
+    def _mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
         fromConverted = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, fromX, fromY)
         toConverted = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, toX, toY)
         fromX = fromConverted.x
@@ -67,9 +74,11 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         
         
         counterX, counterY = self.getCounters(fromX, toX, fromY, toY)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.checkAndPostKeyPressed, keyModifiers)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, fromX, toX, fromY, toY, counterX*10, counterY*10)
         self.moveDragged(fromX, toX, fromY, toY)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.checkAndPostKeyReleased, keyModifiers)
 
     def startDrag(self, fromX, toX, fromY, toY, offsetX, offsetY):
         self.postMouseDown()
@@ -409,7 +418,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
         self.addDropListener(method)
 
     def applyToDragged(self, event, method):
-        if len(self.widget.selectedEditParts()) > 0:
+        if len(self.widget.selectedEditParts()) > 0 and  self.shouldDrag(event):
             DragHolder.draggedPart = self.widget.selectedEditParts()[0].part()#self.getGefViewer().findObjectAt(p)
             DragHolder.sourceEvent = self
 
@@ -449,5 +458,8 @@ class ViewerDragAndDropEvent(ViewerEvent):
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, ViewerSelectEvent)
+    
+    def shouldDrag(self, *args):
+        return True
 
 rcpsimulator.swtsimulator.eventTypes.append((StoryTextSWTBotGefViewer, [ ViewerSelectEvent, ViewerDragAndDropEvent ]))
