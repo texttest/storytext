@@ -8,6 +8,7 @@ from org.hamcrest.core import IsAnything
 from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException
 from java.text import ParseException
 from java.util import ArrayList
+from threading import Lock
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
@@ -742,6 +743,7 @@ class WidgetMonitor:
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
+        self.widgetMonitorLock = Lock()
 
     def getDisplayFilterClass(self):
         return DisplayFilter
@@ -774,9 +776,8 @@ class WidgetMonitor:
         self.forceShellActive()
         self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
-        newWidgets = set(allWidgets).difference(self.widgetsMonitored)
         self.uiMap.logger.debug("Monitoring all widgets in active shell...")
-        self.monitorAllWidgets(self.getActiveShell(), list(newWidgets))
+        self.monitorAllWidgets(self.getActiveShell(), list(allWidgets))
         self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
         
     def forceShellActive(self):
@@ -815,8 +816,7 @@ class WidgetMonitor:
 
         self.uiMap.logger.debug("Showing/painting widget of type " +
                                 parent.__class__.__name__ + " " + str(id(parent)) + ", monitoring found widgets")
-        newWidgets = [ w for w in widgets if w not in self.widgetsMonitored ]
-        self.monitorAllWidgets(parent, newWidgets)
+        self.monitorAllWidgets(parent, widgets)
         self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + 
                                 parent.__class__.__name__ + " " + str(id(parent)) + ".")
         
@@ -838,9 +838,16 @@ class WidgetMonitor:
         return items
 
     def monitorAllWidgets(self, parent, widgets):
-        widgetsAndMenus = widgets + self.getPopupMenus(widgets)
-        self.widgetsMonitored.update(widgetsAndMenus)
-        for widget in self.makeAdapters(widgetsAndMenus):
+        # Called both on the entire initial widget set and whenever a widgets is shown -> different threads
+        # Use lock to avoid racing
+        widgets += self.getPopupMenus(widgets)
+        self.widgetMonitorLock.acquire()
+        try:
+            newWidgets = [ w for w in widgets if w not in self.widgetsMonitored ]
+            self.widgetsMonitored.update(newWidgets)
+        finally:
+            self.widgetMonitorLock.release()
+        for widget in self.makeAdapters(newWidgets):
             self.uiMap.monitorWidget(widget)
             self.monitorAsynchronousUpdates(widget)
 
