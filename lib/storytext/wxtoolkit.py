@@ -200,14 +200,14 @@ class MenuEvent(SignalEvent):
     #      one or more occurrences of the separator ~~~.
     #   Return a pair (bool found, int menuitem id).
 
-    def getIdFromLabel(self, menu, compound_label):
+    def getIdFromLabel(self, menu, menu_label, compound_label):
         menuname, _, tail = compound_label.partition(MenuEvent.separator)
-        if menuname != menu.GetTitle():
+        if menuname != menu_label:
             return False, 0
         for item in menu.GetMenuItems():
             submenu = item.GetSubMenu()
             if submenu != None:
-                found, id = self.getIdFromLabel(submenu, tail)
+                found, id = self.getIdFromLabel(submenu, item.GetItemLabelText(), tail)
                 if found:
                     return True, id
                 continue
@@ -220,8 +220,8 @@ class MenuEvent(SignalEvent):
         if self.widget.isInstanceOf(wx.Frame):
             menubar = self.widget.GetMenuBar()
             if menubar is not None:
-                for menu, _ in menubar.GetMenus():
-                    found, id = self.getIdFromLabel(menu, argumentString)
+                for menu, label in menubar.GetMenus():
+                    found, id = self.getIdFromLabel(menu, label, argumentString)
                     if found:
                         self.widget.ProcessCommand(id)
                         return
@@ -234,12 +234,12 @@ class MenuEvent(SignalEvent):
     #   and label_list contains all the labels from menu down to the 
     #   item, perhaps with one or more submenu labels in between.
 
-    def getLabelFromId(self, menu, id, label_list):
-        label_list.append(menu.GetTitle())
+    def getLabelFromId(self, menu, menuLabel, id, label_list):
+        label_list.append(menuLabel)
         for item in menu.GetMenuItems():
             submenu = item.GetSubMenu()
             if submenu != None:
-                if self.getLabelFromId(submenu, id, label_list):
+                if self.getLabelFromId(submenu, item.GetItemLabelText(), id, label_list):
                     return True
                 continue
             if id == item.GetId():
@@ -252,9 +252,9 @@ class MenuEvent(SignalEvent):
         evtId = event.GetId()
         label = str(evtId)
         if self.widget.isInstanceOf(wx.Frame) and self.widget.GetMenuBar() is not None:
-            for menu, _ in self.widget.GetMenuBar().GetMenus():
+            for menu, menuLabel in self.widget.GetMenuBar().GetMenus():
                 label_list = []
-                if self.getLabelFromId(menu, evtId, label_list):
+                if self.getLabelFromId(menu, menuLabel, evtId, label_list):
                     label = MenuEvent.separator.join(label_list)
                     break
         return ' '.join([self.name, label])
@@ -501,12 +501,12 @@ class Describer(guishared.Describer):
             text += spaces + label + " (+)\n"
         for menu, label in menubar.GetMenus():
             text += "\n"
-            text += self.getMenuDescription(menu, indent)
+            text += self.getMenuDescription(menu, label, indent)
         return text
 
-    def getMenuDescription(self, menu, indent=0, disabled=""):
+    def getMenuDescription(self, menu, label, indent=0, disabled=""):
         spaces = " " * indent
-        text = spaces + menu.GetTitle().replace("_", "") + " menu" + disabled + "\n"
+        text = spaces + label.replace("_", "") + " menu" + disabled + "\n"
         for item in menu.GetMenuItems():
             text += self.getMenuItemDescription(item, 
                                                 indent=indent+self.INDENT)
@@ -526,7 +526,7 @@ class Describer(guishared.Describer):
 
         submenu = menuitem.GetSubMenu()
         if submenu != None:
-            return self.getMenuDescription(submenu, 
+            return self.getMenuDescription(submenu, menuitem.GetItemLabelText(),
                             indent=indent+self.INDENT, disabled=disabled)
 
         label = menuitem.GetItemLabelText() + disabled
