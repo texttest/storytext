@@ -52,6 +52,7 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         viewerField.setAccessible(True)
         viewerField.set(self, figureCanvas)
 
+    # toX and toY should be in display coordinates
     def drag(self, editPart, toX, toY, keyModifiers=0):
         bounds = self.getBoundsInternal(editPart)
         # Hard coded offset found in swtbot.
@@ -64,11 +65,8 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
 
     def _mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
         fromConverted = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, fromX, fromY)
-        toConverted = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, toX, toY)
         fromX = fromConverted.x
         fromY = fromConverted.y
-        toX = toConverted.x
-        toY = toConverted.y
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, fromX, fromY)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, fromX, fromY)
         
@@ -453,8 +451,9 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def parseDescription(self, description):
         sourceDesc, dest = description.split(" to ", 1)
         xDesc, yDesc = dest.split(":", 1)
+        displayLocation = rcpsimulator.swtsimulator.runOnUIThread(self.widget.getFigureCanvas().toDisplayLocation, int(xDesc), int(yDesc))
         editPart = self.findEditPart(self.widget.rootEditPart(), sourceDesc)
-        return editPart, int(xDesc), int(yDesc)
+        return editPart, displayLocation.x, displayLocation.y
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, ViewerSelectEvent)
