@@ -751,9 +751,8 @@ class WidgetMonitor:
     def createSwtBot(self):
         return swtbot.SWTBot()
         
-    @classmethod
-    def getWidgetEventTypes(cls):
-        return cls.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())
+    def getWidgetEventTypes(self):
+        return self.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())
 
     @classmethod
     def getWidgetEventTypeNames(cls):
