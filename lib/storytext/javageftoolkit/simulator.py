@@ -365,14 +365,10 @@ class ViewerSelectEvent(ViewerEvent):
             if editPart:
                 parts.append(editPart)
 
-        if len(parts) == 1:
-            self.widget.clickOnCenter(parts[0])
         if len(parts) > 0:
-            count = 0
-            for part in parts:
-                self.widget.clickOnCenter(part) if (count == 0) else self.widget.clickOnCenter(part, keyModifiers=swt.SWT.CTRL)
-                count += 1
-            #self.widget.select(parts)
+            self.widget.clickOnCenter(parts[0])
+            for part in parts[1:]:
+                self.widget.clickOnCenter(part, keyModifiers=swt.SWT.CTRL)
         else:
             raise UseCaseScriptError, "Could not find any objects in viewer matching description " + repr(description)
 
