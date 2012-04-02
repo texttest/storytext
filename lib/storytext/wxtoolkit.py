@@ -32,6 +32,42 @@ class DialogHelper:
 class Dialog(DialogHelper, origDialog):
     pass
 
+origFileDialog = wx.FileDialog
+
+class FileDialog(origFileDialog):
+    fileReplayInfo = {}
+    @classmethod
+    def cacheFileReplay(cls, identifier, filename):
+        cls.fileReplayInfo[identifier] = filename
+
+    def __init__(self, *args, **kw):
+        origFileDialog.__init__(self, *args, **kw)
+        self.recordHandler = None
+        self.origDirectory = self.GetDirectory()
+        adapter = WidgetAdapter(self)
+        self.uiMap.monitorWidget(adapter)
+        self.path = self.fileReplayInfo.get(adapter.getUIMapIdentifier())
+        if self.path is not None and not os.path.isabs(self.path):
+            self.path = os.path.join(self.origDirectory, self.path)
+        
+    def setRecordHandler(self, handler):
+        self.recordHandler = handler 
+
+    def ShowModal(self):
+        if self.uiMap.scriptEngine.replayer.isActive():
+            return wx.ID_OK
+        else:
+            self.path = None
+            return origFileDialog.ShowModal(self)
+
+    def GetPath(self):
+        if self.path is None:
+            self.path = origFileDialog.GetPath(self)
+        if self.recordHandler:
+            self.recordHandler(self.path, self.origDirectory)
+        return self.path
+
+
 
 class TextLabelFinder:
     def __init__(self, widget):
@@ -79,7 +115,7 @@ class WidgetAdapter(guishared.WidgetAdapter):
         return children
         
     def getWidgetTitle(self):
-        return self.widget.GetTitle()
+        return self.widget.GetTitle() or self.widget.GetMessage()
         
     def getLabel(self):
         if isinstance(self.widget, wx.TextCtrl):
@@ -226,6 +262,23 @@ class ListCtrlEvent(SignalEvent):
                 texts.append(self.widget.GetItemText(i))
         return self.name + " " + ",".join(texts)
 
+
+class FileDialogEvent(SignalEvent):
+    signal = "SelectFile"
+    def connectRecord(self, method):
+        def handler(path, d):
+            method(path, d, self)
+        self.widget.setRecordHandler(handler)
+
+    def outputForScript(self, path, directory, *args):
+        if path.startswith(directory):
+            path = path.replace(directory + os.sep, "")
+        return self.name + " " + path
+
+    def generate(self, argumentString):
+        pass # Don't need to do anything here, we prime the data beforehand. See UseCaseReplayer.cacheFileDialogInfo below
+
+
 class MenuEvent(SignalEvent):
     event = wx.EVT_MENU
     signal = "Menu"
@@ -301,11 +354,37 @@ class UIMap(guishared.UIMap):
         guishared.UIMap.__init__(self, *args)
         wx.Dialog = Dialog
         Dialog.uiMap = self
+        wx.FileDialog = FileDialog
+        FileDialog.uiMap = self
+
+    def getFileDialogInfo(self):
+        parser = self.fileHandler.readParser
+        dialogInfo = []
+        for section in parser.sections():
+            if parser.has_option(section, "SelectFile"):
+                cmdName = parser.get(section, "SelectFile")
+                dialogInfo.append((cmdName, section))
+        return dialogInfo
 
 class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
         guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
+        self.cacheFileDialogInfo()
+
+    def addScript(self, script, *args):
+        guishared.IdleHandlerUseCaseReplayer.addScript(self, script, *args)
+        self.cacheFileDialogInfo()
+
+    def cacheFileDialogInfo(self):
+        fileDialogInfo = self.uiMap.getFileDialogInfo()
+        if fileDialogInfo:
+            for script, _ in self.scripts:
+                for cmd in script.commands:
+                    for dialogCmd, identifier in fileDialogInfo:
+                        if cmd.startswith(dialogCmd + " "):
+                            filename = cmd.replace(dialogCmd + " ", "")
+                            FileDialog.cacheFileReplay(identifier, filename)
 
     def makeIdleHandler(self, method):
         if wx.GetApp():
@@ -352,6 +431,7 @@ class ScriptEngine(guishared.ScriptEngine):
         (wx.TextCtrl    , [ TextCtrlEvent ]),
         (wx.CheckBox    , [ CheckEvent, UncheckEvent, CheckThirdStateEvent ]),
         (wx.ListCtrl    , [ ListCtrlEvent ]),
+        (wx.FileDialog  , [ FileDialogEvent ])
         ]
     signalDescs = {
         "<<ListCtrlSelect>>": "select item",
