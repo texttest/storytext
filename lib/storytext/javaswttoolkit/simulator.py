@@ -631,6 +631,7 @@ class DisplayFilter:
                 storytext.guishared.catchAll(self.handleFilterEvent, e, monitorListener)
 
         for eventType in self.getAllEventTypes():
+            self.logger.debug("Adding filter for events of type " + str(eventType))
             runOnUIThread(display.addFilter, eventType, DisplayListener())
             
         self.addApplicationEventFilter(display)
