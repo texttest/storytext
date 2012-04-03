@@ -378,13 +378,17 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
 
     def cacheFileDialogInfo(self):
         fileDialogInfo = self.uiMap.getFileDialogInfo()
-        if fileDialogInfo:
-            for script, _ in self.scripts:
-                for cmd in script.commands:
-                    for dialogCmd, identifier in fileDialogInfo:
-                        if cmd.startswith(dialogCmd + " "):
-                            filename = cmd.replace(dialogCmd + " ", "")
-                            FileDialog.cacheFileReplay(identifier, filename)
+        for script, _ in self.scripts:
+            for cmd in script.commands:
+                for dialogCmd, identifier in fileDialogInfo:
+                    if cmd.startswith(dialogCmd + " "):
+                        filename = cmd.replace(dialogCmd + " ", "")
+                        FileDialog.cacheFileReplay(identifier, filename)
+                if cmd.startswith("Auto.FileDialog.SelectFile"):
+                    parts = cmd.split("'")
+                    identifier = parts[1]
+                    filename = parts[-1].strip()
+                    FileDialog.cacheFileReplay(identifier, filename)
 
     def makeIdleHandler(self, method):
         if wx.GetApp():
