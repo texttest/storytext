@@ -11,6 +11,7 @@ class ColorNameFinder:
                      ("light", "-"), ("normal", ""), ("bright", "*") ]
     def __init__(self):
         self.names = {}
+        self.usedNames = set()
         # Add java.awt colors  
         self.addColors(Color, True)
         # Add swt colors
@@ -37,8 +38,17 @@ class ColorNameFinder:
         return color.getRed(), color.getGreen(), color.getBlue()
 
     def getName(self, color):
-        return self.names.get(self.getRGB(color), "unknown")
-        
+        name = self.names.get(self.getRGB(color), "unknown")
+        if name not in self.usedNames:
+            self.usedNames.add(name)
+            rgb = self.getRGB(draw2d.FigureUtilities.darker(color))
+            if rgb not in self.names:
+                self.names[rgb] = "D" + name
+            rgb = self.getRGB(draw2d.FigureUtilities.lighter(color))
+            if rgb not in self.names:
+                self.names[rgb] = "L" + name
+        return name
+
 colorNameFinder = ColorNameFinder()
 
 
