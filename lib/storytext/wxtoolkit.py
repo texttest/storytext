@@ -273,7 +273,7 @@ class FileDialogEvent(SignalEvent):
         self.widget.setRecordHandler(handler)
 
     def outputForScript(self, path, directory, *args):
-        if path.startswith(directory):
+        if directory and path.startswith(directory):
             path = path.replace(directory + os.sep, "")
         return self.name + " " + path
 
