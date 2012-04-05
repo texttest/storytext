@@ -168,7 +168,7 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
 
     def delayLevel(self, part, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return swtsimulator.DisplayFilter.instance.otherEventCount(part)
+        return swtsimulator.DisplayFilter.instance.otherEventCount(part, [])
     
     def outputForScript(self, *args):
         return ' '.join([self.name, self.widget.getViewReference().getTitle() ])

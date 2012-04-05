@@ -98,11 +98,15 @@ class SignalEvent(storytext.guishared.GuiEvent):
             def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(method, e, self)
 
-        eventType = getattr(swt.SWT, self.getAssociatedSignal(self.widget))
+        eventType = self.getRecordEventType()
         try:
             runOnUIThread(self.addListeners, eventType, RecordListener())
         except: # Get 'widget is disposed' sometimes, don't know why...
             pass
+        
+    @classmethod
+    def getRecordEventType(cls):
+        return getattr(swt.SWT, cls.getAssociatedSignal(None))
         
     def addListeners(self, *args):
         # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
@@ -116,11 +120,14 @@ class SignalEvent(storytext.guishared.GuiEvent):
             pass # get these for actions that close the UI. But only after the action is done :)
 
     def shouldRecord(self, event, *args):
-        return DisplayFilter.instance.getEventFromUser(event)
+        return DisplayFilter.instance.getEventFromUser(event, self.isTriggeringEvent)
+    
+    def isTriggeringEvent(self, *args):
+        return False
 
     def delayLevel(self, event, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return DisplayFilter.instance.otherEventCount(event)
+        return DisplayFilter.instance.otherEventCount(event, self.isTriggeringEvent)
 
     def widgetDisposed(self):
         return self.widget.widget.widget.isDisposed()
@@ -139,7 +146,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
     
     @classmethod
     def getSignalsToFilter(cls):
-        return [ getattr(swt.SWT, cls.getAssociatedSignal(None)) ]
+        return [ cls.getRecordEventType() ]
 
 
 class StateChangeEvent(SignalEvent):
@@ -264,7 +271,7 @@ class CTabCloseEvent(SignalEvent):
 
     def shouldRecord(self, event, *args):
         shell = event.widget.getParent().getShell()
-        return DisplayFilter.instance.getEventFromUser(event) and shell not in DisplayFilter.instance.disposedShells
+        return SignalEvent.shouldRecord(self, event, *args) and shell not in DisplayFilter.instance.disposedShells
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return stateChangeEvent.isImpliedByCTabClose(self.widget.widget.widget)
@@ -273,9 +280,13 @@ class TextEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Modify"
-
+    
     def selectAll(self):
         self.widget.selectAll()
+        
+    def isTriggeringEvent(self, e):
+        # Don't include the Enter presses from TextActivateEvent below...
+        return e.type == swt.SWT.KeyDown and e.character != swt.SWT.CR
 
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -303,7 +314,14 @@ class TextEvent(StateChangeEvent):
 class TextActivateEvent(SignalEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
-        return "DefaultSelection"    
+        return "Activate"
+    
+    @classmethod
+    def getRecordEventType(cls):
+        return swt.SWT.KeyDown
+    
+    def shouldRecord(self, event, *args):
+        return event.character == swt.SWT.CR and SignalEvent.shouldRecord(self, event, *args)
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -497,7 +515,7 @@ class TreeClickEvent(TreeEvent):
 
     def shouldRecord(self, event, *args):
         # Seem to get selection events even when nothing has been selected...
-        return DisplayFilter.instance.getEventFromUser(event) and \
+        return TreeEvent.shouldRecord(self, event, *args) and \
             (event.item is None or event.item in event.widget.getSelection())
 
     def generateItem(self, item):
@@ -579,15 +597,13 @@ class DateTimeEvent(StateChangeEvent):
 
 class DisplayFilter:
     instance = None
-    def otherEventCount(self, event):
-        if event in self.eventsFromUser:
-            return len(self.eventsFromUser) - 1
-        else:
-            return len(self.eventsFromUser)
+    def otherEventCount(self, event, isTriggeringEvent):
+        relevantEvents = [ e for e in self.eventsFromUser if e is not event and not isTriggeringEvent(e) ]
+        return len(relevantEvents)
         
-    def getEventFromUser(self, event):
+    def getEventFromUser(self, event, isTriggeringEvent):
         if event in self.eventsFromUser:
-            return True
+            return not self.hasPreviousEventOnShell(event, isTriggeringEvent)
         else:
             if len(self.eventsFromUser) == 0:
                 self.logger.debug("Rejecting event, it has not yet been seen in the display filter")
@@ -615,20 +631,26 @@ class DisplayFilter:
             elif hasattr(widget, "getParent"):
                 return self.getShell(widget.getParent())
 
-    def hasEventOnShell(self, widget):
+    def hasPreviousEventOnShell(self, event, isTriggeringEvent):
+        widget = event.widget
         currShell = self.getShell(widget)
         if not currShell:
             return False
 
-        return any((self.getShell(event.widget) is currShell for event in self.eventsFromUser))
+        for e in self.eventsFromUser:
+            if e is event:
+                return False
+            elif not isTriggeringEvent(e) and self.getShell(e.widget) is currShell:
+                return True
+        return False
     
     def hasEventOfType(self, eventType, widget):
         return any((event.type == eventType and event.widget is widget for event in self.eventsFromUser))
         
-    def addFilters(self, display, monitorListener):
+    def addFilters(self, display):
         class DisplayListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                storytext.guishared.catchAll(self.handleFilterEvent, e, monitorListener)
+                storytext.guishared.catchAll(self.handleFilterEvent, e)
 
         for eventType in self.getAllEventTypes():
             self.logger.debug("Adding filter for events of type " + str(eventType))
@@ -636,8 +658,8 @@ class DisplayFilter:
             
         self.addApplicationEventFilter(display)
 
-    def handleFilterEvent(self, e, monitorListener):
-        if not self.hasEventOnShell(e.widget) and self.shouldCheckWidget(e.widget, e.type):
+    def handleFilterEvent(self, e):
+        if self.shouldCheckWidget(e.widget, e.type):
             self.logger.debug("Filter for event " + e.toString())
             self.eventsFromUser.append(e)
             class EventFinishedListener(swt.widgets.Listener):
@@ -650,10 +672,6 @@ class DisplayFilter:
             if e.item:
                 # Safe guard against the application changing the text before we can record
                 self.itemTextCache[e.item] = e.item.getText()
-            # This is basically a failsafe - shouldn't be needed but in case
-            # something else goes wrong when recording or widgets appear that for some reason couldn't be found,
-            # this is a safeguard against never recording anything again.
-            monitorListener.handleEvent(e)
         elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
             self.disposedShells.append(e.widget)
         else:
@@ -793,8 +811,8 @@ class WidgetMonitor:
 
     def setUpDisplayFilter(self):
         display = self.getDisplay()
-        monitorListener = self.addMonitorFilter(display)
-        self.displayFilter.addFilters(display, monitorListener)
+        self.addMonitorFilter(display)
+        self.displayFilter.addFilters(display)
 
     def addMonitorFilter(self, display):
         class MonitorListener(swt.widgets.Listener):
@@ -804,8 +822,7 @@ class WidgetMonitor:
         monitorListener = MonitorListener()
         runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
-        return monitorListener
-    
+        
     def widgetShown(self, parent, eventType):
         if parent in self.widgetsMonitored:
             return
