@@ -656,6 +656,8 @@ class DisplayFilter:
             monitorListener.handleEvent(e)
         elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
             self.disposedShells.append(e.widget)
+        else:
+            self.logger.debug("Filter ignored event " + e.toString())
 
     def addApplicationEventFilter(self, display):
         class ApplicationEventListener(swt.widgets.Listener):
