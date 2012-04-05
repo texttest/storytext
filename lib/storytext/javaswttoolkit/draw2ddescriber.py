@@ -109,7 +109,7 @@ class RecorderGraphics(draw2d.Graphics, object):
 
     def setLineAttributes(self, *args):
         pass # throws NotImplemented by default
-
+    
     def setAlpha(self, *args):
         pass # throws NotImplemented by default
 
@@ -172,7 +172,7 @@ class FigureCanvasDescriber(guishared.Describer):
 
     def getRectangleFigureDescription(self, figure):
         font = figure.getFont()
-        graphics = RecorderGraphics(self.canvas, font, [ "drawString", "setBackgroundColor", "fillRectangle" ])
+        graphics = RecorderGraphics(self.canvas, font, [ "drawString", "setBackgroundColor", "fillRectangle", "setAlpha" ])
         self.paintFigure(figure, graphics)
         calls = graphics.getCallArgs("drawString")
         callGroups = graphics.getCallGroups([ "setBackgroundColor", "fillRectangle" ])
@@ -192,6 +192,8 @@ class FigureCanvasDescriber(guishared.Describer):
                     self.addColouredRectangle(calls, colorText, rect, fontSize)
         calls.sort(cmp=self.compareCalls)
         colorText = colorNameFinder.getName(color) if self.changedColor(color, figure) else ""
+        if len(graphics.getCallArgs("setAlpha")) > 0:
+            colorText = "~" + colorText + "~"
         return self.formatFigure(figure, calls, colorText, filledRectangles)
 
     def compareCalls(self, call1, call2):
