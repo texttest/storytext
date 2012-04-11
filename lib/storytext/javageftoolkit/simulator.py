@@ -189,7 +189,7 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
             menu = viewer.getViewer().getControl().getMenu()
             if menu:
                 self.monitorMenu(menu)
-    
+
     def monitorMenu(self, menu):
         if menu.getItemCount() == 0:
             # The menu is a Contribution defined in plugin.xml. We have to send an extra
@@ -328,7 +328,7 @@ class ViewerEvent(storytext.guishared.GuiEvent):
             return self.findEditPartChildren(editPart, description)
 
     def findEditPartChildren(self, editPart, description):        
-        for child in editPart.children():
+        for child in sorted(editPart.children(), cmp=self.getEditPartComparator()):
             found = self.findEditPart(child, description) 
             if found:
                 return found
@@ -342,6 +342,9 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     
     def getGefViewer(self):
         return self.widget.getViewer()
+    
+    def getEditPartComparator(self):
+        return None
 
 class ViewerSelectEvent(ViewerEvent):
     def connectRecord(self, method):
