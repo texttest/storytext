@@ -67,7 +67,8 @@ class FileDialog(origFileDialog):
             self.recordHandler(self.path, self.origDirectory)
         return self.path
 
-
+    def GetFilename(self):
+        return os.path.basename(self.GetPath()) 
 
 class TextLabelFinder:
     def __init__(self, widget):
@@ -160,11 +161,42 @@ class FrameEvent(SignalEvent):
 class ButtonEvent(SignalEvent):
     event = wx.EVT_BUTTON
     signal = "Press"
-            
+
     def generate(self, *args):
         id = self.widget.GetId()
         command = wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, id)
         self.widget.Command(command) 
+
+class ChoiceEvent(SignalEvent):
+    event = wx.EVT_CHOICE
+    signal = "Choose"
+
+    def isStateChange(self):
+        return True
+
+#    def shouldRecord(self, *args):
+#        return self.getValue() == self.valueToSet  ???
+
+    def getValue(self):
+        return self.widget.GetSelection()
+
+    def getChangeMethod(self):
+        return self.widget.SetSelection
+
+    def generate(self, argumentString):
+        selection = self.widget.FindString(argumentString)
+        self.changeMethod(selection)
+        id = self.widget.GetId()
+        command = wx.CommandEvent(wx.wxEVT_COMMAND_CHOICE_SELECTED, id)
+        command.SetInt(selection)
+        self.widget.Command(command) 
+
+    def outputForScript(self, *args):
+        text = self.widget.GetStringSelection() or "NO SELECTION"
+        return " ".join([self.name, text])
+
+    def implies(self, *args):
+        return False
 
 class TextCtrlEvent(SignalEvent):
     event = wx.EVT_TEXT
@@ -280,11 +312,42 @@ class FileDialogEvent(SignalEvent):
     def generate(self, argumentString):
         pass # Don't need to do anything here, we prime the data beforehand. See UseCaseReplayer.cacheFileDialogInfo below
 
+class ContextMenuEvent(SignalEvent):
+    event = wx.EVT_CONTEXT_MENU
+    signal = "RightClick"
+            
+    def generate(self, *args):
+# We would like to set MenuEvent.popupMenu here, but, we don't know what to set it to        
+        pass
+    
+    def outputForScript(self, *args):
+       return self.name
+
+origWindow = wx.Window
+class Window(origWindow):
+
+    def PopupMenu(self, menu, pos=wx.DefaultPosition):
+        if self.uiMap.scriptEngine.replayer.isActive():
+            MenuEvent.popupMenu = menu
+            return True
+        else:
+            MenuEvent.popupMenu = menu
+            retval = origWindow.PopupMenu(self, menu, pos=pos)
+            MenuEvent.popupMenu = None
+            return retval
+
+    def PopupMenuXY(self, menu, x, y):
+        return self.PopupMenu(self, menu, pos=wx.Point(x, y))
+
+origPanel = wx.Panel
+class Panel(Window):
+    pass
 
 class MenuEvent(SignalEvent):
     event = wx.EVT_MENU
     signal = "Menu"
     separator = "~~~"
+    popupMenu = None
  
     # getIdFromLabel
     #   Search menu recursively for an item matching compound_label.
@@ -309,16 +372,27 @@ class MenuEvent(SignalEvent):
         return False, 0
  
     def generate(self, argumentString):
-        if self.widget.isInstanceOf(wx.Frame):
-            menubar = self.widget.GetMenuBar()
-            if menubar is not None:
-                for menu, label in menubar.GetMenus():
-                    found, id = self.getIdFromLabel(menu, label, argumentString)
-                    if found:
-                        self.widget.ProcessCommand(id)
-                        return
-                raise UseCaseScriptError, "Could not find menu item '" + argumentString + "'."
-
+        if MenuEvent.popupMenu is None:
+            if self.widget.isInstanceOf(wx.Frame):
+                menubar = self.widget.GetMenuBar()
+                if menubar is not None:
+                    for menu, label in menubar.GetMenus():
+                        found, id = self.getIdFromLabel(menu, label, argumentString)
+                        if found:
+                            self.widget.ProcessCommand(id)
+                            return
+# Debug printing **************************************************************
+                    print "About to raise menu error #1:  Looking in menu bar"
+                    raise UseCaseScriptError, "Could not find menu item '" + argumentString + "'."
+        else:
+            found, id = self.getIdFromLabel(MenuEvent.popupMenu, "PopupMenu", argumentString)
+            MenuEvent.popupMenu = None
+            if found:
+                self.widget.ProcessCommand(id)
+                return
+# Debug printing **************************************************************
+            print "About to raise menu error #2:  Looking in popup menu"
+            raise UseCaseScriptError, "Could not find menu item '" + argumentString + "'."
 
     # getLabelFromId
     #   Search menu recursively for an item matching the input id.
@@ -343,12 +417,18 @@ class MenuEvent(SignalEvent):
     def outputForScript(self, event, *args):
         evtId = event.GetId()
         label = str(evtId)
-        if self.widget.isInstanceOf(wx.Frame) and self.widget.GetMenuBar() is not None:
-            for menu, menuLabel in self.widget.GetMenuBar().GetMenus():
-                label_list = []
-                if self.getLabelFromId(menu, menuLabel, evtId, label_list):
-                    label = MenuEvent.separator.join(label_list)
-                    break
+        if MenuEvent.popupMenu is None:
+            if self.widget.isInstanceOf(wx.Frame) and self.widget.GetMenuBar() is not None:
+                for menu, menuLabel in self.widget.GetMenuBar().GetMenus():
+                    label_list = []
+                    if self.getLabelFromId(menu, menuLabel, evtId, label_list):
+                        label = MenuEvent.separator.join(label_list)
+                        break
+        else:
+            label_list = []
+            if self.getLabelFromId(MenuEvent.popupMenu, "PopupMenu", evtId, label_list):
+                label = MenuEvent.separator.join(label_list)
+            MenuEvent.popupMenu = None
         return ' '.join([self.name, label])
 
 class UIMap(guishared.UIMap):
@@ -356,6 +436,10 @@ class UIMap(guishared.UIMap):
         guishared.UIMap.__init__(self, *args)
         wx.Dialog = Dialog
         Dialog.uiMap = self
+        wx.Window = Window
+        Window.uiMap = self
+        wx.Panel = Panel
+        Panel.uiMap = self
         wx.FileDialog = FileDialog
         FileDialog.uiMap = self
 
@@ -432,8 +516,11 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
 
 class ScriptEngine(guishared.ScriptEngine):
     eventTypes = [
+        (wx.Window      , [ ContextMenuEvent ]),
+        (wx.Panel       , [ ContextMenuEvent ]),
         (wx.Frame       , [ FrameEvent,  MenuEvent ]),
         (wx.Button      , [ ButtonEvent   ]),
+        (wx.Choice      , [ ChoiceEvent   ]),
         (wx.TextCtrl    , [ TextCtrlEvent ]),
         (wx.CheckBox    , [ CheckEvent, UncheckEvent, CheckThirdStateEvent ]),
         (wx.ListCtrl    , [ ListCtrlEvent ]),
@@ -463,8 +550,8 @@ class ScriptEngine(guishared.ScriptEngine):
 class Describer(guishared.Describer):
     ignoreWidgets = [ wx.ScrolledWindow, wx.Window, wx.Dialog, wx.Sizer ]
     statelessWidgets = [ wx.Button, wx.MenuBar, wx.Menu, wx.MenuItem ]
-    stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl, 
-                                            wx.StaticText, wx.CheckBox ]
+    stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl, wx.StaticText,
+                     wx.CheckBox, wx.Choice]
     visibleMethodName = "IsShown"
     def getWidgetChildren(self, widgetOrSizer):
         # Involve the Sizers, otherwise we have no chance of describing 
@@ -508,7 +595,7 @@ class Describer(guishared.Describer):
 
     def getDialogDescription(self, *args):
         return "" # don't describe it as a child of the main window
-        
+
     def getWindowClasses(self):
         return wx.Frame, wx.Dialog
 
@@ -534,6 +621,20 @@ class Describer(guishared.Describer):
         if labelText:
             text += " '" + labelText + "'"
         return text
+
+    def getChoiceDescription(self, widget):
+        contents = self.getState(widget)
+        self.widgetsWithState[widget] = contents
+        text = "Choice"
+        labelText = widget.GetLabel() or widget.GetName()
+        if labelText:
+            text += " '" + labelText + "'"
+        text += ": " + ", ".join(widget.GetItems())
+        return text + " " + contents
+
+    def getChoiceState(self, widget):
+        value = widget.GetStringSelection() or "NO SELECTION"
+        return "(" + value + ")"
 
     def getListCtrlState(self, widget):
         text = "List :\n"
@@ -600,7 +701,7 @@ class Describer(guishared.Describer):
 #      Normal One
 #    o Radio 1  (unchecked)
 #    . Radio 2  (checked)
-#     Radio 3  (unchecked)
+#    o Radio 3  (unchecked)
 #    - Check A  (unchecked)
 #    x Check B  (checked)
 #    x Check C  (checked)
@@ -677,9 +778,9 @@ class Describer(guishared.Describer):
 
         return spaces + label + "\n"   # ITEM_NORMAL
 
-
     def shouldCheckForUpdates(self, widget, *args):
         # Hack. How to trace the fact that objects in wxPython can change class?!
         return "Dead" not in widget.__class__.__name__
 
 # end wxtoolkit.py
+
