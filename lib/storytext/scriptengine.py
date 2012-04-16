@@ -110,20 +110,10 @@ class ScriptEngine:
         old_path0 = sys.path[0]
         sys.argv = args
         sys.path[0] = os.path.dirname(filename)
-        
-        savecwd = os.getcwd();
 
         try:
             source = open(filename, 'rU').read()
-            # Terrible hack!
-            if filename.endswith('CyMS.py'):
-                os.chdir('/home/roger/dev/cyms/f_python27/client')
             exec compile(source, filename, "exec") in main_mod.__dict__
-        except:
-            # ??? An attempt to see where CyMS quits, but we never arrive here
-            import traceback
-            traceback.print_exc()
-            pass
         finally:
             # Restore the old __main__
             sys.modules['__main__'] = old_main_mod
@@ -131,6 +121,5 @@ class ScriptEngine:
             # Restore the old argv and path
             sys.argv = old_argv
             sys.path[0] = old_path0
-            
-            # Restore the cwd
-            os.chdir(savecwd)
+
+        
