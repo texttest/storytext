@@ -174,9 +174,6 @@ class ChoiceEvent(SignalEvent):
     def isStateChange(self):
         return True
 
-#    def shouldRecord(self, *args):
-#        return self.getValue() == self.valueToSet  ???
-
     def getValue(self):
         return self.widget.GetSelection()
 
@@ -400,6 +397,19 @@ class UIMap(guishared.UIMap):
                 dialogInfo.append((cmdName, section))
         return dialogInfo
 
+    def monitorAndStoreWindow(self, window):
+        self.monitorWindow(WidgetAdapter(window)) # handle self.windows below instead
+    
+    def monitor(self, widget, *args):
+        if widget.widget not in self.windows:
+            self.windows.append(widget.widget)
+            guishared.UIMap.monitor(self, widget, *args)
+            if hasattr(widget, "Bind"):
+                def OnPaint(event):
+                    self.monitorChildren(widget)
+                widget.Bind(wx.EVT_PAINT, OnPaint)
+
+
 class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
         guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
@@ -444,6 +454,14 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
     def removeHandler(self, handler):
         # Need to do this for real handlers, don't need it yet
         wx.App.idle_methods = []
+
+    def callReplayHandlerAgain(self, *args):
+        if len(args) > 0:
+            # IdleEvent, make use of it and request more of them...
+            args[0].RequestMore()
+            return True
+        else:
+            return guishared.IdleHandlerUseCaseReplayer.callReplayHandlerAgain(self, *args)
 
     def makeTimeoutReplayHandler(self, method, milliseconds):
         if wx.GetApp():

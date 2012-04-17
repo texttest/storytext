@@ -268,7 +268,7 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         if window.get_property("visible"):
             describer.describeNewWindow(window)
 
-    def callReplayHandlerAgain(self):
+    def callReplayHandlerAgain(self, *args):
         return True # GTK's way of saying the handle should come again
 
     def runMainLoopWithReplay(self):

@@ -666,7 +666,7 @@ class IdleHandlerUseCaseReplayer(UseCaseReplayer):
     def makeIdleReplayHandler(self, method):
         return self.makeIdleHandler(method)
 
-    def callReplayHandlerAgain(self):
+    def callReplayHandlerAgain(self, *args):
         self.enableReplayHandler()
 
     def _disableIdleHandlers(self):
@@ -705,7 +705,7 @@ class IdleHandlerUseCaseReplayer(UseCaseReplayer):
                     self.uiMap.windows = [] 
                     self.events = {}
         if self.readingEnabled:
-            return self.callReplayHandlerAgain()
+            return self.callReplayHandlerAgain(*args)
         else:
             return False
         
