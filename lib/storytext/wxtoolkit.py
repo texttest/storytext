@@ -163,7 +163,7 @@ class ButtonEvent(SignalEvent):
     signal = "Press"
 
     def generate(self, *args):
-        id = self.widget.GetId()
+        id = self.widget.widget.GetId()
         command = wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, id)
         command.SetEventObject(self.widget.widget)
         self.widget.Command(command) 
