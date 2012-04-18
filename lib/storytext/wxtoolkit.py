@@ -143,6 +143,12 @@ class SignalEvent(guishared.GuiEvent):
             event.Skip()
         self.widget.Bind(self.event, handler)
 
+    def makeCommandEvent(self, eventType):
+        id = self.widget.widget.GetId()
+        command = wx.CommandEvent(eventType, id)
+        command.SetEventObject(self.widget.widget)
+        return command
+        
     @classmethod
     def getAssociatedSignal(cls, widget):
         return cls.signal
@@ -163,11 +169,9 @@ class ButtonEvent(SignalEvent):
     signal = "Press"
 
     def generate(self, *args):
-        id = self.widget.widget.GetId()
-        command = wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, id)
-        command.SetEventObject(self.widget.widget)
+        command = self.makeCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED)
         self.widget.Command(command) 
-
+        
 class ChoiceEvent(SignalEvent):
     event = wx.EVT_CHOICE
     signal = "Choose"
@@ -184,8 +188,7 @@ class ChoiceEvent(SignalEvent):
     def generate(self, argumentString):
         selection = self.widget.FindString(argumentString)
         self.changeMethod(selection)
-        id = self.widget.GetId()
-        command = wx.CommandEvent(wx.wxEVT_COMMAND_CHOICE_SELECTED, id)
+        command = self.makeCommandEvent(wx.wxEVT_COMMAND_CHOICE_SELECTED)
         command.SetInt(selection)
         self.widget.Command(command) 
 
@@ -233,9 +236,7 @@ class CheckBoxEvent(SignalEvent):
 
     def generate(self, argumentString):
         self.changeMethod(self.valueToSet)
-        id = self.widget.GetId()
-        command = wx.CommandEvent(wx.wxEVT_COMMAND_CHECKBOX_CLICKED, id)
-        command.SetEventObject(self.widget.widget)
+        command = self.makeCommandEvent(wx.wxEVT_COMMAND_CHECKBOX_CLICKED)
         self.widget.Command(command)
 
     def implies(self, *args):
