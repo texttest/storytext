@@ -165,6 +165,7 @@ class ButtonEvent(SignalEvent):
     def generate(self, *args):
         id = self.widget.GetId()
         command = wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, id)
+        command.SetEventObject(self.widget.widget)
         self.widget.Command(command) 
 
 class ChoiceEvent(SignalEvent):
