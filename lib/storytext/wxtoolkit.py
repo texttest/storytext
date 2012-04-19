@@ -144,7 +144,10 @@ class SignalEvent(guishared.GuiEvent):
         self.widget.Bind(self.event, handler)
 
     def makeCommandEvent(self, eventType):
-        id = self.widget.widget.GetId()
+        try:
+            id = self.widget.widget.GetId()
+        except:
+            raise UseCaseScriptError, "Widget is no longer active"
         command = wx.CommandEvent(eventType, id)
         command.SetEventObject(self.widget.widget)
         return command
