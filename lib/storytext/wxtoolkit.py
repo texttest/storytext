@@ -596,7 +596,7 @@ class Describer(guishared.Describer):
         contents = self.getState(widget)
         self.widgetsWithState[widget] = contents
         text = "Choice"
-        labelText = widget.GetLabel() or widget.GetName()
+        labelText = TextLabelFinder(widget).find() or widget.GetName()
         if labelText:
             text += " '" + labelText + "'"
         text += ": " + ", ".join(widget.GetItems())
