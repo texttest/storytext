@@ -392,7 +392,7 @@ class UIMap(guishared.UIMap):
         Dialog.uiMap = self
         wx.FileDialog = FileDialog
         FileDialog.uiMap = self
-
+        
     def getFileDialogInfo(self):
         parser = self.fileHandler.readParser
         dialogInfo = []
@@ -412,6 +412,7 @@ class UIMap(guishared.UIMap):
             if hasattr(widget, "Bind"):
                 def OnPaint(event):
                     self.monitorChildren(widget)
+                    event.Skip()
                 widget.Bind(wx.EVT_PAINT, OnPaint)
 
 
