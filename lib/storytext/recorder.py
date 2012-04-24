@@ -2,6 +2,7 @@
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
 import os, sys, signal, logging
+from copy import copy
 from replayer import ReplayScript
 from definitions import *
 
@@ -162,7 +163,7 @@ class UseCaseRecorder:
             return script
 
     def recordSignal(self, signum, stackFrame):
-        self.writeApplicationEventDetails()
+        self.writeApplicationEventDetails(self.applicationEvents)
         self.record(signalCommandName + " " + self.signalNames[signum])
         self.processDelayedEvents(self.delayedEvents)
         self.delayedEvents = []
@@ -195,28 +196,33 @@ class UseCaseRecorder:
         if not event.shouldRecord(*args):
             self.logger.debug("Told we should not record it : args were " + repr(args))
             if event.checkPreviousWhenRejected() and self.stateChangeEventInfo:
-                stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
+                stateChangeOutput, stateChangeEvent, _, _ = self.stateChangeEventInfo
                 if event.implies(stateChangeOutput, stateChangeEvent, *args):
                     self.logger.debug("Discarded event implies previous state change event, ignoring previous also")
                     self.stateChangeEventInfo = None
             return
         
+        impliesPrevious, writtenAppEvents = False, False
         if self.stateChangeEventInfo:
-            stateChangeOutput, stateChangeEvent, stateChangeDelayLevel = self.stateChangeEventInfo
+            stateChangeOutput, stateChangeEvent, stateChangeDelayLevel, appEvents = self.stateChangeEventInfo
             if stateChangeDelayLevel >= event.delayLevel(*args):
-                if event.implies(stateChangeOutput, stateChangeEvent, *args):
+                impliesPrevious = event.implies(stateChangeOutput, stateChangeEvent, *args)
+                writtenAppEvents = self.writeApplicationEventDetails(appEvents)
+                if impliesPrevious:
                     self.logger.debug("Implies previous state change event, ignoring previous")
                 else:
                     self.recordOrDelay(stateChangeOutput, stateChangeDelayLevel, stateChangeEvent)
                 self.stateChangeEventInfo = None
 
         scriptOutput = event.outputForScript(*args)
-        self.writeApplicationEventDetails()
         delayLevel = event.delayLevel(*args)
         if event.isStateChange() and delayLevel >= self.getMaximumStoredDelay():
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel))
-            self.stateChangeEventInfo = scriptOutput, event, delayLevel
+            appEvents = {} if impliesPrevious else copy(self.applicationEvents)
+            self.stateChangeEventInfo = scriptOutput, event, delayLevel, appEvents
         else:
+            if not writtenAppEvents or not impliesPrevious:
+                self.writeApplicationEventDetails(self.applicationEvents)
             if self.recordOrDelay(scriptOutput, delayLevel, event):
                 self.processDelayedEvents(self.delayedEvents)
                 self.delayedEvents = []
@@ -325,27 +331,63 @@ class UseCaseRecorder:
             if eventName == name and oldDelayLevel == 0:
                 del self.applicationEvents[categoryName]
                 self.registerApplicationEvent(name, categoryName, delayLevel=1)
+                
+    def makeMultiple(self, text, count):
+        if count == 1:
+            return text
+        else:
+            return text + " * " + str(count)
+        
+    def parseMultiples(self, text):
+        words = text.split()
+        if len(words) > 2 and words[-2] == "*" and words[-1].isdigit():
+            return " ".join(words[:-2]), int(words[-1])
+        else:
+            return text, 1
 
-    def getCurrentApplicationEvents(self):
-        allEvents = self.applicationEvents.items()
+    def reduceApplicationEventCount(self, name, categoryName, delayLevel, remainder):
+        newEventName = self.makeMultiple(name, remainder)
+        self.logger.debug("Reducing stored application event, now " + newEventName + " at delay level " + repr(delayLevel))
+        self.applicationEvents[categoryName] = newEventName, delayLevel
+
+    def getCurrentApplicationEvents(self, events):
+        allEvents = events.items()
         appEventInfo = {}
         for categoryName, (eventName, currDelayLevel) in allEvents:
             appEventInfo.setdefault(currDelayLevel, []).append((eventName, categoryName))
-            del self.applicationEvents[categoryName]
+            if categoryName in self.applicationEvents:
+                storedFullName, storedDelayLevel = self.applicationEvents[categoryName]
+                if eventName == storedFullName:
+                    del self.applicationEvents[categoryName]
+                else:
+                    storedName, storedCount = self.parseMultiples(storedFullName)
+                    givenName, givenCount = self.parseMultiples(eventName)
+                    if storedName == givenName:
+                        remainder = storedCount - givenCount
+                        self.reduceApplicationEventCount(givenName, categoryName, storedDelayLevel, remainder)
         return appEventInfo
                             
-    def writeApplicationEventDetails(self):
-        appEventInfo = self.getCurrentApplicationEvents()
+    def writeApplicationEventDetails(self, events):
+        appEventInfo = self.getCurrentApplicationEvents(events)
         for delayLevel, eventInfo in appEventInfo.items():
             eventNames = sorted((e[0] for e in eventInfo))
             eventString = ", ".join(eventNames)
             self.recordOrDelay(waitCommandName + " " + eventString, delayLevel, eventInfo)
+        return len(appEventInfo) > 0
 
     def registerShortcut(self, replayScript):
         for script in self.scripts:
             script.registerShortcut(replayScript)
             
-    def unregisterApplicationEvent(self, name):
-        for categoryName, (eventName, _) in self.applicationEvents.items():
-            if eventName == name or eventName.startswith(name + " *"):
-                del self.applicationEvents[categoryName]
+    def unregisterApplicationEvent(self, matchFunction):
+        for categoryName, (eventName, delayLevel) in self.applicationEvents.items():
+            if matchFunction(eventName, delayLevel):
+                basicName, count = self.parseMultiples(eventName)
+                if count == 1:
+                    self.logger.debug("Unregistering application event " + repr(eventName) + " in category " + repr(categoryName))
+                    del self.applicationEvents[categoryName]
+                else:
+                    self.reduceApplicationEventCount(basicName, categoryName, delayLevel, count - 1)
+                return True
+        return False
+    
