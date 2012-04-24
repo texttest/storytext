@@ -346,6 +346,7 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     def getEditPartComparator(self):
         return None
 
+
 class ViewerSelectEvent(ViewerEvent):
     def connectRecord(self, method):
         class SelectionListener(ISelectionChangedListener):
@@ -378,16 +379,18 @@ class ViewerSelectEvent(ViewerEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Select"
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ swt.SWT.MouseDown, swt.SWT.MouseUp ]
 
     def shouldRecord(self, part, *args):
-        if self.isMainEditPart(part):
-            return ViewerEvent.shouldRecord(self, part, *args)
+        types = self.getSignalsToFilter()
+        hasMouseEvent = DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
+        if len(self.widget.selectedEditParts()) == 1:
+            return hasMouseEvent 
         else:
-            hasMouseDown = DisplayFilter.instance.hasEventOfType(swt.SWT.MouseDown, self.getGefViewer().getControl())
-            if len(self.widget.selectedEditParts()) == 1:
-                return hasMouseDown 
-            else:
-                return len(self.getStateDescription(part, *args)) > 0 and (hasMouseDown or ViewerEvent.shouldRecord(self, part, *args))
+            return len(self.getStateDescription(part, *args)) > 0 and (hasMouseEvent or ViewerEvent.shouldRecord(self, part, *args))
 
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
@@ -439,6 +442,14 @@ class ViewerDragAndDropEvent(ViewerEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "DragAndDrop"
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ swt.SWT.MouseUp ]
+    
+    def shouldRecord(self, part, *args):
+        types = self.getSignalsToFilter()
+        return DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
 
     def generate(self, description, *args):
         editPart, xPos, yPos = self.parseDescription(description)

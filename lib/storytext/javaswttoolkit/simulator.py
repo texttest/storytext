@@ -644,8 +644,8 @@ class DisplayFilter:
                 return True
         return False
     
-    def hasEventOfType(self, eventType, widget):
-        return any((event.type == eventType and event.widget is widget for event in self.eventsFromUser))
+    def hasEventOfType(self, eventTypes, widget):
+        return any((event.type in eventTypes and event.widget is widget for event in self.eventsFromUser))
         
     def addFilters(self, display):
         class DisplayListener(swt.widgets.Listener):
