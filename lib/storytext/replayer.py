@@ -164,7 +164,15 @@ class UseCaseReplayer:
         self.eventHappenedMessage = "ERROR: Expected application event '%s' timed out after " + \
             str(self.appEventTimeout) + " seconds! Trying to proceed."
         self.notifyWaitingCompleted()
-        
+
+    def completedApplicationEvents(self):
+        self.logger.debug("Waiting completed, proceeding...")
+        self.eventHappenedMessage = self.defaultEventHappenedMessage
+        if self.appEventTimer:
+            self.appEventTimer.cancel()
+            self.appEventTimer = None
+        self.notifyWaitingCompleted()
+
     def registerApplicationEvent(self, eventName, timeDelay):
         origEventName = eventName
         count = 2
@@ -175,12 +183,7 @@ class UseCaseReplayer:
         self.logger.debug("Replayer got application event " + repr(eventName))
         self.timeDelayNextCommand = timeDelay
         if len(self.waitingForEvents) > 0 and self.waitingCompleted():
-            self.logger.debug("Waiting completed, proceeding...")
-            self.eventHappenedMessage = self.defaultEventHappenedMessage
-            if self.appEventTimer:
-                self.appEventTimer.cancel()
-                self.appEventTimer = None
-            self.notifyWaitingCompleted()
+            self.completedApplicationEvents()
             
     def applicationEventRename(self, oldName, newName):
         toRename = filter(lambda eventName: oldName in eventName and newName not in eventName,
@@ -196,7 +199,7 @@ class UseCaseReplayer:
         return set(self.waitingForEvents).issubset(self.applicationEventNames)
 
     def runCommands(self):
-        while self.runNextCommand():
+        while self.runNextCommand()[0]:
             pass
 
     def getCommands(self):
@@ -248,7 +251,7 @@ class UseCaseReplayer:
             self.timeDelayNextCommand = 0
         commands = self.getCommands()
         if len(commands) == 0:
-            return False
+            return False, False
         for command in commands:
             script, arguments = self.findShortcut(command)
             if script:
@@ -263,11 +266,11 @@ class UseCaseReplayer:
                     self.applicationEventNames = set()
                 else:
                     self.logger.debug("Suspending replay waiting for event '" + eventName + "'")
-                    return False
+                    return False, True
             else:
                 self.parseAndProcess(command, eventsHappened, **kw)
             
-        return not self.checkTermination()
+        return not self.checkTermination(), False
     
     def write(self, line):
         try:
@@ -334,7 +337,9 @@ class UseCaseReplayer:
     def processWait(self, applicationEventStr):
         eventsToWaitFor = applicationEventStr.split(", ")
         self.describeAppEventsWaiting(eventsToWaitFor)
-        self.waitingForEvents += eventsToWaitFor
+        allEventsToWaitFor = self.waitingForEvents + eventsToWaitFor
+        # Must make sure this is atomic - don't add events one at a time with +=
+        self.waitingForEvents = allEventsToWaitFor
         complete = self.waitingCompleted()
         if not complete:
             self.appEventTimer = Timer(self.appEventTimeout, self.timeoutApplicationEvents)

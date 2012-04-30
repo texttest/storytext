@@ -695,7 +695,7 @@ class IdleHandlerUseCaseReplayer(UseCaseReplayer):
     def describeAndRun(self, *args):
         self.handleNewWindows()
         if self.readingEnabled:
-            self.readingEnabled = self.runNextCommand()
+            self.readingEnabled = self.runNextCommand()[0]
             if not self.readingEnabled:
                 self.idleHandler = None
                 self.tryAddDescribeHandler()
@@ -723,12 +723,14 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
             if self.delay:
                 self.logger.debug("Sleeping for " + str(self.delay) + " seconds...")
                 time.sleep(self.delay)
-            if not self.runNextCommand(describeMethod=describeMethod):
+            proceed, wait = self.runNextCommand(describeMethod=describeMethod)
+            if not proceed:
                 self.readingEnabled = self.waitingCompleted()
-                if self.readingEnabled:
-                    break
-                else:
+                if wait:
                     self.waitForReenable()
+                else:
+                    self.logger.debug("No command to run, no waiting to do: exiting replayer")
+                    break
 
     def tryParseRepeatedly(self, command):
         attemptCount = 30
