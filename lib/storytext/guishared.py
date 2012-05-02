@@ -17,9 +17,9 @@ from traceback import format_exception
 
 # We really need our ConfigParser to be ordered, copied the one from 2.6 into the repository
 if sys.version_info[:2] >= (2, 6):
-    from ConfigParser import ConfigParser #@UnusedImport
+    from ConfigParser import ConfigParser, ParsingError #@UnusedImport
 else: # pragma: no cover - not currently running older than 2.5 in regular tests
-    from ConfigParser26 import ConfigParser #@Reimport
+    from ConfigParser26 import ConfigParser, ParsingError #@Reimport
     
 def encodeToLocale(unicodeText):
     if sys.version_info[0] == 3:
@@ -421,11 +421,9 @@ is also supported but will only have features of the listed type described.
 
 
 class WriteParserHandler:
-    def __init__(self, fileName):
+    def __init__(self, fileName, parser):
         self.fileName = fileName
-        self.parser = ConfigParser(dict_type=OrderedDict)
-        self.parser.optionxform = str # don't automatically lower-case everything
-        self.parser.read([ self.fileName ])
+        self.parser = parser
         self.changed = False
 
     def write(self):
@@ -454,13 +452,20 @@ class UIMapFileHandler:
 
     def readFiles(self, uiMapFiles):
         # See top of file: uses the version from 2.6
-        self.writeParsers = map(WriteParserHandler, uiMapFiles)
+        self.writeParsers = [ WriteParserHandler(f, self.makeParser([ f ])) for f in uiMapFiles ]
         if len(self.writeParsers) == 1:
             self.readParser = self.writeParsers[0]
         else:
-            self.readParser = ConfigParser(dict_type=OrderedDict)
-            self.readParser.optionxform = str # don't automatically lower-case everything
-            self.readParser.read(uiMapFiles)
+            self.readParser = self.makeParser(uiMapFiles)
+            
+    def makeParser(self, filenames):
+        parser = ConfigParser(dict_type=OrderedDict)
+        parser.optionxform = str # don't automatically lower-case everything
+        try:
+            parser.read(filenames)
+            return parser
+        except ParsingError, e:
+            raise definitions.UseCaseScriptError, "ERROR: could not parse UI map file(s) at " + ",".join(filenames)
 
     def storeInfo(self, sectionName, signature, eventName):
         if not self.readParser.has_section(sectionName):
