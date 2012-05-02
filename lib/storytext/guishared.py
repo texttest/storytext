@@ -444,7 +444,26 @@ class WriteParserHandler:
 
     def __getattr__(self, name):
         return getattr(self.parser, name)
+    
+    
+class ParserSectionDict(OrderedDict):
+    def __init__(self, fileName, *args, **kw):
+        OrderedDict.__init__(self, *args, **kw)
+        self.readingFiles = fileName
+        
+    def __getitem__(self, key):
+        if self.readingFiles:
+            msg = "UI map file(s) at " + self.readingFiles + " has duplicated sections for widgets identified by '" + key + "', the earlier ones will be ignored"
+            sys.stderr.write("WARNING: " + msg + ".\n")
+        return OrderedDict.__getitem__(self, key)
 
+    def values(self):
+        # Fix for python 2.7... which calls __getitem__ internally
+        origFile = self.readingFiles
+        self.readingFiles = None
+        ret = OrderedDict.values(self)
+        self.readingFiles = origFile
+        return ret
 
 class UIMapFileHandler:
     def __init__(self, uiMapFiles): 
@@ -461,10 +480,14 @@ class UIMapFileHandler:
     def makeParser(self, filenames):
         parser = ConfigParser(dict_type=OrderedDict)
         parser.optionxform = str # don't automatically lower-case everything
+        # There isn't a nice way to change the behaviour on getting a duplicate section
+        # so we use a nasty way :)
+        parser._sections = ParserSectionDict(",".join(filenames))
         try:
             parser.read(filenames)
+            parser._sections.readingFiles = None
             return parser
-        except ParsingError, e:
+        except ParsingError:
             raise definitions.UseCaseScriptError, "ERROR: could not parse UI map file(s) at " + ",".join(filenames)
 
     def storeInfo(self, sectionName, signature, eventName):
