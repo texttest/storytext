@@ -87,7 +87,6 @@ class ReplayScript:
         
     
 class UseCaseReplayer:
-    defaultEventHappenedMessage = "Expected application event '%s' occurred, proceeding."
     def __init__(self, timeout=60):
         self.logger = logging.getLogger("storytext replay log")
         self.scripts = []
@@ -97,7 +96,7 @@ class UseCaseReplayer:
         self.applicationEventNames = set()
         self.replayThread = None
         self.timeDelayNextCommand = 0
-        self.eventHappenedMessage = self.defaultEventHappenedMessage
+        self.eventHappenedMessage = ""
         self.appEventTimer = None
         self.appEventTimeout = timeout
         if os.name == "posix":
@@ -153,21 +152,34 @@ class UseCaseReplayer:
         self.replayThread.start()
         #gtk.idle_add(method)
 
+    def resetWaitingInfo(self):
+        self.eventHappenedMessage = self.makeAppEventMessage()
+        self.waitingForEvents = []
+        self.applicationEventNames = set()
+
     def notifyWaitingCompleted(self):
         if self.replayThread:
             self.replayThread.join()
-        self.applicationEventNames = set()
+                
+        self.resetWaitingInfo()
         self.enableReading()
+
+    def makeAppEventMessage(self):
+        text = ""
+        for eventName in self.waitingForEvents:
+            if eventName in self.applicationEventNames:
+                text += "\nExpected application event '" + eventName + "' occurred, proceeding."
+            else:
+                text += "\nERROR: Expected application event '" + eventName + "' timed out after " + \
+                    str(self.appEventTimeout) + " seconds! Trying to proceed."
+        return text
 
     def timeoutApplicationEvents(self):
         self.logger.debug("Waiting aborted after " + str(self.appEventTimeout) + " seconds.")
-        self.eventHappenedMessage = "ERROR: Expected application event '%s' timed out after " + \
-            str(self.appEventTimeout) + " seconds! Trying to proceed."
         self.notifyWaitingCompleted()
 
     def completedApplicationEvents(self):
         self.logger.debug("Waiting completed, proceeding...")
-        self.eventHappenedMessage = self.defaultEventHappenedMessage
         if self.appEventTimer:
             self.appEventTimer.cancel()
             self.appEventTimer = None
@@ -229,11 +241,10 @@ class UseCaseReplayer:
         for eventName in eventNames:
             self.write("Waiting for application event '" + eventName + "' to occur.")    
 
-    def describeAppEventsHappened(self, eventNames):
-        if len(eventNames):
-            self.write("")
-        for eventName in eventNames:
-            self.write(self.eventHappenedMessage % eventName)
+    def describeAppEventsHappened(self):
+        if self.eventHappenedMessage:
+            self.write(self.eventHappenedMessage)
+            self.eventHappenedMessage = ""
 
     def findShortcut(self, command):
         for regex, shortcut in self.shortcuts:
@@ -243,8 +254,6 @@ class UseCaseReplayer:
         return None, None
 
     def runNextCommand(self, **kw):
-        eventsHappened = copy(self.waitingForEvents)
-        self.waitingForEvents = []
         if self.timeDelayNextCommand:
             self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
             time.sleep(self.timeDelayNextCommand)
@@ -263,12 +272,12 @@ class UseCaseReplayer:
                 eventName = self.getArgument(command, waitCommandName)
                 if self.processWait(eventName):
                     self.logger.debug("Event '" + eventName + "' has already happened, no waiting to do")
-                    self.applicationEventNames = set()
+                    self.resetWaitingInfo()
                 else:
                     self.logger.debug("Suspending replay waiting for event '" + eventName + "'")
                     return False, True
             else:
-                self.parseAndProcess(command, eventsHappened, **kw)
+                self.parseAndProcess(command, **kw)
             
         return not self.checkTermination(), False
     
@@ -280,9 +289,9 @@ class UseCaseReplayer:
             # This isn't worth crashing over!
             pass
 
-    def parseAndProcess(self, command, eventsHappened, **kw):
+    def parseAndProcess(self, command, **kw):
         try:
-            self.describeAppEventsHappened(eventsHappened)
+            self.describeAppEventsHappened()
             commandName, argumentString = self.parseCommand(command)
             self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
             self.processCommand(commandName, argumentString)

@@ -775,11 +775,11 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         
         return None, None
 
-    def parseAndProcess(self, command, eventsHappened, describeMethod):
+    def parseAndProcess(self, command, describeMethod):
         commandName, argumentString = self.tryParseRepeatedly(command)
         if commandName:
             describeMethod()
-            self.describeAppEventsHappened(eventsHappened)
+            self.describeAppEventsHappened()
             self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
             try:
                 self.processCommand(commandName, argumentString)
