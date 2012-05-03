@@ -111,7 +111,7 @@ class Describer(storytext.guishared.Describer):
         return shell.getText()
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
-                               prefix="", selection=[], columnCount=0):
+                               prefix="", selection=[], columnCount=0, **kw):
         descs = []
         for item in itemBar.getItems():
             currPrefix = prefix + " " * indent * 2
@@ -124,14 +124,15 @@ class Describer(storytext.guishared.Describer):
                 if itemDesc:
                     descs.append(itemDesc)
             if subItemMethod:
-                descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount)
+                descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount, **kw)
         return descs
 
-    def getCascadeMenuDescriptions(self, item, indent, **kw):
+    def getCascadeMenuDescriptions(self, item, indent, storeStatesForSubMenus=False, **kw):
         cascadeMenu = item.getMenu()
         if cascadeMenu:
-            descs = self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, **kw)
-            if indent == 1:
+            descs = self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, 
+                                                storeStatesForSubMenus=storeStatesForSubMenus, **kw)
+            if indent == 1 and storeStatesForSubMenus:
                 self.widgetsWithState[cascadeMenu] = "\n".join(descs)
             return descs
         else:
@@ -165,15 +166,15 @@ class Describer(storytext.guishared.Describer):
         else:
             return ""
 
-    def getMenuDescription(self, menu, indent=1):
-        return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions)
+    def getMenuDescription(self, menu, indent=1, **kw):
+        return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions, **kw)
     
     def getMenuState(self, menu):
         return self.getMenuDescription(menu, indent=2)
     
     def getMenuBarDescription(self, menubar):
         if menubar:
-            return "Menu Bar:\n" + self.getMenuDescription(menubar)
+            return "Menu Bar:\n" + self.getMenuDescription(menubar, storeStatesForSubMenus=True)
         else:
             return ""
 
@@ -580,7 +581,9 @@ class Describer(storytext.guishared.Describer):
     def formatContextMenuDescriptions(self):
         text = ""
         for contextMenu, menuId in self.contextMenuCounter.getWidgetsForDescribe():
-            text += "\n\nContext Menu " + str(menuId) + ":\n" + self.getMenuDescription(contextMenu)
+            menuDesc = self.getMenuDescription(contextMenu)
+            text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
+            self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu) 
         return text
 
     def getHorizontalSpan(self, widget, columns):
