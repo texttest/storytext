@@ -277,6 +277,10 @@ class CTabCloseEvent(SignalEvent):
         return stateChangeEvent.isImpliedByCTabClose(self.widget.widget.widget)
     
 class TextEvent(StateChangeEvent):
+    def __init__(self, *args):
+        StateChangeEvent.__init__(self, *args)
+        self.stateText = None
+    
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Modify"
@@ -300,7 +304,16 @@ class TextEvent(StateChangeEvent):
         return self.widget.getText()
     
     def shouldRecord(self, event, *args):
-        return (not event.widget.getStyle() & swt.SWT.READ_ONLY) and StateChangeEvent.shouldRecord(self, event, *args)
+        if not self.isEditable():
+            return False
+        newStateText = self.getStateText()
+        if self.stateText is not None and self.stateText == newStateText:
+            return False
+        self.stateText = newStateText
+        return StateChangeEvent.shouldRecord(self, event, *args)
+    
+    def isEditable(self):
+        return not (self.widget.widget.widget.getStyle() & swt.SWT.READ_ONLY) 
     
     def implies(self, stateChangeOutput, *args):
         if "typed" in self.generationModifiers:
@@ -342,9 +355,10 @@ class ComboTextEvent(TextEvent):
         selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
         runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
     
-    def shouldRecord(self, event, *args):
+    def isEditable(self):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
-        return StateChangeEvent.shouldRecord(self, event, *args)
+        return True
+    
 
 class TableSelectEvent(StateChangeEvent):
     @classmethod
@@ -938,7 +952,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
-                (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent ]),
+                (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent, TextActivateEvent ]),
                 (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
                 (FakeSWTBotCTabFolder                   , [ CTabSelectEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ CTabCloseEvent ]),
