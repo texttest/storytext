@@ -17,6 +17,9 @@ from org.eclipse.swtbot.swt.finder.finders import * #@UnusedWildImport
 from org.eclipse.ui.dialogs import FilteredTree
 from org.eclipse.swt.widgets import Event
 from org.eclipse.swt import SWT
+from org.eclipse.ui.forms.widgets import ExpandableComposite
+from org.eclipse.ui.forms.events import ExpansionAdapter
+from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -71,6 +74,7 @@ class DisplayFilter(swtsimulator.DisplayFilter):
 class WidgetMonitor(swtsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allViews = set()
+        self.swtbotMap[ExpandableComposite] = (SWTBotExpandableComposite, [])
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
         
     def getWidgetEventTypes(self):
@@ -190,5 +194,31 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
     def getAssociatedSignal(cls, widget):
         return "ActivatePart"
 
+class SWTBotExpandableComposite(AbstractSWTBotControl):
+    def clickOnCenter(self):
+        firstChild = self.widget.getChildren()[0]
+        SWTBotExpandableComposite(firstChild).click(True)
+
+class ExpandableCompositeEvent(swtsimulator.SelectEvent):
+    def shouldRecord(self, *args):
+        # To do this properly, we need to check MouseDown events
+        # on all the children of the ExpandableComposite
+        return not swtsimulator.DisplayFilter.instance.hasEvents()
+    
+    def generate(self, *args):
+        swtsimulator.runOnUIThread(self.widget.clickOnCenter)
+
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "ToggleExpand" ]
+    
+    def connectRecord(self, method):
+        class RecordListener(ExpansionAdapter):
+            def expansionStateChanged(listenerSelf, e): #@NoSelf
+                storytext.guishared.catchAll(method, e, self)
+
+        swtsimulator.runOnUIThread(self.widget.widget.widget.addExpansionListener, RecordListener())
+            
 swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent ]))
+swtsimulator.eventTypes.append((SWTBotExpandableComposite, [ ExpandableCompositeEvent ]))
 
