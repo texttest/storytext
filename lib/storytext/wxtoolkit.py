@@ -138,10 +138,13 @@ guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
 class SignalEvent(guishared.GuiEvent):
     def connectRecord(self, method):
+        self._connectRecord(method, self.widget)
+
+    def _connectRecord(self, method, widget):
         def handler(event):
             method(event, self)
             event.Skip()
-        self.widget.Bind(self.event, handler)
+        widget.Bind(self.event, handler)
 
     def makeCommandEvent(self, eventType):
         try:
@@ -326,10 +329,20 @@ class MenuEvent(SignalEvent):
     #      one or more occurrences of the separator ~~~.
     #   Return a pair (bool found, int menuitem id).
 
+    def shouldRecord(self, event, *args):
+        ret = self.getLabelText(event) is not None
+        if not ret:
+            event.Skip()
+        return ret
+
     def getIdFromLabel(self, menu, menu_label, compound_label):
-        menuname, _, tail = compound_label.partition(MenuEvent.separator)
+        if menu_label is not None:
+            menuname, _, tail = compound_label.partition(MenuEvent.separator)
+        else:
+            menuname, tail = None, compound_label
         if menuname != menu_label:
             return False, 0
+
         for item in menu.GetMenuItems():
             submenu = item.GetSubMenu()
             if submenu != None:
@@ -343,16 +356,14 @@ class MenuEvent(SignalEvent):
         return False, 0
  
     def generate(self, argumentString):
-        if self.widget.isInstanceOf(wx.Frame):
-            menubar = self.widget.GetMenuBar()
-            if menubar is not None:
-                for menu, label in menubar.GetMenus():
-                    found, id = self.getIdFromLabel(menu, label, argumentString)
-                    if found:
-                        self.widget.ProcessCommand(id)
-                        return
-                raise UseCaseScriptError, "Could not find menu item '" + argumentString + "'."
+        for menu, label in self.getMenusWithLabels():
+            found, id = self.getIdFromLabel(menu, label, argumentString)
+            if found:
+                return self.generateMenuItemEvent(id)
+        raise UseCaseScriptError, "Could not find menu item '" + argumentString + "'."
 
+    def generateMenuItemEvent(self, id):
+        self.widget.ProcessCommand(id)
 
     # getLabelFromId
     #   Search menu recursively for an item matching the input id.
@@ -361,7 +372,8 @@ class MenuEvent(SignalEvent):
     #   item, perhaps with one or more submenu labels in between.
 
     def getLabelFromId(self, menu, menuLabel, id, label_list):
-        label_list.append(menuLabel)
+        if menuLabel is not None:
+            label_list.append(menuLabel)
         for item in menu.GetMenuItems():
             submenu = item.GetSubMenu()
             if submenu != None:
@@ -371,19 +383,68 @@ class MenuEvent(SignalEvent):
             if id == item.GetId():
                 label_list.append(item.GetItemLabelText())
                 return True
-        label_list.pop()
+        if menuLabel is not None:
+            label_list.pop()
         return False
 
-    def outputForScript(self, event, *args):
+    def getLabelText(self, event):
         evtId = event.GetId()
         label = str(evtId)
+        for menu, menuLabel in self.getMenusWithLabels():
+            label_list = []
+            if self.getLabelFromId(menu, menuLabel, evtId, label_list):
+                return MenuEvent.separator.join(label_list)
+        
+    def outputForScript(self, event, *args):
+        return ' '.join([self.name, self.getLabelText(event)])
+
+    def getMenusWithLabels(self):
         if self.widget.isInstanceOf(wx.Frame) and self.widget.GetMenuBar() is not None:
-            for menu, menuLabel in self.widget.GetMenuBar().GetMenus():
-                label_list = []
-                if self.getLabelFromId(menu, menuLabel, evtId, label_list):
-                    label = MenuEvent.separator.join(label_list)
-                    break
-        return ' '.join([self.name, label])
+            return self.widget.GetMenuBar().GetMenus()
+        else:
+            return []
+
+class ContextMenuEvent(MenuEvent):
+    signal = "ContextMenu"
+    def __init__(self, *args):
+        SignalEvent.__init__(self, *args)
+        self.origPopupMenu = self.widget.widget.PopupMenu
+        self.widget.widget.PopupMenu = self.PopupMenu
+        self.menu = None
+        self.menuArg = None
+
+    def PopupMenu(self, menu, *args):
+        self.menu = menu
+        if self.menuArg is None:
+            self.origPopupMenu(menu, *args)
+        else:
+            MenuEvent.generate(self, self.menuArg)
+        self.menu = None
+        self.menuArg = None
+
+    def getMenusWithLabels(self):
+        return [ (self.menu, None) ]
+
+    def generate(self, argumentString):
+        self.menuArg = argumentString
+        self.generateRightClick()
+
+    def generateRightClick(self):
+        try:
+            id = self.widget.widget.GetId()
+            handler = self.widget.widget.GetEventHandler()
+        except:
+            raise UseCaseScriptError, "Widget is no longer active"
+        cm_event = wx.ContextMenuEvent(type=wx.wxEVT_CONTEXT_MENU, winid=id) #, pt=pos)
+        cm_event.SetEventObject(self.widget.widget)
+        handler.ProcessEvent(cm_event)
+
+    def generateMenuItemEvent(self, id):
+        menu_event = wx.CommandEvent(wx.wxEVT_COMMAND_MENU_SELECTED, id)
+        menu_event.SetEventObject(self.widget.widget)
+        handler = self.widget.widget.GetEventHandler()
+        handler.ProcessEvent(menu_event)
+        
 
 class UIMap(guishared.UIMap):
     def __init__(self, *args):
@@ -488,7 +549,8 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
 
 class ScriptEngine(guishared.ScriptEngine):
     eventTypes = [
-        (wx.Frame       , [ FrameEvent,  MenuEvent ]),
+        (wx.Window      , [ ContextMenuEvent ]),
+        (wx.Frame       , [ FrameEvent,  MenuEvent]),
         (wx.Button      , [ ButtonEvent   ]),
         (wx.Choice      , [ ChoiceEvent   ]),
         (wx.TextCtrl    , [ TextCtrlEvent ]),
