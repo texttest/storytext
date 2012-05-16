@@ -118,23 +118,23 @@ class UseCaseReplayer:
     def addEvent(self, event):
         self.events.setdefault(event.name, []).append(event)
     
-    def addScript(self, script, arguments=[]):
+    def addScript(self, script, arguments=[], enableReading=False):
         self.scripts.append((script, arguments))
-        self.runScript(script)
+        self.runScript(script, enableReading)
 
     def tryRunScript(self):
         if self.isActive():
-            script, args = self.scripts[-1]
-            self.runScript(script)
+            script, _ = self.scripts[-1]
+            self.runScript(script, enableReading=True)
 
-    def runScript(self, script):
+    def runScript(self, script, enableReading):
         if self.shortcuts:
             scriptCommand = script.getCommand(matching=[ r for r, _ in self.shortcuts ])
             if scriptCommand:
                 newScript, args = self.findShortcut(scriptCommand)
-                return self.addScript(newScript, args)
+                return self.addScript(newScript, args, enableReading)
         
-        if self.processInitialWait(script):
+        if enableReading and self.processInitialWait(script):
             self.enableReading()
             
     def processInitialWait(self, script):
@@ -148,6 +148,7 @@ class UseCaseReplayer:
     def enableReading(self):
         # By default, we create a separate thread for background execution
         # GUIs will want to do this as idle handlers
+        self.logger.debug("Spawning replay thread...")
         self.replayThread = Thread(target=self.runCommands)
         self.replayThread.start()
         #gtk.idle_add(method)
@@ -219,7 +220,8 @@ class UseCaseReplayer:
         nextCommands = script.getCommands(scriptArgs)
         if len(nextCommands) > 0:
             return nextCommands
-
+        
+        self.logger.debug("Script '" + script.getShortcutName() + "' has terminated when getting commands, removing from list")
         del self.scripts[-1]
         if len(self.scripts) > 0:
             return self.getCommands()
@@ -231,6 +233,7 @@ class UseCaseReplayer:
             return True
         script, scriptArgs = self.scripts[-1]
         if script.checkTermination():
+            self.logger.debug("Script '" + script.getShortcutName() + "' has terminated when checked, removing from list")
             del self.scripts[-1]
             return self.checkTermination()
         else:
@@ -264,7 +267,9 @@ class UseCaseReplayer:
         for command in commands:
             script, arguments = self.findShortcut(command)
             if script:
+                self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
                 if commands[-1].startswith(waitCommandName):
+                    self.logger.debug("Adding wait command '" + commands[-1] + "' to end of shortcut file")
                     script.commands.append(commands[-1])
                 self.addScript(script, arguments)
                 return self.runNextCommand(**kw)
@@ -275,10 +280,9 @@ class UseCaseReplayer:
                     self.resetWaitingInfo()
                 else:
                     self.logger.debug("Suspending replay waiting for event '" + eventName + "'")
-                    return False, True
+                    return False, not self.checkTermination()
             else:
                 self.parseAndProcess(command, **kw)
-            
         return not self.checkTermination(), False
     
     def write(self, line):

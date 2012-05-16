@@ -154,7 +154,7 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
             self.replaceAutoRecordingForShortcut(script)
 
     def replayShortcut(self, button, script, *args):
-        self.replayer.addScript(script)
+        self.replayer.addScript(script, enableReading=True)
         if len(self.recorder.scripts):
             self.recorder.suspended = 1
             script.addExitObserver(self.recorder)
