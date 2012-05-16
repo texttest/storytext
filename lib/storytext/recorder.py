@@ -27,7 +27,11 @@ class RecordScript:
                     (bestTracker is None or tracker.isLongerThan(bestTracker)):
                     bestTracker = tracker
             if bestTracker:
-                self.rerecord(bestTracker.getNewCommands())
+                newCommands = bestTracker.getNewCommands()
+                self.rerecord(newCommands)
+                for tracker in self.shortcutTrackers:
+                    if tracker is not bestTracker:
+                        tracker.rerecord(newCommands)
         except IOError:
             sys.stderr.write("ERROR: Unable to record " + repr(line) + " to file " + repr(self.scriptName) + "\n") 
     
@@ -82,6 +86,10 @@ class ShortcutTracker:
             self.unmatchedCommands.append(line)
             self.reset()
             return False
+        
+    def rerecord(self, newCommands):
+        # Some other tracker has completed, include it in our unmatched commands...
+        self.unmatchedCommands = copy(newCommands)
 
     def getNewCommands(self):
         shortcutName = self.replayScript.getShortcutNameWithArgs(self.argsUsed)
