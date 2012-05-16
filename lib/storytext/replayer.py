@@ -63,12 +63,12 @@ class ReplayScript:
                 return self.replaceArgs(nextCommand, args)
 
     def replaceArgs(self, nextCommand, args):
-        if args and "$" in nextCommand:
-            currArg = args.pop(0)
-            args.append(currArg) # cycle through them...
-            return nextCommand.replace("$", currArg)
-        else:
-            return nextCommand
+        if args:
+            while "$" in nextCommand:
+                currArg = args.pop(0)
+                args.append(currArg) # cycle through them...
+                nextCommand = nextCommand.replace("$", currArg, 1)
+        return nextCommand
             
     def getCommandsSoFar(self):
         return self.commands[:self.pointer - 1] if self.pointer else []
