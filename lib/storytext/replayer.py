@@ -267,7 +267,7 @@ class UseCaseReplayer:
                 if commands[-1].startswith(waitCommandName):
                     script.commands.append(commands[-1])
                 self.addScript(script, arguments)
-                return self.runNextCommand()
+                return self.runNextCommand(**kw)
             if command.startswith(waitCommandName):
                 eventName = self.getArgument(command, waitCommandName)
                 if self.processWait(eventName):
