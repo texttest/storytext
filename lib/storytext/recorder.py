@@ -171,7 +171,7 @@ class UseCaseRecorder:
             return script
 
     def recordSignal(self, signum, stackFrame):
-        self.writeApplicationEventDetails(self.applicationEvents)
+        self.writeApplicationEventDetails(self.applicationEvents, minDelayLevel=0) # no means of delaying received signals
         self.record(signalCommandName + " " + self.signalNames[signum])
         self.processDelayedEvents(self.delayedEvents)
         self.delayedEvents = []
@@ -215,7 +215,7 @@ class UseCaseRecorder:
             stateChangeOutput, stateChangeEvent, stateChangeDelayLevel, appEvents = self.stateChangeEventInfo
             if stateChangeDelayLevel >= event.delayLevel(*args):
                 impliesPrevious = event.implies(stateChangeOutput, stateChangeEvent, *args)
-                writtenAppEvents = self.writeApplicationEventDetails(appEvents)
+                writtenAppEvents = self.writeApplicationEventDetails(appEvents, stateChangeDelayLevel)
                 if impliesPrevious:
                     self.logger.debug("Implies previous state change event, ignoring previous")
                 else:
@@ -230,7 +230,7 @@ class UseCaseRecorder:
             self.stateChangeEventInfo = scriptOutput, event, delayLevel, appEvents
         else:
             if not writtenAppEvents or not impliesPrevious:
-                self.writeApplicationEventDetails(self.applicationEvents)
+                self.writeApplicationEventDetails(self.applicationEvents, delayLevel)
             if self.recordOrDelay(scriptOutput, delayLevel, event):
                 self.processDelayedEvents(self.delayedEvents)
                 self.delayedEvents = []
@@ -358,10 +358,12 @@ class UseCaseRecorder:
         self.logger.debug("Reducing stored application event, now " + newEventName + " at delay level " + repr(delayLevel))
         self.applicationEvents[categoryName] = newEventName, delayLevel
 
-    def getCurrentApplicationEvents(self, events):
+    def getCurrentApplicationEvents(self, events, minDelayLevel):
         allEvents = events.items()
         appEventInfo = {}
         for categoryName, (eventName, currDelayLevel) in allEvents:
+            if currDelayLevel < minDelayLevel:
+                continue
             appEventInfo.setdefault(currDelayLevel, []).append((eventName, categoryName))
             if categoryName in self.applicationEvents:
                 storedFullName, storedDelayLevel = self.applicationEvents[categoryName]
@@ -375,8 +377,8 @@ class UseCaseRecorder:
                         self.reduceApplicationEventCount(givenName, categoryName, storedDelayLevel, remainder)
         return appEventInfo
                             
-    def writeApplicationEventDetails(self, events):
-        appEventInfo = self.getCurrentApplicationEvents(events)
+    def writeApplicationEventDetails(self, events, minDelayLevel):
+        appEventInfo = self.getCurrentApplicationEvents(events, minDelayLevel)
         for delayLevel, eventInfo in appEventInfo.items():
             eventNames = sorted((e[0] for e in eventInfo))
             eventString = ", ".join(eventNames)
