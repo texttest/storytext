@@ -432,3 +432,77 @@ PyGTK bugfixes:
     - TreeSelections programatically changed by set_mode no longer get recorded.
     - Now handles dialogs that existed before StoryText was enabled
 	In case it's enabled programmatically
+
+
+Version 3.7
+-----------
+Migration:
+    - Eclipse RCP applications will need to reinstall the plugin (org.eclipse.swtbot.testscript)
+
+Support for GEF is much more sophisticated and is now in production on one application. Regard as Beta.
+    - There is a separate installable plugin for this now, org.eclipse.swtbot.gef.testscript
+    - Selection, drag+drop supported
+
+Support for wxPython has moved forward a great deal (Beta) - it now supports (in addition):
+    - widgets added "on the fly" (not just ones that were there at the start as before...)
+    - wx.Menu (including some support for popups)
+    - wx.CheckBox
+    - wx.FileDialog
+    - wx.StaticText
+    - wx.Choice
+    - UI map doesn't get fooled by internally generated "names" any more
+    - Better layouts in the describer
+
+General enhancements:
+    - Application event handling handles many more complicated situations
+	Handle application events inside dialogs, interleaved with state-change events, repeated events in categories etc.
+	Also time out after 60 seconds instead of hanging forever. Can be configured with "-t" option.
+    - Shortcut mechanism now handles arguments
+	To start with, uses $ in the file name, and $ inside the file, and matches arguments in order
+	See website for more details.
+    - If controls aren't present, now wait a while before giving up
+	Crude version of application event mechanism for simple situations
+    - Usecase name chooser dialog now has scrollbars if needed
+    - Maximum output width is now configurable using -M argument.
+
+SWT/Eclipse RCP enhancements:
+    - Added support for checkboxes
+    - Added support for org.eclipse.ui.forms.ExpandableComposite
+    - Added support for typing text into text fields and combo boxes (not just setting text)
+    - Can now record/playback pressing Enter in text fields/combo boxes
+    - Can now record/playback clicking column headers and editing cells in Tables
+    - Now describe popup menu status changes
+    - Support "radio toolbar items"
+    - Now support RCP's "drop-down toolbar items" (as in the perspective changers in Eclipse)
+    - RCP Part activation now uses part title instead of ID (this last might not be unique)
+    - Now mostly use image names in describer if these are requested
+    - Describe vertical separators differently from horizontal ones
+
+Tkinter enhancements:
+    - Grids are now formatted as in the other toolkits, and hence look neater
+    - Now works under Python 3
+    - Handle row spans in grid layouts
+
+General bugfixes:
+    - Can now handle more than one (different) shortcut in the same usecase.
+    - Can reuse the same shortcut multiple times also if it ends with an application event.
+    - Don't record Text modifications if the value is unchanged
+    - Warn if we have duplicated sections in the UI map file (instead of silently ignoring one of them)
+    - Produce a nice error if the UI map file can't be parsed
+    - Fixed various race conditions in the replayer
+    - label finding mechanism is easier to configure (in case your application puts extra labels in between, such as "=")
+    - In slow-motion replay, description now printed after the sleep (helps discover missing app events)
+    - Eliminated some duplicate description where many things changes state at once
+    - Remove race condition when first line of a shortcut is an application event
+    - Don't use column-formatting on grids with more than one row, too hard to read
+
+SWT/Eclipse RCP bugfixes:
+    - Custom widget plugin now working for Eclipse RCP, also when event types are overridden
+    - Workaround for SWTBot with Radio Buttons in Eclipse 3.5
+    - Decide job name on scheduling, not on completion, otherwise it can be indeterministic
+    - Describer less prone to occasionally describe tooltip windows now
+    - Fix stacktrace if horizontal span in grid layout is larger than the number of columns
+    - Readonly text fields never record anything
+    - Bug fixes for describer laying out HTML tables in Browsers properly
+	(e.g. non-breaking spaces and unprintable characters...)
+
