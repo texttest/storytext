@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-
 # Require distribute for Python3, we use the 2to3 script
 if sys.version_info[0] == 3:
     from setuptools import setup
@@ -75,10 +74,11 @@ if windows:
         scripts = newscripts
 
 packages = [ "storytext" ]
-if jython:
+sdist = "sdist" in sys.argv
+if jython or sdist:
     packages += [ "storytext.javaswttoolkit", "storytext.javarcptoolkit",
                   "storytext.javageftoolkit", "storytext.javaswingtoolkit" ]
-elif sys.version_info[0] == 2:
+if sdist or (not jython and sys.version_info[0] == 2):
     packages += [ "storytext.gtktoolkit", "storytext.gtktoolkit.simulator",
                   "storytext.gtktoolkit.describer" ] 
 
