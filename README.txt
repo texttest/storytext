@@ -5,15 +5,16 @@ Summary of what it is:
 
         StoryText (formerly known as PyUseCase) is a record/replay layer for Python GUIs. 
         It currently has extensive support for PyGTK GUIs
-        (including a proof of concept for the hildon extension), beta status support for Swing, SWT/Eclipse RCP and 
-        Tkinter GUIs, and alpha status support for wxPython. Besides providing a mechanism for recording and 
+        (including a proof of concept for the hildon extension), and beta status support for Swing, SWT/Eclipse RCP/GEF and 
+        Tkinter, and wxPython GUIs. Besides providing a mechanism for recording and 
         playing back UI interaction, it also generates a log of the UI appearance. 
         On UNIX-based systems it can also be useful on console programs to record and simulate signals 
         received by the process.
 
         The aim is only to simulate the interactive actions of a user, not to verify correctness of a program
         as such. The log produced should form a good basis for textual testing though, using a tool like
-        TextTest, also available from SourceForge.
+        TextTest, also available from SourceForge. It has been developed together with TextTest and is essentially intended
+        to be used in conjunction with it.
 
         To summarise, the motivation for it is that traditional record/replay tools, besides being expensive,
         tend to record very low-level scripts that are a nightmare to maintain and can only be read by developers.
@@ -45,6 +46,7 @@ System requirements:
 
     At least Python 2.5 (Jython 2.5 for the Java UIs)
     At least PyGTK 2.12 for the PyGTK part
+    Python 3.x supported only for Tkinter UIs currently
 
 Other Open Source Software packaged with it/used by it:
 
