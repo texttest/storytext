@@ -305,8 +305,6 @@ class UseCaseRecorder:
                 currentNumber = int(existingEvent.split()[-1])
                 eventName += " * " + str(currentNumber + 1)
             
-        if category != "storytext_DEFAULT":
-            supercedeCategories.append("storytext_DEFAULT")
         self.applicationEvents[appEventKey] = eventName
         self.logger.debug("Got application event '" + eventName + "' in category " + repr(category) +
                           " with delay level " + str(delayLevel))
@@ -315,8 +313,10 @@ class UseCaseRecorder:
             if supercedeKey in self.applicationEvents:
                 self.logger.debug("Superceded and discarded application event " + self.applicationEvents[supercedeKey])
                 del self.applicationEvents[supercedeKey]
-        for supercedeCategory in supercedeCategories:
-            self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
+        if category != "storytext_DEFAULT":
+            for supercedeCategory in supercedeCategories + [ "storytext_DEFAULT" ]:
+                self.logger.debug("Adding supercede info : " + category + " will be superceded by " + supercedeCategory)
+                self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
 
     def applicationEventRename(self, oldName, newName, oldCategory, newCategory):
         for appEventKey, oldEventName in self.applicationEvents.items():
