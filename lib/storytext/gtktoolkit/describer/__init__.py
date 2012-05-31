@@ -112,10 +112,12 @@ class Describer:
 
     def getPropertyDescription(self, widget):
         properties = []
-        imageDescriber = ImageDescriber()
-        imageDesc = imageDescriber.getInbuiltImageDescription(widget)
-        if imageDesc:
-            properties.append(imageDesc)
+        # If we're a stock button, don't get the image, which will vary between themes
+        if not isinstance(widget, gtk.Button) or not self.isStock(widget):
+            imageDescriber = ImageDescriber()
+            imageDesc = imageDescriber.getInbuiltImageDescription(widget)
+            if imageDesc:
+                properties.append(imageDesc)
         if not widget.get_property("sensitive"):
             properties.append("greyed out")
 
@@ -469,12 +471,17 @@ class Describer:
     def getButtonDescription(self, button):
         if isinstance(button, gtk.LinkButton):
             text = "Link button"
+        elif self.isStock(button):
+            text = "Stock Button"
         else:
             text = "Button"
         labelText = button.get_label()
         if labelText:
             text += " '" + labelText + "'"
         return text
+    
+    def isStock(self, button):
+        return button.get_use_stock() and gtk.stock_lookup(button.get_label()) is not None
 
     @classmethod
     def getBriefDescription(cls, widget):
