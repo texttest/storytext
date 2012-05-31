@@ -182,8 +182,8 @@ class RadioSelectEvent(SelectEvent):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
     
     def _generate(self, *args):
-        if "3.5" in swt.__file__ and "2.0.4" in swtbot.__file__ and self.widget.isInstanceOf(swtbot.widgets.SWTBotRadio):
-            # Workaround for bug in SWTBot 2.0.4 which doesn't handle Eclipse 3.5 radio buttons properly
+        if "2.0.4" in swtbot.__file__ and self.widget.isInstanceOf(swtbot.widgets.SWTBotRadio):
+            # Workaround for bug in SWTBot 2.0.4 which doesn't handle Eclipse radio buttons properly
             method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", None)
             method.setAccessible(True)
             selectedButton = method.invoke(self.widget.widget, None)
