@@ -10,6 +10,9 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
 
     def parse(self, text):
         try:
+            # Webkit seems to send us text we can't parse out of the box. Add html tags
+            if not text.startswith("<html>"):
+                text = "<html>" + text + "</html>"
             if os.pathsep == ";":
                 text = self.fixWinText(text)
             xml.sax.parseString(text, self)
