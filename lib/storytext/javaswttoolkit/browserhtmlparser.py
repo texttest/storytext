@@ -1,4 +1,4 @@
-import xml.sax, sys, os
+import xml.sax, sys, os, re
 from storytext.gridformatter import GridFormatter
 from storytext.guishared import getExceptionString
 class BrowserHtmlParser(xml.sax.ContentHandler):
@@ -13,8 +13,8 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
             # Webkit seems to send us text we can't parse out of the box. Add html tags
             if not text.startswith("<html>"):
                 text = "<html>" + text + "</html>"
-            if os.pathsep == ";":
-                text = self.fixWinText(text)
+            # Make sure all attribute values are quoted as they should be...
+            text = re.sub('=([^ "/>]+)', '="\\1"', text)
             xml.sax.parseString(text, self)
         except xml.sax.SAXException:
             sys.stderr.write("Failed to parse browser text:\n")
@@ -48,10 +48,6 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         elif self.inBody:
             self.text += content.rstrip()
 
-    def fixWinText(self, text):
-        # Nested tbody tags doesn't seem to work on window.    
-        text = text.replace("<tbody>", "")
-        return text.replace("</tbody>", "")
 
 class TableParser:
     def __init__(self):
