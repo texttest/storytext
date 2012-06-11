@@ -368,11 +368,13 @@ class ViewerSelectEvent(ViewerEvent):
                 return self.widget.click(editPart)
             if editPart:
                 parts.append(editPart)
+        self.simulateClick(parts, description)
 
+    def simulateClick(self, parts, description):
         if len(parts) > 0:
-            self.widget.clickOnCenter(parts[0])
+            rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
             for part in parts[1:]:
-                self.widget.clickOnCenter(part, keyModifiers=swt.SWT.CTRL)
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, part, swt.SWT.CTRL)
         else:
             raise UseCaseScriptError, "Could not find any objects in viewer matching description " + repr(description)
 
