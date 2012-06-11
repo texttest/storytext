@@ -52,6 +52,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("--supported-html", action="store_true", help=optparse.SUPPRESS_HELP)
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
+    parser.add_option("-X", "--exclude-describe",
+                      help="Exclude the listed widget class names from being described in the describer")
     return parser
 
 

@@ -176,7 +176,7 @@ class Describer(storytext.guishared.Describer):
         return self.getMenuDescription(menu, indent=2)
     
     def getMenuBarDescription(self, menubar):
-        if menubar:
+        if menubar and "Menu" not in self.excludeClassNames:
             return "Menu Bar:\n" + self.getMenuDescription(menubar, storeStatesForSubMenus=True)
         else:
             return ""
@@ -473,7 +473,7 @@ class Describer(storytext.guishared.Describer):
         return text
 
     def getContextMenuReference(self, widget):
-        if not isinstance(widget, swt.widgets.MenuItem) and hasattr(widget, "getMenu") and widget.getMenu():
+        if "Menu" not in self.excludeClassNames and not isinstance(widget, swt.widgets.MenuItem) and hasattr(widget, "getMenu") and widget.getMenu():
             return "Context Menu " + self.contextMenuCounter.getId(widget.getMenu())
         else:
             return ""
@@ -584,10 +584,11 @@ class Describer(storytext.guishared.Describer):
         
     def formatContextMenuDescriptions(self):
         text = ""
-        for contextMenu, menuId in self.contextMenuCounter.getWidgetsForDescribe():
-            menuDesc = self.getMenuDescription(contextMenu)
-            text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
-            self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu) 
+        if "Menu" not in self.excludeClassNames:
+            for contextMenu, menuId in self.contextMenuCounter.getWidgetsForDescribe():
+                menuDesc = self.getMenuDescription(contextMenu)
+                text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
+                self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu) 
         return text
 
     def getHorizontalSpan(self, widget, columns):
