@@ -346,6 +346,20 @@ class UseCaseReplayer:
             if command.startswith(eventName) and len(eventName) > len(longestEventName):
                 longestEventName = eventName
         return longestEventName            
+
+    def startTimer(self, timer):
+        self.appEventTimer = timer
+        self.appEventTimer.start()
+
+    def setAppEventTimer(self):
+        # Break the timer up into 5 sub-timers
+        # The point is to prevent timing out too early if the process gets suspended
+        subTimerCount = 5 # whatever
+        subTimerTimeout = float(self.appEventTimeout) / subTimerCount
+        timer = Timer(subTimerTimeout, self.timeoutApplicationEvents)
+        for _ in range(subTimerCount - 1):
+            timer = Timer(subTimerTimeout, self.startTimer, [ timer ])
+        self.startTimer(timer)
     
     def processWait(self, applicationEventStr):
         eventsToWaitFor = applicationEventStr.split(", ")
@@ -355,8 +369,7 @@ class UseCaseReplayer:
         self.waitingForEvents = allEventsToWaitFor
         complete = self.waitingCompleted()
         if not complete:
-            self.appEventTimer = Timer(self.appEventTimeout, self.timeoutApplicationEvents)
-            self.appEventTimer.start()
+            self.setAppEventTimer()
         return complete
     
     def processSignalCommand(self, signalArg):
