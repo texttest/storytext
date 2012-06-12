@@ -168,12 +168,6 @@ class GuiEvent(definitions.UserEvent):
 
     def widgetDisposed(self):
         return False
-    
-    def widgetVisible(self):
-        return True
-    
-    def widgetSensitive(self):
-        return True
 
     def checkWidgetStatus(self):
         if self.widgetDisposed():
@@ -772,31 +766,17 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         attemptCount = 30
         for attempt in range(attemptCount):
             try:
-                commandName, argStr = self.parseCommand(command)
-                self.checkSomeWidgetUsable(commandName)
-                return commandName, argStr
+                return self.parseCommand(command)
             except definitions.UseCaseScriptError:
                 # We don't terminate scripts if they contain errors
                 if attempt == attemptCount - 1:
                     value = sys.exc_info()[1]
                     self.write("ERROR: " + str(value))
                 else:
-                    self.logger.debug("Failed on", command, "trying again...")
                     time.sleep(0.1)
         
         return None, None
 
-    def checkSomeWidgetUsable(self, commandName):
-        possibleEvents = self.events[commandName]
-        for event in possibleEvents[1:]:
-            try:
-                event.checkWidgetStatus()
-                return
-            except definitions.UseCaseScriptError:
-                _, value, _ = sys.exc_info()
-                self.logger.debug("Error, checking another: " + str(value))  
-        possibleEvents[0].checkWidgetStatus()
-        
     def parseAndProcess(self, command, describeMethod):
         commandName, argumentString = self.tryParseRepeatedly(command)
         if commandName:
@@ -1378,8 +1358,8 @@ class TableIndexer:
 
 
 def getExceptionString():
-    exctype, value, traceback = sys.exc_info()
-    return "".join(format_exception(exctype, value, traceback))
+    type, value, traceback = sys.exc_info()
+    return "".join(format_exception(type, value, traceback))
 
 def findPrecedingLabel(widget, children, labelClass, ignoreLabels=[], textMethod="getText"):
     textPos = children.index(widget)
@@ -1417,5 +1397,5 @@ def catchAll(method, *args, **kw):
     try:
         method(*args, **kw)
     except:
-        print "EXCEPTION CAUGHT", sys.exc_info()
+        sys.stderr.write(getExceptionString() + "\n")
 
