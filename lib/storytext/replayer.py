@@ -38,6 +38,9 @@ class ReplayScript:
     def transformToRegexp(self, text):
         for char in "^[]{}*?|+()":
             text = text.replace(char, "\\" + char)
+        # handle numbered variables
+        text = re.sub("\$([0-9]+)", "(?P<var\\1>.*)", text)
+        # handle unnumbered variables
         return text.replace("$", "(.*)")
     
     def getRegexp(self, command):
@@ -67,12 +70,24 @@ class ReplayScript:
                 self.pointer += 1
                 return self.replaceArgs(nextCommand, args)
 
+
+    def getArgument(self, nextCommand, args):
+        pos = nextCommand.find("$")
+        if pos + 1 < len(nextCommand):
+            followingChar = nextCommand[pos + 1]
+            if followingChar.isdigit():
+                index = int(followingChar) - 1
+                if index < len(args):
+                    return args[index]
+        currArg = args.pop(0)
+        args.append(currArg) # cycle through them...
+        return currArg
+
     def replaceArgs(self, nextCommand, args):
         if args:
             while "$" in nextCommand:
-                currArg = args.pop(0)
-                args.append(currArg) # cycle through them...
-                nextCommand = nextCommand.replace("$", currArg, 1)
+                currArg = self.getArgument(nextCommand, args)
+                nextCommand = re.sub("\$[0-9]*", currArg, nextCommand, 1)
         return nextCommand
             
     def getCommandsSoFar(self):

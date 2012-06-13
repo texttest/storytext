@@ -79,7 +79,15 @@ class ShortcutTracker:
         match = self.currRegexp.match(line)
         if match:
             self.currRegexp = self.replayScript.getCommandRegexp()
-            self.argsUsed += match.groups()
+            groupdict = match.groupdict()
+            if groupdict: # numbered arguments
+                for key, val in groupdict.items():
+                    argPos = int(key.replace("var", "")) - 1
+                    while len(self.argsUsed) <= argPos:
+                        self.argsUsed.append("")
+                    self.argsUsed[argPos] = val
+            else:
+                self.argsUsed += match.groups()
             return not self.currRegexp
         else:
             self.unmatchedCommands += self.replayScript.getCommandsSoFar()
