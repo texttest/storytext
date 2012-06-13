@@ -270,11 +270,14 @@ class UseCaseReplayer:
             self.eventHappenedMessage = ""
 
     def findShortcut(self, command):
+        bestShortcut, bestArgs = None, []
         for regex, shortcut in self.shortcuts:
             match = regex.match(command)
             if match:
-                return shortcut, list(match.groups())
-        return None, None
+                args = list(match.groups())
+                if bestShortcut is None or len(args) > len(bestArgs):
+                    bestShortcut, bestArgs = shortcut, args
+        return bestShortcut, bestArgs
 
     def runNextCommand(self, **kw):
         if self.timeDelayNextCommand:
