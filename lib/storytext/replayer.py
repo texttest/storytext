@@ -35,8 +35,13 @@ class ReplayScript:
             name = name.replace("$", arg, 1)
         return name
 
+    def transformToRegexp(self, text):
+        for char in "^[]{}*?|+()":
+            text = text.replace(char, "\\" + char)
+        return text.replace("$", "(.*)")
+    
     def getRegexp(self, command):
-        return re.compile(command.replace("$", "(.*)")) if command else None
+        return re.compile(self.transformToRegexp(command)) if command else None
 
     def hasTerminated(self):
         return self.pointer >= len(self.commands)
