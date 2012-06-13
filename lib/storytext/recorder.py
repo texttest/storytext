@@ -70,6 +70,7 @@ class ShortcutTracker:
 
     def reset(self):
         self.replayScript = ReplayScript(self.replayScript.name)
+        self.started = False
         self.argsUsed = []
         self.currRegexp = self.replayScript.getCommandRegexp()
 
@@ -78,6 +79,7 @@ class ShortcutTracker:
             return False # We already reached the end and should forever be ignored...
         match = self.currRegexp.match(line)
         if match:
+            self.started = True
             self.currRegexp = self.replayScript.getCommandRegexp()
             groupdict = match.groupdict()
             if groupdict: # numbered arguments
@@ -97,7 +99,8 @@ class ShortcutTracker:
         
     def rerecord(self, newCommands):
         # Some other tracker has completed, include it in our unmatched commands...
-        self.unmatchedCommands = copy(newCommands)
+        if not self.started:
+            self.unmatchedCommands = copy(newCommands)
 
     def getNewCommands(self):
         shortcutName = self.replayScript.getShortcutNameWithArgs(self.argsUsed)
