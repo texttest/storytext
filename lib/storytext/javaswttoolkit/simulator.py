@@ -344,18 +344,18 @@ class TextActivateEvent(SignalEvent):
 class ComboTextEvent(TextEvent):
     def _generate(self, argumentString):
         try:
-            TextEvent._generate(self, argumentString)
-        except RuntimeException: # if it's readonly...
-            try:
+            if runOnUIThread(TextEvent.isEditable, self):
+                TextEvent._generate(self, argumentString)
+            else:
                 self.widget.setSelection(argumentString)
-            except RuntimeException, e:
-                raise UseCaseScriptError, e.getMessage()
-            
+        except RuntimeException, e:
+            raise UseCaseScriptError, e.getMessage()
+
     def selectAll(self):
         # Strangely, there is no selectAll method...
         selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
         runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
-    
+
     def isEditable(self):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return True
