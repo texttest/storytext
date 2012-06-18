@@ -65,21 +65,30 @@ class RecordScript:
 class ShortcutTracker:
     def __init__(self, replayScript):
         self.replayScript = replayScript
-        self.unmatchedCommands = []
+        self.commandsForMatch = []
+        self.commandsForMismatch = []
+        self.logger = logging.getLogger("Shortcut Tracker")
         self.reset()
 
     def reset(self):
         self.replayScript = ReplayScript(self.replayScript.name)
-        self.started = False
+        self.commandsForMatch = copy(self.commandsForMismatch)
         self.argsUsed = []
         self.currRegexp = self.replayScript.getCommandRegexp()
 
+
+    def hasStarted(self):
+        return self.commandsForMismatch != self.commandsForMatch
+
     def updateCompletes(self, line):
         if self.currRegexp is None:
+            self.logger.debug("Ignore " +  self.replayScript.getShortcutName())
             return False # We already reached the end and should forever be ignored...
         match = self.currRegexp.match(line)
         if match:
-            self.started = True
+            self.commandsForMismatch.append(line)
+            self.logger.debug("Match " +  self.replayScript.getShortcutName() + ", " + self.currRegexp.pattern \
+                               + ", " +  repr(line) + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
             self.currRegexp = self.replayScript.getCommandRegexp()
             groupdict = match.groupdict()
             if groupdict: # numbered arguments
@@ -92,21 +101,31 @@ class ShortcutTracker:
                 self.argsUsed += match.groups()
             return not self.currRegexp
         else:
-            self.unmatchedCommands += self.replayScript.getCommandsSoFar()
-            self.unmatchedCommands.append(line)
-            self.reset()
-            return False
+            if self.hasStarted():
+                self.reset()
+                self.logger.debug("Reset " + self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch))
+                return self.updateCompletes(line)
+            else:
+                self.commandsForMismatch.append(line)
+                pattern = copy(self.currRegexp.pattern)
+                self.reset()
+                self.logger.debug(pattern + ", " +  repr(line) + ", " + self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch))
+                return False
         
     def rerecord(self, newCommands):
         # Some other tracker has completed, include it in our unmatched commands...
-        if not self.started:
-            self.unmatchedCommands = copy(newCommands)
-
+        started = self.hasStarted()
+        self.commandsForMismatch = copy(newCommands)
+        if not started:
+            self.commandsForMatch = copy(self.commandsForMismatch)
+        self.logger.debug(self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
+        
     def getNewCommands(self):
         shortcutName = self.replayScript.getShortcutNameWithArgs(self.argsUsed)
+        self.commandsForMatch.append(shortcutName)
+        self.commandsForMismatch = self.commandsForMatch
         self.reset()
-        self.unmatchedCommands.append(shortcutName)
-        return self.unmatchedCommands
+        return self.commandsForMatch
     
     def isLongerThan(self, otherTracker):
         return len(self.replayScript.commands) > len(otherTracker.replayScript.commands)

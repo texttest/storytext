@@ -90,8 +90,9 @@ class ReplayScript:
                 nextCommand = re.sub("\$[0-9]*", currArg, nextCommand, 1)
         return nextCommand
             
-    def getCommandsSoFar(self):
-        return self.commands[:self.pointer - 1] if self.pointer else []
+    def getCommandsSoFar(self, args):
+        rawCommands = self.commands[:self.pointer - 1] if self.pointer else []
+        return [ self.replaceArgs(cmd, args) for cmd in rawCommands]
 
     def getCommands(self, args):
         command = self.getCommand(args)
