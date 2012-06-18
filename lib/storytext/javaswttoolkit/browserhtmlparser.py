@@ -65,6 +65,8 @@ class TableParser:
         self.activeElements.remove(name)
         
     def getText(self):
+        if len(self.grid) == 0:
+            return ""
         formatter = GridFormatter(self.grid, max((len(r) for r in self.grid)), allowOverlap=False)
         return str(formatter)
     
