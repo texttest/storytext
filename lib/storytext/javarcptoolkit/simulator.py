@@ -20,6 +20,7 @@ from org.eclipse.swt import SWT
 from org.eclipse.ui.forms.widgets import ExpandableComposite
 from org.eclipse.ui.forms.events import ExpansionAdapter
 from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
+from java.lang import NullPointerException
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}
@@ -93,9 +94,16 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.setWidgetAdapter()
         swtsimulator.runOnUIThread(self.cacheAndMonitorViews)
         swtsimulator.WidgetMonitor.monitorAllWidgets(self, *args, **kw)
+
+    def getViews(self):
+        # Working around bug in SWTBot that crashes in some circumstances here...
+        try:
+            return self.bot.views()
+        except NullPointerException:
+            return []
         
     def cacheAndMonitorViews(self):
-        for swtbotView in self.bot.views():
+        for swtbotView in self.getViews():
             ref = swtbotView.getViewReference()
             if ref not in self.allViews:
                 self.allViews.add(ref)
