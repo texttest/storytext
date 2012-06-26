@@ -85,6 +85,8 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         parent = self.getContextAncestor()
         if isinstance(parent, swt.widgets.Table):
             return "TableCell"
+        elif isinstance(parent, swt.widgets.Tree):
+            return "TreeCell"
         else:
             return ""
         
@@ -314,7 +316,7 @@ class TextEvent(StateChangeEvent):
         if self.stateText is not None and self.stateText == newStateText:
             return False
         self.stateText = newStateText
-        return StateChangeEvent.shouldRecord(self, event, *args)
+        return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, event, *args)
     
     def isEditable(self):
         return not (self.widget.widget.widget.getStyle() & swt.SWT.READ_ONLY) 
@@ -338,7 +340,7 @@ class TextActivateEvent(SignalEvent):
         return swt.SWT.KeyDown
     
     def shouldRecord(self, event, *args):
-        return event.character == swt.SWT.CR and SignalEvent.shouldRecord(self, event, *args)
+        return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and event.character == swt.SWT.CR and SignalEvent.shouldRecord(self, event, *args)
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -362,7 +364,77 @@ class ComboTextEvent(TextEvent):
     def isEditable(self):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return True
+
+class CComboTextActivateEvent(TextActivateEvent):    
+    def shouldRecord(self, event, *args):
+        return event.character == swt.SWT.CR
+        
+    def delayLevel(self, *args):
+        return 0
+         
+class CComboSelectEvent(StateChangeEvent):
+    internalWidgets = []
+    def __init__(self, *args):
+        StateChangeEvent.__init__(self, *args)
+        self.stateText = None
+        self.addWidgets()
+
+    def addWidgets(self):
+        declaredField = self.widget.widget.widget.getClass().getDeclaredField("list")
+        declaredField.setAccessible(True)
+        list_ =  declaredField.get(self.widget.widget.widget)
+        declaredField = self.widget.widget.widget.getClass().getDeclaredField("text")
+        declaredField.setAccessible(True)
+        text_ =  declaredField.get(self.widget.widget.widget)
+        self.internalWidgets.append(list_)
+        self.internalWidgets.append(text_)
     
+    def getStateText(self, *args):
+        return self.widget.getText()
+    
+    def _generate(self, argumentString):
+        try:
+            self.widget.setSelection(argumentString)
+        except RuntimeException, e:
+            raise UseCaseScriptError, e.getMessage()
+        
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Selection"
+
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        _, currSelection = currOutput.split(self.name, 1)
+        _, oldSelection = stateChangeOutput.split(stateChangeEvent.name, 1)
+        return (isinstance(stateChangeEvent, CComboChangeEvent) and currSelection == oldSelection) or StateChangeEvent.implies(self, stateChangeOutput, *args)
+    
+    def delayLevel(self, *args):
+        return 0
+
+    def shouldRecord(self, event, *args):
+        newStateText = self.getStateText()
+        if self.stateText is not None and self.stateText == newStateText:
+            return False
+        self.stateText = newStateText
+        return StateChangeEvent.shouldRecord(self, event, *args)
+
+class CComboChangeEvent(CComboSelectEvent):
+    def _generate(self, argumentString):
+        try:
+            self.widget.setFocus()
+            self.widget.setText(argumentString)
+        except RuntimeException, e:
+            raise UseCaseScriptError, e.getMessage()
+
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Modify"
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return StateChangeEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
+
+    def isTriggeringEvent(self, e):
+        return True
 
 class TableSelectEvent(StateChangeEvent):
     @classmethod
@@ -584,6 +656,9 @@ class ListClickEvent(StateChangeEvent):
         else:
             indices = self.getIndices(argumentString)
             self.widget.select(indices)
+            
+    def shouldRecord(self, *args):
+        return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, *args)
 
     def getIndices(self, argumentString):
         indices = []
@@ -733,6 +808,12 @@ class FakeSWTBotTabFolder(swtbot.widgets.AbstractSWTBot):
 class FakeSWTBotCTabFolder(swtbot.widgets.AbstractSWTBot):
     pass
 
+# There is no way to type text in SWTBotCCombo, so make our own.
+class FakeSWTBotCCombo(swtbot.widgets.SWTBotCCombo):
+    def typeText(self, text):
+        self.setFocus()
+        self.keyboard().typeText(text, swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
+
 class BrowserUpdateMonitor(swt.browser.ProgressListener):
     def __init__(self, widget):
         self.widget = widget
@@ -773,6 +854,7 @@ class WidgetMonitor:
                   swt.widgets.Link     : (swtbot.widgets.SWTBotLink, []),
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
                   swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
+                  swt.custom.CCombo    : (FakeSWTBotCCombo, []),
                   swt.widgets.Table    : (swtbot.widgets.SWTBotTable, []),
                   swt.widgets.TableColumn : (swtbot.widgets.SWTBotTableColumn, []),
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
@@ -964,6 +1046,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
                 (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent, TextActivateEvent ]),
+                (FakeSWTBotCCombo                       , [ CComboSelectEvent, CComboChangeEvent, CComboTextActivateEvent ]),
                 (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
                 (FakeSWTBotCTabFolder                   , [ CTabSelectEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ CTabCloseEvent ]),

@@ -13,7 +13,8 @@ class Describer(storytext.guishared.Describer):
                    (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
                    (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE", "ARROW", "UP", "DOWN" ]),
                    (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
-                   (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]), 
+                   (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]),
+                   (swt.custom.CCombo   , [ "READ_ONLY", "FLAT", "BORDER" ]), 
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     ignoreWidgets = [ types.NoneType ]
     # DateTime children are an implementation detail
@@ -24,7 +25,8 @@ class Describer(storytext.guishared.Describer):
                      swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
                      swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
                      swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
-                     swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.widgets.Composite ]
+                     swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.custom.CCombo,
+                     swt.widgets.Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
     def __init__(self):
@@ -434,6 +436,9 @@ class Describer(storytext.guishared.Describer):
 
     def getComboDescription(self, widget):
         return self.getTextDescription(widget)
+
+    getCComboDescription = getComboDescription
+    getCComboState = getComboState
 
     def getTreeDescription(self, widget):
         return self.getAndStoreState(widget)
