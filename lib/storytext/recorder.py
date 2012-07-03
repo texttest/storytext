@@ -82,8 +82,9 @@ class ShortcutTracker:
 
     def updateCompletes(self, line):
         if self.currRegexp is None:
+            self.reset() # I think this is necessary now(TTT-2783), so the statement below is not true anymore
             self.logger.debug("Ignore " +  self.replayScript.getShortcutName())
-            return False # We already reached the end and should forever be ignored...
+            return False # We already reached the end and should forever be ignored...(Will discuss this with Geoff)
         match = self.currRegexp.match(line)
         if match:
             self.commandsForMismatch.append(line)
