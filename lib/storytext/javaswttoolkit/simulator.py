@@ -437,6 +437,10 @@ class CComboChangeEvent(CComboSelectEvent):
         return True
 
 class TableSelectEvent(StateChangeEvent):
+    def __init__(self, *args):
+        StateChangeEvent.__init__(self, *args)
+        TableIndexer.getIndexer(self.widget.widget.widget)
+
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "MouseDown"
@@ -478,8 +482,8 @@ class TableSelectEvent(StateChangeEvent):
     
 class TableIndexer(storytext.guishared.TableIndexer):
     def __init__(self, table):
-        storytext.guishared.TableIndexer.__init__(self, table)
         self.cachedRowCount = 0
+        storytext.guishared.TableIndexer.__init__(self, table)
         
     def getRowCount(self):
         return runOnUIThread(self.table.getItemCount)

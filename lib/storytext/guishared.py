@@ -1312,9 +1312,12 @@ class TableIndexer:
     def getIndexedValue(self, index, value, mapping):
         indices = mapping.get(value)
         if len(indices) == 1:
-            return value
+            return value.strip() if self.isBlank(value) else value
         else:
             return value + " (" + str(indices.index(index) + 1) + ")"
+
+    def isBlank(self, text):
+        return len(text) > 0 and len(text.strip()) == 0
 
     def addIndexes(self, values):
         mapping = {}
@@ -1335,6 +1338,8 @@ class TableIndexer:
             if colIndex is None:
                 raise definitions.UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
             return rowName, colIndex
+        elif description.endswith(" for"):
+            return "", 0
         else:
             return description, 0
     

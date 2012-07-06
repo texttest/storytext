@@ -504,7 +504,7 @@ class Describer(storytext.guishared.Describer):
         rows = self.getAllItemDescriptions(widget, indent=0, 
                                            selection=widget.getSelection(),
                                            columnCount=columnCount)
-        headerRow = [ c.getText() for c in columns ]
+        headerRow = [ c.getText() for c in columns if c.getWidth() > 0] # Don't show hidden columns
         return text + self.formatTable(headerRow, rows, columnCount)
 
     def getTabFolderDescription(self, widget):
