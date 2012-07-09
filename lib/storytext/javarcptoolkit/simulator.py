@@ -122,7 +122,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     def addTitleChangedListener(self, botView):
         class PropertyListener(IPropertyListener):
             def propertyChanged(lself, source, propertyId):#@NoSelf
-                if propertyId == IWorkbenchPartConstants.PROP_PART_NAME:
+                if propertyId == IWorkbenchPartConstants.PROP_PART_NAME or propertyId == IWorkbenchPartConstants.PROP_TITLE:
                     self.monitorMenus(botView)
 
         view = botView.getViewReference().getView(False)
