@@ -389,11 +389,7 @@ class ViewerSelectEvent(ViewerEvent):
     def shouldRecord(self, part, *args):
         types = self.getSignalsToFilter()
         hasMouseEvent = DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
-        if len(self.widget.selectedEditParts()) == 1:
-            return hasMouseEvent 
-        else:
-            return len(self.getStateDescription(part, *args)) > 0 and (hasMouseEvent or ViewerEvent.shouldRecord(self, part, *args))
-
+        return hasMouseEvent and (len(self.widget.selectedEditParts()) > 0 or len(self.getStateDescription(part, *args)) > 0)
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
