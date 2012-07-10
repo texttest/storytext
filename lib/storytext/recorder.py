@@ -108,9 +108,7 @@ class ShortcutTracker:
                 return self.updateCompletes(line)
             else:
                 self.commandsForMismatch.append(line)
-                pattern = copy(self.currRegexp.pattern)
                 self.reset()
-                self.logger.debug(pattern + ", " +  repr(line) + ", " + self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch))
                 return False
         
     def rerecord(self, newCommands):
@@ -119,7 +117,7 @@ class ShortcutTracker:
         self.commandsForMismatch = copy(newCommands)
         if not started:
             self.commandsForMatch = copy(self.commandsForMismatch)
-        self.logger.debug(self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
+        self.logger.debug("Rerecord " + self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
         
     def getNewCommands(self):
         shortcutName = self.replayScript.getShortcutNameWithArgs(self.argsUsed)
