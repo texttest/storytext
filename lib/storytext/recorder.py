@@ -76,15 +76,13 @@ class ShortcutTracker:
         self.argsUsed = []
         self.currRegexp = self.replayScript.getCommandRegexp()
 
-
     def hasStarted(self):
         return self.commandsForMismatch != self.commandsForMatch
 
     def updateCompletes(self, line):
         if self.currRegexp is None:
-            self.reset() # I think this is necessary now(TTT-2783), so the statement below is not true anymore
             self.logger.debug("Ignore " +  self.replayScript.getShortcutName())
-            return False # We already reached the end and should forever be ignored...(Will discuss this with Geoff)
+            return False # We already reached the end and should forever be ignored...
         match = self.currRegexp.match(line)
         if match:
             self.commandsForMismatch.append(line)
@@ -115,7 +113,9 @@ class ShortcutTracker:
         # Some other tracker has completed, include it in our unmatched commands...
         started = self.hasStarted()
         self.commandsForMismatch = copy(newCommands)
-        if not started:
+        if self.currRegexp is None: # we completed, but haven't been chosen, because there was a better one to use
+            self.reset()
+        elif not started:
             self.commandsForMatch = copy(self.commandsForMismatch)
         self.logger.debug("Rerecord " + self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
         
