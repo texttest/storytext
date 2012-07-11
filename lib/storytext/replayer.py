@@ -40,8 +40,8 @@ class ReplayScript:
             text = text.replace(char, "\\" + char)
         # handle numbered variables
         text = re.sub("\$([0-9]+)", "(?P<var\\1>.*)", text)
-        # handle unnumbered variables
-        return text.replace("$", "(.*)")
+        # handle unnumbered variables, and make sure we don't match anything longer
+        return text.replace("$", "(.*)") + "$"
     
     def getRegexp(self, command):
         return re.compile(self.transformToRegexp(command)) if command else None
@@ -134,7 +134,8 @@ class UseCaseReplayer:
         self.shortcuts.append((shortcut.getShortcutRegexp(), shortcut))
 
     def getShortcuts(self):
-        return sorted(((r.pattern, shortcut) for r, shortcut in self.shortcuts))
+        # Drop the trailing $ from the pattern
+        return sorted(((r.pattern[:-1], shortcut) for r, shortcut in self.shortcuts))
     
     def addEvent(self, event):
         self.events.setdefault(event.name, []).append(event)
@@ -276,9 +277,19 @@ class UseCaseReplayer:
             match = regex.match(command)
             if match:
                 args = list(match.groups())
-                if bestShortcut is None or len(args) > len(bestArgs):
+                if bestShortcut is None or self.isBetterShortcut(args, bestArgs):
                     bestShortcut, bestArgs = shortcut, args
         return bestShortcut, bestArgs
+
+    def isBetterShortcut(self, args1, args2):
+        if len(args1) != len(args2):
+            return len(args1) > len(args2)
+        
+        # If we have the same arguments, choose the shortcut with least text in arguments
+        # which implies more text in the given name
+        argLength1 = sum(map(len, args1))
+        argLength2 = sum(map(len, args2))
+        return argLength1 < argLength2
 
     def runNextCommand(self, **kw):
         if self.timeDelayNextCommand:

@@ -261,10 +261,14 @@ class ResizeEvent(StateChangeEvent):
 
     def dimensionText(self, dimension):
         return str((dimension / 10) * 10)
+    
+    def getSize(self):
+        size = self.widget.widget.widget.getSize()
+        return size.x, size.y 
         
     def getStateText(self, *args):
-        size = self.widget.widget.widget.getSize()
-        return "width " + self.dimensionText(size.x) + " and height " + self.dimensionText(size.y)
+        width, height = self.getSize()
+        return "width " + self.dimensionText(width) + " and height " + self.dimensionText(height)
 
 
 class CTabCloseEvent(SignalEvent):
