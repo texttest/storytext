@@ -6,8 +6,9 @@ from definitions import UseCaseScriptError
 from ordereddict import OrderedDict
 
 origApp = wx.App
+origPySimpleApp = wx.PySimpleApp
 
-class App(origApp):
+class AppHelper:
     idle_methods = []
     timeout_methods = []
 
@@ -17,11 +18,19 @@ class App(origApp):
         for milliseconds, timeout_method in self.timeout_methods:
             wx.CallLater(milliseconds, timeout_method)
 
+
+class App(AppHelper, origApp):
     def MainLoop(self):
         self.setUpHandlers()
         return origApp.MainLoop(self)
 
+class PySimpleApp(AppHelper, origPySimpleApp):
+    def MainLoop(self):
+        self.setUpHandlers()
+        return origPySimpleApp.MainLoop(self)
+
 wx.App = App
+wx.PySimpleApp = PySimpleApp
         
 origDialog = wx.Dialog
 class DialogHelper:
@@ -505,7 +514,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
         if wx.GetApp():
             return wx.CallLater(0, method)
         else:
-            wx.App.idle_methods.append(method)
+            AppHelper.idle_methods.append(method)
             return True # anything to show we've got something
                 
     def findWindowsForMonitoring(self):
@@ -520,7 +529,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
 
     def removeHandler(self, handler):
         # Need to do this for real handlers, don't need it yet
-        wx.App.idle_methods = []
+        AppHelper.idle_methods = []
 
     def callReplayHandlerAgain(self, *args):
         if len(args) > 0:
@@ -534,7 +543,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
         if wx.GetApp():
             wx.CallLater(milliseconds, method)
         else:
-            wx.App.timeout_methods.append((milliseconds, method))
+            AppHelper.timeout_methods.append((milliseconds, method))
             return True
 
     def runMainLoopWithReplay(self):
