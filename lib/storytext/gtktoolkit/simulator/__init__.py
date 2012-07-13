@@ -2,21 +2,28 @@
 """ Main entry point for simulator functionality """
 
 import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, storytext.guishared
+import types, inspect
 
 performInterceptions = miscevents.performInterceptions
 origDialog = gtk.Dialog
 origFileChooserDialog = gtk.FileChooserDialog    
+origBuilder = gtk.Builder
 
 class DialogHelper:
+    uiMap = None
+    def initialise(self):
+        self.dialogRunLevel = 0
+        self.handlers = []
+        self.tryMonitor()
+
     def tryMonitor(self):
-        if self.uiMap.scriptEngine.recorderActive():
-            self.connect_for_real = self.connect
-            self.connect = self.store_connect
-            self.disconnect_for_real = self.disconnect
-            handlerAttrs = [ "disconnect", "handler_is_connected", "handler_disconnect",
-                             "handler_block", "handler_unblock" ]
-            for attrName in handlerAttrs:
-                setattr(self, attrName, self.handlerWrap(attrName))
+        self.connect_for_real = self.connect
+        self.connect = self.store_connect
+        self.disconnect_for_real = self.disconnect
+        handlerAttrs = [ "disconnect", "handler_is_connected", "handler_disconnect",
+                         "handler_block", "handler_unblock" ]
+        for attrName in handlerAttrs:
+            setattr(self, attrName, self.handlerWrap(attrName))
             
     def store_connect(self, signalName, *args):
         return windowevents.ResponseEvent.storeApplicationConnect(self, signalName, *args)
@@ -61,31 +68,37 @@ class DialogHelper:
         
 
 class Dialog(DialogHelper, origDialog):
-    uiMap = None
     def __init__(self, *args, **kw):
         origDialog.__init__(self, *args, **kw)
-        self.dialogRunLevel = 0
-        self.handlers = []
-        self.tryMonitor()
+        self.initialise()
     
 
 class FileChooserDialog(DialogHelper, origFileChooserDialog):
-    uiMap = None
     def __init__(self, *args, **kw):
         origFileChooserDialog.__init__(self, *args, **kw)
-        self.dialogRunLevel = 0
-        self.handlers = []
-        self.tryMonitor()
+        self.initialise()
+
+class Builder(origBuilder):
+    def get_object(self, *args):
+        realObject = origBuilder.get_object(self, *args)
+        if isinstance(realObject, origDialog):
+            helper = DialogHelper()
+            realObject.uiMap = DialogHelper.uiMap
+            for name, member in inspect.getmembers(DialogHelper, inspect.ismethod):
+                newMethod = types.MethodType(member.__func__, realObject)
+                setattr(realObject, name, newMethod)
+            realObject.initialise()
+        return realObject
 
 
 class UIMap(storytext.guishared.UIMap):
     ignoreWidgetTypes = [ "Label" ]
     def __init__(self, *args): 
         storytext.guishared.UIMap.__init__(self, *args)
+        gtk.Builder = Builder
         gtk.Dialog = Dialog
-        Dialog.uiMap = self
+        DialogHelper.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
-        FileChooserDialog.uiMap = self
         gtk.quit_add(1, self.fileHandler.write) # Write changes to the GUI map when the application exits
     
     def monitorChildren(self, widget, *args, **kw):
