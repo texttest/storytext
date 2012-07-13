@@ -2,6 +2,7 @@
 import storytext.guishared, util, logging, os
 from storytext.definitions import UseCaseScriptError
 from storytext import applicationEvent
+from difflib import SequenceMatcher
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
@@ -329,10 +330,26 @@ class TextEvent(StateChangeEvent):
         if "typed" in self.generationModifiers:
             currOutput = self.outputForScript(*args)
             return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
-                (currOutput.startswith(stateChangeOutput) or \
-                 stateChangeOutput.startswith(currOutput))
+               self.hasGainedOrLostCharacters(currOutput, stateChangeOutput)
         else:
             return StateChangeEvent.implies(self, stateChangeOutput, *args)
+            
+    @classmethod
+    def hasGainedOrLostCharacters(cls, text1, text2):
+        matcher = SequenceMatcher(None, text1, text2)
+        blocks = matcher.get_matching_blocks()
+        totalMatchLength = sum((block[2] for block in blocks))
+        return totalMatchLength == min(len(text1), len(text2)) and cls.mismatchingSectionCount(blocks) <= 1
+    
+    @staticmethod
+    def mismatchingSectionCount(blocks):
+        # We want to make sure text has only been inserted or deleted in a block, as a user would do
+        startMismatch = blocks[0][0] > 0 or blocks[0][1] > 0
+        middleMismatches = max(len(blocks) - 2, 0)
+        endMismatch = blocks[-2][0] + blocks[-2][2] != blocks[-1][0] or \
+                      blocks[-2][1] + blocks[-2][2] != blocks[-1][1]
+        return int(startMismatch) + middleMismatches + int(endMismatch)
+        
             
 class TextActivateEvent(SignalEvent):
     @classmethod
