@@ -13,7 +13,7 @@ from org.eclipse.draw2d import * #@UnusedWildImport
 from org.eclipse.gef import *
 import storytext.guishared
 from org.eclipse import swt
-import time
+import time, logging
 
 class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
     def __init__(self, botOrGefViewer):
@@ -175,6 +175,7 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
         self.swtbotMap[GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
+        self.logger = logging.getLogger("storytext record")
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
 
     def createSwtBot(self):
@@ -190,12 +191,19 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
             if menu:
                 self.monitorMenu(menu)
 
+    def sendShowEvent(self, menu):
+        try:
+            menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
+        except:
+            # For whatever reason, we might not be ready for this. Don't crash if so.
+            self.logger.debug("Exception caught while trying to monitor menu, not monitoring it.")
+        
     def monitorMenu(self, menu):
         if menu.getItemCount() == 0:
             # The menu is a Contribution defined in plugin.xml. We have to send an extra
             # SHOW event to instantiate it.
-            menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
-        menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
+            self.sendShowEvent(menu)
+        self.sendShowEvent(menu)
         for item in menu.getItems():
             submenu = item.getMenu()
             if submenu:
