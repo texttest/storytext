@@ -3,6 +3,7 @@
 
 import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, storytext.guishared
 import types, inspect
+from storytext.gtktoolkit.widgetadapter import WidgetAdapter
 
 performInterceptions = miscevents.performInterceptions
 origDialog = gtk.Dialog
@@ -80,6 +81,7 @@ class FileChooserDialog(DialogHelper, origFileChooserDialog):
 
 class Builder(origBuilder):
     def get_object(self, *args):
+        WidgetAdapter.builderEnabled = True
         realObject = origBuilder.get_object(self, *args)
         if isinstance(realObject, origDialog):
             helper = DialogHelper()
