@@ -18,13 +18,14 @@ class DialogHelper:
         self.tryMonitor()
 
     def tryMonitor(self):
-        self.connect_for_real = self.connect
-        self.connect = self.store_connect
-        self.disconnect_for_real = self.disconnect
-        handlerAttrs = [ "disconnect", "handler_is_connected", "handler_disconnect",
-                         "handler_block", "handler_unblock" ]
-        for attrName in handlerAttrs:
-            setattr(self, attrName, self.handlerWrap(attrName))
+        if self.uiMap.scriptEngine.active():
+            self.connect_for_real = self.connect
+            self.connect = self.store_connect
+            self.disconnect_for_real = self.disconnect
+            handlerAttrs = [ "disconnect", "handler_is_connected", "handler_disconnect",
+                             "handler_block", "handler_unblock" ]
+            for attrName in handlerAttrs:
+                setattr(self, attrName, self.handlerWrap(attrName))
             
     def store_connect(self, signalName, *args):
         return windowevents.ResponseEvent.storeApplicationConnect(self, signalName, *args)
