@@ -19,12 +19,87 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
     def __init__(self, botOrGefViewer):
         gefViewer = self._getViewer(botOrGefViewer) if isinstance(botOrGefViewer, gefbot.widgets.SWTBotGefViewer) else botOrGefViewer
         gefbot.widgets.SWTBotGefViewer.__init__(self, gefViewer)
+        self.logger = logging.getLogger("Centre finding")
 
-    def clickOnCenter(self, editPart, keyModifiers=0):
+    def findOverlap(self, overlaps, centreX, centreY):
+        for overlap in overlaps:
+            if overlap.contains(centreX, centreY):
+                return overlap
+
+    def getCentre(self, bounds):
+        centreX = bounds.x + bounds.width / 2
+        centreY = bounds.y + bounds.height / 2
+        return centreX, centreY
+
+    def getCenter(self, editPart):
         bounds = self.getBoundsInternal(editPart)
         visibleBounds = self.getFigureCanvas().getIntersection(bounds)
-        centreX = visibleBounds.x + visibleBounds.width / 2
-        centreY = visibleBounds.y + visibleBounds.height / 2
+        self.logger.debug("Found bounds at " + repr(visibleBounds))
+        overlaps = self.findOverlapRegions(editPart, visibleBounds)
+        return self.findNonOverlappingCentre(visibleBounds, overlaps)
+    
+    def findNonOverlappingCentre(self, bounds, overlaps):
+        centreX, centreY = self.getCentre(bounds)
+        self.logger.debug("Found centre at " + repr((centreX, centreY)))
+        overlap = self.findOverlap(overlaps, centreX, centreY)
+        if overlap:
+            self.logger.debug("Centre overlaps rectangle at " + repr(overlap))
+            for rect in self.findOutsideRectangles(bounds, overlap):
+                self.logger.debug("Trying outside rectangle " + repr(rect))
+                newOverlaps = []
+                for otherOverlap in overlaps:
+                    if otherOverlap is not overlap:
+                        intersection = rect.intersection(otherOverlap)
+                        if intersection.height and intersection.width and intersection not in newOverlaps:    
+                            self.logger.debug("Found new overlap " + repr(intersection))
+                            newOverlaps.append(intersection)
+                if rect not in newOverlaps:
+                    centre = self.findNonOverlappingCentre(rect, newOverlaps)
+                    if centre:
+                        return centre
+        return centreX, centreY
+    
+    def findOutsideRectangles(self, rect, innerRect):
+        rects = []
+        if rect.x != innerRect.x:
+            rects.append(swt.graphics.Rectangle(rect.x, rect.y, innerRect.x - rect.x, rect.height))
+        if rect.y != innerRect.y:
+            rects.append(swt.graphics.Rectangle(rect.x, rect.y, rect.width, innerRect.y - rect.y))
+        if rect.x + rect.width != innerRect.x + innerRect.width:
+            rects.append(swt.graphics.Rectangle(innerRect.x + innerRect.width, rect.y, rect.x + rect.width - innerRect.x - innerRect.width, rect.height))
+        if rect.y + rect.height != innerRect.y + innerRect.height:
+            rects.append(swt.graphics.Rectangle(rect.x, innerRect.y + innerRect.height, rect.width, rect.y + rect.height - innerRect.y - innerRect.height))
+        return sorted(rects, key=lambda r: -r.height * r.width)
+            
+    def findRoot(self, editPart):
+        parent = editPart.parent()
+        if parent.part() is None:
+            return editPart
+        else:
+            return self.findRoot(parent)
+
+    def findOverlapRegions(self, editPart, bounds):
+        rootEditPart = self.findRoot(editPart)
+        return self.findOverlapRegionsUnder(rootEditPart, editPart, bounds)
+    
+    def findOverlapRegionsUnder(self, editPart, ignoreEditPart, bounds):
+        return self.findOverlapRegionsFor(editPart.children(), ignoreEditPart, bounds) + \
+            self.findOverlapRegionsFor(editPart.sourceConnections(), ignoreEditPart, bounds)
+    
+    def findOverlapRegionsFor(self, editParts, ignoreEditPart, bounds):
+        overlaps = []
+        for otherPart in editParts:
+            if otherPart is not ignoreEditPart and otherPart.part().isSelectable():
+                otherBounds = self.getBoundsInternal(otherPart)
+                intersection = bounds.intersection(otherBounds)
+                if intersection.height and intersection.width and intersection != bounds and intersection not in overlaps:
+                    overlaps.append(intersection)
+                    self.logger.debug("Overlap found at " + repr(intersection))
+            overlaps += self.findOverlapRegionsUnder(otherPart, ignoreEditPart, bounds)
+        return overlaps
+
+    def clickOnCenter(self, editPart, keyModifiers=0):
+        centreX, centreY = self.getCenter(editPart)
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
         self.getFigureCanvas().mouseMoveLeftClick(centreX, centreY, keyModifiers)
 
@@ -32,8 +107,10 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         # getAbsoluteBounds method has private access modifier
         declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [gefbot.widgets.SWTBotGefEditPart])
         declaredMethod.setAccessible(True)
-        return declaredMethod.invoke(self, [editPart])
-
+        bounds = declaredMethod.invoke(self, [editPart])
+        # SWT and draw2d have their own rectangle class, with the same methods, but they aren't the same...
+        return swt.graphics.Rectangle(getInt(bounds.x), getInt(bounds.y), getInt(bounds.width), getInt(bounds.height))
+        
     def getViewer(self):
         return self._getViewer(self)
     
@@ -54,10 +131,8 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
 
     # toX and toY should be in display coordinates
     def drag(self, editPart, toX, toY, keyModifiers=0):
-        bounds = self.getBoundsInternal(editPart)
-        # Hard coded offset found in swtbot.
-        offset = 7/2 + 1
-        self.getFigureCanvas().mouseDrag(getInt(bounds.x) + offset, getInt(bounds.y) + offset, toX, toY, keyModifiers)
+        centreX, centreY = self.getCenter(editPart)
+        self.getFigureCanvas().mouseDrag(centreX, centreY, toX, toY, keyModifiers)
 
 class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):    
     def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
@@ -101,10 +176,8 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
             rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, startX, startY)
 
     def getIntersection(self, bounds):
-        # SWT and draw2d have their own rectangle class, with the same methods, but they aren't the same...
-        swtBounds = swt.graphics.Rectangle(getInt(bounds.x), getInt(bounds.y), getInt(bounds.width), getInt(bounds.height))
         canvasBounds = rcpsimulator.swtsimulator.runOnUIThread(self.widget.getBounds)
-        return canvasBounds.intersection(swtBounds)
+        return canvasBounds.intersection(bounds)
 
     def mouseMoveLeftClick(self, x, y, keyModifiers=0):
         displayLoc = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
