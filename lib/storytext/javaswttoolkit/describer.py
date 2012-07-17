@@ -501,11 +501,22 @@ class Describer(storytext.guishared.Describer):
         columns = widget.getColumns()
         columnCount = len(columns)
         text = self.combineElements([ "Table" ] + self.getPropertyElements(widget)) + " :\n"
-        rows = self.getAllItemDescriptions(widget, indent=0, 
+        rows = self.getAllTableItemDescriptions(widget, indent=0, 
                                            selection=widget.getSelection(),
                                            columnCount=columnCount)
         headerRow = [ c.getText() for c in columns if c.getWidth() > 0] # Don't show hidden columns
         return text + self.formatTable(headerRow, rows, columnCount)
+
+    def getAllTableItemDescriptions(self, widget, indent=0,
+                               prefix="", selection=[], columnCount=0, **kw):
+        descs = []
+        for item in widget.getItems():
+            currPrefix = prefix + " " * indent * 2
+            selected = item in selection
+            if columnCount:
+                row = [ self.getItemColumnDescription(item, i, currPrefix, selected) for i in range(columnCount) if widget.getColumn(i).getWidth() > 0]
+                descs.append(row)
+        return descs
 
     def getTabFolderDescription(self, widget):
         state = self.getState(widget)
