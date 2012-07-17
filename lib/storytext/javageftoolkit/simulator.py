@@ -265,17 +265,14 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
                 self.monitorMenu(menu)
 
     def sendShowEvent(self, menu):
-        try:
-            menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
-        except:
-            # For whatever reason, we might not be ready for this. Don't crash if so.
-            self.logger.debug("Exception caught while trying to monitor menu, not monitoring it.")
+        menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
         
     def monitorMenu(self, menu):
         if menu.getItemCount() == 0:
             # The menu is a Contribution defined in plugin.xml. We have to send an extra
             # SHOW event to instantiate it.
             self.sendShowEvent(menu)
+
         self.sendShowEvent(menu)
         for item in menu.getItems():
             submenu = item.getMenu()
