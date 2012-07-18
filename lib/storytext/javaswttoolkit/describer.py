@@ -65,7 +65,8 @@ class Describer(storytext.guishared.Describer):
         display.addFilter(swt.SWT.Show, ShowListener())
         display.addFilter(swt.SWT.Paint, PaintListener())
 
-    def describeWithUpdates(self, shell):
+    def describeWithUpdates(self, shellMethod):
+        shell = shellMethod()
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, old, new in stateChanges ]

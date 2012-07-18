@@ -16,6 +16,7 @@ from org.eclipse import swt
 import time, logging
 
 class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
+    widgetMonitor = None
     def __init__(self, botOrGefViewer):
         gefViewer = self._getViewer(botOrGefViewer) if isinstance(botOrGefViewer, gefbot.widgets.SWTBotGefViewer) else botOrGefViewer
         gefbot.widgets.SWTBotGefViewer.__init__(self, gefViewer)
@@ -99,6 +100,9 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         return overlaps
 
     def clickOnCenter(self, editPart, keyModifiers=0):
+        if self.widgetMonitor:
+            # To do actual clicking, must make sure the shell is active... doesn't happen automatically in Xvfb
+            self.widgetMonitor.forceShellActive()
         centreX, centreY = self.getCenter(editPart)
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
         self.getFigureCanvas().mouseMoveLeftClick(centreX, centreY, keyModifiers)
@@ -250,6 +254,7 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         self.swtbotMap[GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
         self.logger = logging.getLogger("storytext record")
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
+        StoryTextSWTBotGefViewer.widgetMonitor = self
 
     def createSwtBot(self):
         return gefbot.SWTGefBot()

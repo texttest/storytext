@@ -931,7 +931,7 @@ class WidgetMonitor:
         self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
         self.uiMap.logger.debug("Monitoring all widgets in active shell...")
-        self.monitorAllWidgets(self.getActiveShell(), list(allWidgets))
+        self.monitorAllWidgets(runOnUIThread(self.getActiveShell), list(allWidgets))
         self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
         
     def forceShellActive(self):
@@ -1015,7 +1015,7 @@ class WidgetMonitor:
 
     def findAllWidgets(self):
         matcher = IsAnything()
-        widgets = self.bot.widgets(matcher)
+        widgets = self.bot.widgets(matcher, runOnUIThread(self.getActiveShell))
         menus = self.bot.getFinder().findMenus(matcher)
         widgets.addAll(menus)
         return widgets
@@ -1054,7 +1054,13 @@ class WidgetMonitor:
                     pass
         
     def getActiveShell(self):
-        return self.bot.getFinder().activeShell()
+        finder = self.bot.getFinder()
+        activeShell = finder.activeShell()
+        if activeShell is not None:
+            return activeShell
+        shells = filter(lambda s: s.getText(), finder.getShells())
+        if shells:
+            return shells[-1]
 
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),

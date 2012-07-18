@@ -78,7 +78,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         describer = self.getDescriberClass()()
         runOnUIThread(describer.addFilters, monitor.getDisplay())
         def describe():
-            runOnUIThread(describer.describeWithUpdates, monitor.getActiveShell())
+            runOnUIThread(describer.describeWithUpdates, monitor.getActiveShell)
         self.describeAndRun(describe)
 
     def getDescriberClass(self):
