@@ -641,7 +641,9 @@ class TreeClickEvent(TreeEvent):
             (event.item is None or event.item in event.widget.getSelection())
 
     def generateItem(self, item):
-        item.select()
+        # Swtbot select and click methods doesn't seem to generate all events that a mouse click does.
+        runOnUIThread(self.widget.widget.widget.setSelection, item.widget)
+        item.click()
 
     def isStateChange(self):
         return True
