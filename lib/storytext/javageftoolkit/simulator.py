@@ -450,9 +450,12 @@ class ViewerSelectEvent(ViewerEvent):
 
     def simulateClick(self, parts, description):
         if len(parts) > 0:
-            rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
-            for part in parts[1:]:
-                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, part, swt.SWT.CTRL)
+            if parts == 1:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
+            else:
+                rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
+                for part in parts:
+                    rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, part, swt.SWT.CTRL)
         else:
             raise UseCaseScriptError, "Could not find any objects in viewer matching description " + repr(description)
 
