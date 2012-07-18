@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import scriptengine, definitions
-import os, sys, logging.config, optparse
+import os, sys, logging.config, optparse, time
+from threading import Thread
     
 def create_option_parser():
     usage = """usage: %prog [options] <program> <program_args> ...
@@ -27,6 +28,10 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-i", "--interface", metavar="INTERFACE",
                       help="type of interface used by application, should be 'console', 'gtk', 'tkinter', 'wx', 'javaswing', 'javaswt', 'javarcp' or 'javagef' ('" + default_interface + "' is default)", 
                       default=default_interface)
+    parser.add_option("-f", "--pollfile", metavar="FILENAME",
+                      help="file to poll for updates, generating an application event when it appears or disappears")
+    parser.add_option("-F", "--pollfile-event-name", metavar="EVENTNAME",
+                      help="Only useful with -f. Use as name for generated application event instead of 'wait for FILENAME to be updated'")
     parser.add_option("-I", "--imagedescription",
                       help="determines how images are described by the auto-generated output, should be 'name' or 'number'")
     parser.add_option("-l", "--loglevel", default="INFO", 
@@ -93,6 +98,18 @@ def set_up_environment(options):
     if options.delay:
         os.environ["USECASE_REPLAY_DELAY"] = options.delay
 
+def poll_file(fileName, eventName, scriptEngine):
+    eventName = eventName or fileName + " to be updated"
+    startState = os.path.exists(fileName)
+    class PollThread(Thread):
+        def run(self):
+            while os.path.exists(fileName) == startState:
+                time.sleep(0.1)
+            scriptEngine.applicationEvent(eventName, category="file poll")
+            
+    thread = PollThread()
+    thread.setDaemon(True)
+    thread.start()
 
 def check_python_version():
     major, minor = sys.version_info[:2]
@@ -106,11 +123,13 @@ def check_python_version():
 def main(install_root):
     parser = create_option_parser()
     options, args = parser.parse_args()
-    set_up_environment(options)    
+    set_up_environment(options)
     try:
         check_python_version()
         import storytext
         storytext.scriptEngine = create_script_engine(options, install_root)
+        if options.pollfile:
+            poll_file(options.pollfile, options.pollfile_event_name, storytext.scriptEngine)
         if not storytext.scriptEngine.run(options, args):
             parser.print_help()
     except definitions.UseCaseScriptError, e:
