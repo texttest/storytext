@@ -796,7 +796,7 @@ class DisplayFilter:
                         self.eventsFromUser.remove(e)
                     
             runOnUIThread(e.widget.addListener, e.type, EventFinishedListener())
-            if e.item:
+            if e.item and not e.item.isDisposed():
                 # Safe guard against the application changing the text before we can record
                 self.itemTextCache[e.item] = e.item.getText()
         elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
