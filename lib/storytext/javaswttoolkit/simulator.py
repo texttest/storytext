@@ -203,7 +203,7 @@ class TabSelectEvent(SelectEvent):
             if item.getText() == text:
                 return item
         
-    def findTab(self, text):
+    def parseArguments(self, text):
         # Seems we can only get tab item text in the UI thread (?)
         item = runOnUIThread(self.findTabWithText, text)
         if item:
@@ -211,8 +211,7 @@ class TabSelectEvent(SelectEvent):
         else:
             raise UseCaseScriptError, "Could not find tab labelled '" + text + "' in TabFolder."
     
-    def _generate(self, argumentString):
-        tab = self.findTab(argumentString)
+    def _generate(self, tab):
         self.swtbotItemClass(tab).activate()
         
     def outputForScript(self, event, *args):
@@ -469,10 +468,13 @@ class TableSelectEvent(StateChangeEvent):
     def getAssociatedSignatures(cls, widget):
         return [ "CellSelection" ]
     
-    def _generate(self, argumentString):
+    def parseArguments(self, argumentString):
         indexer = TableIndexer.getIndexer(self.widget.widget.widget)
         row, col = indexer.getViewCellIndices(argumentString)
-        self.widget.click(row, col)
+        return row, col
+    
+    def _generate(self, cell):
+        self.widget.click(*cell)
         
     def getStateText(self, event, *args):
         row, col = self.findCell(event)
@@ -564,25 +566,33 @@ class TableColumnHeaderEvent(SignalEvent):
     def outputForScript(self, event, *args):
         return " ".join([ self.name, event.widget.getText() ])
     
-    def _generate(self, argumentString):
+    def parseArguments(self, argumentString):
         try:
-            column = self.widget.header(argumentString)
-            column.click()
+            return self.widget.header(argumentString)
         except swtbot.exceptions.WidgetNotFoundException:
             raise UseCaseScriptError, "Could not find column labelled '" + argumentString + "' in table."
-    
+        
+    def _generate(self, column):
+        column.click()
+        
 
 class TreeEvent(SignalEvent):
-    def _generate(self, argumentString):
-        if len(argumentString) == 0:
-            self.widget.unselect()
+    def _generate(self, item):
+        if item:
+            self.generateItem(item)
         else:
+            self.widget.unselect()
+            
+    def parseArguments(self, argumentString):
+        if argumentString:
             item = self.findItem(argumentString, self.widget.getAllItems())
             if item:
-                self.generateItem(item)
+                return item
             else:
                 raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in " + self.getClassDesc() + "."
-
+        else:
+            return ""
+    
     def getClassDesc(self):
         return self.widget.widget.widget.__class__.__name__.lower()
 
@@ -676,12 +686,14 @@ class ListClickEvent(StateChangeEvent):
     def getStateText(self, *args):
         return ",".join(self.widget.selection())
 
-    def _generate(self, argumentString):
-        if len(argumentString) == 0:
+    def _generate(self, indices):
+        if len(indices) == 0:
             self.widget.unselect()
         else:
-            indices = self.getIndices(argumentString)
             self.widget.select(indices)
+            
+    def parseArguments(self, argumentString):
+        return self.getIndices(argumentString) if argumentString else []
             
     def shouldRecord(self, *args):
         return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, *args)

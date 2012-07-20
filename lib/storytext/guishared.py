@@ -175,18 +175,18 @@ class GuiEvent(definitions.UserEvent):
     def widgetSensitive(self):
         return True
 
-    def checkWidgetStatus(self, *args):
+    def checkWidgetStatus(self):
         if self.widgetDisposed():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
-                  " has already been disposed, cannot simulate event " + repr(self.name)
+                  " has already been disposed."
 
         if not self.widgetVisible():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
-                  " is not visible at the moment, cannot simulate event " + repr(self.name)
+                  " is not visible at the moment."
 
         if not self.widgetSensitive():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
-                  " is not sensitive to input at the moment, cannot simulate event " + repr(self.name)
+                  " is not sensitive to input at the moment."
 
 
 class MethodIntercept:
@@ -668,10 +668,9 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
     def getParseError(self, scriptCommand):
         widgetDescriptor, actionName = self.uiMap.findWidgetDetails(scriptCommand)
         if widgetDescriptor:
-            return "Could not execute script command '" + scriptCommand + "'.\n" + \
-                   "No widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on."
+            return "no widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on."
         else:
-            return replayer.UseCaseReplayer.getParseError(self, scriptCommand)
+            return "could not find matching entry in UI map file."
 
 
 # Use the idle handlers instead of a separate thread for replay execution
@@ -773,8 +772,8 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         for attempt in range(attemptCount):
             try:
                 command, argumentString = self.parseCommand(commandWithArg)
-                event = self.checkWidgetStatus(command, argumentString)
-                return command, argumentString, event
+                event, parsedArguments = self.checkWidgetStatus(command, argumentString)
+                return command, argumentString, event, parsedArguments
             except definitions.UseCaseScriptError:
                 # We don't terminate scripts if they contain errors
                 if attempt == attemptCount - 1:
@@ -792,24 +791,20 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
             for event in reversed(possibleEvents[1:]):
                 try:
                     self.logger.debug("Check widget status for " + repr(commandName) + ", event of type " + event.__class__.__name__) 
-                    event.checkWidgetStatus(argumentString)
-                    return event
+                    event.checkWidgetStatus()
+                    parsedArguments = event.parseArguments(argumentString)
+                    return event, parsedArguments
                 except definitions.UseCaseScriptError:
                     type, value, _ = sys.exc_info()
-                    self.logger.debug("Error, trying another: " + str(value))  
-            possibleEvents[0].checkWidgetStatus(argumentString)
-            return possibleEvents[0]
+                    self.logger.debug("Error, trying another: " + str(value))
+            event = possibleEvents[0]
+            event.checkWidgetStatus()
+            parsedArguments = event.parseArguments(argumentString)
+            return event, parsedArguments
             
-    def parseAndProcess(self, command, describeMethod):
-        try:
-            self._parseAndProcess(command, describeMethod)
-        except definitions.UseCaseScriptError:
-            value = sys.exc_info()[1]
-            self.write("ERROR: " + str(value))
-
     def _parseAndProcess(self, command, describeMethod):
         try:
-            commandName, argumentString, event = self.tryParseRepeatedly(command)
+            commandName, argumentString, event, parsedArguments = self.tryParseRepeatedly(command)
             describeMethod()
             self.describeAppEventsHappened()
         except:
@@ -820,7 +815,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
         if event:
             self.describeEvent(commandName, argumentString)
-            event.generate(argumentString)
+            event.generate(parsedArguments)
         else:
             self.processSignalCommand(argumentString)
                 

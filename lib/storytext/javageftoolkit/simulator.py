@@ -443,26 +443,27 @@ class ViewerSelectEvent(ViewerEvent):
         for editPart in selection.toList():
             method(editPart, self)
 
-    def generate(self, description, *args):
+    def parseArguments(self, description):
         parts = []
         for part in description.split(","):
             editPart = self.findEditPart(self.widget.rootEditPart(), part)
-            if editPart == self.widget.mainEditPart():
-                return self.widget.click(editPart)
             if editPart:
                 parts.append(editPart)
-        self.simulateClick(parts, description)
-
-    def simulateClick(self, parts, description):
         if len(parts) > 0:
-            if parts == 1:
-                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
-            else:
-                rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
-                for part in parts:
-                    rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, part, swt.SWT.CTRL)
+            return parts
         else:
-            raise UseCaseScriptError, "Could not find any objects in viewer matching description " + repr(description)
+            raise UseCaseScriptError, "could not find any objects in viewer matching description " + repr(description)
+
+    def generate(self, parts):
+        if len(parts) == 1:
+            if parts[0] == self.widget.mainEditPart():
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.click, parts[0])
+            else:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
+        else:
+            rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
+            for part in parts:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, part, swt.SWT.CTRL)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -535,19 +536,25 @@ class ViewerDragAndDropEvent(ViewerEvent):
         types = self.getSignalsToFilter()
         return DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
 
-    def generate(self, description, *args):
-        editPart, xPos, yPos = self.parseDescription(description)
-        if editPart:
-            self.widget.drag(editPart, xPos, yPos)
-        else:
-            raise UseCaseScriptError, "Could not find any edit part in viewer matching description " + repr(description)
+    def generate(self, partAndPos):
+        self.widget.drag(*partAndPos)
         
-    def parseDescription(self, description):
+    def parseArguments(self, description):
         sourceDesc, dest = description.split(" to ", 1)
-        xDesc, yDesc = dest.split(":", 1)
-        displayLocation = rcpsimulator.swtsimulator.runOnUIThread(self.widget.getFigureCanvas().toDisplayLocation, int(xDesc), int(yDesc))
         editPart = self.findEditPart(self.widget.rootEditPart(), sourceDesc)
+        if not editPart:
+            raise UseCaseScriptError, "could not find any objects in viewer matching description " + repr(sourceDesc)
+        
+        displayLocation = self.parseDestination(dest)
         return editPart, displayLocation.x, displayLocation.y
+    
+    def parseDestination(self, dest):
+        if ":" not in dest:
+            raise UseCaseScriptError, "drag destination must be in the form <xpos>:<ypos>"
+        xDesc, yDesc = dest.split(":", 1)
+        if not xDesc.isdigit() or not yDesc.isdigit():
+            raise UseCaseScriptError, "drag destination must have numeric values"
+        return rcpsimulator.swtsimulator.runOnUIThread(self.widget.getFigureCanvas().toDisplayLocation, int(xDesc), int(yDesc))
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, ViewerSelectEvent)

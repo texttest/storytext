@@ -328,17 +328,20 @@ class UseCaseReplayer:
             # This isn't worth crashing over!
             pass
 
+    def _parseAndProcess(self, command, **kw):
+        self.describeAppEventsHappened()
+        commandName, argumentString = self.parseCommand(command)
+        self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
+        self.processCommand(commandName, argumentString)
+
     def parseAndProcess(self, command, **kw):
         try:
-            self.describeAppEventsHappened()
-            commandName, argumentString = self.parseCommand(command)
-            self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
-            self.processCommand(commandName, argumentString)
+            self._parseAndProcess(command, **kw)
         except UseCaseScriptError:
             # We don't terminate scripts if they contain errors
             type, value, _ = sys.exc_info()
-            self.write("ERROR: " + str(value))
-
+            self.write("ERROR: Could not simulate command " + repr(command) + " - " + str(value))
+            
     def describeEvent(self, commandName, argumentString):
         self.write("")
         self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
@@ -370,7 +373,7 @@ class UseCaseReplayer:
         return commandName, argumentString
 
     def getParseError(self, scriptCommand):
-        return "Could not parse script command '" + scriptCommand + "'"
+        return "could not parse the given text."
 
     def getArgument(self, scriptCommand, commandName):
         return scriptCommand.replace(commandName, "").strip()

@@ -144,7 +144,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
         return self.widget.isEnabled()
     
     def describeWidget(self):
-        return " of type " + self.widget.getType()
+        return "of type " + self.widget.getType()
 
     
 # Just to be able to test recording from keyboard
@@ -261,12 +261,12 @@ class ButtonClickEvent(SignalEvent):
     def getAssociatedSignal(cls, *args):
         return "Click"
 
-    def checkWidgetStatus(self, argument):
+    def parseArguments(self, argument):
         if argument and argument != self.getButtonIdentifier():
             raise UseCaseScriptError, "could not find internal frame '" + argument + \
-                  "', found '" + self.getButtonIdentifier() + "', cannot simulate event " + repr(self.name)
-        SignalEvent.checkWidgetStatus(self, argument)
-
+                  "', found '" + self.getButtonIdentifier() + "'"
+        return argument
+        
     def _generate(self, argument):
         # Just doing clickOnComponent as in ClickEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
@@ -311,12 +311,12 @@ class InternalFrameDoubleClickEvent(DoubleClickEvent):
     def getTitle(self):
         return self.widget.getParent().getTitle()
 
-    def checkWidgetStatus(self, argument):
-        if argument != self.getTitle():
+    def parseArguments(self, argument):
+        if argument == self.getTitle():
+            return argument
+        else:
             raise UseCaseScriptError, "could not find internal frame '" + argument + \
-                  "', found '" + self.getTitle() + "', cannot simulate event " + repr(self.name)
-        DoubleClickEvent.checkWidgetStatus(self, argument)
-
+                  "', found '" + self.getTitle() + "'"
     
 class StateChangeEvent(ClickEvent):
     def outputForScript(self, *args):
@@ -477,14 +477,16 @@ class ListSelectEvent(StateChangeEvent):
                 return i
         raise UseCaseScriptError, "Could not find item labeled '" + text + "' in list."
     
+    def parseArguments(self, argumentString):
+        return map(self.getIndex, argumentString.split(", "))
+    
     def _generate(self, argumentString):
         util.runOnEventDispatchThread(self._generateSwingLib, argumentString)
 
-    def _generateSwingLib(self, argumentString):
-        selected = argumentString.split(", ")
+    def _generateSwingLib(self, indices):
         #Officially we can pass the names directly to SwingLibrary
         #Problem is that doesn't work if the names are themselves numbers
-        self.widget.runKeyword("selectFromList", *map(self.getIndex, selected))
+        self.widget.runKeyword("selectFromList", *indices)
         
     def getStateText(self, *args):
         texts = [ self.getJListText(i) for i in self.widget.getSelectedIndices() ]
@@ -567,12 +569,14 @@ class TableSelectEvent(ListSelectEvent):
         ListSelectEvent.__init__(self, *args)
         self.indexer = TableIndexer.getIndexer(self.widget.widget)
         
-    def _generate(self, argumentString):
+    def parseArguments(self, argumentString):
         # To be used when using multi-selection: selectedCells = argumentString.split(", ")
-        row, column = self.indexer.getViewCellIndices(argumentString)
+        return self.indexer.getViewCellIndices(argumentString)
+    
+    def _generate(self, cell):
         # It seems to be a bug in SwingLibrary. Using Column name as argument doesn't work as expected. It throws exceptions
         # for some cell values. 
-        self.widget.runKeyword("selectTableCell", row, column)
+        self.widget.runKeyword("selectTableCell", *cell)
         
     def getStateText(self, *args):
         text = []

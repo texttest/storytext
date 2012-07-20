@@ -163,14 +163,20 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         page = self.widget.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
 
-    def generate(self, argumentString):
+    def generate(self, *args):
+        # The idea is to just do this, but it seems to cause strange things to happen
+        #internally. So we do it outside SWTBot instead.
+        #self.widget.setFocus()
+        page = self.widget.getViewReference().getPage()
+        view = self.widget.getViewReference().getView(False)
+        swtsimulator.runOnUIThread(page.activate, view)
+        
+    def parseArguments(self, argumentString):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
         #self.widget.setFocus()
         if self.widget.getViewReference().getTitle() == argumentString:
-            page = self.widget.getViewReference().getPage()
-            view = self.widget.getViewReference().getView(False)
-            swtsimulator.runOnUIThread(page.activate, view)
+            return argumentString
         else:
             raise UseCaseScriptError, "Could not find View named " + repr(argumentString) + " to activate."
 

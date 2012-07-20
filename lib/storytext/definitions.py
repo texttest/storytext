@@ -41,5 +41,7 @@ class UserEvent:
         # Historical assumption has been that 'shouldRecord' often takes out events that are totally irrelevant
         # But in some circumstances they can still be relevant in that sense
         return False
-    def checkWidgetStatus(self, *args):
+    def checkWidgetStatus(self):
         pass # raise UseCaseScriptError if anything is wrong
+    def parseArguments(self, argumentString):
+        return argumentString
