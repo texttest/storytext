@@ -339,12 +339,15 @@ class UseCaseReplayer:
             type, value, _ = sys.exc_info()
             self.write("ERROR: " + str(value))
 
+    def describeEvent(self, commandName, argumentString):
+        self.write("")
+        self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
+
     def processCommand(self, commandName, argumentString):
         if commandName == signalCommandName:
             self.processSignalCommand(argumentString)
         else:
-            self.write("")
-            self.write("'" + commandName + "' event created with arguments '" + argumentString + "'")
+            self.describeEvent(commandName, argumentString)
             possibleEvents = self.events[commandName]
             # We may have several plausible events with this name,
             # but some of them won't work because widgets are disabled, invisible etc

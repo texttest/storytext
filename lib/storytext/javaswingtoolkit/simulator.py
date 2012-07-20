@@ -114,7 +114,6 @@ storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
 class SignalEvent(storytext.guishared.GuiEvent):
     def generate(self, *args):
-        self.checkWidgetStatus()
         self.setNameIfNeeded()
         selectWindow(self.widget.widget)
         self._generate(*args)
@@ -262,12 +261,15 @@ class ButtonClickEvent(SignalEvent):
     def getAssociatedSignal(cls, *args):
         return "Click"
 
+    def checkWidgetStatus(self, argument):
+        if argument and argument != self.getButtonIdentifier():
+            raise UseCaseScriptError, "could not find internal frame '" + argument + \
+                  "', found '" + self.getButtonIdentifier() + "', cannot simulate event " + repr(self.name)
+        SignalEvent.checkWidgetStatus(self, argument)
+
     def _generate(self, argument):
         # Just doing clickOnComponent as in ClickEvent ought to work, but doesn't, see
         # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=175
-        if argument and argument != self.getButtonIdentifier():
-            raise UseCaseScriptError, "Could not find internal frame '" + argument + \
-                  "', found '" + self.getButtonIdentifier() + "'"
         self.widget.runKeyword("pushButton")
         
     def connectRecord(self, method):
@@ -309,11 +311,11 @@ class InternalFrameDoubleClickEvent(DoubleClickEvent):
     def getTitle(self):
         return self.widget.getParent().getTitle()
 
-    def _generate(self, argument):
+    def checkWidgetStatus(self, argument):
         if argument != self.getTitle():
-            raise UseCaseScriptError, "Could not find internal frame '" + argument + \
-                  "', found '" + self.getTitle() + "'"
-        DoubleClickEvent._generate(self, argument)
+            raise UseCaseScriptError, "could not find internal frame '" + argument + \
+                  "', found '" + self.getTitle() + "', cannot simulate event " + repr(self.name)
+        DoubleClickEvent.checkWidgetStatus(self, argument)
 
     
 class StateChangeEvent(ClickEvent):

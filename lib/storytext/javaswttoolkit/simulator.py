@@ -119,7 +119,6 @@ class SignalEvent(storytext.guishared.GuiEvent):
         return self.widget.widget.widget.addListener(*args)
 
     def generate(self, *args):
-        self.checkWidgetStatus()
         try:
             self._generate(*args)
         except (IllegalStateException, IndexOutOfBoundsException), _:
@@ -136,16 +135,16 @@ class SignalEvent(storytext.guishared.GuiEvent):
         return DisplayFilter.instance.otherEventCount(event, self.isTriggeringEvent)
 
     def widgetDisposed(self):
-        return self.widget.widget.widget.isDisposed()
+        return runOnUIThread(self.widget.widget.widget.isDisposed)
 
     def widgetVisible(self):
         return self.widget.isVisible()
-
+        
     def widgetSensitive(self):
         return self.widget.isEnabled()
-
+        
     def describeWidget(self):
-        return " of type " + self.widget.getType()
+        return "of type " + self.widget.getType()
 
     def isImpliedByCTabClose(self, tab):
         return False

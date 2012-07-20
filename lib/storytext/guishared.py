@@ -168,8 +168,14 @@ class GuiEvent(definitions.UserEvent):
 
     def widgetDisposed(self):
         return False
+    
+    def widgetVisible(self):
+        return True
 
-    def checkWidgetStatus(self):
+    def widgetSensitive(self):
+        return True
+
+    def checkWidgetStatus(self, *args):
         if self.widgetDisposed():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
                   " has already been disposed, cannot simulate event " + repr(self.name)
@@ -762,32 +768,61 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                     self.logger.debug("No command to run, no waiting to do: exiting replayer")
                     break
 
-    def tryParseRepeatedly(self, command):
+    def tryParseRepeatedly(self, commandWithArg):
         attemptCount = 30
         for attempt in range(attemptCount):
             try:
-                return self.parseCommand(command)
+                command, argumentString = self.parseCommand(commandWithArg)
+                event = self.checkWidgetStatus(command, argumentString)
+                return command, argumentString, event
             except definitions.UseCaseScriptError:
                 # We don't terminate scripts if they contain errors
                 if attempt == attemptCount - 1:
-                    value = sys.exc_info()[1]
-                    self.write("ERROR: " + str(value))
+                    raise
                 else:
                     time.sleep(0.1)
         
-        return None, None
-
+    def checkWidgetStatus(self, commandName, argumentString):
+        if commandName != replayer.signalCommandName:
+            possibleEvents = self.events[commandName]
+            # We may have several plausible events with this name,
+            # but some of them won't work because widgets are disabled, invisible etc
+            # Go backwards to preserve back-compatibility, previously only the last one was considered.
+            # The more recently it was added, the more likely it is to work also
+            for event in reversed(possibleEvents[1:]):
+                try:
+                    self.logger.debug("Check widget status for " + repr(commandName) + ", event of type " + event.__class__.__name__) 
+                    event.checkWidgetStatus(argumentString)
+                    return event
+                except definitions.UseCaseScriptError:
+                    type, value, _ = sys.exc_info()
+                    self.logger.debug("Error, trying another: " + str(value))  
+            possibleEvents[0].checkWidgetStatus(argumentString)
+            return possibleEvents[0]
+            
     def parseAndProcess(self, command, describeMethod):
-        commandName, argumentString = self.tryParseRepeatedly(command)
-        if commandName:
+        try:
+            self._parseAndProcess(command, describeMethod)
+        except definitions.UseCaseScriptError:
+            value = sys.exc_info()[1]
+            self.write("ERROR: " + str(value))
+
+    def _parseAndProcess(self, command, describeMethod):
+        try:
+            commandName, argumentString, event = self.tryParseRepeatedly(command)
             describeMethod()
             self.describeAppEventsHappened()
-            self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
-            try:
-                self.processCommand(commandName, argumentString)
-            except definitions.UseCaseScriptError:
-                value = sys.exc_info()[1]
-                self.write("ERROR: " + str(value))
+        except:
+            describeMethod()
+            self.describeAppEventsHappened()
+            self.write("")
+            raise
+        self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
+        if event:
+            self.describeEvent(commandName, argumentString)
+            event.generate(argumentString)
+        else:
+            self.processSignalCommand(argumentString)
                 
 
 
@@ -872,6 +907,7 @@ class Describer(object):
         for widget, oldState in self.widgetsWithState.items():
             if not self.shouldCheckForUpdates(widget, *args):
                 continue
+            
             try:
                 state = self.getState(widget)
             except:
