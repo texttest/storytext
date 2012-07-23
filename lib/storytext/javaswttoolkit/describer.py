@@ -1,5 +1,5 @@
 
-import storytext.guishared, util, types, logging, sys
+import storytext.guishared, util, types, logging, sys, os
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
 from org.eclipse import swt
@@ -253,12 +253,13 @@ class Describer(storytext.guishared.Describer):
         imageDict = self.storedImages.get((data.width, data.height), {})
         for name, imgData in imageDict.items():
             if self.imageDataMatches(data, imgData, hasExcessData):
-                self.imageToName[image] = name                
-                return name
-    
+                baseName = os.path.basename(name)
+                self.imageToName[image] = baseName             
+                return baseName
+       
     def storeImageData(self, url):
         imgDesc = ImageDescriptor.createFromURL(url)
-        name = url.getFile().split("/")[-1]
+        name = url.getFile()
         if imgDesc is not None:
             newImage = imgDesc.createImage()
             data = newImage.getImageData()

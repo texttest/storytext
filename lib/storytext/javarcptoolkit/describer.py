@@ -5,10 +5,6 @@ from org.eclipse.ui.forms.widgets import ExpandableComposite
 class Describer(swtdescriber.Describer):
     swtdescriber.Describer.stateWidgets = [ ExpandableComposite ] + swtdescriber.Describer.stateWidgets
     swtdescriber.Describer.ignoreChildren = (ExpandableComposite,) + swtdescriber.Describer.ignoreChildren
-    def __init__(self):
-        swtdescriber.Describer.__init__(self)
-        self.buildImagesFromBundles()
-
     def buildImages(self):
         swtdescriber.Describer.buildImages(self)
         self.buildImagesFromBundles()
