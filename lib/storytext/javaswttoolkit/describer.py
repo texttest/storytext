@@ -7,6 +7,8 @@ from browserhtmlparser import BrowserHtmlParser
 from java.util import Date
 from java.io import File, FilenameFilter
 from org.eclipse.jface.resource import ImageDescriptor
+from array import array
+from ordereddict import OrderedDict
 
 class Describer(storytext.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
@@ -36,7 +38,7 @@ class Describer(storytext.guishared.Describer):
         self.widgetsDescribed = set()
         self.browserStates = {}
         self.clipboardText = None
-        self.imageDescriptorToNames = {}
+        self.storedImages = {}
         self.imageToName = {}
         self.handleImages()
         storytext.guishared.Describer.__init__(self)
@@ -230,17 +232,40 @@ class Describer(storytext.guishared.Describer):
             name += " " + self.imageCounter.getId(image)
         return name
     
+    def getPixels(self, data):
+        pixels = array('i', (0, ) * data.width * data.height)
+        data.getPixels(0, 0, data.width * data.height, pixels, 0)
+        return pixels
+
+    def imageDataMatches(self, data, data2, hasExcessData):
+        if hasExcessData:
+            return self.getPixels(data) == self.getPixels(data2)
+        else:
+            return data.data == data2.data
+
     def getImageName(self, image):
         name = self.imageToName.get(image)
         if name is not None:
             return name
-        for img in sorted(self.imageDescriptorToNames, key=lambda x: self.imageDescriptorToNames[x]):
-            newImage = img.createImage()
-            if newImage.getImageData().data == image.getImageData().data:
-                name = self.imageDescriptorToNames.get(img)                
+
+        data = image.getImageData()
+        hasExcessData = data.width * data.depth / 8 < data.bytesPerLine
+        imageDict = self.storedImages.get((data.width, data.height), {})
+        for name, imgData in imageDict.items():
+            if self.imageDataMatches(data, imgData, hasExcessData):
                 self.imageToName[image] = name                
-                break
-        return name
+                return name
+    
+    def storeImageData(self, url):
+        imgDesc = ImageDescriptor.createFromURL(url)
+        name = url.getFile().split("/")[-1]
+        if imgDesc is not None:
+            newImage = imgDesc.createImage()
+            data = newImage.getImageData()
+            imageDict = self.storedImages.setdefault((data.width, data.height), OrderedDict())
+            if name not in imageDict:
+                imageDict[name] = data
+            newImage.dispose()
 
     def getCanvasDescription(self, widget):
         return "Canvas " + self.canvasCounter.getId(widget)
@@ -649,16 +674,9 @@ class Describer(storytext.guishared.Describer):
 
         return d.listFiles(Filter())
     
-    def makeImageDescriptor(self, url):
-        imgDesc = ImageDescriptor.createFromURL(url)
-        name = url.getFile().split("/")[-1]
-        if imgDesc is not None:
-            #print "FILE", url.getFile()
-            self.imageDescriptorToNames[imgDesc] = name
-
     def findFiles(self, pathAsFile):
         if pathAsFile.isFile() and self.isImageType(pathAsFile.getName()):
-            self.makeImageDescriptor(pathAsFile.toURI().toURL())
+            self.storeImageData(pathAsFile.toURI().toURL())
         elif pathAsFile.isDirectory():
             for f in pathAsFile.listFiles():
                 if f is not None:

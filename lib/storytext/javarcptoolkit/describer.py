@@ -14,21 +14,17 @@ class Describer(swtdescriber.Describer):
         self.buildImagesFromBundles()
 
     def buildImagesFromBundles(self):            
+        patterns = [ "*.gif", "*.GIF", "*.png", "*.PNG", "*.jpg", "*.JPG" ]
         for bundle in InternalPlatform.getDefault().getBundleContext().getBundles():
-            gifs = bundle.findEntries("/", "*.gif", True)
-            pngs = bundle.findEntries("/", "*.png", True)
-            jpgs = bundle.findEntries("/", "*.jpg", True)
-            if gifs:
-                self.makeImageDescriptors(gifs)
-            if pngs:
-                self.makeImageDescriptors(pngs)
-            if jpgs:
-                self.makeImageDescriptors(jpgs)
+            for pattern in patterns:
+                images = bundle.findEntries("/", pattern, True)
+                if images:
+                    self.storeAllImages(images)
 
-    def makeImageDescriptors(self, entries):
+    def storeAllImages(self, entries):
         while entries.hasMoreElements():
             url = entries.nextElement()
-            self.makeImageDescriptor(url)
+            self.storeImageData(url)
             
     def getExpandableCompositeState(self, widget):
         return widget.isExpanded()
