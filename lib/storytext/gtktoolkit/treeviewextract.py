@@ -45,6 +45,17 @@ def performInterceptions():
     gtk.CellRendererToggle = CellRendererToggle
     return { origTreeView: TreeView }
 
+def reverseInterceptions(eventTypes):
+    for i, entry in enumerate(eventTypes):
+        if entry[0] is gtk.TreeView:
+            eventTypes[i] = origTreeView, entry[1]
+            break
+    gtk.TreeView = origTreeView
+    gtk.TreeViewColumn = origTreeViewColumn
+    gtk.CellRendererToggle = origCellRendererToggle
+    gtk.CellRendererText = origCellRendererText
+    gtk.CellRendererPixbuf = origCellRendererPixbuf
+
 class CellRendererText(origCellRendererText):
     orig_set_property = origCellRendererText.set_property
     def set_property(self, property, value):

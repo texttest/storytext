@@ -4,6 +4,8 @@
 import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, storytext.guishared
 import types, inspect
 from storytext.gtktoolkit.widgetadapter import WidgetAdapter
+from .. import treeviewextract
+import xml.dom.minidom
 
 performInterceptions = miscevents.performInterceptions
 origDialog = gtk.Dialog
@@ -81,17 +83,45 @@ class FileChooserDialog(DialogHelper, origFileChooserDialog):
         self.initialise()
 
 class Builder(origBuilder):
+    def __init__(self, *args, **kw):
+        origBuilder.__init__(self, *args, **kw)
+        self.filesRead = []
+    
     def get_object(self, *args):
         WidgetAdapter.builderEnabled = True
         realObject = origBuilder.get_object(self, *args)
         if isinstance(realObject, origDialog):
-            helper = DialogHelper()
             realObject.uiMap = DialogHelper.uiMap
-            for name, member in inspect.getmembers(DialogHelper, inspect.ismethod):
-                newMethod = types.MethodType(member.__func__, realObject)
-                setattr(realObject, name, newMethod)
+            self.graftMethods(realObject, DialogHelper)
             realObject.initialise()
+        elif isinstance(realObject, gtk.TreeView):
+            documents = map(xml.dom.minidom.parse, self.filesRead)
+            for column in realObject.get_columns():
+                self.graftMethods(column, treeviewextract.TreeViewColumn)
+                xmlElement = self.findXmlElement(documents, gtk.Buildable.get_name(column))
+                children = xmlElement.getElementsByTagName("child")
+                for renderer, child in zip(column.get_cell_renderers(), children):
+                    attrs = {}
+                    for node in child.getElementsByTagName("attribute"):
+                        attrs[node.getAttribute("name")] = int(node.childNodes[0].nodeValue)
+                    column.add_model_extractors(renderer, **attrs)
         return realObject
+
+    def graftMethods(self, obj, fromClass):
+        for name, member in inspect.getmembers(fromClass, inspect.ismethod):
+            newMethod = types.MethodType(member.__func__, obj)
+            setattr(obj, name, newMethod)
+
+    def findXmlElement(self, documents, elementId):
+        for document in documents:
+            for obj in document.getElementsByTagName("object"):
+                if obj.getAttribute("id") == elementId:
+                    return obj
+
+    def add_from_file(self, file, *args):
+        origBuilder.add_from_file(self, file, *args)
+        treeviewextract.reverseInterceptions(eventTypes) # These are bad in a builder-based world...
+        self.filesRead.append(file)
 
 
 class UIMap(storytext.guishared.UIMap):
