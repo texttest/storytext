@@ -363,12 +363,13 @@ class UseCaseRecorder:
                 categories.add(newCategory)
                 self.logger.debug("Swapping for " + repr(supercedeCategory) + ": " + repr(oldCategory) + " -> " + repr(newCategory))
 
-    def applicationEventDelay(self, name):
+    def applicationEventDelay(self, name, fromLevel=0, increase=True):
         for appEventKey, eventName in self.applicationEvents.items():
             categoryName, oldDelayLevel = appEventKey
-            if eventName == name and oldDelayLevel == 0:
+            if eventName == name and oldDelayLevel == fromLevel:
                 del self.applicationEvents[appEventKey]
-                self.registerApplicationEvent(name, categoryName, delayLevel=1)
+                newDelayLevel = oldDelayLevel + 1 if increase else oldDelayLevel - 1
+                self.registerApplicationEvent(name, categoryName, delayLevel=newDelayLevel)
                 
     def makeMultiple(self, text, count):
         if count == 1:

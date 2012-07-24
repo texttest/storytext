@@ -3,7 +3,6 @@
     Hook application events directly into that for synchronisation."""
 
 import logging
-from storytext import applicationEvent
 from storytext.javaswttoolkit.simulator import DisplayFilter
 from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
 from threading import Lock
@@ -29,11 +28,8 @@ class JobListener(JobChangeAdapter):
             self.setComplete()
 
     def setComplete(self):
-        applicationEvent("completion of " + self.jobNameToUse, category="jobs", delayLevel=self.getDelayLevel())
+        DisplayFilter.registerApplicationEvent("completion of " + self.jobNameToUse, category="jobs")
         self.jobNameToUse = None
-
-    def getDelayLevel(self):
-        return len(DisplayFilter.instance.eventsFromUser) if DisplayFilter.instance else 0
 
     def alterJobCount(self, value):
         self.jobCountLock.acquire()

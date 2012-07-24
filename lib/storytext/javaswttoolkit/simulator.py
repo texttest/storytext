@@ -1,7 +1,7 @@
 
 import storytext.guishared, util, logging, os
 from storytext.definitions import UseCaseScriptError
-from storytext import applicationEvent
+from storytext import applicationEvent, applicationEventDelay
 from difflib import SequenceMatcher
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
@@ -756,6 +756,7 @@ class DisplayFilter:
     def __init__(self, widgetEventTypes):
         self.widgetEventTypes = widgetEventTypes
         self.eventsFromUser = []
+        self.delayedAppEvents = []
         self.disposedShells = []
         self.itemTextCache = {}
         self.logger = logging.getLogger("storytext record")
@@ -803,6 +804,10 @@ class DisplayFilter:
             class EventFinishedListener(swt.widgets.Listener):
                 def handleEvent(listenerSelf, e2): #@NoSelf
                     if e2 is e:
+                        # Any application events that were delayed should be no longer, if they haven't been handled yet
+                        for appEvent in self.delayedAppEvents:
+                            applicationEventDelay(appEvent, fromLevel=len(self.eventsFromUser), increase=False)
+                        self.delayedAppEvents = []
                         self.logger.debug("Filter removed for event " + e.toString())
                         self.eventsFromUser.remove(e)
                     
@@ -819,8 +824,15 @@ class DisplayFilter:
         class ApplicationEventListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 if e.text:
-                    storytext.guishared.catchAll(applicationEvent, e.text, "system", delayLevel=len(self.eventsFromUser))
+                    storytext.guishared.catchAll(self.registerApplicationEvent, e.text, "system")
         runOnUIThread(display.addFilter, applicationEventType, ApplicationEventListener())
+ 
+    @classmethod       
+    def registerApplicationEvent(cls, name, category):
+        delayLevel = len(cls.instance.eventsFromUser) if cls.instance else 0
+        if delayLevel:
+            cls.instance.delayedAppEvents.append(name)
+        applicationEvent(name, category, delayLevel=delayLevel)
         
     def shouldCheckWidget(self, widget, eventType):
         if not util.isVisible(widget):
