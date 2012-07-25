@@ -350,10 +350,8 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     def outputForScript(self, *args):
         return ' '.join([self.name, self.getStateDescription(*args) ])
 
-    def getStateDescription(self, part, *args):
-        if self.isMainEditPart(part):
-            return self.storeObjectDescription(part)
-        descs = [self.storeObjectDescription(editPart.part()) for editPart in self.widget.selectedEditParts()]
+    def getStateDescription(self, parts, *args):
+        descs = map(self.storeObjectDescription, parts)
         return ','.join(descs)
 
     def addSuffix(self, desc):
@@ -439,9 +437,7 @@ class ViewerSelectEvent(ViewerEvent):
         rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().addSelectionChangedListener, SelectionListener())
 
     def applyToSelected(self, event, method):
-        selection = event.getSelection()
-        for editPart in selection.toList():
-            method(editPart, self)
+        method(event.getSelection().toList(), self)
 
     def parseArguments(self, description):
         parts = []
@@ -456,10 +452,7 @@ class ViewerSelectEvent(ViewerEvent):
 
     def generate(self, parts):
         if len(parts) == 1:
-            if parts[0] == self.widget.mainEditPart():
-                rcpsimulator.swtsimulator.runOnUIThread(self.widget.click, parts[0])
-            else:
-                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
+            rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
         else:
             rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
             for part in parts:
@@ -473,10 +466,10 @@ class ViewerSelectEvent(ViewerEvent):
     def getSignalsToFilter(cls):
         return [ swt.SWT.MouseDown, swt.SWT.MouseUp ]
 
-    def shouldRecord(self, part, *args):
+    def shouldRecord(self, parts, *args):
         types = self.getSignalsToFilter()
         hasMouseEvent = DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
-        return hasMouseEvent and (len(self.widget.selectedEditParts()) > 0 or len(self.getStateDescription(part, *args)) > 0)
+        return hasMouseEvent and len(parts) > 0
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
