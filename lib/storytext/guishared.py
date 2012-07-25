@@ -1394,8 +1394,7 @@ class TableIndexer:
 
 
 def getExceptionString():
-    type, value, traceback = sys.exc_info()
-    return "".join(format_exception(type, value, traceback))
+    return "".join(format_exception(*sys.exc_info()))
 
 def findPrecedingLabel(widget, children, labelClass, ignoreLabels=[], textMethod="getText"):
     textPos = children.index(widget)
@@ -1433,5 +1432,7 @@ def catchAll(method, *args, **kw):
     try:
         method(*args, **kw)
     except:
+        print "Caught exception, trying to write it!"
+        sys.stdout.flush()
         sys.stderr.write(getExceptionString() + "\n")
 
