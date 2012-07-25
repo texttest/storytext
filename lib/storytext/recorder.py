@@ -239,7 +239,7 @@ class UseCaseRecorder:
                     self.stateChangeEventInfo = None
             return
         
-        impliesPrevious, writtenAppEvents = False, False
+        impliesPrevious = False
         if self.stateChangeEventInfo:
             stateChangeOutput, stateChangeEvent, stateChangeDelayLevel, appEvents = self.stateChangeEventInfo
             if stateChangeDelayLevel >= event.delayLevel(*args):
