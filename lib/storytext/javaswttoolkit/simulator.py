@@ -923,6 +923,9 @@ class WidgetMonitor:
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
         self.widgetMonitorLock = Lock()
 
+    def handleReplayFailure(self, *args):
+        pass # nothing yet, used in derived classes
+
     def getDisplayFilterClass(self):
         return DisplayFilter
 

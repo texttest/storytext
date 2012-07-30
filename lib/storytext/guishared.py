@@ -751,14 +751,14 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         while not self.readingEnabled:
             time.sleep(0.1) # don't use the whole CPU while waiting
 
-    def describeAndRun(self, describeMethod):
+    def describeAndRun(self, describeMethod, replayFailureMethod=None):
         if not self.readingEnabled:
             self.waitForReenable()
         while True:
             if self.delay:
                 self.logger.debug("Sleeping for " + str(self.delay) + " seconds...")
                 time.sleep(self.delay)
-            proceed, wait = self.runNextCommand(describeMethod=describeMethod)
+            proceed, wait = self.runNextCommand(describeMethod=describeMethod, replayFailureMethod=replayFailureMethod)
             if not proceed:
                 self.readingEnabled = self.waitingCompleted()
                 if wait:
@@ -767,7 +767,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                     self.logger.debug("No command to run, no waiting to do: exiting replayer")
                     break
 
-    def tryParseRepeatedly(self, commandWithArg):
+    def tryParseRepeatedly(self, commandWithArg, replayFailureMethod):
         attemptCount = 30
         for attempt in range(attemptCount):
             try:
@@ -781,6 +781,8 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 else:
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, final event failed, waiting and retrying: " + str(value))
+                    if replayFailureMethod:
+                        replayFailureMethod(str(value))
                     time.sleep(0.1)
         
     def checkWidgetStatus(self, commandName, argumentString):
@@ -804,9 +806,9 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
             parsedArguments = event.parseArguments(argumentString)
             return event, parsedArguments
             
-    def _parseAndProcess(self, command, describeMethod):
+    def _parseAndProcess(self, command, describeMethod, replayFailureMethod):
         try:
-            commandName, argumentString, event, parsedArguments = self.tryParseRepeatedly(command)
+            commandName, argumentString, event, parsedArguments = self.tryParseRepeatedly(command, replayFailureMethod)
             describeMethod()
             self.describeAppEventsHappened()
         except:

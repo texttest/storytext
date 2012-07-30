@@ -79,7 +79,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         runOnUIThread(describer.addFilters, monitor.getDisplay())
         def describe():
             runOnUIThread(describer.describeWithUpdates, monitor.getActiveShell)
-        self.describeAndRun(describe)
+        self.describeAndRun(describe, monitor.handleReplayFailure)
 
     def getDescriberClass(self):
         try:
