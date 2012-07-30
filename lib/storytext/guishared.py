@@ -779,6 +779,8 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 if attempt == attemptCount - 1:
                     raise
                 else:
+                    type, value, _ = sys.exc_info()
+                    self.logger.debug("Error, final event failed, waiting and retrying: " + str(value))
                     time.sleep(0.1)
         
     def checkWidgetStatus(self, commandName, argumentString):
@@ -1327,7 +1329,13 @@ class TableIndexer:
             return cls.allIndexers.setdefault(table, cls(table))
         
     def getColumn(self, col):
-        return [ self.getCellValue(row, col) for row in range(self.getRowCount()) ]
+        return [ self.getCellValueToUse(row, col) for row in range(self.getRowCount()) ]
+    
+    def getColumnTextToUse(self, *args):
+        return self.getColumnText(*args) or "<untitled>"
+    
+    def getCellValueToUse(self, *args):
+        return self.getCellValue(*args) or "<unnamed>"
     
     def findRowNames(self):
         if self.getRowCount() > 1:
@@ -1359,7 +1367,7 @@ class TableIndexer:
 
     def findColumnIndex(self, columnName):
         for col in range(self.table.getColumnCount()):
-            if self.getColumnText(col) == columnName:
+            if self.getColumnTextToUse(col) == columnName:
                 return col
 
     def parseDescription(self, description):
@@ -1388,7 +1396,7 @@ class TableIndexer:
     def getCellDescription(self, row, col, **kw):
         rowName = self.rowNames[row]
         if self.useColumnTextInDescription(**kw):
-            return self.getColumnText(col) + " for " + rowName
+            return self.getColumnTextToUse(col) + " for " + rowName
         else:
             return rowName
 

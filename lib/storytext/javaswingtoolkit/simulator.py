@@ -609,7 +609,7 @@ class TableHeaderEvent(SignalEvent):
 
     def outputForScript(self, event, *args):
         colIndex = self.widget.getTableHeader().columnAtPoint(event.getPoint())
-        colText = TableIndexer.getIndexer(self.widget.widget).getColumnText(colIndex)
+        colText = TableIndexer.getIndexer(self.widget.widget).getColumnTextToUse(colIndex)
         return SignalEvent.outputForScript(self, event, *args) + " " + colText
 
     def getRecordWidget(self):
@@ -788,7 +788,7 @@ class TableIndexer(storytext.guishared.TableIndexer):
         return self.table.getRowCount()
 
     def getCellValue(self, row, col):
-        return self.textFinder.getJTableText(row, col) or "<unnamed>"
+        return self.textFinder.getJTableText(row, col)
     
     def getCellDescription(self, row, *args, **kw):
         rowModelIndex = self.table.convertRowIndexToModel(row)
