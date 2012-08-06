@@ -254,7 +254,7 @@ class UseCaseRecorder:
         scriptOutput = event.outputForScript(*args)
         delayLevel = event.delayLevel(*args)
         if event.isStateChange() and delayLevel >= self.getMaximumStoredDelay():
-            appEvents = {} if impliesPrevious else copy(self.applicationEvents)
+            appEvents = {} if impliesPrevious else self.transferAppEvents(delayLevel)                
             self.logger.debug("Storing up state change event " + repr(scriptOutput) + " with delay level " + repr(delayLevel) + " and app events " + repr(appEvents))
             self.stateChangeEventInfo = scriptOutput, event, delayLevel, appEvents
         else:
@@ -265,6 +265,16 @@ class UseCaseRecorder:
             if self.recordOrDelay(scriptOutput, delayLevel, event):
                 self.processDelayedEvents(self.delayedEvents)
                 self.delayedEvents = []
+
+    def transferAppEvents(self, delayLevel):
+        appEvents = OrderedDict()
+        for appEventKey, eventName in self.applicationEvents.items():
+            _, currDelayLevel = appEventKey
+            if currDelayLevel < delayLevel:
+                continue
+            appEvents[appEventKey] = eventName
+            del self.applicationEvents[appEventKey]
+        return appEvents
 
     def getMaximumStoredDelay(self):
         return max((i[1] for i in self.delayedEvents)) if self.delayedEvents else 0
@@ -397,16 +407,7 @@ class UseCaseRecorder:
             if currDelayLevel < minDelayLevel:
                 continue
             appEventInfo.setdefault(currDelayLevel, []).append((eventName, categoryName))
-            if appEventKey in self.applicationEvents:
-                storedFullName = self.applicationEvents[appEventKey]
-                if eventName == storedFullName:
-                    del self.applicationEvents[appEventKey]
-                else:
-                    storedName, storedCount = self.parseMultiples(storedFullName)
-                    givenName, givenCount = self.parseMultiples(eventName)
-                    if storedName == givenName:
-                        remainder = storedCount - givenCount
-                        self.reduceApplicationEventCount(givenName, categoryName, currDelayLevel, remainder)
+            del events[appEventKey]
         return appEventInfo
                             
     def writeApplicationEventDetails(self, events, minDelayLevel):
