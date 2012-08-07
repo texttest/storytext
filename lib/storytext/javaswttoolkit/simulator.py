@@ -957,7 +957,7 @@ class WidgetMonitor:
         self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
         self.uiMap.logger.debug("Monitoring all widgets in active shell...")
-        self.monitorAllWidgets(runOnUIThread(self.getActiveShell), list(allWidgets))
+        self.monitorAllWidgets(list(allWidgets))
         self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
         
     def forceShellActive(self):
@@ -995,7 +995,7 @@ class WidgetMonitor:
 
         self.uiMap.logger.debug("Showing/painting widget of type " +
                                 parent.__class__.__name__ + " " + str(id(parent)) + ", monitoring found widgets")
-        self.monitorAllWidgets(parent, widgets)
+        self.monitorAllWidgets(widgets)
         self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + 
                                 parent.__class__.__name__ + " " + str(id(parent)) + ".")
         
@@ -1016,7 +1016,7 @@ class WidgetMonitor:
                 items.append(item)
         return items
 
-    def monitorAllWidgets(self, parent, widgets):
+    def monitorAllWidgets(self, widgets):
         # Called both on the entire initial widget set and whenever a widgets is shown -> different threads
         # Use lock to avoid racing
         widgets += self.getPopupMenus(widgets)

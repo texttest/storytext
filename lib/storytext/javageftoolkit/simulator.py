@@ -259,8 +259,8 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def createSwtBot(self):
         return gefbot.SWTGefBot()
 
-    def monitorAllWidgets(self, parent, widgets):
-        rcpsimulator.WidgetMonitor.monitorAllWidgets(self, parent, widgets)
+    def monitorAllWidgets(self, widgets):
+        rcpsimulator.WidgetMonitor.monitorAllWidgets(self, widgets)
         self.monitorGefWidgets()
 
     def monitorViewContentsMenus(self, botView):
