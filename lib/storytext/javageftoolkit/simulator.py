@@ -140,6 +140,7 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
 
 class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):    
     def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
+        self.ensureInViewport(fromX, fromY)
         self._mouseDrag( fromX, fromY, toX, toY, keyModifiers)
 
     def _mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
@@ -183,7 +184,24 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         canvasBounds = rcpsimulator.swtsimulator.runOnUIThread(self.widget.getBounds)
         return canvasBounds.intersection(bounds)
 
+    def ensureInViewport(self, x, y):
+        viewportBounds = rcpsimulator.swtsimulator.runOnUIThread(self.widget.getViewport().getBounds)
+        if not viewportBounds.contains(x, y):
+            topEdge = getInt(viewportBounds.y)
+            bottomEdge = topEdge + getInt(viewportBounds.height)
+            leftEdge = getInt(viewportBounds.x)
+            rightEdge = leftEdge + getInt(viewportBounds.width)
+            if y < topEdge:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.scrollToY, y - topEdge - 10)
+            elif y > bottomEdge:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.scrollToY, y - bottomEdge + 10)
+            if x < leftEdge:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.scrollToX, x - leftEdge - 10)
+            elif x > rightEdge:
+                rcpsimulator.swtsimulator.runOnUIThread(self.widget.scrollToX, x - rightEdge + 10)
+            
     def mouseMoveLeftClick(self, x, y, keyModifiers=0):
+        self.ensureInViewport(x, y)
         displayLoc = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, displayLoc.x, displayLoc.y)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, displayLoc.x, displayLoc.y)
@@ -234,7 +252,8 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         self.display.post(event)
     
     def toDisplayLocation(self, x, y):
-        return self.widget.getDisplay().map(self.widget, None, x, y)
+        location = self.widget.getViewport().getViewLocation()
+        return self.widget.getDisplay().map(self.widget, None, x - getInt(location.x), y - getInt(location.y))
 
     def waitForCursor(self, x, y):
         while self.widget.getDisplay().getCursorLocation().x != x and self.widget.getDisplay().getCursorLocation().y != y:
