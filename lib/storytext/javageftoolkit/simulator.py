@@ -253,7 +253,7 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
     
     def toDisplayLocation(self, x, y):
         location = self.widget.getViewport().getViewLocation()
-        return self.widget.getDisplay().map(self.widget, None, x - getInt(location.x), y - getInt(location.y))
+        return self.widget.getDisplay().map(self.widget, None, x, y) # - getInt(location.x), y - getInt(location.y))
 
     def waitForCursor(self, x, y):
         while self.widget.getDisplay().getCursorLocation().x != x and self.widget.getDisplay().getCursorLocation().y != y:
