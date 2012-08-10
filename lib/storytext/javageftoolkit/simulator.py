@@ -471,12 +471,12 @@ class ViewerSelectEvent(ViewerEvent):
             raise UseCaseScriptError, "could not find any objects in viewer matching description " + repr(description)
 
     def generate(self, parts):
+        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
         if len(parts) == 1:
-            rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, parts[0])
+            self.widget.clickOnCenter(parts[0])
         else:
-            rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
             for part in parts:
-                rcpsimulator.swtsimulator.runOnUIThread(self.widget.clickOnCenter, part, swt.SWT.CTRL)
+                self.widget.clickOnCenter(part, swt.SWT.CTRL)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -501,10 +501,12 @@ class ViewerSelectEvent(ViewerEvent):
 class DragHolder():
     draggedPart = None
     sourceEvent = None
+    sourceSwtEvent = None
     @classmethod
-    def reset(self):
-        self.draggedPart = None
-        self.sourceEvent = None
+    def reset(cls):
+        cls.draggedPart = None
+        cls.sourceEvent = None
+        cls.sourceSwtEvent = None
     
 class ViewerDragAndDropEvent(ViewerEvent):
     def connectRecord(self, method):
@@ -519,15 +521,19 @@ class ViewerDragAndDropEvent(ViewerEvent):
         if len(self.widget.selectedEditParts()) > 0 and  self.shouldDrag(event):
             DragHolder.draggedPart = self.widget.selectedEditParts()[0].part()#self.getGefViewer().findObjectAt(p)
             DragHolder.sourceEvent = self
+            DragHolder.sourceSwtEvent = event
 
     def addDropListener(self, method):
         class MListener(swt.events.MouseAdapter):
             def mouseUp(lself, event):#@NoSelf
-                if DragHolder.sourceEvent is not None:
+                if DragHolder.sourceEvent is not None and self.hasMoved(DragHolder.sourceSwtEvent, event):
                     storytext.guishared.catchAll(method, DragHolder.draggedPart, event.x, event.y, DragHolder.sourceEvent)
                     DragHolder.reset()
 
         rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addMouseListener, MListener())
+
+    def hasMoved(self, dragEvent, dropEvent):
+        return dragEvent.widget is not dropEvent.widget or dragEvent.x != dropEvent.x or dragEvent.y != dropEvent.y
 
     def getStateDescription(self, part, *args):
         partDesc = self.storeObjectDescription(part)
