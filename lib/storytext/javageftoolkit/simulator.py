@@ -53,16 +53,16 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
     def ensureInViewport(self, bounds, viewportBounds):
         viewTop, viewLeft, viewBottom, viewRight = self.getEdges(viewportBounds)
         top, left, bottom, right = self.getEdges(bounds)
-        canvas = self.getFigureCanvas().widget
+        canvas = self.getFigureCanvas()
         if bottom < viewTop:
-            rcpsimulator.swtsimulator.runOnUIThread(canvas.scrollToY, top - viewTop)
+            canvas.scrollYOffset(top - viewTop)
         elif top > viewBottom:
-            rcpsimulator.swtsimulator.runOnUIThread(canvas.scrollToY, bottom - viewBottom)
+            canvas.scrollYOffset(bottom - viewBottom)
         if right < viewLeft:
-            rcpsimulator.swtsimulator.runOnUIThread(canvas.scrollToX, left - viewLeft)
+            canvas.scrollXOffset(left - viewLeft)
         elif left > viewRight:
-            rcpsimulator.swtsimulator.runOnUIThread(canvas.scrollToX, right - viewRight)
-
+            canvas.scrollXOffset(right - viewRight)
+            
     def findNonOverlappingCentre(self, bounds, overlaps):
         centre = bounds.getCenter()
         self.logger.debug("Found centre at " + repr(centre))
@@ -202,7 +202,19 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
             
     def getViewportBounds(self):
         return rcpsimulator.swtsimulator.runOnUIThread(self.widget.getViewport().getBounds)
-            
+    
+    def scrollXOffset(self, offset):
+        def doScroll():
+            currPos = getInt(self.widget.getViewport().getViewLocation().x)
+            self.widget.scrollToX(currPos + offset)
+        rcpsimulator.swtsimulator.runOnUIThread(doScroll)
+        
+    def scrollYOffset(self, offset):
+        def doScroll():
+            currPos = getInt(self.widget.getViewport().getViewLocation().y)
+            self.widget.scrollToY(currPos + offset)
+        rcpsimulator.swtsimulator.runOnUIThread(doScroll)
+        
     def mouseMoveLeftClick(self, x, y, keyModifiers=0):
         displayLoc = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, displayLoc.x, displayLoc.y)
