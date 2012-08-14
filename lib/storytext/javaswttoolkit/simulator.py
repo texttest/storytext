@@ -626,6 +626,12 @@ class ExpandEvent(TreeEvent):
     def getAssociatedSignal(cls, widget):
         return "Expand"
 
+    def parseArguments(self, argumentString):
+        item = TreeEvent.parseArguments(self, argumentString)
+        if hasattr(item, "rowCount") and item.rowCount() == 0:
+            raise UseCaseScriptError, "Item labelled '" + argumentString + "' in " + self.getClassDesc() + " is not expandable."
+        return item
+    
     def generateItem(self, item):
         item.expand()
 

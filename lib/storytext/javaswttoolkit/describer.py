@@ -362,6 +362,8 @@ class Describer(storytext.guishared.Describer):
         if selected:
             elements.append("selected")
         elements.append(self.getContextMenuReference(item))
+        if hasattr(item, "getItemCount") and hasattr(item, "getExpanded") and item.getItemCount() > 0 and not item.getExpanded():
+            elements.append("+")
         return elements
 
     def getLabelState(self, label):
