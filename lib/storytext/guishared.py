@@ -769,6 +769,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
 
     def tryParseRepeatedly(self, commandWithArg, replayFailureMethod):
         attemptCount = 30
+        command = None
         for attempt in range(attemptCount):
             try:
                 command, argumentString = self.parseCommand(commandWithArg)
@@ -781,8 +782,8 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 else:
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, final event failed, waiting and retrying: " + str(value))
-                    if replayFailureMethod:
-                        replayFailureMethod(str(value))
+                    if replayFailureMethod and command:
+                        replayFailureMethod(str(value), self.events[command][0])
                     time.sleep(0.1)
         
     def checkWidgetStatus(self, commandName, argumentString):

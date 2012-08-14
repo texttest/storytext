@@ -116,7 +116,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                 self.monitorMenus(swtbotView)
                 self.addTitleChangedListener(swtbotView)
                 
-    def handleReplayFailure(self, errorText):
+    def handleReplayFailure(self, errorText, *args):
         if "MenuItem has already been disposed" in errorText: # View Menus can easily get regenerated, try to re-monitor them.
             swtsimulator.runOnUIThread(self.monitorAllMenus)
     
