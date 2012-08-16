@@ -474,7 +474,8 @@ class ViewerSelectEvent(ViewerEvent):
     def parseArguments(self, description):
         parts = []
         notfound = []
-        for part in description.split(","):
+        allParts = description.split(",")
+        for part in allParts:
             editPart = self.findEditPart(self.widget.rootEditPart(), part)
             if editPart:
                 parts.append(editPart)
@@ -483,7 +484,7 @@ class ViewerSelectEvent(ViewerEvent):
                                 
         if len(parts) > 0:
             if len(notfound) > 0:
-                return self.makePartialParseFailure(parts, ",".join(notfound))
+                return self.makePartialParseFailure(parts, ",".join(notfound), allParts[0] not in notfound)
             else:
                 return parts
         else:

@@ -48,24 +48,32 @@ class UserEvent:
         pass # raise UseCaseScriptError if anything is wrong
     def parseArguments(self, argumentString):
         return argumentString
-    def makePartialParseFailure(self, parsedArgs, unparsedArgs):
-        return CompositeEventProxy(unparsedArgs, self, parsedArgs)
+    def makePartialParseFailure(self, parsedArgs, unparsedArgs, firstEvent=True):
+        return CompositeEventProxy(unparsedArgs, self, parsedArgs, firstEvent)
 
 # Class for encapsulating when we can only perform some of an action, and marking progress
 class CompositeEventProxy:
-    def __init__(self, unparsedArgs, event=None, parsedArgs=None):
+    def __init__(self, unparsedArgs, event=None, parsedArgs=None, firstEvent=True):
         self.eventsWithArgs = []
+        self.firstEvent = firstEvent
         if event:
             self.addEvent(event, parsedArgs)
         self.unparsedArgs = unparsedArgs
         
     def addEvent(self, event, parsedArgs):
-        self.eventsWithArgs.append((event, parsedArgs))
+        if self.firstEvent:
+            self.eventsWithArgs.append((event, parsedArgs))
+        else:
+            self.eventsWithArgs.insert(0, (event, parsedArgs))
         self.unparsedArgs = ""
         
     def updateFromProxy(self, proxy):
-        self.eventsWithArgs += proxy.eventsWithArgs
+        if self.firstEvent or not proxy.firstEvent:
+            self.eventsWithArgs += proxy.eventsWithArgs
+        else:
+            self.eventsWithArgs = proxy.eventsWithArgs + self.eventsWithArgs
         self.unparsedArgs = proxy.unparsedArgs
+        self.firstEvent = proxy.firstEvent
         
     def getWarning(self):
         if self.unparsedArgs:
