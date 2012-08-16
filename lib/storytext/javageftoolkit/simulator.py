@@ -473,18 +473,26 @@ class ViewerSelectEvent(ViewerEvent):
 
     def parseArguments(self, description):
         parts = []
+        notfound = []
         for part in description.split(","):
             editPart = self.findEditPart(self.widget.rootEditPart(), part)
             if editPart:
                 parts.append(editPart)
+            else:
+                notfound.append(part)
+                                
         if len(parts) > 0:
-            return parts
+            if len(notfound) > 0:
+                return self.makePartialParseFailure(parts, ",".join(notfound))
+            else:
+                return parts
         else:
-            raise UseCaseScriptError, "could not find any objects in viewer matching description " + repr(description)
-
-    def generate(self, parts):
-        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
-        if len(parts) == 1:
+            raise UseCaseScriptError, "could not find any objects in viewer matching description "  + repr(description)
+        
+    def generate(self, parts, partial=False):
+        if not partial:
+            rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().deselectAll)
+        if len(parts) == 1 and not partial:
             self.widget.clickOnCenter(parts[0])
         else:
             for part in parts:

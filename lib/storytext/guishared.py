@@ -786,9 +786,22 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                         replayFailureMethod(str(value), self.events[command][0])
                     time.sleep(0.1)
         
+    def checkAndParse(self, event, compositeEventProxy):
+        event.checkWidgetStatus()
+        parsedArguments = event.parseArguments(compositeEventProxy.unparsedArgs)
+        if isinstance(parsedArguments, definitions.CompositeEventProxy):
+            compositeEventProxy.updateFromProxy(parsedArguments)
+        else:
+            if compositeEventProxy.hasEvents():
+                compositeEventProxy.addEvent(event, parsedArguments)
+                return compositeEventProxy, ""
+            else:
+                return event, parsedArguments
+        
     def checkWidgetStatus(self, commandName, argumentString):
         if commandName != replayer.signalCommandName:
-            possibleEvents = self.events[commandName]
+            possibleEvents = self.events[commandName]   
+            compositeEventProxy = definitions.CompositeEventProxy(argumentString)
             # We may have several plausible events with this name,
             # but some of them won't work because widgets are disabled, invisible etc
             # Go backwards to preserve back-compatibility, previously only the last one was considered.
@@ -796,17 +809,24 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
             for event in reversed(possibleEvents[1:]):
                 try:
                     self.logger.debug("Check widget status for " + repr(commandName) + ", event of type " + event.__class__.__name__) 
-                    event.checkWidgetStatus()
-                    parsedArguments = event.parseArguments(argumentString)
-                    return event, parsedArguments
+                    retval = self.checkAndParse(event, compositeEventProxy)
+                    if retval:
+                        return retval
                 except definitions.UseCaseScriptError:
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, trying another: " + str(value))
             event = possibleEvents[0]
-            event.checkWidgetStatus()
-            parsedArguments = event.parseArguments(argumentString)
-            return event, parsedArguments
+            retval = self.checkAndParse(event, compositeEventProxy)
+            if retval:
+                return retval
+            else:
+                return compositeEventProxy, ""
             
+    def writeWarnings(self, event):
+        warn = event.getWarning()
+        if warn:
+            self.write("Warning: not replaying full command, " + warn)
+
     def _parseAndProcess(self, command, describeMethod, replayFailureMethod):
         try:
             commandName, argumentString, event, parsedArguments = self.tryParseRepeatedly(command, replayFailureMethod)
@@ -820,6 +840,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         self.logger.debug("About to perform " + repr(commandName) + " with arguments " + repr(argumentString))
         if event:
             self.describeEvent(commandName, argumentString)
+            self.writeWarnings(event)
             event.generate(parsedArguments)
         else:
             self.processSignalCommand(argumentString)

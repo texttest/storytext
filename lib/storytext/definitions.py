@@ -9,6 +9,7 @@ signalCommandName = "receive signal"
 class UseCaseScriptError(RuntimeError):
     pass
 
+
 # Base class for events caused by the action of a user on a GUI. Generally assumed
 # to be doing something on a particular widget, and being named explicitly by the
 # programmer in some language domain.
@@ -41,7 +42,43 @@ class UserEvent:
         # Historical assumption has been that 'shouldRecord' often takes out events that are totally irrelevant
         # But in some circumstances they can still be relevant in that sense
         return False
+    def getWarning(self):
+        return ""
     def checkWidgetStatus(self):
         pass # raise UseCaseScriptError if anything is wrong
     def parseArguments(self, argumentString):
         return argumentString
+    def makePartialParseFailure(self, parsedArgs, unparsedArgs):
+        return CompositeEventProxy(unparsedArgs, self, parsedArgs)
+
+# Class for encapsulating when we can only perform some of an action, and marking progress
+class CompositeEventProxy:
+    def __init__(self, unparsedArgs, event=None, parsedArgs=None):
+        self.eventsWithArgs = []
+        if event:
+            self.addEvent(event, parsedArgs)
+        self.unparsedArgs = unparsedArgs
+        
+    def addEvent(self, event, parsedArgs):
+        self.eventsWithArgs.append((event, parsedArgs))
+        self.unparsedArgs = ""
+        
+    def updateFromProxy(self, proxy):
+        self.eventsWithArgs += proxy.eventsWithArgs
+        self.unparsedArgs = proxy.unparsedArgs
+        
+    def getWarning(self):
+        if self.unparsedArgs:
+            try:
+                self.eventsWithArgs[0][0].parseArguments(self.unparsedArgs)
+            except UseCaseScriptError, e:
+                return str(e)
+        
+    def generate(self, *args):
+        for i, (event, parsedArgs) in enumerate(self.eventsWithArgs):
+            event.generate(parsedArgs, partial=bool(i))
+            
+    def hasEvents(self):
+        return len(self.eventsWithArgs) > 0
+        
+        
