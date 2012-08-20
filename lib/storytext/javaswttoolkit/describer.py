@@ -322,7 +322,8 @@ class Describer(storytext.guishared.Describer):
     def getControlDecorationDescription(self, item):
         deco = self.getControlDecoration(item)
         if deco:
-            imgDesc = self.getControlDecorationImageDescription(deco.getImage())
+            image = deco.getImage()
+            imgDesc = self.getImageDescription(deco.getImage()) if image is not None else ""
         if deco and self.decorationVisible(deco): 
             text = "Decoration " + imgDesc
             desc = deco.getDescriptionText()
@@ -340,13 +341,6 @@ class Describer(storytext.guishared.Describer):
         method.setAccessible(True)
         return method.invoke(deco, *args)
 
-    def getControlDecorationImageDescription(self, image):
-        # Hard coded. It gets indeterministic results
-        if self.imageDescriptionType == "name":
-            return "Unknown Image"
-        else:
-            return self.getDefaultImageDescription(image)
-        
     def getPropertyElements(self, item, selected=False):
         elements = []
         decoText = self.getControlDecorationDescription(item)
