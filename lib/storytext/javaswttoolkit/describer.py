@@ -58,11 +58,11 @@ class Describer(storytext.guishared.Describer):
     def addFilters(self, display):
         class ShowListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                self.setWidgetShown(e.widget)
+                storytext.guishared.catchAll(self.setWidgetShown, e.widget)
 
         class PaintListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
-                self.setWidgetPainted(e.widget)
+                storytext.guishared.catchAll(self.setWidgetPainted, e.widget)
 
         display.addFilter(swt.SWT.Show, ShowListener())
         display.addFilter(swt.SWT.Paint, PaintListener())

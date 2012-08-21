@@ -3,6 +3,7 @@
     Hook application events directly into that for synchronisation."""
 
 import logging
+import storytext.guishared
 from storytext.javaswttoolkit.simulator import DisplayFilter
 from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
 from threading import Lock
@@ -18,6 +19,9 @@ class JobListener(JobChangeAdapter):
         self.logger = logging.getLogger("Eclipse RCP jobs")
         
     def done(self, e):
+        storytext.guishared.catchAll(self.jobDone, e)
+        
+    def jobDone(self, e):
         jobName = e.getJob().getName().lower()        
         self.alterJobCount(-1)
         self.logger.debug("Completed " + ("system" if e.getJob().isSystem() else "non-system") + " job '" + jobName + "' jobs = " + repr(self.jobCount))    
@@ -37,6 +41,9 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.release()
 
     def scheduled(self, e):
+        storytext.guishared.catchAll(self.jobScheduled, e)
+        
+    def jobScheduled(self, e):
         jobName = e.getJob().getName().lower()
         self.alterJobCount(1)
         self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount))

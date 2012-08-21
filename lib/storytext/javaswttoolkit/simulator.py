@@ -560,7 +560,7 @@ class TableColumnHeaderEvent(SignalEvent):
         self.addColumnListeners(*args)            
         class PaintListener(swt.widgets.Listener):
             def handleEvent(lself, e): #@NoSelf
-                self.addColumnListeners(*args)
+                storytext.guishared.catchAll(self.addColumnListeners, *args)
         self.widget.widget.widget.addListener(swt.SWT.Paint, PaintListener())
         
     def outputForScript(self, event, *args):
@@ -803,6 +803,14 @@ class DisplayFilter:
             
         self.addApplicationEventFilter(display)
 
+    def handleEventFinished(self, e):        
+        # Any application events that were delayed should be no longer, if they haven't been handled yet
+        for appEvent in self.delayedAppEvents:
+            applicationEventDelay(appEvent, fromLevel=len(self.eventsFromUser), increase=False)
+        self.delayedAppEvents = []
+        self.logger.debug("Filter removed for event " + e.toString())
+        self.eventsFromUser.remove(e)
+
     def handleFilterEvent(self, e):
         if self.shouldCheckWidget(e.widget, e.type):
             self.logger.debug("Filter for event " + e.toString())
@@ -810,12 +818,7 @@ class DisplayFilter:
             class EventFinishedListener(swt.widgets.Listener):
                 def handleEvent(listenerSelf, e2): #@NoSelf
                     if e2 is e:
-                        # Any application events that were delayed should be no longer, if they haven't been handled yet
-                        for appEvent in self.delayedAppEvents:
-                            applicationEventDelay(appEvent, fromLevel=len(self.eventsFromUser), increase=False)
-                        self.delayedAppEvents = []
-                        self.logger.debug("Filter removed for event " + e.toString())
-                        self.eventsFromUser.remove(e)
+                        storytext.guishared.catchAll(self.handleEventFinished, e)
                     
             runOnUIThread(e.widget.addListener, e.type, EventFinishedListener())
             if e.item and not e.item.isDisposed():
