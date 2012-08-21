@@ -11,6 +11,7 @@ from threading import Lock
 class JobListener(JobChangeAdapter):
     # Add things from customwidgetevents here, if desired...
     systemJobNames = []
+    instance = None
     def __init__(self):
         self.jobNameToUse = None
         self.jobCount = 0
@@ -60,4 +61,5 @@ class JobListener(JobChangeAdapter):
         
     @classmethod
     def enable(cls, *args):
-        Job.getJobManager().addJobChangeListener(cls(*args))
+        cls.instance = cls(*args)
+        Job.getJobManager().addJobChangeListener(cls.instance)
