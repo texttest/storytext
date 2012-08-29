@@ -530,6 +530,7 @@ class DragHolder():
         cls.sourceSwtEvent = None
     
 class ViewerDragAndDropEvent(ViewerEvent):
+    allInstances = {}
     def connectRecord(self, method):
         class DDListener(swt.events.DragDetectListener):
             def dragDetected(lself, event):#@NoSelf
@@ -539,7 +540,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
         self.addDropListener(method)
 
     def applyToDragged(self, event, method):
-        if len(self.widget.selectedEditParts()) > 0 and  self.shouldDrag(event):
+        if len(self.widget.selectedEditParts()) > 0 and self.shouldDrag(event):
             DragHolder.draggedPart = self.widget.selectedEditParts()[0].part()#self.getGefViewer().findObjectAt(p)
             DragHolder.sourceEvent = self
             DragHolder.sourceSwtEvent = event
@@ -547,14 +548,26 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def addDropListener(self, method):
         class MListener(swt.events.MouseAdapter):
             def mouseUp(lself, event):#@NoSelf
-                if DragHolder.sourceEvent is not None and self.hasMoved(DragHolder.sourceSwtEvent, event):
-                    storytext.guishared.catchAll(method, DragHolder.draggedPart, event.x, event.y, DragHolder.sourceEvent)
-                    DragHolder.reset()
+                storytext.guishared.catchAll(self.handleDrop, event, method)
 
+        self.allInstances.setdefault(self.__class__, []).append(self)
         rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addMouseListener, MListener())
 
-    def hasMoved(self, dragEvent, dropEvent):
-        return dragEvent.widget is not dropEvent.widget or dragEvent.x != dropEvent.x or dragEvent.y != dropEvent.y
+    def handleDrop(self, event, method):
+        if DragHolder.sourceEvent is not None and self.__class__ is DragHolder.sourceEvent.__class__:
+            for instance in self.allInstances.get(self.__class__, []):
+            # No guarantee MouseUp appers on same widget
+                dropX, dropY = instance.getDropPosition(event)
+                if instance.isValidDragAndDrop(DragHolder.sourceSwtEvent, event, dropX, dropY):
+                    method(DragHolder.draggedPart, dropX, dropY, instance, DragHolder.sourceEvent)
+                    break
+            DragHolder.reset()
+
+    def isValidDragAndDrop(self, dragEvent, dropEvent, dropX, dropY):
+        return dragEvent.widget is not dropEvent.widget or dragEvent.x != dropX or dragEvent.y != dropY
+
+    def getDropPosition(self, event):
+        return event.x, event.y
 
     def getStateDescription(self, part, *args):
         partDesc = self.storeObjectDescription(part)
