@@ -1,27 +1,27 @@
-import xml.sax, sys, os, re
+
+import sys
+from HTMLParser import HTMLParser, HTMLParseError
 from storytext.gridformatter import GridFormatter
 from storytext.guishared import getExceptionString
-class BrowserHtmlParser(xml.sax.ContentHandler):
+
+class BrowserHtmlParser(HTMLParser):
     def __init__(self):
-        xml.sax.ContentHandler.__init__(self)
+        HTMLParser.__init__(self)
         self.currentTableParsers = []
         self.inBody = False
         self.text = ""
 
     def parse(self, text):
         try:
-            # Webkit seems to send us text we can't parse out of the box. Add html tags
-            if not text.startswith("<html>"):
-                text = "<html>" + text + "</html>"
-            # Make sure all attribute values are quoted as they should be...
-            text = re.sub('=([^ "/>]+)', '="\\1"', text)
-            xml.sax.parseString(text, self)
-        except xml.sax.SAXException:
+            self.feed(text)
+        except HTMLParseError:
             sys.stderr.write("Failed to parse browser text:\n")
             sys.stderr.write(getExceptionString())
+            sys.stderr.write("Original text follows:\n")
+            sys.stderr.write(text + "\n")
         return self.text
 
-    def startElement(self, rawname, attrs):
+    def handle_starttag(self, rawname, attrs):
         name = rawname.lower()
         if name == "table":
             self.currentTableParsers.append(TableParser())
@@ -30,7 +30,7 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         elif name == "body":
             self.inBody = True
 
-    def endElement(self, rawname):
+    def handle_endtag(self, rawname):
         name = rawname.lower()
         if name == "table":
             parser = self.currentTableParsers.pop()
@@ -42,7 +42,7 @@ class BrowserHtmlParser(xml.sax.ContentHandler):
         elif self.currentTableParsers:
             self.currentTableParsers[-1].endElement(name)
 
-    def characters(self, content):
+    def handle_data(self, content):
         if self.currentTableParsers:
             self.currentTableParsers[-1].characters(content)
         elif self.inBody:
