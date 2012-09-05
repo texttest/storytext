@@ -106,12 +106,47 @@ class ReplayScript:
         else:
             return [ command ]
         
+        
+class ShortcutManager:
+    def __init__(self):
+        self.shortcuts = []
+        
+    def add(self, shortcut):
+        self.shortcuts.append((shortcut.getShortcutRegexp(), shortcut))
+
+    def getShortcuts(self):
+        # Drop the trailing $ from the pattern
+        return sorted(((r.pattern[:-1], shortcut) for r, shortcut in self.shortcuts))
+    
+    def getRegexps(self):
+        return [ r for r, _ in self.shortcuts ]
+    
+    def findShortcut(self, command):
+        bestShortcut, bestArgs = None, []
+        for regex, shortcut in self.shortcuts:
+            match = regex.match(command)
+            if match:
+                args = list(match.groups())
+                if bestShortcut is None or self.isBetterShortcut(args, bestArgs):
+                    bestShortcut, bestArgs = shortcut, args
+        return bestShortcut, bestArgs
+
+    def isBetterShortcut(self, args1, args2):
+        if len(args1) != len(args2):
+            return len(args1) > len(args2)
+        
+        # If we have the same arguments, choose the shortcut with least text in arguments
+        # which implies more text in the given name
+        argLength1 = sum(map(len, args1))
+        argLength2 = sum(map(len, args2))
+        return argLength1 < argLength2
+    
     
 class UseCaseReplayer:
     def __init__(self, timeout=60):
         self.logger = logging.getLogger("storytext replay log")
         self.scripts = []
-        self.shortcuts = []
+        self.shortcutManager = ShortcutManager()
         self.events = {}
         self.waitingForEvents = []
         self.applicationEventNames = set()
@@ -131,11 +166,10 @@ class UseCaseReplayer:
         return len(self.scripts) > 0
 
     def registerShortcut(self, shortcut):
-        self.shortcuts.append((shortcut.getShortcutRegexp(), shortcut))
+        self.shortcutManager.add(shortcut)
 
     def getShortcuts(self):
-        # Drop the trailing $ from the pattern
-        return sorted(((r.pattern[:-1], shortcut) for r, shortcut in self.shortcuts))
+        return self.shortcutManager.getShortcuts()
     
     def addEvent(self, event):
         self.events.setdefault(event.name, []).append(event)
@@ -150,10 +184,10 @@ class UseCaseReplayer:
             self.runScript(script, enableReading=True)
 
     def runScript(self, script, enableReading):
-        if self.shortcuts:
-            scriptCommand = script.getCommand(matching=[ r for r, _ in self.shortcuts ])
+        if self.shortcutManager.shortcuts:
+            scriptCommand = script.getCommand(matching=self.shortcutManager.getRegexps())
             if scriptCommand:
-                newScript, args = self.findShortcut(scriptCommand)
+                newScript, args = self.shortcutManager.findShortcut(scriptCommand)
                 return self.addScript(newScript, args, enableReading)
         
         if enableReading and self.processInitialWait(script):
@@ -271,26 +305,6 @@ class UseCaseReplayer:
             self.write(self.eventHappenedMessage)
             self.eventHappenedMessage = ""
 
-    def findShortcut(self, command):
-        bestShortcut, bestArgs = None, []
-        for regex, shortcut in self.shortcuts:
-            match = regex.match(command)
-            if match:
-                args = list(match.groups())
-                if bestShortcut is None or self.isBetterShortcut(args, bestArgs):
-                    bestShortcut, bestArgs = shortcut, args
-        return bestShortcut, bestArgs
-
-    def isBetterShortcut(self, args1, args2):
-        if len(args1) != len(args2):
-            return len(args1) > len(args2)
-        
-        # If we have the same arguments, choose the shortcut with least text in arguments
-        # which implies more text in the given name
-        argLength1 = sum(map(len, args1))
-        argLength2 = sum(map(len, args2))
-        return argLength1 < argLength2
-
     def runNextCommand(self, **kw):
         if self.timeDelayNextCommand:
             self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
@@ -300,7 +314,7 @@ class UseCaseReplayer:
         if len(commands) == 0:
             return False, False
         for command in commands:
-            script, arguments = self.findShortcut(command)
+            script, arguments = self.shortcutManager.findShortcut(command)
             if script:
                 self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
                 if commands[-1].startswith(waitCommandName):
