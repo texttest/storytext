@@ -8,6 +8,7 @@ import logging, gtk, gobject, locale, operator
 
 from treeviews import performTreeViewInterceptions, TreeViewDescriber, treeModelSignals
 from images import performImageInterceptions, ImageDescriber
+from storytext.guishared import encodeToLocale
 
 # Magic constants, can't really use default priorities because file choosers use them in many GTK versions.
 PRIORITY_STORYTEXT_IDLE = gobject.PRIORITY_DEFAULT_IDLE + 20
@@ -536,8 +537,7 @@ class TextViewDescriber:
     def getContents(self):
         # Assumes it's impossible to get text into the UI that is invalid for the current locale encoding
         unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter())
-        encoding = locale.getdefaultlocale()[1] or "utf-8"
-        return unicodeInfo.encode(encoding, 'replace')
+        return encodeToLocale(unicodeInfo)
 
 
 class IdleScheduler:
