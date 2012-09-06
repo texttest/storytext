@@ -13,5 +13,5 @@ if binDir in sys.path:
    sys.path.remove(binDir)
 
 if __name__ == "__main__":    
-    from storytext.namechooser import main
+    from storytext.editor import main
     main()

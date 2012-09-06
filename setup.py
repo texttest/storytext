@@ -24,7 +24,7 @@ if jython:
     windows = os.pathsep == ";"
 else:
     # Does not run under Jython, uses GTK
-    scripts.append("bin/usecase_name_chooser")
+    scripts.append("bin/storytext_editor")
     windows = os.name == "nt"
 
 # Lifted from bzr setup.py, use for Jython on Windows which has no native installer

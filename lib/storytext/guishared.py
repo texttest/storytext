@@ -273,7 +273,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
             if eventDescriptor in eventClass.getAssociatedSignatures(widget):
                 return eventClass(eventName, widget, argumentParseData)
             
-    def getUsecaseNameChooserEnv(self):
+    def getEditorEnvironment(self):
         new_env = {}
         for var, value in os.environ.items():
             if var == "PATH":
@@ -282,27 +282,26 @@ class ScriptEngine(scriptengine.ScriptEngine):
                 new_env[var] = value
         return new_env
 
-    def getUsecaseNameChooserCmdArgs(self, recordScript, interface):
+    def getEditorCmdArgs(self, recordScript, interface):
         mapFiles = self.uiMap.getMapFileNames()
-        return [ "usecase_name_chooser", "-m", ",".join(mapFiles), 
-                 "-r", recordScript, "-i", interface ]
+        return [ "storytext_editor", "-m", ",".join(mapFiles), "-i", interface, recordScript ]
 
     def replaceAutoRecordingForUsecase(self, interface):
         self.recorder.closeScripts()
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if self.uiMap and recordScript and os.path.isfile(recordScript) and self.recorder.hasAutoRecordings:
             sys.stdout.flush()
-            cmdArgs = self.getUsecaseNameChooserCmdArgs(recordScript, interface)
-            env = self.getUsecaseNameChooserEnv()
+            cmdArgs = self.getEditorCmdArgs(recordScript, interface)
+            env = self.getEditorEnvironment()
             if os.name == "posix":
                 os.execvpe(cmdArgs[0], cmdArgs, env) #@UndefinedVariable
             else:
                 subprocess.call(cmdArgs, env=env)
 
     def replaceAutoRecordingForShortcut(self, script):
-        if self.uiMap and self.binDir:
-            cmdArgs = self.getUsecaseNameChooserCmdArgs(script.scriptName, "gtk")
-            subprocess.call(cmdArgs, env=self.getUsecaseNameChooserEnv())
+        if self.uiMap and self.binDir and self.recorder.hasAutoRecordings:
+            cmdArgs = self.getEditorCmdArgs(script.scriptName, "gtk")
+            subprocess.call(cmdArgs, env=self.getEditorEnvironment())
     
     def getClassName(self, widgetClass, module):
         return module + "." + widgetClass.__name__
