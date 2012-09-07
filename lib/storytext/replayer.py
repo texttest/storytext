@@ -8,7 +8,7 @@ from copy import copy
 waitRegexp = re.compile(waitCommandName + ".*")
 
 class ReplayScript:
-    def __init__(self, scriptName):
+    def __init__(self, scriptName, ignoreComments=False):
         self.commands = []
         self.exitObservers = []
         self.pointer = 0
@@ -16,7 +16,9 @@ class ReplayScript:
         if not os.path.isfile(scriptName):
             raise UseCaseScriptError, "Cannot replay script " + repr(scriptName) + ", no such file or directory."
         for line in open(scriptName):
-            self.commands.append(line.strip())
+            line = line.strip()
+            if not ignoreComments or (line != "" and line[0] != "#"):
+                self.commands.append(line)
 
     def addExitObserver(self, observer):
         self.exitObservers.append(observer)

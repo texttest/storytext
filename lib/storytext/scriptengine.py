@@ -49,7 +49,7 @@ class ScriptEngine:
         for fileName in sorted(os.listdir(self.storytextHome)):
             if fileName.endswith(".shortcut"):
                 fullPath = os.path.join(self.storytextHome, fileName)
-                shortcuts.append(replayer.ReplayScript(fullPath))
+                shortcuts.append(replayer.ReplayScript(fullPath, ignoreComments=True))
         return shortcuts
 
     def createReplayer(self, **kw):

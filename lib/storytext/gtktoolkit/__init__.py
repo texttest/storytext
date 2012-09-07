@@ -149,7 +149,7 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
             scriptExistedPreviously = os.path.isfile(newScriptName)
             script.rename(newScriptName)
             if not scriptExistedPreviously:
-                replayScript = storytext.replayer.ReplayScript(newScriptName)
+                replayScript = storytext.replayer.ReplayScript(newScriptName, ignoreComments=True)
                 self.addShortcutButton(existingbox, buttonName, replayScript)
             self.replaceAutoRecordingForShortcut(script)
 

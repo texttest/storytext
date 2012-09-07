@@ -71,7 +71,7 @@ class ShortcutTracker:
         self.reset()
 
     def reset(self):
-        self.replayScript = ReplayScript(self.replayScript.name)
+        self.replayScript = ReplayScript(self.replayScript.name, ignoreComments=True)
         self.commandsForMatch = copy(self.commandsForMismatch)
         self.argsUsed = []
         self.currRegexp = self.replayScript.getCommandRegexp()
