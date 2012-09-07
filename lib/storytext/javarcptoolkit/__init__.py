@@ -66,7 +66,7 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
             sys.exit(1)
 
     def runOnRecordExit(self): # pragma: no cover - cannot test with replayer disabled
-        self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt")
+        self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt", exitHook=True)
         self.tryTerminateCoverage()
 
     def enableJobListener(self):

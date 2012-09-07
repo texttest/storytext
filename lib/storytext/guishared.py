@@ -286,8 +286,8 @@ class ScriptEngine(scriptengine.ScriptEngine):
         mapFiles = self.uiMap.getMapFileNames()
         return [ "storytext_editor", "-m", ",".join(mapFiles), "-i", interface, recordScript ]
 
-    def replaceAutoRecordingForUsecase(self, interface):
-        self.recorder.closeScripts()
+    def replaceAutoRecordingForUsecase(self, interface, exitHook):
+        self.recorder.closeScripts(exitHook)
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if self.uiMap and recordScript and os.path.isfile(recordScript) and self.recorder.hasAutoRecordings:
             sys.stdout.flush()
@@ -323,7 +323,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
                 return scriptengine.ScriptEngine.run(self, options, args)
             finally:
                 if not options.disable_usecase_names:
-                    self.replaceAutoRecordingForUsecase(options.interface)
+                    self.replaceAutoRecordingForUsecase(options.interface, exitHook=False)
 
     def handleAdditionalOptions(self, options):
         if options.maxoutputwidth:
@@ -660,6 +660,9 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
         self.loggerActive = universalLogging
         self.recorder = recorder
         self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
+        
+    def handleComment(self, comment):
+        self.recorder.storeComment(comment)
         
     def enableReading(self):
         self.readingEnabled = True

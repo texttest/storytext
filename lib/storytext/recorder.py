@@ -136,6 +136,7 @@ class UseCaseRecorder:
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
         self.scripts = []
+        self.comments = []
         self.processId = os.getpid()
         self.applicationEvents = OrderedDict()
         self.supercededAppEventCategories = {}
@@ -163,10 +164,19 @@ class UseCaseRecorder:
     def isActive(self):
         return len(self.scripts) > 0
 
+    def storeComment(self, comment):
+        self.logger.debug("Storing comment " + repr(comment))
+        self.comments.append(comment)
+
     def addScript(self, scriptName):
         self.scripts.append(RecordScript(scriptName))
 
-    def closeScripts(self):
+    def closeScripts(self, exitHook):
+        if any((c is not None for c in self.comments)):
+            if exitHook:
+                sys.stderr.write("NOTE: discarded terminal comments in usecase file, these are not supported for Java applications.\n")
+            else:
+                self.recordComments()
         for script in self.scripts:
             script.close()
     
@@ -316,8 +326,21 @@ class UseCaseRecorder:
                             nextLevelEvents = []
                 else:
                     nextLevelEvents.append((scriptOutput, delayLevel, source))
+        
+    def recordComments(self):
+        while len(self.comments) > 0:
+            comment = self.comments.pop(0)
+            if comment is not None:
+                self._record(comment)
+            else:
+                self.logger.debug("Got None in comment list, not recording more comments now")
+                break
                 
     def record(self, line, event=None):
+        self.recordComments()
+        self._record(line, event)
+        
+    def _record(self, line, event=None):
         self.logger.debug("Recording " + repr(line))
         self.hasAutoRecordings |= line.startswith("Auto.")
         for script in self.getScriptsToRecord(event):

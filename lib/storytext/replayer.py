@@ -15,10 +15,8 @@ class ReplayScript:
         self.name = scriptName
         if not os.path.isfile(scriptName):
             raise UseCaseScriptError, "Cannot replay script " + repr(scriptName) + ", no such file or directory."
-        for line in open(scriptName).xreadlines():
-            line = line.strip()
-            if line != "" and line[0] != "#":
-                self.commands.append(line)
+        for line in open(scriptName):
+            self.commands.append(line.strip())
 
     def addExitObserver(self, observer):
         self.exitObservers.append(observer)
@@ -94,17 +92,39 @@ class ReplayScript:
         rawCommands = self.commands[:self.pointer - 1] if self.pointer else []
         return [ self.replaceArgs(cmd, args) for cmd in rawCommands]
 
+    @staticmethod
+    def isComment(command):
+        return len(command) == 0 or command.startswith("#")
+
+    def extractAllComments(self):
+        comments = []
+        while self.pointer < len(self.commands):
+            nextCommand = self.commands[self.pointer]
+            if self.isComment(nextCommand):
+                comments.append(nextCommand)
+                self.pointer += 1
+            else:
+                break
+        return comments
+
     def getCommands(self, args):
+        commands = self.extractAllComments()
         command = self.getCommand(args)
-        if not command:
-            return []
+        if command is None:
+            return commands
+        
+        commands.append(command)
+        pointerWithCommand = self.pointer
+        commentsAfter = self.extractAllComments()
 
         # Process application events together with the previous command so the log comes out sensibly...
         waitCommand = self.getCommand(args, [ waitRegexp ])
         if waitCommand:
-            return [ command, waitCommand ]
+            commands += commentsAfter
+            commands.append(waitCommand)
         else:
-            return [ command ]
+            self.pointer = pointerWithCommand
+        return commands
         
         
 class ShortcutManager:
@@ -197,6 +217,7 @@ class UseCaseReplayer:
         waitCommand = script.getCommand(matching=[ waitRegexp ])
         if waitCommand:
             self.logger.debug("Initial " + repr(waitCommand) + ", not starting replayer")
+            self.handleComment(None) # Keep the comments in the right order...
             return self.processWait(self.getArgument(waitCommand, waitCommandName))
         else:
             return True
@@ -305,6 +326,9 @@ class UseCaseReplayer:
             self.write(self.eventHappenedMessage)
             self.eventHappenedMessage = ""
 
+    def handleComment(self, comment):
+        pass # Can't do anything here, don't know about the recorder...
+
     def runNextCommand(self, **kw):
         if self.timeDelayNextCommand:
             self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
@@ -313,7 +337,12 @@ class UseCaseReplayer:
         commands = self.getCommands()
         if len(commands) == 0:
             return False, False
+        
         for command in commands:
+            if ReplayScript.isComment(command):
+                self.handleComment(command)
+                continue
+            
             script, arguments = self.shortcutManager.findShortcut(command)
             if script:
                 self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
@@ -322,6 +351,10 @@ class UseCaseReplayer:
                     script.commands.append(commands[-1])
                 self.addScript(script, arguments)
                 return self.runNextCommand(**kw)
+            else:
+                #  Add a delimiter to show that we've replayed something else
+                # Helps the recorder know what order to put things in
+                self.handleComment(None)
             if command.startswith(waitCommandName):
                 eventName = self.getArgument(command, waitCommandName)
                 if self.processWait(eventName):

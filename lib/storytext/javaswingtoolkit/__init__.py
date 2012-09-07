@@ -50,7 +50,7 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
     def cleanup(self, interface):
         for frame in Frame.getFrames():
             frame.setVisible(False) # don't leave the window up, looks weird
-        self.replaceAutoRecordingForUsecase(interface)
+        self.replaceAutoRecordingForUsecase(interface, exitHook=True)
     
     def checkType(self, widget):
         # Headers are connected to the table to use any identification that is there
