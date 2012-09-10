@@ -1326,6 +1326,15 @@ class Describer(object):
         else:
             return self.getDescription(widget)
 
+    def getDiffedDescription(self, widget, oldRows, newRows):
+        desc = [self.formatDiffs(old, new) for old,new in zip(oldRows,newRows) if old != new]
+        updatePrefix =self.getUpdatePrefix(widget, None, None)
+        if updatePrefix == "\nUpdated ":
+            updatePrefix += newRows[0] + "\n"
+        return self.convertToString(updatePrefix  + "\n".join(desc))
+
+    def formatDiffs(self, oldRow, newRow):
+        return "'" + oldRow.strip() + "'" +  " changed to " + "'" + newRow.strip() + "'"
 
 class TableIndexer:
     allIndexers = {}

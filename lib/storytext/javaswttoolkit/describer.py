@@ -685,3 +685,12 @@ class Describer(storytext.guishared.Describer):
     def checkWindow(self, window):
         # Don't describe tooltips
         return (window.getStyle() & swt.SWT.TOOL) == 0
+    
+    def getStateChangeDescription(self, widget, oldState, state):
+        if isinstance(widget, (swt.widgets.Menu, swt.widgets.ToolBar)):
+            old = oldState.split("\n")
+            new = state.split("\n")
+            if len(old) == len(new):
+                return self.getDiffedDescription(widget, old, new)
+        return storytext.guishared.Describer.getStateChangeDescription(self, widget, oldState, state)
+
