@@ -58,9 +58,9 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
             canvas.scrollYOffset(top - viewTop)
         elif top >= viewBottom:
             canvas.scrollYOffset(bottom - viewBottom)
-        if right < viewLeft:
+        if right <= viewLeft:
             canvas.scrollXOffset(left - viewLeft)
-        elif left > viewRight:
+        elif left >= viewRight:
             canvas.scrollXOffset(right - viewRight)
             
     def findNonOverlappingCentre(self, bounds, overlaps):
