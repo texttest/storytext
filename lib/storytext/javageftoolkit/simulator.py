@@ -34,7 +34,7 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         viewportBounds = self.getFigureCanvas().getViewportBounds()
         self.logger.debug("Canvas viewport bounds at " + repr(viewportBounds))
         visibleBounds = viewportBounds.getIntersection(bounds)
-        if getInt(viewportBounds.height) == 0 or getInt(visibleBounds.width) == 0:
+        if getInt(visibleBounds.height) == 0 or getInt(visibleBounds.width) == 0:
             self.logger.debug("No intersection with viewport, scrolling until there is")
             self.ensureInViewport(bounds, viewportBounds)
             visibleBounds = self.getBoundsInternal(editPart)
@@ -54,9 +54,9 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         viewTop, viewLeft, viewBottom, viewRight = self.getEdges(viewportBounds)
         top, left, bottom, right = self.getEdges(bounds)
         canvas = self.getFigureCanvas()
-        if bottom < viewTop:
+        if bottom <= viewTop:
             canvas.scrollYOffset(top - viewTop)
-        elif top > viewBottom:
+        elif top >= viewBottom:
             canvas.scrollYOffset(bottom - viewBottom)
         if right < viewLeft:
             canvas.scrollXOffset(left - viewLeft)
