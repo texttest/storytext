@@ -11,7 +11,6 @@ class ColorNameFinder:
                      ("light", "-"), ("normal", ""), ("bright", "*") ]
     def __init__(self):
         self.names = {}
-        self.usedNames = set()
         # Add java.awt colors  
         self.addColors(Color, True)
         # Add swt colors
@@ -23,14 +22,25 @@ class ColorNameFinder:
             ret = ret.replace(text, repl)
         return ret
 
+    def addColor(self, name, color, addAwtMark=False):
+        if hasattr(color, "getRed"):
+            newName = name + "&" if addAwtMark else name
+            nameToUse = self.shortenColorName(newName)
+            self.names[self.getRGB(color)] = nameToUse
+            if not addAwtMark:
+                rgb = self.getRGB(draw2d.FigureUtilities.darker(color))
+                if rgb not in self.names:
+                    self.names[rgb] = "D" + nameToUse
+                rgb = self.getRGB(draw2d.FigureUtilities.lighter(color))
+                if rgb not in self.names:
+                    self.names[rgb] = "L" + nameToUse
+
     def addColors(self, cls, addAwtMark=False):
         for name in sorted(cls.__dict__):
             if not name.startswith("__"):
                 try:
                     color = getattr(cls, name)
-                    if hasattr(color, "getRed"):
-                        newName = name + "&" if addAwtMark else name
-                        self.names[self.getRGB(color)] = self.shortenColorName(newName)
+                    self.addColor(name, color, addAwtMark)
                 except AttributeError:
                     pass
 
@@ -38,16 +48,7 @@ class ColorNameFinder:
         return color.getRed(), color.getGreen(), color.getBlue()
 
     def getName(self, color):
-        name = self.names.get(self.getRGB(color), "unknown")
-        if name not in self.usedNames:
-            self.usedNames.add(name)
-            rgb = self.getRGB(draw2d.FigureUtilities.darker(color))
-            if rgb not in self.names:
-                self.names[rgb] = "D" + name
-            rgb = self.getRGB(draw2d.FigureUtilities.lighter(color))
-            if rgb not in self.names:
-                self.names[rgb] = "L" + name
-        return name
+        return self.names.get(self.getRGB(color), "unknown")
 
 colorNameFinder = ColorNameFinder()
 
