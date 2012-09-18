@@ -496,8 +496,14 @@ class ViewerSelectEvent(ViewerEvent):
         if len(parts) == 1 and not partial:
             self.widget.clickOnCenter(parts[0])
         else:
-            for part in parts:
+            pauseTime = self.getPauseBetweenSelections()
+            for i, part in enumerate(parts):
+                if i > 0 and pauseTime:
+                    time.sleep(pauseTime)
                 self.widget.clickOnCenter(part, swt.SWT.CTRL)
+                
+    def getPauseBetweenSelections(self):
+        return 0 #Don't pause by default, allow customwidgetevents to override this
 
     @classmethod
     def getAssociatedSignal(cls, widget):
