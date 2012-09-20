@@ -387,9 +387,10 @@ class ComboTextEvent(TextEvent):
 class CComboTextActivateEvent(TextActivateEvent):    
     def shouldRecord(self, event, *args):
         return event.character == swt.SWT.CR
+    
+    def isTriggeringEvent(self, e):
+        return e.widget in CComboSelectEvent.internalWidgets or TextActivateEvent.isTriggeringEvent(self, e)
         
-    def delayLevel(self, *args):
-        return 0
          
 class CComboSelectEvent(StateChangeEvent):
     internalWidgets = []
@@ -426,9 +427,6 @@ class CComboSelectEvent(StateChangeEvent):
         _, currSelection = currOutput.split(self.name, 1)
         _, oldSelection = stateChangeOutput.split(stateChangeEvent.name, 1)
         return (isinstance(stateChangeEvent, CComboChangeEvent) and currSelection == oldSelection) or StateChangeEvent.implies(self, stateChangeOutput, *args)
-    
-    def delayLevel(self, *args):
-        return 0
 
     def shouldRecord(self, event, *args):
         newStateText = self.getStateText()
@@ -436,6 +434,10 @@ class CComboSelectEvent(StateChangeEvent):
             return False
         self.stateText = newStateText
         return StateChangeEvent.shouldRecord(self, event, *args)
+    
+    def isTriggeringEvent(self, e):
+        return e.widget in self.internalWidgets or StateChangeEvent.isTriggeringEvent(self, e)
+
 
 class CComboChangeEvent(CComboSelectEvent):
     def _generate(self, argumentString):
@@ -452,8 +454,6 @@ class CComboChangeEvent(CComboSelectEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return StateChangeEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
 
-    def isTriggeringEvent(self, e):
-        return True
 
 class TableSelectEvent(StateChangeEvent):
     def __init__(self, *args):
