@@ -52,7 +52,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         return text
 
     def getDialogTitle(self):
-        return self.widget.widget.getShell().getText()
+        return self.widget.widget.getShell().getText() if isinstance(self.widget.widget, swt.widgets.Control) else ""
 
     def getType(self):
         # SWT name, not the SWTBot name
