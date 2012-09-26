@@ -1447,7 +1447,7 @@ class TextLabelFinder:
 
     def findPrecedingLabel(self, children, *args):
         textPos = children.index(self.widget)
-        while textPos > self.getEarliestRelevantIndex(textPos, *args):
+        while textPos > self.getEarliestRelevantIndex(textPos, children, *args):
             prevWidget = children[textPos -1]
             if isinstance(prevWidget, self.getLabelClass()):
                 text = self.getLabelText(prevWidget)

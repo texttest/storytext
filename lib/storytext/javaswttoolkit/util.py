@@ -10,18 +10,26 @@ def getRealUrl(browser):
 
 class TextLabelFinder(storytext.guishared.TextLabelFinder):
     def getLabelClass(self):
-        return swt.widgets.Label
+        return swt.widgets.Label, swt.custom.CLabel
 
     def getChildren(self, widget):
         return widget.getChildren()
     
-    def getEarliestRelevantIndex(self, widgetPos, parent):
+    def getEarliestRelevantIndex(self, widgetPos, children, parent):
         if not isinstance(parent.getLayout(), swt.layout.GridLayout):
             return 0
         
         numColumns = parent.getLayout().numColumns
-        widgetRow = widgetPos / numColumns
-        return widgetRow * numColumns
+        currIndex = 0
+        rows = {}
+        for ix, child in enumerate(children):
+            span = min(child.getLayoutData().horizontalSpan, numColumns)
+            row = currIndex / numColumns
+            rows.setdefault(row, []).append(ix)
+            if ix == widgetPos:
+                return rows[row][0]
+            else:
+                currIndex += span
 
 ignoreLabels = []
 def getTextLabel(widget):
