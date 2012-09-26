@@ -20,6 +20,9 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
             return 0
         
         numColumns = parent.getLayout().numColumns
+        if numColumns == 1: # If there's only one column, don't worry about it...
+            return 0
+        
         currIndex = 0
         rows = {}
         for ix, child in enumerate(children):
