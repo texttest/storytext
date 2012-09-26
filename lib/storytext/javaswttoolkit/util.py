@@ -8,9 +8,24 @@ def getRealUrl(browser):
     url = browser.getUrl()
     return url if url != "about:blank" else ""
 
+class TextLabelFinder(storytext.guishared.TextLabelFinder):
+    def getLabelClass(self):
+        return swt.widgets.Label
+
+    def getChildren(self, widget):
+        return widget.getChildren()
+    
+    def getEarliestRelevantIndex(self, widgetPos, parent):
+        if not isinstance(parent.getLayout(), swt.layout.GridLayout):
+            return 0
+        
+        numColumns = parent.getLayout().numColumns
+        widgetRow = widgetPos / numColumns
+        return widgetRow * numColumns
+
 ignoreLabels = []
 def getTextLabel(widget):
-    return storytext.guishared.getTextLabel(widget, "getChildren", swt.widgets.Label, ignoreLabels)
+    return TextLabelFinder(widget, ignoreLabels).find()
 
 def getInt(intOrMethod):
     return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()

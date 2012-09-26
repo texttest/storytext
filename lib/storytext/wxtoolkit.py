@@ -79,10 +79,7 @@ class FileDialog(origFileDialog):
     def GetFilename(self):
         return os.path.basename(self.GetPath()) 
 
-class TextLabelFinder:
-    def __init__(self, widget):
-        self.widget = widget
-
+class TextLabelFinder(guishared.TextLabelFinder):
     def find(self):
         sizer = self.findSizer(self.widget)
         return self.findInSizer(sizer) if sizer is not None else ""
@@ -90,12 +87,17 @@ class TextLabelFinder:
     def findInSizer(self, sizer):
         sizers, widgets = self.findSizerChildren(sizer)
         if self.widget in widgets:
-            return guishared.findPrecedingLabel(self.widget, widgets, 
-                                    wx.StaticText, textMethod="GetLabel")
+            return self.findPrecedingLabel(widgets)
         for subsizer in sizers:
             label = self.findInSizer(subsizer)
             if label is not None:
                 return label
+            
+    def getLabelClass(self):
+        return wx.StaticText
+    
+    def getLabelText(self, label):
+        return label.GetLabel()
 
     def findSizerChildren(self, sizer):
         sizers, widgets = [], []

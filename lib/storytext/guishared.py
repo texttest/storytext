@@ -548,6 +548,7 @@ class UIMap:
         self.scriptEngine = scriptEngine
         self.windows = []
         self.logger = logging.getLogger("gui map")
+        self.logger.debug("Reading ui map files at " + repr(uiMapFiles))
 
     def readFiles(self, uiMapFiles):
         self.fileHandler.readFiles(uiMapFiles)
@@ -1439,31 +1440,42 @@ class TableIndexer:
 def getExceptionString():
     return "".join(format_exception(*sys.exc_info()))
 
-def findPrecedingLabel(widget, children, labelClass, ignoreLabels=[], textMethod="getText"):
-    textPos = children.index(widget)
-    while textPos > 0:
-        prevWidget = children[textPos -1]
-        if isinstance(prevWidget, labelClass):
-            text = getattr(prevWidget, textMethod)()
-            if text and text not in ignoreLabels:
-                return text
-            else:
-                textPos -= 1
-        else:
-            return ""
-    return ""
+class TextLabelFinder:
+    def __init__(self, widget, ignoreLabels=[]):
+        self.widget = widget
+        self.ignoreLabels = ignoreLabels
 
-def getTextLabel(widget, childrenMethodName, labelClass, ignoreLabels=[]):
-    """ Text widgets often are preceeded by a label, use this as their text, if it exists """
-    parent = widget.getParent()
-    if parent:
-        children = getattr(parent, childrenMethodName)()
-        if len(children) == 1:
-            return getTextLabel(parent, childrenMethodName, labelClass, ignoreLabels)
-        else:
-            return findPrecedingLabel(widget, children, labelClass, ignoreLabels)
+    def findPrecedingLabel(self, children, *args):
+        textPos = children.index(self.widget)
+        while textPos > self.getEarliestRelevantIndex(textPos, *args):
+            prevWidget = children[textPos -1]
+            if isinstance(prevWidget, self.getLabelClass()):
+                text = self.getLabelText(prevWidget)
+                if text and text not in self.ignoreLabels:
+                    return text
+                else:
+                    textPos -= 1
+            else:
+                return ""
+        return ""
     
-    return ""
+    def getEarliestRelevantIndex(self, *args):
+        return 0
+    
+    def getLabelText(self, label):
+        return label.getText()
+    
+    def find(self):
+        """ Text widgets often are preceeded by a label, use this as their text, if it exists """
+        parent = self.widget.getParent()
+        if parent:
+            children = self.getChildren(parent)
+            if len(children) == 1:
+                return self.__class__(parent, self.ignoreLabels).find()
+            else:
+                return self.findPrecedingLabel(children, parent)
+        
+        return ""
 
 def removeMarkup(text):
     removed = re.sub("<[^>]*>", "", text)

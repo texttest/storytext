@@ -11,9 +11,17 @@ def runOnEventDispatchThread(method, *args):
         method(*args)
     else:
         swing.SwingUtilities.invokeAndWait(EDTRunnable())
+        
+class TextLabelFinder(storytext.guishared.TextLabelFinder):
+    def getLabelClass(self):
+        return swing.JLabel
 
+    def getChildren(self, widget):
+        return widget.getComponents()
+    
 def getTextLabel(widget):
-    return storytext.guishared.getTextLabel(widget, "getComponents", swing.JLabel)
+    return TextLabelFinder(widget).find()
+
        
 def getMenuPathString(widget):
     result = [ widget.getText() ]    
