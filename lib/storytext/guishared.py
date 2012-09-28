@@ -1199,6 +1199,16 @@ class Describer(object):
     def usesGrid(self, widget):
         return False
 
+    def correctSpan(self, index, span, numColumns):
+        # Seems to be possible to get spans that would overlap the end of the line
+        # Correct these values here, as Eclipse seems to cope OK
+        if span == 1:
+            return span
+             
+        currColumn = index % numColumns
+        spanRemaining = numColumns - currColumn
+        return min(spanRemaining, span)
+            
     def makeGrid(self, cellObjects, spans, numColumns):
         grid = []
         index = 0
@@ -1211,6 +1221,7 @@ class Describer(object):
                 grid[-1] += cellObject.grid[-1]
             else:
                 grid[-1].append(self.convertToString(cellObject))
+            span = self.correctSpan(index, span, numColumns)
             index += span
             if index % numColumns != 0:
                 # If we aren't at line end, introduce extra cells for padding

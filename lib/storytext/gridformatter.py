@@ -87,5 +87,5 @@ class GridFormatter:
                         lineText = lineText[:currPos]
                     lineText += cellRow.ljust(colWidths[colNum])
                     currPos += colWidths[colNum]
-                lines.append(lineText.rstrip(" ")) # don't leave trailing spaces        
+                lines.append(lineText.rstrip(" ")) # don't leave trailing spaces
         return "\n".join(lines)
