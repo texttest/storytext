@@ -556,9 +556,12 @@ class ComboBoxEvent(StateChangeEvent):
                 return i
         raise UseCaseScriptError, "Could not find item labeled '" + text + "' in combo box."
     
-    def implies(self, stateChangeOutput, stateChangeEvent, item , *args):
+    def implies(self, stateChangeOutput, stateChangeEvent, item, *args):
+        currOutput = self.outputForScript(item, *args)
+        if currOutput == stateChangeOutput:
+            return True
         prevString = stateChangeOutput.rsplit(None, 1)[-1]
-        return  item is None and isinstance(stateChangeEvent, ComboBoxEvent) and not self.isInComboBox(prevString)
+        return item is None and isinstance(stateChangeEvent, ComboBoxEvent) and not self.isInComboBox(prevString)
             
     def isInComboBox(self, text):
         for i in range(self.widget.getModel().getSize()):
