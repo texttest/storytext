@@ -481,10 +481,7 @@ class ListSelectEvent(StateChangeEvent):
     def parseArguments(self, argumentString):
         return map(self.getIndex, argumentString.split(", "))
     
-    def _generate(self, argumentString):
-        util.runOnEventDispatchThread(self._generateSwingLib, argumentString)
-
-    def _generateSwingLib(self, indices):
+    def _generate(self, indices):
         #Officially we can pass the names directly to SwingLibrary
         #Problem is that doesn't work if the names are themselves numbers
         self.widget.runKeyword("selectFromList", *indices)
@@ -669,13 +666,6 @@ class CellEditEvent(SignalEvent):
 
     def editTextComponent(self, newValue, row, column):
         self.widget.runKeyword("typeIntoTableCell", row, column, newValue)
-        # The above will press the Enter key and never release it, see
-        # http://code.google.com/p/robotframework-swinglibrary/issues/detail?id=197
-        # We work around this by releasing it ourselves...
-        releaseEvent = KeyEvent(self.widget.widget,
-                                KeyEvent.KEY_RELEASED, System.currentTimeMillis(),
-                                0, KeyEvent.VK_ENTER)
-        util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().getSystemEventQueue().postEvent, releaseEvent)
         
     def editCheckBoxComponent(self, newValue, row, column):
         if not newValue == str(self.widget.getValueAt(row, column)):
