@@ -74,10 +74,13 @@ if windows:
         scripts = newscripts
 
 packages = [ "storytext" ]
+package_data = {}
 sdist = "sdist" in sys.argv
 if jython or sdist:
     packages += [ "storytext.javaswttoolkit", "storytext.javarcptoolkit",
                   "storytext.javageftoolkit", "storytext.javaswingtoolkit" ]
+    package_data = { "storytext.javaswingtoolkit" : [ "swinglibrary*.jar" ]}
+
 if sdist or (not jython and sys.version_info[0] == 2):
     packages += [ "storytext.gtktoolkit", "storytext.gtktoolkit.simulator",
                   "storytext.gtktoolkit.describer" ] 
@@ -98,6 +101,7 @@ setupKeywords = { "name"         : "StoryText",
                   "long_description" : 'StoryText is an unconventional GUI testing tool, with support for PyGTK, Tkinter, wxPython, Swing, SWT and Eclipse RCP. Instead of recording GUI mechanics directly, it asks the user for descriptive names and hence builds up a "domain language" along with a "UI map file" that translates it into the current GUI layout. The point is to reduce coupling, allow very expressive tests, and ensure that GUI changes mean changing the UI map file but not all the tests. Instead of an "assertion" mechanism, it auto-generates a log of the GUI appearance and changes to it. The point is then to use that as a baseline for text-based testing, using e.g. TextTest. It also includes support for instrumenting code so that "waits" can be recorded, making it far easier for a tester to record correctly synchronized tests without having to explicitly plan for this.',
                   "packages"     : packages,
                   "package_dir"  : { "" : "lib"},
+                  "package_data" : package_data,
                   "py_modules"   : mod_files,
                   "classifiers"  : [ "Programming Language :: Python",
                                      "License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)",
