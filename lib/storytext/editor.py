@@ -449,7 +449,7 @@ class UseCaseEditor:
     def showErrorWarningDialog(self, parent, message, stockIcon, alarmLevel):
         dialog = self.createMessageDialog(parent, message, stockIcon, alarmLevel)
         dialog.set_default_response(gtk.RESPONSE_OK)
-        dialog.connect("response", self._cleanDialog)#lambda d, r: self._cleanDialog(d))
+        dialog.connect("response", self._cleanDialog)
         dialog.show_all()
 
     def _cleanDialog(self, dialog, *args):
