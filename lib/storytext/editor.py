@@ -26,6 +26,7 @@ class UseCaseEditor:
         self.scriptEngine = gtktoolkit.ScriptEngine(uiMapFiles=[])
         self.initShortcutManager()
         self.allEntries = OrderedDict()
+        self.popupSensitivities = {}
 
     def initShortcutManager(self):
         self.shortcutManager = ShortcutManager()
@@ -299,16 +300,31 @@ class UseCaseEditor:
         item = gtk.MenuItem("Create shortcut")
         menu.append(item)
         item.connect("activate", self.createShortcut, widget)
+        self.popupSensitivities[item] = self.setCreateShortcutSensitivity
         self.scriptEngine.monitorSignal("create a new shortcut", "activate", item)
         item.show()
         return menu
     
+    def applySensitivities(self, selection):
+        for item, method in self.popupSensitivities.items():
+            method(item, selection)
+
+    def setCreateShortcutSensitivity(self, item, selection):
+        lines = self.selectionToModel(selection)
+        positions = self.getPositions(lines)
+        # Check selection has at least 2 elements and is consecutive
+        if selection.count_selected_rows() > 1 and positions and self.isConsecutive(positions):
+            item.set_sensitive(True)
+        else:
+            item.set_sensitive(False)
+
     def showPopupMenu(self, treeView, event):
         if event.button == 3:
             time = event.time
             pathInfo = treeView.get_path_at_pos(int(event.x), int(event.y))
             selection = treeView.get_selection()
             selectedRows = selection.get_selected_rows()
+            self.applySensitivities(selection)
             # If they didnt right click on a currently selected
             # row, change the selection
             if pathInfo is not None:
@@ -320,18 +336,19 @@ class UseCaseEditor:
                 treeView.emit_stop_by_name("button-press-event")
 
     def createShortcut(self, widget, view):
+        selection = view.get_selection()
+        lines = self.selectionToModel(selection)
+        positions = self.getPositions(lines)
+        self.createShortcutFromLines(lines, positions)
+    
+    def selectionToModel(self, selection):
         lines = []
         def addSelected(treemodel, dummyPath, iter, *args):
             line = self.treeModel.get_value(iter, 1)
             lines.append(line)
 
-        selection = view.get_selection()
         selection.selected_foreach(addSelected)
-        positions = self.getPositions(lines)
-        # Check selection has at least 2 elements and is consecutive
-        if selection.count_selected_rows() > 1 and positions and self.isConsecutive(positions):
-            self.createShortcutFromLines(lines, positions)
-        # TODO: error handling
+        return lines
         
     def createShortcutFromLines(self, lines, positionsInUsecase):
         dialog = gtk.Dialog("New Shortcut", flags=gtk.DIALOG_MODAL)
@@ -352,17 +369,35 @@ class UseCaseEditor:
     def respond(self, dialog, responseId, entry, lines, positions):
         if responseId == gtk.RESPONSE_ACCEPT:
             newName = entry.get_text()
-            dialog.hide()
-            if newName:
-                shortcutName = self.saveShortcut(newName.lower().replace(" ", "_"), lines)
-                if shortcutName:
+            if self.checkShortcutName(dialog, newName):
+                dialog.hide()
+                shortcutFileName = self.saveShortcut(newName.lower().replace(" ", "_"), lines)
+                if shortcutFileName:
                     self.updateUsecase(lines, newName.lower(), positions)
-            else:
-                # TODO: error!
-                pass
+                else:
+                    self.showErrorDialog(dialog, "An error occurred while saving shortcut.")
         else:
             dialog.hide()
-            
+    
+    def checkShortcutName(self, parent, name):
+        if not name:
+            self.showErrorDialog(parent, "The shortcut name can't be empty.")
+            return False
+        elif self.isInUIMap(name):
+            self.showErrorDialog(parent, "The shortcut name already exists in the UI map file.")
+            return False
+        elif self.isInShortcuts(name):
+            self.showErrorDialog(parent, "The shortcut name is already being used for another shortcut.")
+            return False
+        return True
+    
+    def isInUIMap(self, name):
+        _,option = self.uiMapFileHandler.findSectionAndOption(name)
+        return option is not None
+    
+    def isInShortcuts(self, name):
+        return any(shortcut.getShortcutName() == name for shortcut in self.scriptEngine.getShortcuts())
+        
     def saveShortcut(self, name, lines):
         fileName = None
         storytextDir = os.environ["STORYTEXT_HOME"]
@@ -404,6 +439,31 @@ class UseCaseEditor:
         self.treeModel.clear()
         for command in commands:
             self.addCommandToModel(command, self.treeModel)
+
+    def showErrorDialog(self, parent, message):
+        self.showErrorWarningDialog(parent, message, gtk.MESSAGE_ERROR, "Error")
+
+    def showWarningDialog(self, parent, message):
+        self.showErrorWarningDialog(parent, message, gtk.MESSAGE_WARNING, "Warning")
+
+    def showErrorWarningDialog(self, parent, message, stockIcon, alarmLevel):
+        dialog = self.createMessageDialog(parent, message, stockIcon, alarmLevel)
+        dialog.set_default_response(gtk.RESPONSE_OK)
+        dialog.connect("response", self._cleanDialog)#lambda d, r: self._cleanDialog(d))
+        dialog.show_all()
+
+    def _cleanDialog(self, dialog, *args):
+        dialog.hide()
+
+    def createMessageDialog(self, parent, message, stockIcon, alarmLevel):
+        dialogTitle = "StoryText " + alarmLevel
+        dialog = gtk.MessageDialog(parent, gtk.DIALOG_MODAL, stockIcon, gtk.BUTTONS_OK, None)
+        # Would like to use dialog.get_widget_for_response(gtk.RESPONSE_OK), introduced in gtk 2.22 instead
+        okButton = dialog.action_area.get_children()[0]
+        self.scriptEngine.monitorSignal("accept message", "clicked", okButton)
+        dialog.set_title(dialogTitle)        
+        dialog.set_markup(message)
+        return dialog
 
 def main():
     usage = """usage: %prog [options] [FILE] ...
