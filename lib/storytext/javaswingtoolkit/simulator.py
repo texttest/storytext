@@ -59,8 +59,10 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getChildWidgets(self):
         if isinstance(self.widget, swing.JMenu):
             return self.widget.getPopupMenu().getSubElements()
-        else:
+        elif hasattr(self.widget, "getComponents"): # All Swing widgets have this, but AWT one don't
             return self.widget.getComponents()
+        else:
+            return []
         
     def getName(self):
         return self.widget.getName() or ""

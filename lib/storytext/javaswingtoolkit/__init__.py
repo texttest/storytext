@@ -120,8 +120,9 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
 
     def setAppeared(self, widget):
         self.appearedWidgets.add(widget)
-        for child in widget.getComponents():
-            self.setAppeared(child)
+        if hasattr(widget, "getComponents"):
+            for child in widget.getComponents():
+                self.setAppeared(child)
 
     def describe(self):
         util.runOnEventDispatchThread(self.describer.describeWithUpdates)
