@@ -1,4 +1,4 @@
-from java.lang import Runnable
+from java.lang import Runnable, IndexOutOfBoundsException
 from javax import swing
 import storytext.guishared
 
@@ -127,7 +127,11 @@ class ComponentTextFinder:
 
     def getJTableText(self, row, col):
         renderer = self.widget.getCellRenderer(row, col)
-        value = self.widget.getValueAt(row, col)
+        try:
+            value = self.widget.getValueAt(row, col)
+        except IndexOutOfBoundsException:
+            # Don't fail here, sometimes row count and column count are inconsistent with what will work here
+            return "<unset>"
         return self.getJTableTextFromRenderer(renderer, value, row, col)
 
     def getJTableHeaderText(self, col):
