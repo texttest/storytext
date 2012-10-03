@@ -473,6 +473,8 @@ class ParserSectionDict(OrderedDict):
         return ret
 
 class UIMapFileHandler:
+    quoteChars = [ ("'", "APOSTROPHE") ]
+    bracketChars = [ ("[", "OPENBRACKET"), ("]", "CLOSEBRACKET")]
     def __init__(self, uiMapFiles): 
         self.readFiles(uiMapFiles)
 
@@ -498,6 +500,7 @@ class UIMapFileHandler:
             raise definitions.UseCaseScriptError, "ERROR: could not parse UI map file(s) at " + ",".join(filenames)
 
     def storeInfo(self, sectionName, signature, eventName):
+        sectionName = self._escape(sectionName, self.bracketChars)
         if not self.readParser.has_section(sectionName):
             self.writeParsers[-1].add_section(sectionName)
            
@@ -516,6 +519,8 @@ class UIMapFileHandler:
         """ Note, we only add a new section, don't delete the old one as we once did
         This is in case some other widget is using it, which is possible and not easily detected currently
         Let the user clean away the old section if they want to."""
+        section = self._escape(section, self.bracketChars)
+        newName = self._escape(newName, self.bracketChars)
         writeParser = self.findWriteParser(section)
         if not writeParser.has_section(newName):
             writeParser.add_section(newName)
@@ -534,12 +539,33 @@ class UIMapFileHandler:
         for section in self.readParser.sections():
             for optionName, value in self.readParser.items(section):
                 if value and valueString.startswith(value):
-                    return section, optionName
+                    return self._unescape(section, self.bracketChars), optionName
         return None, None
 
     def hasInfo(self):
         return len(self.readParser.sections()) > 0
+    
+    def has_section(self, section):
+        return self.readParser.has_section(self._escape(section, self.bracketChars))
 
+    def items(self, section):
+        return self.readParser.items(self._escape(section, self.bracketChars))
+    
+    def escape(self, text):
+        return self._escape(text, self.quoteChars + self.bracketChars)
+
+    def unescape(self, text):
+        return self._unescape(text, self.quoteChars + self.bracketChars)
+    
+    def _escape(self, text, chars):
+        for char, name in chars:
+            text = text.replace(char, "<" + name + ">")
+        return text
+    
+    def _unescape(self, text, chars):
+        for char, name in chars:
+            text = text.replace("<" + name + ">", char)
+        return text
 
 class UIMap:
     ignoreWidgetTypes = []
@@ -582,7 +608,7 @@ class UIMap:
         if self.scriptEngine.recorderActive() or not self.fileHandler.hasInfo():
             widgetType = widget.getType()
             for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
-                identifier = widget.getUIMapIdentifier().replace("'", "<APOSTROPHE>")
+                identifier = self.fileHandler.escape(widget.getUIMapIdentifier())
                 autoEventName = "Auto." + widgetType + "." + signature + ".'" + identifier + "'"
                 signalName, argumentParseData = self.parseSignature(signature)
                 self.autoInstrument(autoEventName, signalName, widget, argumentParseData, widgetType)
