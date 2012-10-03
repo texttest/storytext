@@ -163,7 +163,7 @@ class Describer(storytext.guishared.Describer):
                 grid.append([ "" ])
             while len(grid[y]) <= x:
                 grid[y].append("")
-            grid[y][x] = str(desc)
+            grid[y][x] = unicode(desc)
         return grid, max((len(r) for r in grid))
 
     def getHorizontalSpans(self, children, columnCount):

@@ -103,7 +103,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
                    widget.getTopLevelAncestor() in self.uiMap.windows
         isWindow = isinstance(widget, (swing.JFrame, swing.JDialog))
-        appEventButton = hasattr(widget, "getText") and str(widget.getText()).startswith("ApplicationEvent")
+        appEventButton = hasattr(widget, "getText") and unicode(widget.getText()).startswith("ApplicationEvent")
         popupMenu = isinstance(widget, swing.JPopupMenu) and not util.belongsMenubar(widget.getInvoker())
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
