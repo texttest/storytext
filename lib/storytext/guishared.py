@@ -1020,7 +1020,7 @@ class Describer(object):
 
     def convertToString(self, obj):
         # Bit of a pain, unicode doesn't inherit from string for some reason
-        return str(obj) if isinstance(obj, GridFormatter) else obj
+        return unicode(obj) if isinstance(obj, GridFormatter) else obj
 
     def _getDescription(self, widget):
         desc = ""
@@ -1210,7 +1210,7 @@ class Describer(object):
 
     def handleGridFormatter(self, formatter):
         # Try to combine horizontal rows into one, so we can take one decision about if they're too wide
-        return formatter if formatter.isHorizontalRow() else str(formatter)
+        return formatter if formatter.isHorizontalRow() else unicode(formatter)
 
     def tryMakeGrid(self, widget, sortedChildren, childDescriptions):
         columns = self.getLayoutColumns(widget, len(childDescriptions), sortedChildren)
