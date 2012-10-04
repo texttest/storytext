@@ -11,7 +11,7 @@ class Describer(storytext.guishared.Describer):
                       swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
     statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame, swing.JSeparator ]
     stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
-                    swing.JRadioButton, swing.JCheckBox, swing.JTabbedPane, swing.JDialog, swing.JLabel,
+                    swing.JRadioButton, swing.JCheckBox, swing.JToggleButton, swing.JTabbedPane, swing.JDialog, swing.JLabel,
                     swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu,
                      swing.JProgressBar, swing.JSpinner, swing.JComboBox ]
     childrenMethodName = "getComponents"
@@ -258,6 +258,13 @@ class Describer(storytext.guishared.Describer):
     
     def getJCheckBoxState(self, widget):
         text = "Check box: " + util.ComponentTextFinder(widget, describe=True).getJCheckBoxText()
+        return self.combineElements([ text ] + self.getPropertyElements(widget))
+
+    def getJToggleButtonDescription(self, widget):
+        return self.getAndStoreState(widget)
+    
+    def getJToggleButtonState(self, widget):
+        text = "Toggle button: " + util.ComponentTextFinder(widget, describe=True).getJToggleButtonText()
         return self.combineElements([ text ] + self.getPropertyElements(widget))
         
     def getJTabbedPaneDescription(self, widget):

@@ -728,7 +728,7 @@ class CellEditEvent(SignalEvent):
             return component.getSelectedItem()
         elif isinstance(component, swing.JTextField):
             return component.getText()
-        elif isinstance(component, swing.JCheckBox):
+        elif isinstance(component, swing.JToggleButton):
             return component.isSelected()
         else:
             cellEditor = self.widget.getCellEditor()

@@ -9,8 +9,7 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
     eventTypes = [
         (swing.JFrame       , [ simulator.FrameCloseEvent, simulator.KeyPressForTestingEvent ]),
         (swing.JButton      , [ simulator.ButtonClickEvent ]),
-        (swing.JRadioButton , [ simulator.ClickEvent ]),
-        (swing.JCheckBox    , [ simulator.ClickEvent ]),
+        (swing.JToggleButton, [ simulator.ClickEvent ]),
         (swing.JMenuItem    , [ simulator.MenuSelectEvent ]),
         (swing.JTabbedPane  , [ simulator.TabSelectEvent, simulator.TabPopupActivateEvent]),
         (swing.JDialog      , [ simulator.FrameCloseEvent ]),

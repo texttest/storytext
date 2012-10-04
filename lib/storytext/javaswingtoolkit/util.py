@@ -62,18 +62,24 @@ class ComponentTextFinder:
         else:
             return elements[0] if elements else ""
 
-    def getJRadioButtonText(self, *args):
+    def getSelectionText(self, selText, unselText):
         text = self.widget.getText()
         if self.describe:
-            desc = "(*)" if self.widget.isSelected() else "( )"
+            desc = selText if self.widget.isSelected() else unselText
             return desc + " "  + text if text else desc
         return text
+
+    def getJRadioButtonText(self, *args):
+        return self.getSelectionText("(*)", "( )")
     
     def getJCheckBoxText(self, *args):
+        return self.getSelectionText("[x]", "[ ]")
+    
+    def getJToggleButtonText(self, *args):
         text = self.widget.getText()
         if self.describe:
-            desc = "[x]" if self.widget.isSelected() else "[ ]"
-            return desc + " "  + text if text else desc
+            desc = " (depressed)" if self.widget.isSelected() else ""
+            text += desc
         return text
 
     def getJComboBoxText(self, index):
