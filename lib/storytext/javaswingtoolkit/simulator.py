@@ -443,9 +443,7 @@ class TabSelectEvent(ClickEvent):
             raise UseCaseScriptError, "Could not find tab named '" + argumentString + "' to select."
     
     def outputForScript(self, event, *args):
-        runKeyword("selectWindow", swing.SwingUtilities.getWindowAncestor(self.widget.widget).getTitle())
-        #Should be used when more than one TabbedPane exist: runKeyword("selectTabPane", self.widget.getLabel())
-        text = runKeyword("getSelectedTabLabel")
+        text = self.widget.getTitleAt(self.widget.getSelectedIndex())
         return ' '.join([self.name, text])
      
     def implies(self, *args):
