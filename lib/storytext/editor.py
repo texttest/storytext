@@ -10,9 +10,10 @@ from locale import getdefaultlocale
 
 from ordereddict import OrderedDict
 from guishared import UIMapFileHandler
-from replayer import ShortcutManager
+from replayer import ShortcutManager, ReplayScript
 from definitions import __version__, waitCommandName
 from xml.sax.saxutils import escape
+from copy import copy
 
 class UseCaseEditor:
     enterTitle = "Enter Usecase names for auto-recorded actions"
@@ -184,11 +185,13 @@ class UseCaseEditor:
     def updatePreview(self, entry, data):
         model, iter, arg = data
         text = entry.get_text() or "?"
-        toUse = self.convertToMarkup(text + arg)
-        model.set_value(iter, 0, toUse)
+        markupFullText = self.convertToMarkup(text + arg)
+        fullText = text + arg[3:-4]
+        model.set_value(iter, 0, markupFullText)
+        model.set_value(iter, 1, fullText)
         
-    def addText(self, model, rootIter, text, originalText):
-        return model.append(rootIter, [self.convertToMarkup(text), originalText])
+    def addText(self, model, rootIter, text, originalText, followIter=None):
+        return model.insert_before(rootIter, followIter, [self.convertToMarkup(text), originalText])
 
     def addCommandToModel(self, command, model, rootIter=None):
         shortcut, args = self.shortcutManager.findShortcut(command)
@@ -197,12 +200,14 @@ class UseCaseEditor:
         else:
             self.addBasicCommandToModel(command, model, rootIter)
             
-    def addShortcutCommandToModel(self, shortcut, args, model, rootIter):
+    def addShortcutCommandToModel(self, shortcut, args, model, rootIter, followIter=None):
         italicArgs = [ "<i>" + escape(arg) + "</i>" for arg in args ]
         text = "<b>" + shortcut.getShortcutNameWithArgs(italicArgs) + "</b>"
-        iter = self.addText(model, rootIter, text, shortcut.getShortcutName())
-        for step in shortcut.commands:
-            self.addCommandToModel(shortcut.replaceArgs(step, args), model, iter)
+        iter = self.addText(model, rootIter, text, shortcut.getShortcutName(), followIter)
+        if not followIter:
+            for step in shortcut.commands:
+                self.addCommandToModel(shortcut.replaceArgs(step, args), model, iter)
+        return iter
             
     def addBasicCommandToModel(self, command, model, rootIter):
         if command.startswith(waitCommandName):
@@ -310,10 +315,8 @@ class UseCaseEditor:
             method(item, selection)
 
     def setCreateShortcutSensitivity(self, item, selection):
-        lines = self.selectionToModel(selection)
-        positions = self.getPositions(lines)
         # Check selection has at least 2 elements and is consecutive
-        if selection.count_selected_rows() > 1 and positions and self.isConsecutive(positions):
+        if selection.count_selected_rows() > 1 and self.isConsecutive(selection):
             item.set_sensitive(True)
         else:
             item.set_sensitive(False)
@@ -337,20 +340,20 @@ class UseCaseEditor:
 
     def createShortcut(self, widget, view):
         selection = view.get_selection()
-        lines = self.selectionToModel(selection)
-        positions = self.getPositions(lines)
-        self.createShortcutFromLines(lines, positions)
+        lines, positions = self.selectionToModel(selection)
+        self.createShortcutFromLines(lines, positions, selection)
     
     def selectionToModel(self, selection):
-        lines = []
-        def addSelected(treemodel, dummyPath, iter, *args):
-            line = self.treeModel.get_value(iter, 1)
+        lines, positions = [], []
+        def addSelected(treemodel, path, iter, *args):
+            line = treemodel.get_value(iter, 1)
             lines.append(line)
+            positions.append(path[0])
 
         selection.selected_foreach(addSelected)
-        return lines
+        return lines, positions
         
-    def createShortcutFromLines(self, lines, positionsInUsecase):
+    def createShortcutFromLines(self, lines, positionsInUsecase, selection):
         dialog = gtk.Dialog("New Shortcut", flags=gtk.DIALOG_MODAL)
         dialog.set_name("New Shortcut Window")
         label = gtk.Label("New name for shortcut:")
@@ -363,19 +366,34 @@ class UseCaseEditor:
         self.scriptEngine.monitorSignal("accept new shortcut name", "clicked", yesButton)
         cancelButton = dialog.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
         self.scriptEngine.monitorSignal("cancel new shortcut name", "clicked", cancelButton)
-        dialog.connect("response", self.respond, entry, lines, positionsInUsecase)
+        dialog.connect("response", self.respond, entry, lines, positionsInUsecase, selection)
         dialog.show_all()
 
-    def respond(self, dialog, responseId, entry, lines, positions):
+    def copyRow(self, iter, shortcutIter):
+        row = list(self.treeModel.get(iter, 0, 1))
+        return self.treeModel.append(shortcutIter, row)
+
+    def addShortcutToPreview(self, shortcut, selection):
+        iters = []
+        def addSelected(model, path, iter, *args):
+            iters.append(iter)
+        selection.selected_foreach(addSelected)
+        shortcutIter = self.addShortcutCommandToModel(shortcut, [], self.treeModel, None, iters[0])
+        for iter in iters:
+            newShortcutIter = self.copyRow(iter, shortcutIter)
+            subIter = self.treeModel.iter_children(iter)
+            self.copyRow(subIter, newShortcutIter)
+            self.treeModel.remove(iter)
+
+    def respond(self, dialog, responseId, entry, lines, positions, selection):
         if responseId == gtk.RESPONSE_ACCEPT:
             newName = entry.get_text()
             if self.checkShortcutName(dialog, newName):
                 dialog.hide()
-                shortcutFileName = self.saveShortcut(newName.lower().replace(" ", "_"), lines)
-                if shortcutFileName:
-                    self.updateUsecase(lines, newName.lower(), positions)
-                else:
-                    self.showErrorDialog(dialog, "An error occurred while saving shortcut.")
+                shortcut = self.saveShortcut(newName.lower().replace(" ", "_"), lines)
+                self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, newName.lower())
+                self.shortcutManager.add(shortcut)
+                self.addShortcutToPreview(shortcut, selection)
         else:
             dialog.hide()
     
@@ -399,47 +417,36 @@ class UseCaseEditor:
         return any(shortcut.getShortcutName() == name for shortcut in self.scriptEngine.getShortcuts())
         
     def saveShortcut(self, name, lines):
-        fileName = None
         storytextDir = os.environ["STORYTEXT_HOME"]
-        if os.path.isdir(storytextDir):
-            fileName = os.path.join(storytextDir, name + ".shortcut")
-            with open(fileName, "w") as f:
-                for line in lines:
-                    f.write(line + "\n")
-        return fileName
+        if not os.path.isdir(storytextDir):
+            os.makedirs(storytextDir)
+        fileName = os.path.join(storytextDir, name + ".shortcut")
+        with open(fileName, "w") as f:
+            for line in lines:
+                f.write(line + "\n")
+        return ReplayScript(fileName)
     
-    def getPositions(self, lines):
-        commands = [ cmd.strip() for cmd in open(self.fileName) ]
-        try:
-            return [ commands.index(line) for line in lines]
-        except:
-            return None
+    def isConsecutive(self, selection):
+        paths = []
+        def addSelected(treemodel, path, *args):
+            paths.append(path)
 
-    def isConsecutive(self, positions):
-        previous = positions[0]
-        for i in range(1, len(positions)):
-            if positions[i] - previous != 1:
+        selection.selected_foreach(addSelected)
+        prevIx = None
+        for path in paths:
+            if len(path) > 1:
+                return False # Can't make shortcuts out of lines further down the hierarchy
+            ix = path[0]
+            if prevIx is not None and ix - prevIx > 1:
                 return False
-            previous = i
+            prevIx = ix
         return True
-        
-    def updateUsecase(self, lines, shortcutName , positions):
-        self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, shortcutName)
-        self.refreshPreview()
-        
         
     def makeShortcutReplacement(self, line, position, positions, shortcutName):
         if position in positions:
             return shortcutName + "\n" if position == positions[0] else None
         return line
         
-    def refreshPreview(self):    
-        commands = [ line.strip() for line in open(self.fileName) ]
-        self.initShortcutManager()
-        self.treeModel.clear()
-        for command in commands:
-            self.addCommandToModel(command, self.treeModel)
-
     def showErrorDialog(self, parent, message):
         self.showErrorWarningDialog(parent, message, gtk.MESSAGE_ERROR, "Error")
 
