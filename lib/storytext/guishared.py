@@ -938,7 +938,7 @@ class Describer(object):
         message = "-" * 10 + " " + self.getWindowString() + " '" + title + "' " + "-" * 10
         self.widgetsWithState[window] = title
         self.logger.info("\n" + message)
-        self.logger.info(self.getWindowContentDescription(window))
+        self.logger.info(encodeToLocale(self.getWindowContentDescription(window)))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
         self.logger.info("-" * footerLength)
 
@@ -987,7 +987,7 @@ class Describer(object):
             if not describedForAppearance or not self.hasMarkedAncestor(widget, describedForAppearance):
                 changeDesc = self.getStateChangeDescription(widget, oldState, state).rstrip()
                 if changeDesc:
-                    self.logger.info(changeDesc)
+                    self.logger.info(encodeToLocale(changeDesc))
 
     def describeUpdates(self):
         stateChanges = self.findStateChanges()
@@ -1014,10 +1014,10 @@ class Describer(object):
 
     def getDescription(self, *args, **kw):
         return self.convertToString(self._getDescription(*args, **kw))
-
+        
     def getChildrenDescription(self, *args, **kw):
         return self.convertToString(self._getChildrenDescription(*args, **kw))
-
+        
     def convertToString(self, obj):
         # Bit of a pain, unicode doesn't inherit from string for some reason
         return unicode(obj) if isinstance(obj, GridFormatter) else obj
@@ -1315,7 +1315,7 @@ class Describer(object):
             
         for desc in sorted(descriptions):
             self.logger.info("\nNew widgets have appeared: describing common parent :\n")
-            self.logger.info(desc)
+            self.logger.info(encodeToLocale(desc))
         return commonParents
     
     def getMarkedAncestor(self, widget, markedWidgets):

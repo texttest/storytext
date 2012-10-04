@@ -7,7 +7,6 @@ and little direct support for extracting information from them. So they get thei
 import gtk, logging
 from images import ImageDescriber
 from ..treeviewextract import getAllExtractors
-from storytext.guishared import encodeToLocale
 
 class ColourSpecMap(dict):
     def __setitem__(self, colour, spec):
@@ -108,8 +107,8 @@ class CellRendererTextDescriber(CellRendererDescriber):
             textDesc = self.getValue("text", *args)
             if textDesc is not None:
                 if not isinstance(textDesc, (str, unicode)):
-                    textDesc = str(textDesc)
-                return encodeToLocale(textDesc)
+                    textDesc = unicode(textDesc)
+                return textDesc
             else:
                 return ""
 
