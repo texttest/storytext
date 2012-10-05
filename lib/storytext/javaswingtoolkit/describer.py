@@ -5,7 +5,7 @@ from itertools import izip
 
 class Describer(storytext.guishared.Describer):
     ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
-                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane,
+                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane, swing.JFileChooser,
                       swing.JScrollBar, swing.plaf.basic.BasicInternalFrameTitlePane, swing.JInternalFrame.JDesktopIcon ]
     ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar, swing.JSpinner, swing.JComboBox,
                       swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
@@ -469,8 +469,14 @@ class Describer(storytext.guishared.Describer):
 
     def getJComboBoxState(self, widget):
         if widget.isEditable():
-            return str(widget.getEditor().getItem()), self.getPropertyElements(widget)
-        return str(widget.getSelectedItem()), self.getPropertyElements(widget)
+            return self.itemToString(widget.getEditor().getItem()), self.getPropertyElements(widget)
+        return self.itemToString(widget.getSelectedItem()), self.getPropertyElements(widget)
+        
+    def itemToString(self, item):
+        if hasattr(item, "getDescription"):
+            return item.getDescription()
+        else:
+            return str(item)
         
     def getJComboBoxDescription(self, widget):
         contents, properties = self.getJComboBoxState(widget)
