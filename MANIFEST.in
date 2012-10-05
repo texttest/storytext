@@ -1,5 +1,6 @@
 include README.txt
 include lib/ConfigParser26.py
+include lib/storytext/javaswingtoolkit/swinglibrary*
 recursive-include doc *
 recursive-include log *
 recursive-include examples *
