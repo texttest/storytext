@@ -506,3 +506,83 @@ SWT/Eclipse RCP bugfixes:
     - Bug fixes for describer laying out HTML tables in Browsers properly
 	(e.g. non-breaking spaces and unprintable characters...)
 
+Version 3.8
+-----------
+Migration:
+    - Swing support now requires at least SwingLibrary 1.3
+	1.4.1 is now packaged, see below. 1.2 does not work any more.
+    - SWT descriptions have changed (same information, different layout). Will need to update TextTest results
+
+The "NameChooser" UI has been generalised and enhanced:
+    - Can now be used on any usecase file, not just when entering new names
+    - Shows a hierarchical view, including shortcuts and UI map definitions
+    - Can be used to create new shortcuts
+    - Now the default editor for usecase files in TextTest 3.24
+
+General enhancements:
+    - Comments are now preserved between replayed and recorded versions of a usecase
+	Useful from TextTest, where they no longer need to be filtered
+    - Added a retry loop when widgets are disposed, disabled or invisible in case they become enabled
+	Removes the need for some "application events", though not all
+    - File polling mechanism added
+	Can synchronise on external issues by polling a file and generating an application event if it is created or removed
+	See docs for "-f" and "-F"
+    - Can now exclude certain widget types from the descriptions
+	See docs for "-X"
+
+PyGTK enhancements:
+    - Now support GUIs made with gtk.Builder (mostly Dialogs and TreeViews that didn't work before)
+    - Stock buttons described as stock buttons. Don't describe images, which are theme-dependent
+
+Swing enhancements:
+    - JFileChooser now handled correctly
+	(ignore theme-specific names, don't describe the widget itself, describe the FileFilters at the bottom properly)
+    - Support for JToggleButton added
+    - Unicode support added
+    - SwingLibrary now packaged with StoryText and included in the download
+	TextTest finds it automatically. Using StoryText alone you still need to add it to the classpath.
+
+SWT/Eclipse RCP/GEF enhancements:
+    - Added support for CComboBox
+    - Descriptions of updates to MenuBar, ToolBars changed (only print lines that have changed, describe what changed)
+    - Descriptions of Trees show if elements are expandable. Expanding an unexpandable item now fails instead of doing nothing.
+    - Finding GEF Figures on a FigureCanvas now works even if scrolling is required to find them
+    - GEF selection and dragging now handles figures which are partially obscured by other figures
+    - GEF support is better at not recording programmatic selections
+
+General bugfixes:
+    - Unicode characters in grid layouts don't stacktrace any more
+    - Don't fail if square brackets present in widget labels (UI map syntax problems)
+    - Grid formatter now works even if span values provided from e.g. SWT are nonsensical (adjusts them appropriately)
+    - Recorder now handles simultaneous state changes at different delay levels
+    - Shortcuts can now contain comments and blank lines
+    - Handle case where one shortcut is a subset of another
+    - Browser description now uses HTML parser and not XML parser, less weird problems
+    - Various complicated application event bugs fixed
+    - Various problems when there is no active shell fixed
+    - Various problems with automatically inserting shortcuts when recording fixed
+    - Timeouts now broken up into several waits, more resilient to process being suspended
+    - Various fixes handling shortcuts with arguments
+    - Bug with selecting in non-editable Comboboxes fixed
+
+SWT/Eclipse RCP bugfixes:
+    - Don't find identifying labels from previous rows of grids
+    - Handle MenuItems with reserved dialog texts on them
+    - Try hard not to allow Python exceptions back to Eclipse, which tends not to like them very much
+    - Image naming is now more reliable. Re-enabled it for control decoration images for this reason.
+    - Expanding ExpandableComposite widgets (RCP) no longer moves the mouse pointer around
+    - Table handling deals properly with nameless columns and entirely empty tables
+    - Table description no longer describes hidden columns
+    - Handle RCP view menus in a better way
+    - Tree row selection now works more like doing it by hand (no longer using SWTBot's method)
+    - Fixing problems with text edit inserting and removing, generally making mistakes when typing should no longer record
+    - Now handle checkboxes embedded in tables
+    - Workarounds added for NPEs in SWTBot
+
+Swing bugfixes:
+    - Recorded of tab changes in JTabbedPane simpler and more reliable
+    - Don't fail if AWT components present as well as Swing ones
+    - JTable: don't assume getRowCount and getValueAt are consistent, they may not be
+
+wxPython bugfixes:
+    - Handle PySimpleApp properly

@@ -54,7 +54,8 @@ Other Open Source Software packaged with it/used by it:
 
 Installation:
 
-    Go to the "source" directory and run "python setup.py install". To sort out dependencies and so on, read the docs
+    Go to the "source" directory and run "python setup.py install" (and then "jython setup.py install" for Java GUIs). 
+    To sort out dependencies and so on, read the docs
     at http://www.texttest.org/index.php?page=ui_testing&n=storytext_download
 
 Documentation:
