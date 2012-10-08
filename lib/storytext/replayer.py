@@ -30,9 +30,15 @@ class ReplayScript:
         return self.getRegexp(self.getShortcutName())
 
     def getShortcutNameWithArgs(self, args):
-        name = self.getShortcutName().lower()
-        for arg in args:
-            name = name.replace("$", arg, 1)
+        splittedName = self.getShortcutName().lower().split("$")
+        if len(splittedName) == 1:
+            return splittedName[0]
+        name = ""
+        for i , n in enumerate(splittedName):
+            if i < len(args):
+                name += n + args[i]
+            else:
+                name += n
         return name
 
     def transformToRegexp(self, text):
@@ -84,10 +90,13 @@ class ReplayScript:
         return currArg
 
     def replaceArgs(self, nextCommand, args):
+        origCommand = nextCommand
         if args:
-            while "$" in nextCommand:
-                currArg = self.getArgument(nextCommand, args)
-                nextCommand = re.sub("\$[0-9]*", currArg, nextCommand, 1)
+            for n in origCommand.split():
+                if "$" in n:
+                    currArg = self.getArgument(nextCommand, args)
+                    nextCommand = re.sub("\$[0-9]*", currArg, nextCommand, 1)
+            
         return nextCommand
             
     def getCommandsSoFar(self, args):
