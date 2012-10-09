@@ -379,21 +379,24 @@ class UseCaseEditor:
         dialog = gtk.Dialog("New Shortcut", flags=gtk.DIALOG_MODAL)
         dialog.set_name("New Shortcut Window")
         label = gtk.Label("New name for shortcut:")
-        dialog.vbox.add(label)
         entry = gtk.Entry()
         entry.set_name("New Name")
         if arguments:
             defaultText = "Do something with " + " and ".join(arguments)
             entry.set_text(defaultText)
-        dialog.vbox.add(entry)
+
+        dialog.vbox.set_spacing(10)
+        dialog.vbox.pack_start(label, expand=False, fill=False)
+        dialog.vbox.pack_start(entry, expand=True, fill=True)
+        dialog.vbox.pack_start(gtk.HSeparator(), expand=False, fill=False)
         self.scriptEngine.monitorSignal("enter new shortcut name", "changed", entry)
         shortcutView = self.createShortcutPreview(lines, arguments, entry)
-        scrolled = self.addScrollBar(shortcutView)
         frame = gtk.Frame("")
+        frame.get_label_widget().set_use_markup(True)
         self.updateShortcutName(entry, frame, arguments)
-        frame.add(scrolled)
+        frame.add(shortcutView)
         entry.connect("changed", self.updateShortcutName, frame, arguments)
-        dialog.vbox.pack_start(frame, expand=True, fill=True)
+        dialog.vbox.pack_end(frame, expand=True, fill=True)
         yesButton = dialog.add_button(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT)
         self.scriptEngine.monitorSignal("accept new shortcut name", "clicked", yesButton)
         cancelButton = dialog.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
@@ -405,7 +408,8 @@ class UseCaseEditor:
         newName = textEntry.get_text()
         for arg in arguments:
             newName = newName.replace(arg, "$")
-        frame.set_label(newName.lower().replace(" ", "_") + ".shortcut")
+        markup = "<b><i>" + newName.lower().replace(" ", "_") + ".shortcut" + "</i></b>"
+        frame.get_label_widget().set_label(markup)
 
     def copyRow(self, iter, shortcutIter):
         row = list(self.treeModel.get(iter, 0, 1, 2))
@@ -427,10 +431,12 @@ class UseCaseEditor:
     def respond(self, dialog, responseId, entry, frame, shortcutView, arguments, positions, selection):
         if responseId == gtk.RESPONSE_ACCEPT:
             newNameForUseCase = entry.get_text().lower()
+            for arg in arguments:
+                newNameForUseCase = newNameForUseCase.replace(arg.lower(), arg)
             if self.checkShortcutName(dialog, newNameForUseCase):
                 dialog.hide()
                 shortcut = self.saveShortcut(frame.get_label(), self.getShortcutLines(shortcutView))
-                self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, entry.get_text())
+                self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, newNameForUseCase)
                 self.shortcutManager.add(shortcut)
                 self.addShortcutToPreview(shortcut, arguments, selection)
         else:

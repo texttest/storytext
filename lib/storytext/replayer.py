@@ -34,11 +34,11 @@ class ReplayScript:
         if len(splittedName) == 1:
             return splittedName[0]
         name = ""
-        for i , n in enumerate(splittedName):
+        for i ,part in enumerate(splittedName):
             if i < len(args):
-                name += n + args[i]
+                name += part + args[i]
             else:
-                name += n
+                name += part
         return name
 
     def transformToRegexp(self, text):
