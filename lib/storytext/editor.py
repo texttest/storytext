@@ -430,7 +430,7 @@ class UseCaseEditor:
             if self.checkShortcutName(dialog, newNameForUseCase):
                 dialog.hide()
                 shortcut = self.saveShortcut(frame.get_label(), self.getShortcutLines(shortcutView))
-                self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, newNameForUseCase)
+                self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, entry.get_text())
                 self.shortcutManager.add(shortcut)
                 self.addShortcutToPreview(shortcut, arguments, selection)
         else:
