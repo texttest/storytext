@@ -299,6 +299,7 @@ class Describer:
         return text.rstrip()
     
     def getFrameDescription(self, frame):
+        idleScheduler.monitor(frame, [ "notify::label" ], "\nChanging " + frame.get_name() + " label to: ")
         labelExisted, label = self.getLabelText(frame)
         frameText = "....." + label + "......\n"
         if labelExisted:
