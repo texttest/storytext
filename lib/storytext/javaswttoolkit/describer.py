@@ -300,17 +300,22 @@ class Describer(storytext.guishared.Describer):
         else:
             return desc
 
-    def getControlDecoration(self, item):
-        listener = self.getControlDecorationListener(item)
-        if listener:
-            return self.getEnclosingInstance(listener)
+    def getControlDecorations(self, item):
+        decorations = []
+        for listener in self.getControlDecorationListeners(item):
+            deco = self.getEnclosingInstance(listener)
+            if deco:
+                decorations.append(deco)
+        return decorations
 
-    def getControlDecorationListener(self, item):
+    def getControlDecorationListeners(self, item):
+        listeners = []
         for typedListener in item.getListeners(swt.SWT.FocusIn):
             if hasattr(typedListener, "getEventListener"):
-                focusListener = typedListener.getEventListener() 
+                focusListener = typedListener.getEventListener()
                 if "ControlDecoration" in focusListener.__class__.__name__:
-                    return focusListener
+                    listeners.append(focusListener)
+        return listeners
 
     def getEnclosingInstance(self, listener):
         cls = listener.getClass()
@@ -320,16 +325,16 @@ class Describer(storytext.guishared.Describer):
                 return field.get(listener)
        
     def getControlDecorationDescription(self, item):
-        deco = self.getControlDecoration(item)
-        if deco:
-            image = deco.getImage()
-            imgDesc = self.getImageDescription(deco.getImage()) if image is not None else ""
-        if deco and self.decorationVisible(deco): 
-            text = "Decoration " + imgDesc
-            desc = deco.getDescriptionText()
-            if desc:
-                text += "\n'" + desc + "'"
-            return text
+        for deco in self.getControlDecorations(item):
+            if deco:
+                image = deco.getImage()
+                imgDesc = self.getImageDescription(deco.getImage()) if image is not None else ""
+            if deco and self.decorationVisible(deco): 
+                text = "Decoration " + imgDesc
+                desc = deco.getDescriptionText()
+                if desc:
+                    text += "\n'" + desc + "'"
+                return text
 
     def decorationVisible(self, deco):
         if hasattr(deco, "isVisible"): # added in 3.6
