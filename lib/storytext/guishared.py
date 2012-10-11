@@ -1005,8 +1005,8 @@ class Describer(object):
         else:
             return "\n"
 
-    def addToDescription(self, desc, newText):
-        if newText:
+    def addToDescription(self, desc, newText, allowEmpty=False):
+        if newText or allowEmpty:
             if desc:
                 desc += "\n"
             desc += newText.rstrip() + "\n"
@@ -1206,6 +1206,7 @@ class Describer(object):
                 return self.handleGridFormatter(formatter)
             elif grid:
                 childDescriptions = [ row[0] for row in grid ]
+        
         return self.formatInColumn(childDescriptions)
 
     def handleGridFormatter(self, formatter):
@@ -1271,7 +1272,7 @@ class Describer(object):
             return childDescriptions[0]
         desc = ""
         for childDesc in childDescriptions:
-            desc = self.addToDescription(desc, self.convertToString(childDesc))
+            desc = self.addToDescription(desc, self.convertToString(childDesc), allowEmpty=True)
         
         return desc.rstrip()
 
