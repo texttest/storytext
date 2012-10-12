@@ -586,3 +586,20 @@ Swing bugfixes:
 
 wxPython bugfixes:
     - Handle PySimpleApp properly
+
+Version 3.8.1
+-------------
+General bugfixes:
+    - Don't discard empty rows in column layouts, can be important for alignment
+	Note this change may result in extra blank lines in your described text, and hence TextTest tests will need saving.
+
+Bugfixes in new editor GUI:
+    - Fixed problem with new editor creating shortcuts where arguments got erroneously converted to lower case
+    - Shortcut creation dialog in new editor is neater and less likely to be the wrong size now
+    - Now handle literal $ symbols in shortcuts (previously got confused with the argument syntax)
+
+SWT/Eclipse RCP bugfixes:
+    - Can now handle multiple ControlDecorations on the same widget. Previously only noticed the first one.
+
+PyGTK bugfix:
+    - Now notice changes of Frame label in the describer text (was missed earlier)
