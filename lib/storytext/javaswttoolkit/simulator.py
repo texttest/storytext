@@ -614,13 +614,17 @@ class TreeEvent(SignalEvent):
     def getTextToRecord(self, item):
         return DisplayFilter.instance.itemTextCache.pop(item, item.getText())
 
+    def hasItems(self, event):
+        return event.item is not None
+
     def outputForScript(self, event, *args):
-        if event.item is None:
-            return self.name
-        else:
+        if self.hasItems(event):
             # Text may have changed since the application listeners have been applied
             text = self.getTextToRecord(event.item)
             return ' '.join([self.name, text])
+        else:
+            return self.name
+
 
 
 class ExpandEvent(TreeEvent):
@@ -654,8 +658,10 @@ class TreeClickEvent(TreeEvent):
 
     def shouldRecord(self, event, *args):
         # Seem to get selection events even when nothing has been selected...
+        # Record if there is no item, or if we've pressed control (deselecting) or
+        # if whatever we selected is still in the selection.
         return TreeEvent.shouldRecord(self, event, *args) and \
-            (event.item is None or event.item in event.widget.getSelection())
+            (event.item is None or event.stateMask == swt.SWT.CTRL or event.item in event.widget.getSelection())
 
     def generateItem(self, item):
         # Swtbot select and click methods doesn't seem to generate all events that a mouse click does.
@@ -664,6 +670,9 @@ class TreeClickEvent(TreeEvent):
 
     def isStateChange(self):
         return True
+    
+    def hasItems(self, event):
+        return event.item is not None and event.item in event.widget.getSelection()
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
