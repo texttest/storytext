@@ -428,8 +428,9 @@ class UseCaseEditor:
                 self.copyRow(subIter, newShortcutIter)
             self.treeModel.remove(iter)
 
-    def getNameInUseCase(self, entry, arguments):
-        name = entry.get_text().lower()
+    def getNameAndArguments(self, givenText, arguments):
+        name = givenText.lower()
+        usedArguments = []
         for arg in arguments:
             pos = name.find(arg.lower())
             while pos != -1:
@@ -437,18 +438,19 @@ class UseCaseEditor:
                     endPos = pos + len(arg)
                     if endPos == len(name) or name[endPos] == " ":
                         name = name[:pos] + arg + name[endPos:]
+                        usedArguments.append(arg)
                 pos = name.find(arg.lower(), pos + 1)
-        return name
+        return name, usedArguments
 
     def respond(self, dialog, responseId, entry, frame, shortcutView, arguments, positions, selection):
         if responseId == gtk.RESPONSE_ACCEPT:
-            newNameForUseCase = self.getNameInUseCase(entry, arguments)
+            newNameForUseCase, usedArguments = self.getNameAndArguments(entry.get_text(), arguments)
             if self.checkShortcutName(dialog, newNameForUseCase):
                 dialog.hide()
                 shortcut = self.saveShortcut(frame.get_label(), self.getShortcutLines(shortcutView))
                 self.replaceInFile(self.fileName, self.makeShortcutReplacement, positions, newNameForUseCase)
                 self.shortcutManager.add(shortcut)
-                self.addShortcutToPreview(shortcut, arguments, selection)
+                self.addShortcutToPreview(shortcut, usedArguments, selection)
         else:
             dialog.hide()
             
