@@ -428,11 +428,21 @@ class UseCaseEditor:
                 self.copyRow(subIter, newShortcutIter)
             self.treeModel.remove(iter)
 
+    def getNameInUseCase(self, entry, arguments):
+        name = entry.get_text().lower()
+        for arg in arguments:
+            pos = name.find(arg.lower())
+            while pos != -1:
+                if pos == 0 or name[pos - 1] == " ":
+                    endPos = pos + len(arg)
+                    if endPos == len(name) or name[endPos] == " ":
+                        name = name[:pos] + arg + name[endPos:]
+                pos = name.find(arg.lower(), pos + 1)
+        return name
+
     def respond(self, dialog, responseId, entry, frame, shortcutView, arguments, positions, selection):
         if responseId == gtk.RESPONSE_ACCEPT:
-            newNameForUseCase = entry.get_text().lower()
-            for arg in arguments:
-                newNameForUseCase = newNameForUseCase.replace(arg.lower(), arg)
+            newNameForUseCase = self.getNameInUseCase(entry, arguments)
             if self.checkShortcutName(dialog, newNameForUseCase):
                 dialog.hide()
                 shortcut = self.saveShortcut(frame.get_label(), self.getShortcutLines(shortcutView))
