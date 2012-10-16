@@ -579,12 +579,6 @@ class TableColumnHeaderEvent(SignalEvent):
         
 
 class TreeEvent(SignalEvent):
-    def _generate(self, item):
-        if item:
-            self.generateItem(item)
-        else:
-            self.widget.unselect()
-            
     def parseArguments(self, argumentString):
         if argumentString:
             item = self.findItem(argumentString, self.widget.getAllItems())
@@ -614,11 +608,8 @@ class TreeEvent(SignalEvent):
     def getTextToRecord(self, item):
         return DisplayFilter.instance.itemTextCache.pop(item, item.getText())
 
-    def hasItems(self, event):
-        return event.item is not None
-
     def outputForScript(self, event, *args):
-        if self.hasItems(event):
+        if event.item is not None:
             # Text may have changed since the application listeners have been applied
             text = self.getTextToRecord(event.item)
             return ' '.join([self.name, text])
@@ -638,7 +629,7 @@ class ExpandEvent(TreeEvent):
             raise UseCaseScriptError, "Item labelled '" + argumentString + "' in " + self.getClassDesc() + " is not expandable."
         return item
     
-    def generateItem(self, item):
+    def _generate(self, item):
         item.expand()
 
 
@@ -647,7 +638,7 @@ class CollapseEvent(TreeEvent):
     def getAssociatedSignal(cls, widget):
         return "Collapse"
 
-    def generateItem(self, item):
+    def _generate(self, item):
         item.collapse()
 
 
@@ -655,6 +646,12 @@ class TreeClickEvent(TreeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
+    
+    def parseArguments(self, argumentString):
+        if argumentString:
+            return [ TreeEvent.parseArguments(self, part) for part in argumentString.split(",") ]
+        else:
+            return []
 
     def shouldRecord(self, event, *args):
         # Seem to get selection events even when nothing has been selected...
@@ -663,17 +660,40 @@ class TreeClickEvent(TreeEvent):
         return TreeEvent.shouldRecord(self, event, *args) and \
             (event.item is None or event.stateMask == swt.SWT.CTRL or event.item in event.widget.getSelection())
 
-    def generateItem(self, item):
+    def _generate(self, items):
+        if items:
+            self.selectItems(items)
+        else:
+            self.widget.unselect()
+            
+    def selectItems(self, items):
         # Swtbot select and click methods doesn't seem to generate all events that a mouse click does.
-        runOnUIThread(self.widget.widget.widget.setSelection, item.widget)
-        item.click()
-
+        # In particular the select methods generate events without the item field set which can cause great confusion.
+        runOnUIThread(self.widget.widget.widget.setSelection, [ item.widget for item in items ])
+        items[0].click()
+        for item in items[1:]:
+            self.postControlEvent(swt.SWT.KeyDown)
+            item.click()
+            self.postControlEvent(swt.SWT.KeyUp)
+                        
+    def postControlEvent(self, eventType):
+        event = swt.widgets.Event()
+        event.type = eventType
+        event.keyCode = swt.SWT.CTRL
+        event.character = '\0'
+        runOnUIThread(self.widget.display.post, event)
+        
     def isStateChange(self):
         return True
     
-    def hasItems(self, event):
-        return event.item is not None and event.item in event.widget.getSelection()
+    def outputForScript(self, event, *args):
+        items = event.widget.getSelection()
+        if not items:
+            return self.name
 
+        args = map(self.getTextToRecord, event.widget.getSelection())
+        return ' '.join([self.name, ",".join(args)])
+        
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return currOutput.startswith(stateChangeOutput)
@@ -684,7 +704,7 @@ class TreeDoubleClickEvent(TreeEvent):
     def getAssociatedSignal(cls, widget):
         return "DefaultSelection"
 
-    def generateItem(self, item):
+    def _generate(self, item):
         item.doubleClick()
 
     def implies(self, stateChangeLine, stateChangeEvent, swtEvent, *args):
