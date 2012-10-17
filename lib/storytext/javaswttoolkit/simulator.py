@@ -649,7 +649,10 @@ class TreeClickEvent(TreeEvent):
     
     def parseArguments(self, argumentString):
         if argumentString:
-            return [ TreeEvent.parseArguments(self, part) for part in argumentString.split(",") ]
+            try:
+                return [ TreeEvent.parseArguments(self, argumentString) ]
+            except UseCaseScriptError:
+                return [ TreeEvent.parseArguments(self, part) for part in argumentString.split(",") ]
         else:
             return []
 
