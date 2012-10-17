@@ -468,15 +468,12 @@ class UseCaseEditor:
             dialog.hide()
             
     def recreateUsecaseFile(self):
-        newFileName = self.fileName + ".tmp"
-        recordScript = RecordScript(newFileName)
+        recordScript = RecordScript(self.fileName)
         for _, shortcut in self.shortcutManager.shortcuts:
             recordScript.registerShortcut(shortcut)
             
         for iter in self.getTopLevelIters():
             recordScript.record(self.treeModel.get_value(iter, 1))
-
-        recordScript.rename(self.fileName)
             
     def getShortcutLines(self, shortcutView):
         model = shortcutView.get_model()
