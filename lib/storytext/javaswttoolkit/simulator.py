@@ -286,6 +286,7 @@ class CTabCloseEvent(SignalEvent):
         return stateChangeEvent.isImpliedByCTabClose(self.widget.widget.widget)
     
 class TextEvent(StateChangeEvent):
+    physicalEventWidget = None
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
         self.stateText = None
@@ -294,6 +295,16 @@ class TextEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Modify"
     
+    def connectRecord(self, method):
+        StateChangeEvent.connectRecord(self, method)
+        if self.isTyped():
+            class PhysicalEventListener(swt.widgets.Listener):
+                def handleEvent(listenerSelf, e): #@NoSelf
+                    TextEvent.physicalEventWidget = e.widget
+
+            runOnUIThread(self.addListeners, swt.SWT.KeyDown, PhysicalEventListener())
+            runOnUIThread(self.addListeners, swt.SWT.MouseDown, PhysicalEventListener())
+        
     def selectAll(self):
         self.widget.selectAll()
         
@@ -301,9 +312,12 @@ class TextEvent(StateChangeEvent):
         # Don't include the Enter presses from TextActivateEvent below...
         return e.type == swt.SWT.KeyDown and e.character != swt.SWT.CR
 
+    def isTyped(self):
+        return "typed" in self.generationModifiers
+
     def _generate(self, argumentString):
         self.widget.setFocus()
-        if "typed" in self.generationModifiers and argumentString:
+        if self.isTyped() and argumentString:
             self.selectAll()
             self.widget.typeText(argumentString)
         else:
@@ -318,14 +332,18 @@ class TextEvent(StateChangeEvent):
         newStateText = self.getStateText()
         if self.stateText is not None and self.stateText == newStateText:
             return False
+        
+        if newStateText and self.isTyped() and self.physicalEventWidget is not self.widget.widget.widget:
+            return False
+        
         self.stateText = newStateText
         return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, event, *args)
-    
+        
     def isEditable(self):
         return not (self.widget.widget.widget.getStyle() & swt.SWT.READ_ONLY) 
     
     def implies(self, stateChangeOutput, *args):
-        if "typed" in self.generationModifiers:
+        if self.isTyped():
             currOutput = self.outputForScript(*args)
             return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
                self.hasGainedOrLostCharacters(currOutput, stateChangeOutput)
