@@ -59,6 +59,7 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
     parser.add_option("-X", "--exclude-describe",
                       help="Exclude the listed widget class names from being described in the describer")
+    parser.add_option("--insert-shortcuts", action="store_true", help="Re-record the replay script to the record script without running anything, inserting shortcuts as required")
     return parser
 
 

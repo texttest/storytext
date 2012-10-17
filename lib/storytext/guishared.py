@@ -318,6 +318,8 @@ class ScriptEngine(scriptengine.ScriptEngine):
             return self.describeSupportedWidgets()
         elif options.supported_html:
             return self.describeSupportedWidgets(html=True)
+        elif options.insert_shortcuts:
+            return self.rerecord()
         else:
             try:
                 return scriptengine.ScriptEngine.run(self, options, args)
@@ -374,7 +376,15 @@ is also supported but will only have features of the listed type described.
             for className in classNames:
                 print className
         return True
-
+    
+    def rerecord(self):
+        commands = self.replayer.getCommands()
+        while len(commands) > 0:
+            for command in commands:
+                self.recorder.record(command)
+            commands = self.replayer.getCommands()
+        return True
+    
     def getRecordReplayInfo(self, module):
         classes = {}
         for widgetClass, currEventClasses in self.eventTypes:
