@@ -72,6 +72,9 @@ if __name__ == "__main__":
     exportFromBzr(actualRoot, tagName)
     createSource(actualRoot)
     subprocess.call([ "python", "setup.py", "sdist", "upload" ], cwd=os.path.join(actualRoot, "source"))
+    distDir = os.path.join(actualRoot, "source", "dist")
+    if os.path.isdir(distDir):
+        shutil.rmtree(distDir)
     
     os.chdir(rootDir)
     zipName = reldir + ".zip"
