@@ -15,7 +15,7 @@
 
 # The -x flag should be provided if the temporary files are to be left. Mostly useful for testing.
 
-import os, sys, shutil
+import os, sys, shutil, subprocess
 from glob import glob
 from getopt import getopt
 
@@ -71,6 +71,7 @@ if __name__ == "__main__":
     
     exportFromBzr(actualRoot, tagName)
     createSource(actualRoot)
+    subprocess.call([ "python", "setup.py", "sdist", "upload" ], cwd=os.path.join(actualRoot, "source"))
     
     os.chdir(rootDir)
     zipName = reldir + ".zip"
