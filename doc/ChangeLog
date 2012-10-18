@@ -603,3 +603,19 @@ SWT/Eclipse RCP bugfixes:
 
 PyGTK bugfix:
     - Now notice changes of Frame label in the describer text (was missed earlier)
+
+Version 3.8.2
+-------------
+Bugfixes in new editor GUI:
+    - Fixed problem where short arguments led to them being inserted in capitals in the file
+    - Fixed problem where unused shortcut arguments appeared in the preview after creating a shortcut
+    - If a shortcut should be inserted several times in the usecase file, it now will be.
+
+SWT/Eclipse RCP bugfixes:
+    - Can now handle selecting multiple nodes in a Tree
+    - Deselecting in Trees now records properly
+    - Fixed bug where some programmatic changes from typed text fields updating each other got recorded
+
+New feature:
+    - Shortcuts can be inserted from the command-line via --insert-shortcut. Not very useful until it's integrated
+      into TextTest, which it hopefully will be in TextTest 3.25.
