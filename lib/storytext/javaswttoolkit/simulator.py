@@ -374,10 +374,10 @@ class TextActivateEvent(SignalEvent):
     
     @classmethod
     def getRecordEventType(cls):
-        return swt.SWT.KeyDown
+        return swt.SWT.Traverse
     
     def shouldRecord(self, event, *args):
-        return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and event.character == swt.SWT.CR and SignalEvent.shouldRecord(self, event, *args)
+        return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and event.type == swt.SWT.Traverse and event.detail == swt.SWT.TRAVERSE_RETURN and SignalEvent.shouldRecord(self, event, *args)
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -402,14 +402,6 @@ class ComboTextEvent(TextEvent):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return True
 
-class CComboTextActivateEvent(TextActivateEvent):    
-    def shouldRecord(self, event, *args):
-        return event.character == swt.SWT.CR
-    
-    def isTriggeringEvent(self, e):
-        return e.widget in CComboSelectEvent.internalWidgets or TextActivateEvent.isTriggeringEvent(self, e)
-        
-         
 class CComboSelectEvent(StateChangeEvent):
     internalWidgets = []
     def __init__(self, *args):
@@ -1166,7 +1158,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
                 (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent, TextActivateEvent ]),
-                (FakeSWTBotCCombo                       , [ CComboSelectEvent, CComboChangeEvent, CComboTextActivateEvent ]),
+                (FakeSWTBotCCombo                       , [ CComboSelectEvent, CComboChangeEvent, TextActivateEvent ]),
                 (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
                 (FakeSWTBotCTabFolder                   , [ CTabSelectEvent ]),
                 (swtbot.widgets.SWTBotCTabItem          , [ CTabCloseEvent ]),
