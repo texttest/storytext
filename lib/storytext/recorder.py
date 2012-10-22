@@ -327,15 +327,19 @@ class UseCaseRecorder:
                             nextLevelEvents = []
                 else:
                     nextLevelEvents.append((scriptOutput, delayLevel, source))
+
+    def popComment(self):
+        # Make this atomic, it can be called from different threads
+        try:
+            return self.comments.pop(0)
+        except IndexError:
+            pass
         
     def recordComments(self):
-        while len(self.comments) > 0:
-            comment = self.comments.pop(0)
-            if comment is not None:
-                self._record(comment)
-            else:
-                self.logger.debug("Got None in comment list, not recording more comments now")
-                break
+        comment = self.popComment()
+        while comment is not None:
+            self._record(comment)
+            comment = self.popComment()
                 
     def record(self, line, event=None):
         self.recordComments()
