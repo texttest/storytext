@@ -42,13 +42,14 @@ class ScriptEngine:
             if self.recorderActive():
                 self.recorder.registerShortcut(shortcut)
 
-    def getShortcuts(self):
+    def getShortcuts(self, storyTextHome=None):
+        home = storyTextHome if storyTextHome else self.storytextHome
         shortcuts = []
-        if not os.path.isdir(self.storytextHome):
+        if not os.path.isdir(home):
             return shortcuts
-        for fileName in sorted(os.listdir(self.storytextHome)):
+        for fileName in sorted(os.listdir(home)):
             if fileName.endswith(".shortcut"):
-                fullPath = os.path.join(self.storytextHome, fileName)
+                fullPath = os.path.join(home, fileName)
                 shortcuts.append(replayer.ReplayScript(fullPath, ignoreComments=True))
         return shortcuts
 
