@@ -21,14 +21,14 @@ class Describer(storytext.guishared.Describer):
     ignoreWidgets = [ types.NoneType ]
     # DateTime children are an implementation detail
     # Coolbars and Expandbars describe their children directly : they have two parallel children structures
-    ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime)
+    ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime, swt.widgets.Group)
     statelessWidgets = [ swt.widgets.Sash ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,
                      swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
                      swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
                      swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.custom.CCombo,
-                     swt.widgets.Composite ]
+                     swt.widgets.Group, swt.widgets.Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
     def __init__(self):
@@ -432,7 +432,7 @@ class Describer(storytext.guishared.Describer):
             return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
         elif isinstance(widget, swt.widgets.Combo):
             return "\nUpdated " + util.getTextLabel(widget) + " Combo Box\n"
-        elif util.getTopControl(widget):
+        elif util.getTopControl(widget) or isinstance(widget, swt.widgets.Group):
             return "\n"
         elif isinstance(widget, swt.widgets.Menu):
             parentItem = widget.getParentItem()
@@ -567,11 +567,22 @@ class Describer(storytext.guishared.Describer):
 
     def getCompositeDescription(self, widget):
         return self.combineElements([ self.getStateControlDescription(widget), self.getContextMenuReference(widget) ])
+    
+    def getGroupState(self, widget):
+        return self.getCompositeState(widget), widget.getText()
+    
+    def getGroupDescription(self, widget):
+        header = "." * 6 + " " + widget.getText() + " " + "." * 6
+        footer = "." * len(header)
+        compositeDesc = self.getCompositeDescription(widget) or self.formatChildrenDescription(widget)
+        return header + "\n" + compositeDesc + "\n" + footer
 
     def getStateControlDescription(self, widget):
-        stateControl = self.getState(widget)
+        stateControlInfo = self.getState(widget)
+        stateControl = stateControlInfo[0] if isinstance(stateControlInfo, tuple) else stateControlInfo
+        if stateControlInfo:
+            self.widgetsWithState[widget] = stateControlInfo
         if stateControl:
-            self.widgetsWithState[widget] = stateControl
             if len(widget.getChildren()) > 1:
                 header = "+" * 6 + " Stacked Layout " + "+" * 6
                 footer = "+" * len(header)
