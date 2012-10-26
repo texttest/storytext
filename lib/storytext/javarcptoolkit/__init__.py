@@ -13,7 +13,8 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
         import org.eclipse.equinox.launcher as launcher
         cmdArgs = [ "-application", self.testscriptPlugin + ".application",
                     "-testApplication" ] + args
-        logging.getLogger().debug("Starting application with args : " + " ".join(cmdArgs))
+        log = logging.getLogger("gui log")
+        log.debug("Starting application with args : " + " ".join(cmdArgs))
         launcher.Main.main(cmdArgs)
         
 

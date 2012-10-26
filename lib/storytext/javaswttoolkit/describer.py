@@ -72,7 +72,7 @@ class Describer(storytext.guishared.Describer):
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
-            if self.structureLogger.isEnabledFor(logging.DEBUG):
+            if self.structureLog.isEnabledFor(logging.DEBUG):
                 for widget in stateChangeWidgets:
                     self.describeStructure(widget)
             describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets)

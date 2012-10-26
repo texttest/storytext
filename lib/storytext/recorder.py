@@ -132,7 +132,7 @@ class ShortcutTracker:
 
 class UseCaseRecorder:
     def __init__(self):
-        self.logger = logging.getLogger("usecase record")
+        self.logger = logging.getLogger("storytext record")
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
         self.scripts = []

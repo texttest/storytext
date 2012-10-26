@@ -931,7 +931,7 @@ class Describer(object):
         self.windows = set()
         self.widgetsWithState = OrderedDict()
         self.imageCounter = WidgetCounter(self.imagesEqual)
-        self.structureLogger = logging.getLogger("widget structure")
+        self.structureLog = logging.getLogger("widget structure")
 
     def imagesEqual(self, image1, image2):
         return image1 == image2
@@ -940,7 +940,7 @@ class Describer(object):
         if window in self.windows or not self.checkWindow(window):
             return
         
-        if self.structureLogger.isEnabledFor(logging.DEBUG):
+        if self.structureLog.isEnabledFor(logging.DEBUG):
             self.describeStructure(window)
 
         self.windows.add(window)
@@ -1148,7 +1148,7 @@ class Describer(object):
         
     def describeStructure(self, widget, indent=0, **kw):
         rawData = self.getRawData(widget, useModule=True, **kw)
-        self.structureLogger.info("-" * 2 * indent + rawData)
+        self.structureLog.info("-" * 2 * indent + rawData)
         for child in self.getWidgetChildren(widget):
             self.describeStructure(child, indent+1, **kw)
                 
@@ -1320,7 +1320,7 @@ class Describer(object):
             self.describe(window)
             
         descriptions = map(self.getDescriptionForVisibilityChange, commonParents)
-        if self.structureLogger.isEnabledFor(logging.DEBUG):
+        if self.structureLog.isEnabledFor(logging.DEBUG):
             for parent in commonParents:
                 self.describeStructure(parent)
             
