@@ -465,6 +465,15 @@ class CComboChangeEvent(CComboSelectEvent):
         return StateChangeEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
 
 
+class StoryTextSwtBotTable(swtbot.widgets.SWTBotTable):    
+    def select(self, indices):
+        # When clicking in a cell, SWTBot likes to select the entire row first, generating mouse events and all
+        # This can cause trouble, e.g. the cells can translate it into clicking the first column
+        runOnUIThread(self.widget.deselectAll)
+        for i in indices:
+            runOnUIThread(self.widget.select, i)
+
+
 class TableSelectEvent(StateChangeEvent):
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
@@ -482,7 +491,7 @@ class TableSelectEvent(StateChangeEvent):
         indexer = TableIndexer.getIndexer(self.widget.widget.widget)
         row, col = indexer.getViewCellIndices(argumentString)
         return row, col
-    
+            
     def _generate(self, cell):
         self.widget.click(*cell)
         
@@ -958,7 +967,7 @@ class WidgetMonitor:
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
                   swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
                   swt.custom.CCombo    : (FakeSWTBotCCombo, []),
-                  swt.widgets.Table    : (swtbot.widgets.SWTBotTable, []),
+                  swt.widgets.Table    : (StoryTextSwtBotTable, []),
                   swt.widgets.TableColumn : (swtbot.widgets.SWTBotTableColumn, []),
                   swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
                   swt.widgets.ExpandBar: (swtbot.widgets.SWTBotExpandBar, []),
@@ -1151,7 +1160,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
-                (swtbot.widgets.SWTBotTable             , [ TableColumnHeaderEvent, TableSelectEvent ]),
+                (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent ]),
                 (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
