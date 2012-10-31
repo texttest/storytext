@@ -510,6 +510,7 @@ class UseCaseEditor:
         with open(fileName, "w") as f:
             for line in lines:
                 f.write(line + "\n")
+        print "Shortcut", repr(name), "created."
         return ReplayScript(fileName)
     
     def shortcutsSelected(self, selection):
