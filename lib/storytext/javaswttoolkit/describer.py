@@ -607,7 +607,7 @@ class Describer(storytext.guishared.Describer):
     def _getDescription(self, widget):
         self.widgetsDescribed.add(widget)
         desc = storytext.guishared.Describer._getDescription(self, widget)
-        if desc and isinstance(widget, (swt.widgets.ExpandBar, swt.widgets.Tree, swt.widgets.List)):
+        if desc and isinstance(widget, (swt.widgets.ExpandBar, swt.widgets.Tree, swt.widgets.List, swt.widgets.Table)):
             desc = str(desc) + self.formatContextMenuDescriptions()
         return desc
 
@@ -641,9 +641,10 @@ class Describer(storytext.guishared.Describer):
         text = ""
         if "Menu" not in self.excludeClassNames:
             for contextMenu, menuId in self.contextMenuCounter.getWidgetsForDescribe():
-                menuDesc = self.getMenuDescription(contextMenu)
-                text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
-                self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu) 
+                if not contextMenu.isDisposed():
+                    menuDesc = self.getMenuDescription(contextMenu)
+                    text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
+                    self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu) 
         return text
 
     def getHorizontalSpan(self, widget, columns):
