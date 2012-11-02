@@ -1,5 +1,5 @@
 
-import sys
+import sys, os
 from HTMLParser import HTMLParser, HTMLParseError
 from storytext.gridformatter import GridFormatter
 from storytext.guishared import getExceptionString
@@ -21,10 +21,17 @@ class BrowserHtmlParser(HTMLParser):
             sys.stderr.write(text + "\n")
         return self.text
 
+    def get_image_name(self, attrs):
+        for attr, val in attrs:
+            if attr == "src":
+                return os.path.basename(val)
+
     def handle_starttag(self, rawname, attrs):
         name = rawname.lower()
         if name == "table":
             self.currentTableParsers.append(TableParser())
+        elif name == "img":
+            self.handle_data("Image '" + self.get_image_name(attrs) + "'")
         elif self.currentTableParsers:
             self.currentTableParsers[-1].startElement(name)
         elif name == "body":
@@ -39,7 +46,7 @@ class BrowserHtmlParser(HTMLParser):
                 self.currentTableParsers[-1].addText(currText)
             else:
                 self.text += currText
-        elif self.currentTableParsers:
+        elif self.currentTableParsers and name != "img":
             self.currentTableParsers[-1].endElement(name)
 
     def handle_data(self, content):
