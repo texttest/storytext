@@ -11,7 +11,11 @@ def getRealUrl(browser):
 class TextLabelFinder(storytext.guishared.TextLabelFinder):
     def getLabelClass(self):
         return swt.widgets.Label, swt.custom.CLabel
-
+    
+    def getContextParentClasses(self):
+        # Don't look for labels outside these if they are parent classes
+        return swt.widgets.Tree, swt.widgets.Table
+    
     def getChildren(self, widget):
         return widget.getChildren()
     
@@ -35,8 +39,8 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
                 currIndex += span
 
 ignoreLabels = []
-def getTextLabel(widget):
-    return TextLabelFinder(widget, ignoreLabels).find()
+def getTextLabel(widget, **kw):
+    return TextLabelFinder(widget, ignoreLabels).find(**kw)
 
 def getInt(intOrMethod):
     return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()

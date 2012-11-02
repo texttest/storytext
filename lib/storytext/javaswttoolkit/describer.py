@@ -429,9 +429,9 @@ class Describer(storytext.guishared.Describer):
         
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):
-            return "\nUpdated " + (util.getTextLabel(widget) or "Text") +  " Field\n"
+            return "\nUpdated " + (util.getTextLabel(widget, useContext=True) or "Text") +  " Field\n"
         elif isinstance(widget, swt.widgets.Combo):
-            return "\nUpdated " + util.getTextLabel(widget) + " Combo Box\n"
+            return "\nUpdated " + util.getTextLabel(widget, useContext=True) + " Combo Box\n"
         elif util.getTopControl(widget) or isinstance(widget, swt.widgets.Group):
             return "\n"
         elif isinstance(widget, swt.widgets.Menu):

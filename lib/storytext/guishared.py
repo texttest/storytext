@@ -1513,10 +1513,19 @@ class TextLabelFinder:
     def getLabelText(self, label):
         return label.getText()
     
-    def find(self):
+    def getLabelClass(self):
+        return ()
+    
+    def getContextParentClasses(self):
+        return ()
+    
+    def find(self, useContext=False):
         """ Text widgets often are preceeded by a label, use this as their text, if it exists """
         parent = self.widget.getParent()
+        # Tables etc, should not look for labels outside them
         if parent:
+            if isinstance(parent, self.getContextParentClasses()):
+                return parent.__class__.__name__ + " Cell Editor" if useContext else ""
             children = self.getChildren(parent)
             if len(children) == 1:
                 return self.__class__(parent, self.ignoreLabels).find()
