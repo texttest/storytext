@@ -657,13 +657,24 @@ class Describer(storytext.guishared.Describer):
     def usesGrid(self, widget):
         return isinstance(widget.getLayout(), swt.layout.GridLayout)
 
-    def getLayoutColumns(self, widget, childCount, *args):
+    def getLayoutColumns(self, widget, childCount, sortedChildren):
         layout = widget.getLayout()
         if hasattr(layout, "numColumns"):
             return layout.numColumns
         elif hasattr(layout, "type"):
             if layout.type == swt.SWT.HORIZONTAL:
                 return childCount
+        elif isinstance(layout, swt.layout.FormLayout):
+            currColumns, maxColumns = 1, 1
+            for child in sortedChildren:
+                layoutData = child.getLayoutData()
+                if layoutData.right and layoutData.right.control:
+                    currColumns += 1
+                    if currColumns > maxColumns:
+                        maxColumns = currColumns
+                else:
+                    currColumns = 1
+            return maxColumns
         return 1
 
     def getRawDataLayoutDetails(self, layout, *args):
