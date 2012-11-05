@@ -174,7 +174,7 @@ class FrameCloseEvent(SignalEvent):
         System.setProperty("abbot.robot.mode", "awt")
         robot = Robot()
         robot.setEventMode(Robot.EM_AWT)
-        util.runOnEventDispatchThread(robot.close, self.widget.widget)
+        robot.close(self.widget.widget)
         robot.waitForIdle()
 
     def connectRecord(self, method):               
