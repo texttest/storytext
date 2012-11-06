@@ -169,13 +169,8 @@ class KeyPressForTestingEvent(storytext.guishared.GuiEvent):
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
-        #runKeyword("closeWindow", self.widget.getTitle()) doesn't work for confirm dialogs after closing
-        #the application.
-        System.setProperty("abbot.robot.mode", "awt")
-        robot = Robot()
-        robot.setEventMode(Robot.EM_AWT)
-        robot.close(self.widget.widget)
-        robot.waitForIdle()
+        keywordName = "closeDialog" if isinstance(self.widget.widget, swing.JDialog) else "closeWindow"
+        runKeyword(keywordName, self.widget.getTitle())
 
     def connectRecord(self, method):               
         class EventListener(AWTEventListener):
