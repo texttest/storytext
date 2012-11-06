@@ -25,6 +25,14 @@
             activityId="org.eclipse.swtbot.gef.testscript.uiIdeActivity"
             pattern="org\.eclipse\.ui\.ide/org.eclipse.ui.openLocalFile">
       </activityPatternBinding>
+      <activityPatternBinding
+            activityId="org.eclipse.swtbot.gef.testscript.uiIdeActivity"
+            pattern="org\.eclipse\.ui\.ide/org.eclipse.ui.preferencePages.Workbench">
+      </activityPatternBinding>
+      <activityPatternBinding
+            activityId="org.eclipse.swtbot.gef.testscript.uiIdeActivity"
+            pattern="org\.eclipse\.ui\.ide/org.eclipse.ui.actions.showKeyAssistHandler">
+      </activityPatternBinding>
    </extension>
 
 </plugin>
