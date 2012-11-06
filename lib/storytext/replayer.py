@@ -206,8 +206,16 @@ class UseCaseReplayer:
         self.events.setdefault(event.name, []).append(event)
     
     def addScript(self, script, arguments=[], enableReading=False):
-        self.scripts.append((script, arguments))
-        self.runScript(script, enableReading)
+        if self.isNonRecursive(script):
+            self.scripts.append((script, arguments))
+            self.runScript(script, enableReading)
+            return True
+        else:
+            sys.stderr.write("ERROR: Cannot execute shortcut command '" + script.getShortcutNameWithArgs(arguments) + "' - shortcut is trying to call itself!\n")
+            return False
+        
+    def isNonRecursive(self, script):
+        return not any((script == s for s, _ in self.scripts))
 
     def tryRunScript(self):
         if self.isActive():
@@ -219,8 +227,9 @@ class UseCaseReplayer:
             scriptCommand = script.getCommand(matching=self.shortcutManager.getRegexps())
             if scriptCommand:
                 newScript, args = self.shortcutManager.findShortcut(scriptCommand)
-                return self.addScript(newScript, args, enableReading)
-        
+                if self.addScript(newScript, args, enableReading):
+                    return
+            
         if enableReading and self.processInitialWait(script):
             self.enableReading()
             
@@ -356,11 +365,11 @@ class UseCaseReplayer:
             
             script, arguments = self.shortcutManager.findShortcut(command)
             if script:
-                self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
-                if commands[-1].startswith(waitCommandName):
-                    self.logger.debug("Adding wait command '" + commands[-1] + "' to end of shortcut file")
-                    script.commands.append(commands[-1])
-                self.addScript(script, arguments)
+                if self.addScript(script, arguments):
+                    self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
+                    if commands[-1].startswith(waitCommandName):
+                        self.logger.debug("Adding wait command '" + commands[-1] + "' to end of shortcut file")
+                        script.commands.append(commands[-1])
                 return self.runNextCommand(**kw)
             else:
                 #  Add a delimiter to show that we've replayed something else
