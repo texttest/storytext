@@ -392,7 +392,7 @@ class ActivateEvent(SignalEvent):
 class TextActivateEvent(ActivateEvent):
     def generate(self, *args):
         self.setNameIfNeeded()
-        self.widget.runKeyword("selectContext")
+        self.widget.runKeyword("focusToComponent")
         runKeyword("sendKeyboardEvent", "VK_ENTER")
 
    
