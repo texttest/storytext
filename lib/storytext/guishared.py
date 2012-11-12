@@ -538,6 +538,25 @@ class UIMapFileHandler:
             writeParser.set(newName, name, value)
         return newName
 
+    def updateSectionAndOptionNames(self, section, newSectionName, option, newOptionName):
+        section = self._escape(section, self.bracketChars)
+        newSectionName = self._escape(newSectionName, self.bracketChars)
+        writeParser = self.findWriteParser(section)
+        removeSection = False
+        if not writeParser.has_section(newSectionName):
+            writeParser.add_section(newSectionName)
+            removeSection = True
+        for name, value in self.readParser.items(section):
+            optName = newOptionName if name == option else name
+            if name == option:
+                writeParser.remove_option(newSectionName, option)
+            writeParser.set(newSectionName, optName, value)
+
+        if removeSection:
+            writeParser.remove_section(section)
+        writeParser.write()
+        return newSectionName
+    
     def write(self, *args):
         for parserHandler in self.writeParsers:
             parserHandler.write()
