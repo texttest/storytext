@@ -168,6 +168,11 @@ class ViewAdapter(swtsimulator.WidgetAdapter):
         return "View"
 
 class PartActivateEvent(storytext.guishared.GuiEvent):
+    allInstances = []
+    def __init__(self, *args, **kw):
+        storytext.guishared.GuiEvent.__init__(self, *args, **kw)
+        self.allInstances.append(self)
+        
     def connectRecord(self, method):
         class RecordListener(IPartListener):
             def partActivated(listenerSelf, part):#@NoSelf
@@ -187,21 +192,38 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
         #self.widget.setFocus()
-        if self.widget.getViewReference().getTitle() == argumentString:
+        if self.getTitleArgument() == argumentString:
             return argumentString
         else:
             raise UseCaseScriptError, "Could not find View named " + repr(argumentString) + " to activate."
 
+    def getTitle(self):
+        return self.widget.getViewReference().getTitle()
+
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return self.widget.getViewReference().getTitle() == part.getTitle() and not swtsimulator.DisplayFilter.instance.hasEvents()
+        return part is self.widget.getViewReference().getView(False) and not swtsimulator.DisplayFilter.instance.hasEvents()
 
     def delayLevel(self, part, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
         return swtsimulator.DisplayFilter.instance.otherEventCount(part, [])
     
+    def getTitleArgument(self):
+        # Handle multiple parts with the same title...
+        title = self.getTitle()
+        index = 1
+        for otherInstance in self.allInstances:
+            if otherInstance is self:
+                break
+            if otherInstance.getTitle() == title:
+                index += 1
+                
+        if index > 1:
+            title += " (" + str(index) + ")"
+        return title
+    
     def outputForScript(self, *args):
-        return ' '.join([self.name, self.widget.getViewReference().getTitle() ])
+        return ' '.join([self.name, self.getTitleArgument() ])
 
     def isStateChange(self):
         return True
