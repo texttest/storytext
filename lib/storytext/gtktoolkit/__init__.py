@@ -256,7 +256,8 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         hint = window.get_type_hint()
         if hint == gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP or hint == gtk.gdk.WINDOW_TYPE_HINT_COMBO:
             return False
-        elif isinstance(window.child, gtk.Menu) and isinstance(window.child.get_attach_widget(), gtk.ComboBox):
+        elif isinstance(window.child, gtk.Menu) and \
+           (window.child.get_name() == "gtk-combobox-popup-menu" or isinstance(window.child.get_attach_widget(), gtk.ComboBox)):
             return False
         else:
             return True
