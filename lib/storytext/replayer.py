@@ -443,7 +443,10 @@ class UseCaseReplayer:
         return "could not parse the given text."
 
     def getArgument(self, scriptCommand, commandName):
-        return scriptCommand.replace(commandName, "").strip()
+        if scriptCommand.strip() == commandName:
+            return ""
+        else:
+            return scriptCommand.replace(commandName + " ", "").rstrip()
 
     def findCommandName(self, command):
         if command.startswith(signalCommandName):
