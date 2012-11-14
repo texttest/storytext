@@ -418,11 +418,13 @@ class Describer(storytext.guishared.Describer):
 
     def getBrowserState(self, widget):
         url = util.getRealUrl(widget)
+        if url and not url.startswith("file://"):
+            return url
         # Ignore non-breaking spaces, they are invisible anyway
         # Webkit returns them in invalid format without the semicolons... handle that too.
         rawText = widget.getText().replace(u"\xa0", " ").replace("&nbsp;", " ").replace("&nbsp", " ")
         text = storytext.guishared.encodeToLocale(rawText)
-        return url or BrowserHtmlParser().parse(text)
+        return BrowserHtmlParser().parse(text)
         
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):
