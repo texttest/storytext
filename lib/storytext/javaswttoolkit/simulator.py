@@ -84,6 +84,9 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
     def getContextName(self):
         parent = self.getContextAncestor()
+        return self.getContextNameFromAncestor(parent)
+    
+    def getContextNameFromAncestor(self, parent):
         if isinstance(parent, swt.widgets.Table):
             return "TableCell"
         elif isinstance(parent, swt.widgets.Tree):
