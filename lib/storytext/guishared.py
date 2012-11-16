@@ -826,7 +826,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                     break
 
     def tryParseRepeatedly(self, commandWithArg, replayFailureMethod):
-        attemptCount = 30
+        attemptCount = 50
         command = None
         for attempt in range(attemptCount):
             try:
