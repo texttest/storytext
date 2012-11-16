@@ -87,7 +87,7 @@ class TableParser:
     
     def characters(self, content):
         if "td" in self.activeElements:
-            self.addText(content.rstrip("\t\n"))
+            self.addText(content.rstrip("\t\r\n"))
             
     def addText(self, text):
         self.grid[-1][-1] += text
