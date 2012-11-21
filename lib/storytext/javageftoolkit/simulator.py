@@ -564,7 +564,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
             for instance in self.allInstances.get(self.__class__, []):
             # No guarantee MouseUp appers on same widget
                 dropX, dropY = instance.getDropPosition(event)
-                if instance.isValidDragAndDrop(DragHolder.sourceSwtEvent, event, dropX, dropY):
+                if dropX is not None and instance.isValidDragAndDrop(DragHolder.sourceSwtEvent, event, dropX, dropY):
                     method(DragHolder.draggedPart, dropX, dropY, instance, DragHolder.sourceEvent)
                     break
             DragHolder.reset()
