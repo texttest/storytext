@@ -30,6 +30,7 @@ def runOnUIThread(method, *args):
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
     # All the standard message box texts
     dialogTexts = [ "OK", "Cancel", "Yes", "No", "Abort", "Retry", "Ignore" ]
+    menuContexts = {}
     def getChildWidgets(self):
         return [] # don't use this...
         
@@ -86,8 +87,22 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         parent = self.getContextAncestor()
         return self.getContextNameFromAncestor(parent)
     
+    def getMenuContextNameFromAncestor(self, parent):
+        def getParentText():
+                item = parent.getParentItem()
+                return item.getText() if item else "Popup Menu"
+        parentText = runOnUIThread(getParentText)
+        currText = self.getLabel()
+        if currText in self.menuContexts and parentText != self.menuContexts.get(currText):
+            return parentText
+        else:
+            self.menuContexts[currText] = parentText
+            return ""
+    
     def getContextNameFromAncestor(self, parent):
-        if isinstance(parent, swt.widgets.Table):
+        if isinstance(parent, swt.widgets.Menu):
+            return self.getMenuContextNameFromAncestor(parent)
+        elif isinstance(parent, swt.widgets.Table):
             return "TableCell"
         elif isinstance(parent, swt.widgets.Tree):
             return "TreeCell"
