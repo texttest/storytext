@@ -1,5 +1,5 @@
 
-import storytext.guishared, util, logging, os
+import storytext.guishared, util, logging, os, time
 from storytext.definitions import UseCaseScriptError
 from storytext import applicationEvent, applicationEventDelay
 from difflib import SequenceMatcher
@@ -857,6 +857,7 @@ class DisplayFilter:
             if e is event:
                 return False
             elif not isTriggeringEvent(e) and self.getShell(e.widget) is currShell:
+                self.logger.debug("Previous event on shell found: " + repr(e))
                 return True
         return False
     
@@ -967,7 +968,62 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
     def sendApplicationEvent(self, *args):
         applicationEvent(*args)
 
+class EventPoster:
+    def __init__(self, display):
+        self.display = display
 
+    def moveMouseAndWait(self, x, y):
+        runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, x, y)
+        runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, x, y)
+       
+    def postMouseMove(self, x ,y):
+        event = swt.widgets.Event()
+        event.type = swt.SWT.MouseMove
+        event.x = x
+        event.y = y
+        self.display.post(event)
+
+    def clickMouse(self):        
+        runOnUIThread(storytext.guishared.catchAll, self.postMouseDown)
+        runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
+
+    def postMouseDown(self, button=1):
+        event = swt.widgets.Event()
+        event.type = swt.SWT.MouseDown
+        event.button = button
+        self.display.post(event)
+
+    def postMouseUp(self, button=1):
+        event = swt.widgets.Event()
+        event.type = swt.SWT.MouseUp
+        event.button = button
+        self.display.post(event)
+        
+    def checkAndPostKeyPressed(self, keyModifiers):
+        if keyModifiers & swt.SWT.CTRL != 0:
+            runOnUIThread(storytext.guishared.catchAll, self.postKeyPressed, swt.SWT.CTRL, '\0')
+            
+    def checkAndPostKeyReleased(self, keyModifiers):
+        if keyModifiers & swt.SWT.CTRL != 0:
+            runOnUIThread(storytext.guishared.catchAll, self.postKeyReleased, swt.SWT.CTRL, '\0')
+            
+    def postKeyPressed(self, code, character):
+        event = swt.widgets.Event()
+        event.type = swt.SWT.KeyDown
+        event.keyCode = code
+        event.character = character
+        self.display.post(event)
+        
+    def postKeyReleased(self, code, character):
+        event = swt.widgets.Event()
+        event.type = swt.SWT.KeyUp
+        event.keyCode = code
+        event.character = character
+        self.display.post(event)
+   
+    def waitForCursor(self, x, y):
+        while self.display.getCursorLocation().x != x and self.display.getCursorLocation().y != y:
+            time.sleep(0.1)
 
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
@@ -1167,6 +1223,17 @@ class WidgetMonitor:
         shells = filter(lambda s: s.getText(), finder.getShells())
         if shells:
             return shells[-1]
+        
+    def removeMousePointerIfNeeded(self):
+        # If the mouse pointer is inside the window, this might cause accidental mouseovers and indeterminism. Relocate it to 0,0 if so
+        display = self.getDisplay()
+        def pointerInWindow():
+            return display.getActiveShell().getClientArea().contains(display.getCursorLocation())
+            
+        if runOnUIThread(pointerInWindow):
+            poster = EventPoster(display)
+            poster.moveMouseAndWait(0, 0)
+
 
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),

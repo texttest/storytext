@@ -72,6 +72,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
     
     def runReplay(self):
         monitor = self.setUpMonitoring()
+        monitor.removeMousePointerIfNeeded()
         from simulator import runOnUIThread
         # Can't make this a member, otherwise fail with classloader problems for RCP
         # (replayer constructed before Eclipse classloader set)

@@ -158,29 +158,32 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
     def drag(self, editPart, toX, toY, keyModifiers=0):
         centreX, centreY = self.getCenter(editPart)
         self.getFigureCanvas().mouseDrag(centreX, centreY, toX, toY, keyModifiers)
+ 
 
-class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):    
+class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
+    def __init__(self, *args, **kw):
+        gefbot.widgets.SWTBotGefFigureCanvas.__init__(self, *args, **kw)
+        self.eventPoster = swtsimulator.EventPoster(self.display)
+        
     def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
-        self._mouseDrag( fromX, fromY, toX, toY, keyModifiers)
+        self._mouseDrag(fromX, fromY, toX, toY, keyModifiers)
 
     def _mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
         fromConverted = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, fromX, fromY)
         fromX = fromConverted.x
         fromY = fromConverted.y
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, fromX, fromY)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, fromX, fromY)
-        
-        
+        self.eventPoster.moveMouseAndWait(fromX, fromY)
+               
         counterX, counterY = self.getCounters(fromX, toX, fromY, toY)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.checkAndPostKeyPressed, keyModifiers)
+        self.eventPoster.checkAndPostKeyPressed(keyModifiers)
         rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, fromX, toX, fromY, toY, counterX*10, counterY*10)
         self.moveDragged(fromX, toX, fromY, toY)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.checkAndPostKeyReleased, keyModifiers)
+        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.eventPoster.postMouseUp)
+        self.eventPoster.checkAndPostKeyReleased(keyModifiers)
 
     def startDrag(self, fromX, toX, fromY, toY, offsetX, offsetY):
-        self.postMouseDown()
-        self.postMouseMove( fromX + offsetX, fromY + offsetY)
+        self.eventPoster.postMouseDown()
+        self.eventPoster.postMouseMove(fromX + offsetX, fromY + offsetY)
        
     def getCounters(self, x1, x2, y1, y2):
         counterX = 1 if x1 < x2 else -1
@@ -193,12 +196,10 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         startY = fromY
         while startX != toX:
             startX += counterX
-            rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, startX, fromY)
-            rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, startX, fromY)
+            self.eventPoster.moveMouseAndWait(startX, fromY)
         while startY != toY:
             startY += counterY
-            rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, startX, startY)
-            rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, startX, startY)
+            self.eventPoster.moveMouseAndWait(startX, startY)
             
     def getViewportBounds(self):
         return rcpsimulator.swtsimulator.runOnUIThread(self.widget.getViewport().getBounds)
@@ -217,60 +218,15 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         
     def mouseMoveLeftClick(self, x, y, keyModifiers=0):
         displayLoc = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseMove, displayLoc.x, displayLoc.y)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, displayLoc.x, displayLoc.y)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.checkAndPostKeyPressed, keyModifiers)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseDown)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.checkAndPostKeyReleased, keyModifiers)
-       
-    def postMouseMove(self, x ,y):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseMove
-        event.x = x
-        event.y = y
-        self.display.post(event)
-
-    def postMouseDown(self, button=1):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseDown
-        event.button = button
-        self.display.post(event)
-
-    def postMouseUp(self, button=1):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseUp
-        event.button = button
-        self.display.post(event)
-        
-    def checkAndPostKeyPressed(self, keyModifiers):
-        if keyModifiers & swt.SWT.CTRL != 0:
-            self.postKeyPressed(swt.SWT.CTRL, '\0')
-            
-    def checkAndPostKeyReleased(self, keyModifiers):
-        if keyModifiers & swt.SWT.CTRL != 0:
-            self.postKeyReleased(swt.SWT.CTRL, '\0')
-            
-    def postKeyPressed(self, code, character):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.KeyDown
-        event.keyCode = code
-        event.character = character
-        self.display.post(event)
-        
-    def postKeyReleased(self, code, character):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.KeyUp
-        event.keyCode = code
-        event.character = character
-        self.display.post(event)
-    
+        self.eventPoster.moveMouseAndWait(displayLoc.x, displayLoc.y)
+        self.eventPoster.checkAndPostKeyPressed(keyModifiers)
+        self.eventPoster.clickMouse()
+        self.eventPoster.checkAndPostKeyReleased(keyModifiers)
+                
     def toDisplayLocation(self, x, y):
         return self.widget.getDisplay().map(self.widget, None, x, y)
 
-    def waitForCursor(self, x, y):
-        while self.widget.getDisplay().getCursorLocation().x != x and self.widget.getDisplay().getCursorLocation().y != y:
-            time.sleep(0.1)
+   
 
 class DisplayFilter(rcpsimulator.DisplayFilter):
     def shouldCheckWidget(self, widget, eventType):
