@@ -353,8 +353,17 @@ class ViewerEvent(storytext.guishared.GuiEvent):
 
     def storeObjectDescription(self, part, checkParent=True):
         if part in self.allDescriptions:
+            oldDesc = self.allDescriptions.get(part)
+            newDesc = self.getObjectDescription(part)
+            if oldDesc == newDesc:
+                return self.allDescriptions.get(part)
+            elif oldDesc.startswith(newDesc) and oldDesc.endswith(")"):
+                startPos = oldDesc.rfind("(") - 1
+                self.allDescriptions[part] = newDesc + oldDesc[startPos:]
+            else:
+                self.allDescriptions[part] = newDesc
             return self.allDescriptions.get(part)
-        
+
         if checkParent:
             parent = part.getParent() 
             if parent and parent not in self.allDescriptions:
@@ -437,7 +446,6 @@ class ViewerSelectEvent(ViewerEvent):
                 parts.append(editPart)
             else:
                 notfound.append(part)
-                                
         if len(parts) > 0:
             if len(notfound) > 0:
                 return self.makePartialParseFailure(parts, ",".join(notfound), allParts[0] not in notfound)
