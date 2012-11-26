@@ -1228,7 +1228,7 @@ class WidgetMonitor:
         # If the mouse pointer is inside the window, this might cause accidental mouseovers and indeterminism. Relocate it to 0,0 if so
         display = self.getDisplay()
         def pointerInWindow():
-            return display.getActiveShell().getClientArea().contains(display.getCursorLocation())
+            return self.getActiveShell().getClientArea().contains(display.getCursorLocation())
             
         if runOnUIThread(pointerInWindow):
             poster = EventPoster(display)
