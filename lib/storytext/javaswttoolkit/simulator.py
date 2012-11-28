@@ -394,8 +394,15 @@ class TextActivateEvent(SignalEvent):
     def getRecordEventType(cls):
         return swt.SWT.Traverse
     
+    def isTraverseReturn(self, event):
+        return event.type == swt.SWT.Traverse and event.detail == swt.SWT.TRAVERSE_RETURN
+
+    def isTriggeringEvent(self, event):
+        return event.widget in CComboChangeEvent.internalWidgets and self.isTraverseReturn(event)
+    
     def shouldRecord(self, event, *args):
-        return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and event.type == swt.SWT.Traverse and event.detail == swt.SWT.TRAVERSE_RETURN and SignalEvent.shouldRecord(self, event, *args)
+        return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and self.isTraverseReturn(event) and \
+            SignalEvent.shouldRecord(self, event, *args)
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -518,7 +525,12 @@ class TableSelectEvent(StateChangeEvent):
         indexer = TableIndexer.getIndexer(self.widget.widget.widget)
         return indexer.getCellDescription(row, col)
     
+    def clickCount(self):
+        return 1
+    
     def shouldRecord(self, event, *args):
+        if event.count != self.clickCount():
+            return False
         row, _ = self.findCell(event)
         return row is not None and StateChangeEvent.shouldRecord(self, event, *args)
     
@@ -537,6 +549,24 @@ class TableSelectEvent(StateChangeEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return currOutput == stateChangeOutput
+    
+class TableDoubleClickEvent(TableSelectEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "MouseDoubleClick"
+    
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "CellDoubleClick" ]
+    
+    def clickCount(self):
+        return 2
+    
+    def _generate(self, cell):
+        self.widget.doubleClick(*cell)
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, TableSelectEvent) or SelectEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
     
     
 class TableIndexer(storytext.guishared.TableIndexer):
@@ -1245,7 +1275,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
-                (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent ]),
+                (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent, TableDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
