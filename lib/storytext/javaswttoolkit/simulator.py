@@ -402,7 +402,8 @@ class TextActivateEvent(SignalEvent):
     
     def shouldRecord(self, event, *args):
         return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and self.isTraverseReturn(event) and \
-            SignalEvent.shouldRecord(self, event, *args)
+            (not self.widget.isInstanceOf(FakeSWTBotCCombo) or \
+             DisplayFilter.instance.hasEventOfType([ swt.SWT.Traverse ], getPrivateField(self.widget.widget.widget, "text")))
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -426,6 +427,11 @@ class ComboTextEvent(TextEvent):
     def isEditable(self):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return True
+    
+def getPrivateField(obj, fieldName):
+    declaredField = obj.getClass().getDeclaredField(fieldName)
+    declaredField.setAccessible(True)
+    return declaredField.get(obj)
 
 class CComboSelectEvent(StateChangeEvent):
     internalWidgets = []
@@ -435,12 +441,8 @@ class CComboSelectEvent(StateChangeEvent):
         self.addWidgets()
 
     def addWidgets(self):
-        declaredField = self.widget.widget.widget.getClass().getDeclaredField("list")
-        declaredField.setAccessible(True)
-        list_ =  declaredField.get(self.widget.widget.widget)
-        declaredField = self.widget.widget.widget.getClass().getDeclaredField("text")
-        declaredField.setAccessible(True)
-        text_ =  declaredField.get(self.widget.widget.widget)
+        list_ =  getPrivateField(self.widget.widget.widget, "list")
+        text_ =  getPrivateField(self.widget.widget.widget, "text")
         self.internalWidgets.append(list_)
         self.internalWidgets.append(text_)
     
