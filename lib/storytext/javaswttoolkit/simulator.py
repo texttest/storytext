@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException
+from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException, NoSuchFieldException
 from java.text import ParseException
 from java.util import ArrayList
 from threading import Lock
@@ -89,8 +89,8 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
     
     def getMenuContextNameFromAncestor(self, parent):
         def getParentText():
-                item = parent.getParentItem()
-                return item.getText() if item else "Popup Menu"
+            item = parent.getParentItem()
+            return item.getText() if item else "Popup Menu"
         parentText = runOnUIThread(getParentText)
         currText = self.getLabel()
         if currText in self.menuContexts and parentText != self.menuContexts.get(currText):
@@ -429,9 +429,14 @@ class ComboTextEvent(TextEvent):
         return True
     
 def getPrivateField(obj, fieldName):
-    declaredField = obj.getClass().getDeclaredField(fieldName)
-    declaredField.setAccessible(True)
-    return declaredField.get(obj)
+    cls = obj.getClass()
+    while cls is not None:
+        try:
+            declaredField = cls.getDeclaredField(fieldName)
+            declaredField.setAccessible(True)
+            return declaredField.get(obj)
+        except NoSuchFieldException:
+            cls = cls.getSuperclass()
 
 class CComboSelectEvent(StateChangeEvent):
     internalWidgets = []
