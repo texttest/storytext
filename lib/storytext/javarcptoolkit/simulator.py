@@ -227,10 +227,7 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
 
     def isStateChange(self):
         return True
-    
-    def isImpliedByCTabClose(self, tab):
-        return True
-    
+        
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, PartActivateEvent)
     
@@ -241,7 +238,33 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "ActivatePart"
+    
+# Removing the last tab in a view folder causes the entire folder to be disposed
+# To record the correct things we need to cache their names before they are disposed.
+class RCPCTabCloseEvent(swtsimulator.CTabCloseEvent):
+    disposedTabs = {}
+    disposeFilter = None
+    def connectRecord(self, method):
+        swtsimulator.CTabCloseEvent.connectRecord(self, method)
+        class DisposeFilter(Listener):
+            def handleEvent(listenerSelf, e): #@NoSelf
+                if isinstance(e.widget, CTabItem):
+                    self.disposedTabs[e.widget] = e.widget.getText()
+                    
+        if not self.disposeFilter:
+            RCPCTabCloseEvent.disposeFilter = DisposeFilter()
+            swtsimulator.runOnUIThread(self.widget.widget.widget.getDisplay().addFilter, SWT.Dispose, self.disposeFilter)
 
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, PartActivateEvent) or swtsimulator.CTabCloseEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
+    
+    def getItemText(self, item):
+        if item.isDisposed():
+            return self.disposedTabs.get(item)
+        else:
+            return item.getText()
+
+    
 class SWTBotExpandableComposite(AbstractSWTBotControl):
     def clickOnCenter(self):
         firstChild = self.widget.getChildren()[0]
@@ -280,3 +303,6 @@ class ExpandableCompositeEvent(swtsimulator.SelectEvent):
 swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent ]))
 swtsimulator.eventTypes.append((SWTBotExpandableComposite, [ ExpandableCompositeEvent ]))
 
+for swtbotClass, eventClasses in swtsimulator.eventTypes:
+    if swtsimulator.CTabCloseEvent in eventClasses:
+        eventClasses[eventClasses.index(swtsimulator.CTabCloseEvent)] = RCPCTabCloseEvent

@@ -163,9 +163,6 @@ class SignalEvent(storytext.guishared.GuiEvent):
         
     def describeWidget(self):
         return "of type " + self.widget.getType()
-
-    def isImpliedByCTabClose(self, tab):
-        return False
     
     @classmethod
     def getSignalsToFilter(cls):
@@ -214,8 +211,7 @@ class RadioSelectEvent(SelectEvent):
             runOnUIThread(selectedButton.widget.setSelection, False)
         SelectEvent._generate(self)
     
-class TabSelectEvent(SelectEvent):
-    swtbotItemClass = swtbot.widgets.SWTBotTabItem
+class TabEvent(SelectEvent):
     def findTabWithText(self, text):
         for item in self.widget.widget.widget.getItems():
             if item.getText() == text:
@@ -229,13 +225,19 @@ class TabSelectEvent(SelectEvent):
         else:
             raise UseCaseScriptError, "Could not find tab labelled '" + text + "' in TabFolder."
     
-    def _generate(self, tab):
-        self.swtbotItemClass(tab).activate()
-        
+    def getItemText(self, item):
+        return item.getText()
+    
     def outputForScript(self, event, *args):
         # Text may have changed since the application listeners have been applied
-        return ' '.join([self.name, event.item.getText()])
+        return ' '.join([self.name, self.getItemText(event.item)])
+
     
+class TabSelectEvent(TabEvent):
+    swtbotItemClass = swtbot.widgets.SWTBotTabItem
+    def _generate(self, tab):
+        self.swtbotItemClass(tab).activate()
+            
 
 class CTabSelectEvent(TabSelectEvent):
     swtbotItemClass = swtbot.widgets.SWTBotCTabItem
@@ -247,8 +249,39 @@ class CTabSelectEvent(TabSelectEvent):
         # But don't amalgamate them together, allow several tabs to be selected in sequence
         return False
 
-    def isImpliedByCTabClose(self, tab):    
-        return tab.getParent() is self.widget.widget.widget
+
+class CTabCloseEvent(TabEvent):
+    def connectRecord(self, method):
+        class RecordListener(swt.custom.CTabFolder2Adapter):
+            def close(listenerSelf, e): #@NoSelf
+                storytext.guishared.catchAll(method, e, self)
+
+        runOnUIThread(self.widget.widget.widget.addCTabFolder2Listener, RecordListener())
+        
+    @classmethod
+    def getRecordEventType(cls):
+        return getattr(swt.SWT, cls.getAssociatedSignal(None))
+        
+    def addListeners(self, *args):
+        # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
+        return self.widget.widget.widget.addListener(*args)
+    
+    def _generate(self, tab):
+        swtbot.widgets.SWTBotCTabItem(tab).close()
+
+    def shouldRecord(self, *args):
+        return DisplayFilter.instance.hasEventOfType([ swt.SWT.MouseUp ], self.widget.widget.widget)
+
+    def isTriggeringEvent(self, e):
+        return e.type == swt.SWT.MouseUp
+
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ swt.SWT.MouseUp, swt.SWT.Dispose ]
+
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "CloseTab"
 
 
 class ShellCloseEvent(SignalEvent):    
@@ -287,21 +320,6 @@ class ResizeEvent(StateChangeEvent):
         width, height = self.getSize()
         return "width " + self.dimensionText(width) + " and height " + self.dimensionText(height)
 
-
-class CTabCloseEvent(SignalEvent):
-    def _generate(self, *args):
-        self.widget.close()
-
-    @classmethod
-    def getAssociatedSignal(cls, widget):
-        return "Dispose"
-
-    def shouldRecord(self, event, *args):
-        shell = event.widget.getParent().getShell()
-        return SignalEvent.shouldRecord(self, event, *args) and shell not in DisplayFilter.instance.disposedShells
-
-    def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return stateChangeEvent.isImpliedByCTabClose(self.widget.widget.widget)
     
 class TextEvent(StateChangeEvent):
     physicalEventWidget = None
@@ -871,7 +889,6 @@ class DisplayFilter:
         self.widgetEventTypes = widgetEventTypes
         self.eventsFromUser = []
         self.delayedAppEvents = []
-        self.disposedShells = []
         self.itemTextCache = {}
         self.logger = logging.getLogger("storytext record")
         DisplayFilter.instance = self
@@ -933,8 +950,6 @@ class DisplayFilter:
             if e.item and not e.item.isDisposed():
                 # Safe guard against the application changing the text before we can record
                 self.itemTextCache[e.item] = e.item.getText()
-        elif isinstance(e.widget, swt.widgets.Shell) and e.type == swt.SWT.Dispose:
-            self.disposedShells.append(e.widget)
         else:
             self.logger.debug("Filter ignored event " + e.toString())
 
@@ -1085,7 +1100,6 @@ class WidgetMonitor:
                   swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
                   swt.widgets.TabFolder: (FakeSWTBotTabFolder, []),
                   swt.custom.CTabFolder: (FakeSWTBotCTabFolder, []),
-                  swt.custom.CTabItem  : (swtbot.widgets.SWTBotCTabItem, []),
                   swt.browser.Browser  : (swtbot.widgets.SWTBotBrowser, [])
                   }
     def __init__(self, uiMap):
@@ -1291,7 +1305,6 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent, TextActivateEvent ]),
                 (FakeSWTBotCCombo                       , [ CComboSelectEvent, CComboChangeEvent, TextActivateEvent ]),
                 (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
-                (FakeSWTBotCTabFolder                   , [ CTabSelectEvent ]),
-                (swtbot.widgets.SWTBotCTabItem          , [ CTabCloseEvent ]),
+                (FakeSWTBotCTabFolder                   , [ CTabSelectEvent, CTabCloseEvent ]),
                 (swtbot.widgets.SWTBotDateTime          , [ DateTimeEvent ]),
                 (swtbot.widgets.SWTBotCheckBox          , [ SelectEvent ]) ]
