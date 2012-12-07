@@ -202,11 +202,21 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
 
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return part is self.widget.getViewReference().getView(False) and not swtsimulator.DisplayFilter.instance.hasEvents()
+        return part is self.widget.getViewReference().getView(False) and self.hasMultipleViews() and not swtsimulator.DisplayFilter.instance.hasEvents()
+
+    def hasMultipleViews(self):
+        # If there is only one view, don't try to record if it's activated, it's probably just been created...
+        return sum((i.isActivatable() for i in self.allInstances)) > 1
+
+    def isActivatable(self):
+        return self.getControl() is not None
 
     def delayLevel(self, part, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
         return swtsimulator.DisplayFilter.instance.otherEventCount(part, [])
+    
+    def getControl(self):
+        return self.widget.getViewReference().getPane().getControl()
     
     def getTitleArgument(self):
         # Handle multiple parts with the same title...
@@ -215,7 +225,7 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         for otherInstance in self.allInstances:
             if otherInstance is self:
                 break
-            if otherInstance.getTitle() == title:
+            if otherInstance.getTitle() == title and otherInstance.getControl() is not None:
                 index += 1
                 
         if index > 1:
