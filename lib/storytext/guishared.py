@@ -571,6 +571,19 @@ class UIMapFileHandler:
                     return self._unescape(section, self.bracketChars), optionName
         return None, None
 
+    def splitOptionValue(self, valueString):
+        for section in self.readParser.sections():
+            for optionName, value in self.readParser.items(section):
+                if value and valueString.startswith(value):
+                    return value, valueString.replace(value, "").strip()
+        return None, None
+    
+    def updateOptionValue(self, section, option, newValue):
+        section = self._escape(section, self.bracketChars)
+        writeParser = self.findWriteParser(section)
+        writeParser.set(section, option, newValue)
+        writeParser.write()
+
     def hasInfo(self):
         return len(self.readParser.sections()) > 0
     

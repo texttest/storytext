@@ -330,17 +330,23 @@ class UseCaseEditor:
         menu = gtk.Menu()
         item = gtk.MenuItem("Create shortcut")
         updateUIMapItem = gtk.MenuItem("Update UI map file")
+        renameItem = gtk.MenuItem("Rename")
         separator = gtk.SeparatorMenuItem()
         menu.append(item)
+        menu.append(renameItem)
         menu.append(separator)
         menu.append(updateUIMapItem)
         item.connect("activate", self.createShortcut, widget)
+        renameItem.connect("activate", self.rename, widget)
         updateUIMapItem.connect("activate", self.updateUIMap, widget)
         self.popupSensitivities[item] = self.setCreateShortcutSensitivity
+        self.popupSensitivities[renameItem] = self.setRenameSensitivity
         self.popupSensitivities[updateUIMapItem] = self.setUpdateUIMapSensitivity
         self.scriptEngine.monitorSignal("create a new shortcut", "activate", item)
+        self.scriptEngine.monitorSignal("rename a usecase name or shortcut", "activate", renameItem)
         self.scriptEngine.monitorSignal("update ui map file", "activate", updateUIMapItem)
         item.show()
+        renameItem.show()
         separator.show()
         updateUIMapItem.show()
         return menu
@@ -427,6 +433,9 @@ class UseCaseEditor:
             newName = newName.replace(arg, "$")
         markup = "<b><i>" + newName.lower().replace(" ", "_") + ".shortcut" + "</i></b>"
         frame.get_label_widget().set_label(markup)
+
+    def getShortcutFileName(self, shortcutName):
+        return shortcutName.lower().replace(" ", "_") + ".shortcut"
 
     def copyRow(self, iter, shortcutIter):
         row = list(self.treeModel.get(iter, 0, 1, 2))
@@ -702,7 +711,110 @@ class UseCaseEditor:
             self.showErrorDialog(parent, "The activity name can't be empty.")
             return False
         return True
+    
+    def setRenameSensitivity(self, item, selection):
+        if selection.count_selected_rows() == 1 and self.usecaseSelected(selection):
+            item.set_sensitive(True)
+        else:
+            item.set_sensitive(False)
+    
+    def usecaseSelected(self, selection):
+        return not self.shortcutsSelected(selection) and not self.uiMapSelected(selection) \
+            and not self.waitCommandSelected(selection)
+    
+    def waitCommandSelected(self, selection):
+        commands, _ = self.selectionToModel(selection)
+        return any(cmd.startswith(waitCommandName) for cmd in commands)
+
+    def rename(self, widget, view):
+        selection = view.get_selection()
+        commands, _ = self.selectionToModel(selection)
+        self.createRenameDialog(commands[0], self.shortcutsSelected(selection))
         
+    def createRenameDialog(self, command, isShortcut=False):
+        if isShortcut:
+            name = 'shortcut'
+            shortcut, args = self.shortcutManager.findShortcut(command)
+            cmd = shortcut.getShortcutName()
+        else:
+            cmd, args = self.uiMapFileHandler.splitOptionValue(command)
+            name = "usecase"
+        dialog = gtk.Dialog('Rename ' + name, flags=gtk.DIALOG_MODAL)
+        dialog.vbox.set_spacing(10)
+        label = gtk.Label(name.title())
+        nameEntry = gtk.Entry()
+        nameEntry.set_text(cmd)
+        hbox = gtk.HBox(False, 10)
+        hbox.pack_start(label, expand=False, fill=False)
+        hbox.pack_start(nameEntry, expand=True, fill=True)
+        dialog.vbox.pack_start(hbox, expand=False, fill=False)
+        renameButton = dialog.add_button('Rename', gtk.RESPONSE_ACCEPT)
+        cancelButton = dialog.add_button('Cancel', gtk.RESPONSE_CANCEL)
+        self.scriptEngine.monitorSignal("rename " + name, "changed", nameEntry)
+        self.scriptEngine.monitorSignal("accept update ui map file", "clicked", renameButton)
+        self.scriptEngine.monitorSignal("cancel update ui map file", "clicked", cancelButton)
+        
+        dialog.connect("response", self.respondRename, nameEntry, cmd, isShortcut)
+        dialog.show_all()
+
+    def respondRename(self, dialog, responseId, nameEntry, oldValue, isShortcut):
+        methodName = "UsecaseRename"
+        newValue = nameEntry.get_text()
+        if responseId == gtk.RESPONSE_ACCEPT:
+            isValid = False
+            if isShortcut:
+                if self.checkShortcutName(dialog, newValue) and self.checkShortcutArguments(dialog, oldValue, newValue):
+                    isValid = True
+                    self.renameShortcut(oldValue, newValue)
+            elif self.checkUsecaseName(dialog, newValue):
+                isValid = True
+                self.updateUsecaseNameInUIMap(oldValue, newValue)
+                
+            if isValid:
+                self.updateUsecaseNameInShorcuts(oldValue, newValue)
+                self.replaceInFile(self.fileName, self.makeReplacement, [(oldValue, newValue)])
+                print methodName, repr(oldValue), "renamed to", repr(newValue)
+                self.recreatePreview()
+            dialog.hide()
+        else:
+            dialog.hide()
+    
+    def checkUsecaseName(self, parent, name):
+        if not name:
+            self.showErrorDialog(parent, "The usecase name can't be empty.")
+            return False
+        elif self.isInUIMap(name):
+            self.showErrorDialog(parent, "The usecase name already exists in the UI map file.")
+            return False
+        return True
+    
+    def updateUsecaseNameInUIMap(self, oldCommand, newCommand):
+        section, option = self.uiMapFileHandler.findSectionAndOption(oldCommand)
+        self.uiMapFileHandler.updateOptionValue(section, option, newCommand)
+        
+    def updateUsecaseNameInShorcuts(self, oldCommand, newCommand):
+        for shortcut in self.scriptEngine.getShortcuts():
+            self.replaceInFile(shortcut.name, self.makeReplacement, [(oldCommand, newCommand)])
+            
+    def checkShortcutArguments(self, parentDialog, oldShortcut, newShortcut):
+        numArgs = oldShortcut.count("$")
+        if numArgs != newShortcut.count("$"):
+            self.showErrorDialog(parentDialog, "The number of shortcut arguments('$') must be "+ str(numArgs))
+            return False
+        return True
+            
+    def renameShortcut(self, oldName, newName):
+        storytextDir = os.environ["STORYTEXT_HOME"]
+        oldFileName = os.path.join(storytextDir, self.getShortcutFileName(oldName))
+        newFileName = os.path.join(storytextDir, self.getShortcutFileName(newName))
+        os.rename(oldFileName, newFileName)
+
+    def recreatePreview(self):
+        self.treeModel.clear()
+        self.initShortcutManager()
+        for command in self.getAllCommands():
+            self.addCommandToModel(command, self.treeModel)
+
 def main():
     usage = """usage: %prog [options] [FILE] ...
 
