@@ -1454,15 +1454,19 @@ class TableIndexer:
         return self.getCellValue(*args) or "<unnamed>"
     
     def findRowNames(self):
+        firstColumnWithData = None
         if self.getRowCount() > 1:
             for colIndex in range(self.table.getColumnCount()):
                 column = self.getColumn(colIndex)
-                if len(column) > 1 and len(set(column)) == len(column):
+                uniqueEntries = len(set(column))
+                if len(column) > 1 and uniqueEntries == len(column):
                     return colIndex, column
                 else:
                     self.logger.debug("Rejecting column " + str(colIndex) + " as primary key : names were " + repr(column))
+                    if firstColumnWithData is None and uniqueEntries > 1:
+                        firstColumnWithData = colIndex
         # No unique columns to use as row names. Use the first column and add numbers
-        return None, self.addIndexes(self.getColumn(0))
+        return None, self.addIndexes(self.getColumn(firstColumnWithData or 0))
         
     def getIndexedValue(self, index, value, mapping):
         indices = mapping.get(value)
