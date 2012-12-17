@@ -446,6 +446,12 @@ class ComboTextEvent(TextEvent):
         # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
         return True
     
+    def isTriggeringEvent(self, e):
+        # Combo editing sometimes generates two modify events, one "inside" the other
+        # Without this we risk the inner one being rejected because the outer one hasn't run,
+        # and the outer being rejected because the inner one has updated the text already
+        return e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget
+    
 def getPrivateField(obj, fieldName):
     cls = obj.getClass()
     while cls is not None:
