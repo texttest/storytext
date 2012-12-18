@@ -23,6 +23,13 @@ def parseMultiples(text):
 def parseWaitCommand(line):
     return map(parseMultiples, line[len(waitCommandName) + 1:].split(", "))
 
+def assembleWaitCommand(parsedEvents):
+    events = []
+    for baseEvent, count in parsedEvents:
+        postfix = " * " + str(count) if count > 1 else ""
+        events.append(baseEvent + postfix)
+    return waitCommandName + " " + ", ".join(sorted(events))
+
 class ReplayScript(object):
     def __init__(self, scriptName, ignoreComments=False):
         self.commands = []
@@ -167,12 +174,7 @@ class ReplayScript(object):
                     currEvents[newEvent] += count
                 else:
                     currEvents[newEvent] = 1
-            events = []
-            for baseEvent, count in currEvents.items():
-                postfix = " * " + str(count) if count > 1 else ""
-                events.append(baseEvent + postfix)
-            newCommand = waitCommandName + " " + ", ".join(events)
-            self.commands[-1] = newCommand
+            self.commands[-1] = assembleWaitCommand(currEvents.items())
         else:
             self.commands.append(command)
         

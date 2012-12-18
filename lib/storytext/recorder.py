@@ -39,40 +39,49 @@ class RecordScript:
         else:
             self._record(line)
             
-    def findPartLineCompleting(self, partLines):
-        for partLine in partLines:
-            partTracker = self.findCompletedTracker(partLine)
+    def findPartLineCompleting(self, eventPairs):
+        for eventPair in eventPairs:
+            partLine1, partLine2 = eventPair
+            partTracker = self.findCompletedTracker(partLine1)
             if partTracker:
-                return partLine, partTracker
-        return None, None
+                return partLine1, partTracker, partLine2
+            partTracker = self.findCompletedTracker(partLine2)
+            if partTracker:
+                return partLine2, partTracker, partLine1
+            
+        return None, None, None
     
     def isSplittable(self, line):
         return line.startswith(waitCommandName) and ("," in line or "*" in line)
     
-    def splitLine(self, line):
-        events = []
-        for baseEvent, count in replayer.parseWaitCommand(line):
-            if count == 1:
-                events.append(baseEvent)
-            elif count == 2:
-                for _ in range(2):
-                    events.append(baseEvent)
-            else:
-                events.append(baseEvent)
-                events.append(baseEvent + " * " + str(count - 1))
-        return [ waitCommandName + " " + event for event in events ]
+    @staticmethod
+    def splitLine(line):
+        eventPairs = set()
+        parsedEvents = replayer.parseWaitCommand(line)
+        for i, (baseEvent, count) in enumerate(parsedEvents):
+            otherEvents = parsedEvents[:i] + parsedEvents[i+1:]
+            if len(otherEvents):
+                basicPair = frozenset([ replayer.assembleWaitCommand(parsedEvents[i:i+1]),
+                              replayer.assembleWaitCommand(otherEvents) ])
+                eventPairs.add(basicPair)
+            if count > 1:
+                for j in range(1, count):
+                    currEvent = [ (baseEvent, j) ]
+                    currOthers = otherEvents + [ (baseEvent, count - j)]
+                    parts = (replayer.assembleWaitCommand(currEvent), replayer.assembleWaitCommand(currOthers))
+                    partSet = frozenset(parts)
+                    eventPairs.add(partSet if len(partSet) == 2 else parts)
+        return eventPairs
 
     def record(self, line):
         try:
             bestTracker = self.findCompletedTracker(line)
             if bestTracker is None and self.isSplittable(line):
-                partLines = self.splitLine(line)
-                partLine, partTracker = self.findPartLineCompleting(partLines)
+                eventPairs = self.splitLine(line)
+                partLine, partTracker, otherPartLine = self.findPartLineCompleting(eventPairs)
                 if partLine is not None:
                     self.recordWithTracker(partLine, partTracker)
-                    partLines.remove(partLine)
-                    for otherPartLine in partLines:
-                        self.recordWithTracker(otherPartLine, None)
+                    self.recordWithTracker(otherPartLine, None)
                     return
                     
             self.recordWithTracker(line, bestTracker)
