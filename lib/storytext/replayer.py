@@ -5,9 +5,25 @@ import os, sys, signal, time, logging, re
 from threading import Thread, Timer
 from definitions import *
 from copy import copy
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
+
 waitRegexp = re.compile(waitCommandName + ".*")
 
-class ReplayScript:
+def parseMultiples(text):
+    words = text.split()
+    if len(words) > 2 and words[-2] == "*" and words[-1].isdigit():
+        return " ".join(words[:-2]), int(words[-1])
+    else:
+        return text, 1
+        
+def parseWaitCommand(line):
+    return map(parseMultiples, line[len(waitCommandName) + 1:].split(", "))
+
+class ReplayScript(object):
     def __init__(self, scriptName, ignoreComments=False):
         self.commands = []
         self.exitObservers = []
@@ -19,6 +35,12 @@ class ReplayScript:
             line = line.strip()
             if not ignoreComments or (line != "" and line[0] != "#"):
                 self.commands.append(line)
+                
+    def __copy__(self):
+        obj_copy = object.__new__(type(self))
+        obj_copy.__dict__ = self.__dict__.copy()
+        obj_copy.commands = copy(self.commands)
+        return obj_copy
 
     def addExitObserver(self, observer):
         self.exitObservers.append(observer)
@@ -75,7 +97,6 @@ class ReplayScript:
                 # Filter blank lines and comments
                 self.pointer += 1
                 return self.replaceArgs(nextCommand, args)
-
 
     def getArgument(self, nextCommand, args):
         pos = nextCommand.find("$")
@@ -136,6 +157,24 @@ class ReplayScript:
         else:
             self.pointer = pointerWithCommand
         return commands
+            
+    def addWaitCommand(self, command):
+        currentLastCommand = self.commands[-1]
+        if currentLastCommand.startswith(waitCommandName):
+            currEvents = OrderedDict(parseWaitCommand(currentLastCommand))
+            for newEvent, count in parseWaitCommand(command):
+                if newEvent in currEvents:
+                    currEvents[newEvent] += count
+                else:
+                    currEvents[newEvent] = 1
+            events = []
+            for baseEvent, count in currEvents.items():
+                postfix = " * " + str(count) if count > 1 else ""
+                events.append(baseEvent + postfix)
+            newCommand = waitCommandName + " " + ", ".join(events)
+            self.commands[-1] = newCommand
+        else:
+            self.commands.append(command)
         
         
 class ShortcutManager:
@@ -205,13 +244,17 @@ class UseCaseReplayer:
     def addEvent(self, event):
         self.events.setdefault(event.name, []).append(event)
     
+
+    def writeRecursiveError(self, script, arguments):
+        sys.stderr.write("ERROR: Cannot execute shortcut command '" + script.getShortcutNameWithArgs(arguments) + "' - shortcut is trying to call itself!\n")
+
     def addScript(self, script, arguments=[], enableReading=False):
         if self.isNonRecursive(script):
             self.scripts.append((script, arguments))
             self.runScript(script, enableReading)
             return True
         else:
-            sys.stderr.write("ERROR: Cannot execute shortcut command '" + script.getShortcutNameWithArgs(arguments) + "' - shortcut is trying to call itself!\n")
+            self.writeRecursiveError(script, arguments)
             return False
         
     def isNonRecursive(self, script):
@@ -365,11 +408,17 @@ class UseCaseReplayer:
             
             script, arguments = self.shortcutManager.findShortcut(command)
             if script:
-                if self.addScript(script, arguments):
+                if self.isNonRecursive(script):
                     self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
                     if commands[-1].startswith(waitCommandName):
-                        self.logger.debug("Adding wait command '" + commands[-1] + "' to end of shortcut file")
-                        script.commands.append(commands[-1])
+                        self.logger.debug("Adding wait command '" + commands[-1] + "' to the end of a copy of the shortcut file")
+                        scriptCopy = copy(script)
+                        scriptCopy.addWaitCommand(commands[-1])
+                        self.addScript(scriptCopy, arguments)
+                    else:
+                        self.addScript(script, arguments)
+                else:
+                    self.writeRecursiveError(script, arguments)
                 return self.runNextCommand(**kw)
             else:
                 #  Add a delimiter to show that we've replayed something else

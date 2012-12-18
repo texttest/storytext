@@ -3,7 +3,7 @@
 
 import os, sys, signal, logging
 from copy import copy
-from replayer import ReplayScript
+import replayer
 from definitions import *
 
 try:
@@ -18,20 +18,65 @@ class RecordScript:
         self.fileForAppend = None
         self.shortcutTrackers = []
     
+    def findCompletedTracker(self, line):
+        bestTracker = None
+        for tracker in self.shortcutTrackers:
+            if tracker.updateCompletes(line) and (bestTracker is None or tracker.isLongerThan(bestTracker)):
+                bestTracker = tracker
+        
+        return bestTracker
+
+    def recordWithTracker(self, line, bestTracker):
+        for tracker in self.shortcutTrackers:
+            tracker.addCommand(line)
+        
+        if bestTracker:
+            newCommands = bestTracker.getNewCommands()
+            self.rerecord(newCommands)
+            for tracker in self.shortcutTrackers:
+                if tracker is not bestTracker:
+                    tracker.rerecord(newCommands)
+        else:
+            self._record(line)
+            
+    def findPartLineCompleting(self, partLines):
+        for partLine in partLines:
+            partTracker = self.findCompletedTracker(partLine)
+            if partTracker:
+                return partLine, partTracker
+        return None, None
+    
+    def isSplittable(self, line):
+        return line.startswith(waitCommandName) and ("," in line or "*" in line)
+    
+    def splitLine(self, line):
+        events = []
+        for baseEvent, count in replayer.parseWaitCommand(line):
+            if count == 1:
+                events.append(baseEvent)
+            elif count == 2:
+                for _ in range(2):
+                    events.append(baseEvent)
+            else:
+                events.append(baseEvent)
+                events.append(baseEvent + " * " + str(count - 1))
+        return [ waitCommandName + " " + event for event in events ]
+
     def record(self, line):
         try:
-            self._record(line)
-            bestTracker = None
-            for tracker in self.shortcutTrackers:
-                if tracker.updateCompletes(line) and \
-                    (bestTracker is None or tracker.isLongerThan(bestTracker)):
-                    bestTracker = tracker
-            if bestTracker:
-                newCommands = bestTracker.getNewCommands()
-                self.rerecord(newCommands)
-                for tracker in self.shortcutTrackers:
-                    if tracker is not bestTracker:
-                        tracker.rerecord(newCommands)
+            bestTracker = self.findCompletedTracker(line)
+            if bestTracker is None and self.isSplittable(line):
+                partLines = self.splitLine(line)
+                partLine, partTracker = self.findPartLineCompleting(partLines)
+                if partLine is not None:
+                    self.recordWithTracker(partLine, partTracker)
+                    partLines.remove(partLine)
+                    for otherPartLine in partLines:
+                        self.recordWithTracker(otherPartLine, None)
+                    return
+                    
+            self.recordWithTracker(line, bestTracker)
+            
         except IOError:
             sys.stderr.write("ERROR: Unable to record " + repr(line) + " to file " + repr(self.scriptName) + "\n") 
     
@@ -71,7 +116,7 @@ class ShortcutTracker:
         self.reset()
 
     def reset(self):
-        self.replayScript = ReplayScript(self.replayScript.name, ignoreComments=True)
+        self.replayScript = replayer.ReplayScript(self.replayScript.name, ignoreComments=True)
         self.commandsForMatch = copy(self.commandsForMismatch)
         self.argsUsed = []
         self.currRegexp = self.replayScript.getCommandRegexp()
@@ -81,8 +126,15 @@ class ShortcutTracker:
 
     def updateCompletes(self, line):
         if self.currRegexp is None:
-            self.logger.debug("Ignore " +  self.replayScript.getShortcutName())
             return False # We already reached the end and should forever be ignored...
+        match = self.currRegexp.match(line)
+        self.logger.debug("Update completes? " +  self.replayScript.getShortcutName() + ", " + self.currRegexp.pattern \
+                          + ", " +  repr(line) + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
+        return match and self.replayScript.hasTerminated()
+    
+    def addCommand(self, line):
+        if self.currRegexp is None:
+            self.logger.debug("Ignore " +  self.replayScript.getShortcutName())  # We already reached the end and should forever be ignored...
         match = self.currRegexp.match(line)
         if match:
             self.commandsForMismatch.append(line)
@@ -98,17 +150,15 @@ class ShortcutTracker:
                     self.argsUsed[argPos] = val
             else:
                 self.argsUsed += match.groups()
-            return not self.currRegexp
         else:
             if self.hasStarted():
                 self.reset()
                 self.logger.debug("Reset " + self.replayScript.getShortcutName() + ", " + repr(self.commandsForMismatch))
-                return self.updateCompletes(line)
+                self.addCommand(line)
             else:
                 self.commandsForMismatch.append(line)
                 self.reset()
-                return False
-        
+            
     def rerecord(self, newCommands):
         # Some other tracker has completed, include it in our unmatched commands...
         started = self.hasStarted()
@@ -414,13 +464,6 @@ class UseCaseRecorder:
             return text
         else:
             return text + " * " + str(count)
-        
-    def parseMultiples(self, text):
-        words = text.split()
-        if len(words) > 2 and words[-2] == "*" and words[-1].isdigit():
-            return " ".join(words[:-2]), int(words[-1])
-        else:
-            return text, 1
 
     def reduceApplicationEventCount(self, name, categoryName, delayLevel, remainder):
         newEventName = self.makeMultiple(name, remainder)
@@ -453,7 +496,7 @@ class UseCaseRecorder:
         for appEventKey, eventName in self.applicationEvents.items():
             categoryName, delayLevel = appEventKey
             if matchFunction(eventName, delayLevel):
-                basicName, count = self.parseMultiples(eventName)
+                basicName, count = replayer.parseMultiples(eventName)
                 if count == 1:
                     self.logger.debug("Unregistering application event " + repr(eventName) + " in category " + repr(categoryName))
                     del self.applicationEvents[appEventKey]
