@@ -1,6 +1,8 @@
 from storytext.javaswttoolkit import describer as swtdescriber
 from org.eclipse.core.internal.runtime import InternalPlatform
 from org.eclipse.ui.forms.widgets import ExpandableComposite
+import os
+from pprint import pprint
 
 class Describer(swtdescriber.Describer):
     swtdescriber.Describer.stateWidgets = [ ExpandableComposite ] + swtdescriber.Describer.stateWidgets
@@ -10,12 +12,29 @@ class Describer(swtdescriber.Describer):
         self.buildImagesFromBundles()
 
     def buildImagesFromBundles(self):            
-        patterns = [ "*.gif", "*.GIF", "*.png", "*.PNG", "*.jpg", "*.JPG" ]
+        allImageTypes = [ "gif", "png", "jpg" ]
+        allImageTypes += [ i.upper() for i in allImageTypes ]
+        
+        cacheFile = os.path.join(os.getenv("STORYTEXT_HOME"), "osgi_bundle_image_types")
+        cacheExists = os.path.isfile(cacheFile)
+        bundleImageTypes = eval(open(cacheFile).read()) if cacheExists else {}
+        
         for bundle in InternalPlatform.getDefault().getBundleContext().getBundles():
-            for pattern in patterns:
-                images = bundle.findEntries("/", pattern, True)
-                if images:
+            usedTypes = []
+            name = bundle.getSymbolicName()
+            imageTypes = bundleImageTypes.get(name, allImageTypes)
+            for imageType in imageTypes:
+                self.logger.debug("Searching bundle " + name + " for images of type " + imageType)
+                images = bundle.findEntries("/", "*." + imageType, True)
+                if images and images.hasMoreElements():
                     self.storeAllImages(images)
+                    usedTypes.append(imageType)
+            if not cacheExists:
+                bundleImageTypes[name] = usedTypes
+        if not cacheExists:
+            f = open(cacheFile, "w")
+            pprint(bundleImageTypes, f)
+            f.close()
 
     def storeAllImages(self, entries):
         while entries.hasMoreElements():

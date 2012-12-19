@@ -18,7 +18,7 @@ class UseCaseReplayer(javarcptoolkit.UseCaseReplayer):
         except ImportError, e:
             if self.shouldReraise(e, "Describer"):
                 raise
-            from storytext.javaswttoolkit.draw2ddescriber import Describer
+            from storytext.javarcptoolkit.draw2ddescriber import Describer
         return Describer
     
     def getMonitorClass(self):

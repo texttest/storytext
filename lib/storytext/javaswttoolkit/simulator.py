@@ -1288,8 +1288,10 @@ class WidgetMonitor:
             return self.getActiveShell().getClientArea().contains(display.getCursorLocation())
             
         if runOnUIThread(pointerInWindow):
+            self.uiMap.logger.debug("Removing mouse pointer from window, to avoid accidental mouseovers")
             poster = EventPoster(display)
             poster.moveMouseAndWait(0, 0)
+            self.uiMap.logger.debug("Mouse pointer now at 0,0")
 
 
         

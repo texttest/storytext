@@ -32,6 +32,7 @@ class Describer(storytext.guishared.Describer):
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
     def __init__(self):
+        storytext.guishared.Describer.__init__(self)
         self.canvasCounter = storytext.guishared.WidgetCounter()
         self.contextMenuCounter = storytext.guishared.WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
@@ -41,7 +42,6 @@ class Describer(storytext.guishared.Describer):
         self.storedImages = {}
         self.imageToName = {}
         self.handleImages()
-        storytext.guishared.Describer.__init__(self)
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -66,7 +66,7 @@ class Describer(storytext.guishared.Describer):
 
         display.addFilter(swt.SWT.Show, ShowListener())
         display.addFilter(swt.SWT.Paint, PaintListener())
-
+        
     def describeWithUpdates(self, shellMethod):
         shell = shellMethod()
         if shell in self.windows:
@@ -257,6 +257,7 @@ class Describer(storytext.guishared.Describer):
     def storeImageData(self, url):
         imgDesc = ImageDescriptor.createFromURL(url)
         name = url.getFile()
+        self.logger.debug("Storing image data for file " + name)
         if imgDesc is not None:
             newImage = imgDesc.createImage()
             data = newImage.getImageData()
