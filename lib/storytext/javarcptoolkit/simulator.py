@@ -179,7 +179,7 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
                 storytext.guishared.catchAll(method, part, self)
         page = self.widget.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
-
+        
     def generate(self, *args):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
@@ -249,6 +249,37 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
     def getAssociatedSignal(cls, widget):
         return "ActivatePart"
     
+class PartCloseEvent(storytext.guishared.GuiEvent):
+    def connectRecord(self, method):
+        class RecordListener(IPartListener):
+            def partClosed(listenerSelf, part): #@NoSelf
+                if part is self.widget.getViewReference().getView(False):
+                    storytext.guishared.catchAll(method, part, self)
+        page = self.widget.getViewReference().getPage()
+        swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
+        
+    def shouldRecord(self, *args):
+        return False # Only point of this is to prevent false Activate Events from being recorded
+        
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, (PartActivateEvent, swtsimulator.CTabSelectEvent))
+    
+    def checkPreviousWhenRejected(self):
+        return True
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return []
+    
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "ClosePart"
+    
+class RCPCTabSelectEvent(swtsimulator.CTabSelectEvent):
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        return isinstance(stateChangeEvent, PartActivateEvent) or swtsimulator.CTabSelectEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
+
+    
 # Removing the last tab in a view folder causes the entire folder to be disposed
 # To record the correct things we need to cache their names before they are disposed.
 class RCPCTabCloseEvent(swtsimulator.CTabCloseEvent):
@@ -310,9 +341,13 @@ class ExpandableCompositeEvent(swtsimulator.SelectEvent):
 
         swtsimulator.runOnUIThread(self.widget.widget.widget.addExpansionListener, RecordListener())
             
-swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent ]))
+swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent, PartCloseEvent ]))
 swtsimulator.eventTypes.append((SWTBotExpandableComposite, [ ExpandableCompositeEvent ]))
 
+replacements = [(swtsimulator.CTabCloseEvent, RCPCTabCloseEvent),
+                (swtsimulator.CTabSelectEvent, RCPCTabSelectEvent)]
+
 for swtbotClass, eventClasses in swtsimulator.eventTypes:
-    if swtsimulator.CTabCloseEvent in eventClasses:
-        eventClasses[eventClasses.index(swtsimulator.CTabCloseEvent)] = RCPCTabCloseEvent
+    for oldClass, newClass in replacements:
+        if oldClass in eventClasses:
+            eventClasses[eventClasses.index(oldClass)] = newClass
