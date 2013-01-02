@@ -304,9 +304,10 @@ class UseCaseRecorder:
             if event.checkPreviousWhenRejected():
                 delayLevel = event.delayLevel(*args)
                 if delayLevel in self.stateChangeEventInfo:
-                    stateChangeOutput, stateChangeEvent, _ = self.stateChangeEventInfo[delayLevel]
+                    stateChangeOutput, stateChangeEvent, stateChangeAppEvents = self.stateChangeEventInfo[delayLevel]
                     if event.implies(stateChangeOutput, stateChangeEvent, *args):
                         self.logger.debug("Discarded event implies previous state change event, ignoring previous also")
+                        self.applicationEvents.update(stateChangeAppEvents)
                         del self.stateChangeEventInfo[delayLevel]
             return
         
