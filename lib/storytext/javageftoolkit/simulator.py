@@ -169,16 +169,16 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         self._mouseDrag(fromX, fromY, toX, toY, keyModifiers)
 
     def _mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
-        fromConverted = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, fromX, fromY)
+        fromConverted = swtsimulator.runOnUIThread(self.toDisplayLocation, fromX, fromY)
         fromX = fromConverted.x
         fromY = fromConverted.y
         self.eventPoster.moveMouseAndWait(fromX, fromY)
                
         counterX, counterY = self.getCounters(fromX, toX, fromY, toY)
         self.eventPoster.checkAndPostKeyPressed(keyModifiers)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, fromX, toX, fromY, toY, counterX*10, counterY*10)
+        swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, fromX, toX, fromY, toY, counterX*10, counterY*10)
         self.moveDragged(fromX, toX, fromY, toY)
-        rcpsimulator.swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.eventPoster.postMouseUp)
+        swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.eventPoster.postMouseUp)
         self.eventPoster.checkAndPostKeyReleased(keyModifiers)
 
     def startDrag(self, fromX, toX, fromY, toY, offsetX, offsetY):
@@ -217,15 +217,19 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         rcpsimulator.swtsimulator.runOnUIThread(doScroll)
         
     def mouseMoveLeftClick(self, x, y, keyModifiers=0):
-        displayLoc = rcpsimulator.swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
+        displayLoc = swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
+        currPos = swtsimulator.runOnUIThread(self.getCursorLocation)
         self.eventPoster.moveMouseAndWait(displayLoc.x, displayLoc.y)
         self.eventPoster.checkAndPostKeyPressed(keyModifiers)
         self.eventPoster.clickMouse()
         self.eventPoster.checkAndPostKeyReleased(keyModifiers)
+        self.eventPoster.moveMouseAndWait(currPos.x, currPos.y)
                 
     def toDisplayLocation(self, x, y):
         return self.widget.getDisplay().map(self.widget, None, x, y)
 
+    def getCursorLocation(self):
+        return self.widget.getDisplay().getCursorLocation()
    
 
 class DisplayFilter(rcpsimulator.DisplayFilter):
