@@ -120,7 +120,7 @@ class Describer(storytext.guishared.Describer):
         descs = []
         for item in itemBar.getItems():
             currPrefix = prefix + " " * indent * 2
-            selected = item in selection
+            selected = item in selection or (hasattr(item, "getSelection") and item.getSelection())
             if columnCount:
                 row = [ self.getItemColumnDescription(item, i, currPrefix, selected) for i in range(columnCount) ]
                 descs.append(row)

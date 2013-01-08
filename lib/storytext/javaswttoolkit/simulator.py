@@ -200,16 +200,32 @@ class LinkSelectEvent(SelectEvent):
 class RadioSelectEvent(SelectEvent):
     def shouldRecord(self, event, *args):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
+
+    def getSelectedButton(self):
+        method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", None)
+        method.setAccessible(True)
+        return method.invoke(self.widget.widget, None)
     
+    def getSelectedMenuItem(self):
+        menu = self.widget.widget.widget.getParent()
+        for item in menu.getItems():
+            if item.getStyle() & swt.SWT.RADIO and item.getSelection():
+                return item
+        
     def _generate(self, *args):
         if self.widget.isInstanceOf(swtbot.widgets.SWTBotRadio):
             # Workaround for bug in SWTBot which doesn't handle Eclipse radio buttons properly
             # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=344484 for details
-            method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", None)
-            method.setAccessible(True)
-            selectedButton = method.invoke(self.widget.widget, None)
+            selectedButton = self.getSelectedButton()
             runOnUIThread(selectedButton.widget.setSelection, False)
+        elif self.widget.isInstanceOf(SWTBotRadioMenu):
+            # This case also isn't handled correctly by SWTBot!
+            # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=397649
+            selectedMenuItem = runOnUIThread(self.getSelectedMenuItem)
+            if selectedMenuItem:
+                swtbot.widgets.SWTBotMenu(selectedMenuItem).click() # Should have same effect, i.e. disable it
         SelectEvent._generate(self)
+
     
 class TabEvent(SelectEvent):
     def findTabWithText(self, text):
@@ -1083,11 +1099,16 @@ class EventPoster:
         while self.display.getCursorLocation().x != x and self.display.getCursorLocation().y != y:
             time.sleep(0.1)
 
+# just so we can distinguish later on...
+class SWTBotRadioMenu(swtbot.widgets.SWTBotMenu):
+    pass
+
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
                                          [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio),
                                            (swt.SWT.CHECK, swtbot.widgets.SWTBotCheckBox) ]),
-                  swt.widgets.MenuItem : (swtbot.widgets.SWTBotMenu, []),
+                  swt.widgets.MenuItem : (swtbot.widgets.SWTBotMenu, 
+                                          [ (swt.SWT.RADIO, SWTBotRadioMenu) ]),
                   swt.widgets.Shell    : (swtbot.widgets.SWTBotShell, []),
                   swt.widgets.ToolItem : ( swtbot.widgets.SWTBotToolbarPushButton,
                                          [ (swt.SWT.DROP_DOWN, swtbot.widgets.SWTBotToolbarDropDownButton),
@@ -1296,6 +1317,7 @@ class WidgetMonitor:
 
         
 eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
+                (SWTBotRadioMenu                        , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarDropDownButton , [ SelectEvent ]),
