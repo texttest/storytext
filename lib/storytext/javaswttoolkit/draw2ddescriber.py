@@ -108,6 +108,9 @@ class RecorderGraphics(draw2d.Graphics, object):
     def fillRectangle(self, *args):
         pass # Overloaded, causes loop above. Don't want to draw this stuff anyway...
 
+    def fillPolygon(self, *args):
+        pass # Overloaded, causes loop above. Don't want to draw this stuff anyway...
+
     def setLineAttributes(self, *args):
         pass # throws NotImplemented by default
     
@@ -116,6 +119,12 @@ class RecorderGraphics(draw2d.Graphics, object):
 
     def getAlpha(self, *args):
         return 0 # throws NotImplemented by default
+    
+    def getAntialias(self, *args):
+        return swt.SWT.DEFAULT # throws NotImplemented by default
+    
+    def setAntialias(self, *args):
+        pass # throws NotImplemented by default
 
     def getFont(self):
         return self.currFont
@@ -182,6 +191,9 @@ class FigureCanvasDescriber(guishared.Describer):
         bounds = figure.getBounds()
         fontSize = font.getFontData()[0].getHeight()
         for colorArgs, rectArgs in callGroups:
+            if rectArgs is None: # Colour was set, but no rectangles were made...
+                continue
+            
             rect = draw2d.geometry.Rectangle(*rectArgs)
             filledRectangles.append(rect)
             colorText = ""
