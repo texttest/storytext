@@ -853,8 +853,8 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 else:
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, final event failed, waiting and retrying: " + str(value))
-                    if replayFailureMethod and command:
-                        replayFailureMethod(str(value), self.events[command])
+                    if replayFailureMethod:
+                        replayFailureMethod(str(value), self.events.get(command, []))
                     time.sleep(0.1)
         
     def checkAndParse(self, event, compositeEventProxy):

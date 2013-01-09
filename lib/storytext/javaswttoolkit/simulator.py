@@ -205,12 +205,6 @@ class RadioSelectEvent(SelectEvent):
         method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", None)
         method.setAccessible(True)
         return method.invoke(self.widget.widget, None)
-    
-    def getSelectedMenuItem(self):
-        menu = self.widget.widget.widget.getParent()
-        for item in menu.getItems():
-            if item.getStyle() & swt.SWT.RADIO and item.getSelection():
-                return item
         
     def _generate(self, *args):
         if self.widget.isInstanceOf(swtbot.widgets.SWTBotRadio):
@@ -218,14 +212,24 @@ class RadioSelectEvent(SelectEvent):
             # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=344484 for details
             selectedButton = self.getSelectedButton()
             runOnUIThread(selectedButton.widget.setSelection, False)
-        elif self.widget.isInstanceOf(SWTBotRadioMenu):
-            # This case also isn't handled correctly by SWTBot!
-            # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=397649
-            selectedMenuItem = runOnUIThread(self.getSelectedMenuItem)
-            if selectedMenuItem:
-                swtbot.widgets.SWTBotMenu(selectedMenuItem).click() # Should have same effect, i.e. disable it
         SelectEvent._generate(self)
+        
+# just so we can distinguish later on...
+class SWTBotRadioMenu(swtbot.widgets.SWTBotMenu):
+    def click(self):
+        # This case also isn't handled correctly by SWTBot!
+        # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=397649    
+        selectedMenuItem = runOnUIThread(self.getSelectedMenuItem)
+        if selectedMenuItem:
+            swtbot.widgets.SWTBotMenu(selectedMenuItem).click() # Should have same effect, i.e. disable it
+        swtbot.widgets.SWTBotMenu.click(self)
 
+    def getSelectedMenuItem(self):
+        menu = self.widget.getParent()
+        for item in menu.getItems():
+            if item.getStyle() & swt.SWT.RADIO and item.getSelection():
+                return item
+            
     
 class TabEvent(SelectEvent):
     def findTabWithText(self, text):
@@ -1099,9 +1103,6 @@ class EventPoster:
         while self.display.getCursorLocation().x != x and self.display.getCursorLocation().y != y:
             time.sleep(0.1)
 
-# just so we can distinguish later on...
-class SWTBotRadioMenu(swtbot.widgets.SWTBotMenu):
-    pass
 
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
@@ -1198,13 +1199,15 @@ class WidgetMonitor:
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
         
     def widgetShown(self, parent, eventType):
-        if parent in self.widgetsMonitored:
-            return
-        if eventType == swt.SWT.Show:
+        if parent not in self.widgetsMonitored:
+            self.monitorNewWidgets(parent, eventType == swt.SWT.Show)
+            
+    def monitorNewWidgets(self, parent, findInvisible=True):
+        if findInvisible:
             self.bot.getFinder().setShouldFindInvisibleControls(True)
 
         widgets = self.findDescendants(parent)
-        if eventType == swt.SWT.Show:
+        if findInvisible:
             self.bot.getFinder().setShouldFindInvisibleControls(False)
 
         self.uiMap.logger.debug("Showing/painting widget of type " +
