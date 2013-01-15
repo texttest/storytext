@@ -1239,7 +1239,7 @@ class WidgetMonitor:
         widgets += self.getPopupMenus(widgets)
         self.widgetMonitorLock.acquire()
         try:
-            newWidgets = [ w for w in widgets if w not in self.widgetsMonitored ]
+            newWidgets = [ w for w in widgets if w not in self.widgetsMonitored and not w.isDisposed() ]
             self.widgetsMonitored.update(newWidgets)
         finally:
             self.widgetMonitorLock.release()
