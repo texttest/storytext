@@ -72,12 +72,13 @@ class TableParser:
             self.grid[-1].append("")
             
     def endElement(self, name):
-        if name == "td":
-            colspan = get_attr_value(self.activeElements[name], "colspan")
-            if colspan:
-                for _ in range(int(colspan) - 1):
-                    self.grid[-1].append("")
-        del self.activeElements[name]
+        if name in self.activeElements:  # Don't fail on duplicated end tags
+            if name == "td":
+                colspan = get_attr_value(self.activeElements[name], "colspan")
+                if colspan:
+                    for _ in range(int(colspan) - 1):
+                        self.grid[-1].append("")
+            del self.activeElements[name]
         
     def getText(self):
         if len(self.grid) == 0:
