@@ -28,7 +28,7 @@ class Describer(storytext.guishared.Describer):
                      swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
                      swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
                      swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.custom.CCombo,
-                     swt.widgets.Group, swt.widgets.Composite ]
+                     swt.widgets.Spinner, swt.widgets.Group, swt.widgets.Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
     def __init__(self):
@@ -349,6 +349,8 @@ class Describer(storytext.guishared.Describer):
         decoText = self.getControlDecorationDescription(item)
         if decoText:
             elements.append(decoText)
+        if isinstance(item, swt.widgets.Spinner):
+            elements += self.getSpinnerPropertyElements(item)
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
         elements += self.getStyleDescriptions(item)
@@ -361,6 +363,20 @@ class Describer(storytext.guishared.Describer):
         elements.append(self.getContextMenuReference(item))
         if hasattr(item, "getItemCount") and hasattr(item, "getExpanded") and item.getItemCount() > 0 and not item.getExpanded():
             elements.append("+")
+        return elements
+
+    def getSpinnerPropertyElements(self, item):
+        elements = []
+        min = item.getMinimum()
+        if min != 0:
+            elements.append("Min " + str(min))
+        elements.append("Max " + str(item.getMaximum()))
+        step = item.getIncrement()
+        if step != 1:
+            elements.append("Step " + str(step))
+        step = item.getPageIncrement()
+        if step != 10:
+            elements.append("Page Step " + str(step))
         return elements
 
     def getLabelState(self, label):
@@ -428,7 +444,7 @@ class Describer(storytext.guishared.Describer):
         return BrowserHtmlParser().parse(text)
         
     def getUpdatePrefix(self, widget, oldState, state):
-        if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser)):
+        if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser, swt.widgets.Spinner)):
             return "\nUpdated " + (util.getTextLabel(widget, useContext=True) or "Text") +  " Field\n"
         elif isinstance(widget, swt.widgets.Combo):
             return "\nUpdated " + util.getTextLabel(widget, useContext=True) + " Combo Box\n"
@@ -479,6 +495,12 @@ class Describer(storytext.guishared.Describer):
 
     def getDateTimeDescription(self, widget):
         return self.getAndStoreState(widget)
+    
+    def getSpinnerDescription(self, widget):
+        return self.getTextDescription(widget)
+    
+    def getSpinnerState(self, widget):
+        return self.getTextState(widget)
 
     def getDateString(self, widget):
         if widget.getStyle() & swt.SWT.TIME:

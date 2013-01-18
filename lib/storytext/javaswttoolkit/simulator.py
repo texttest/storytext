@@ -38,7 +38,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         return ""
         
     def getLabel(self):
-        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo)) or \
+        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo, swtbot.widgets.SWTBotSpinner)) or \
                not hasattr(self.widget.widget, "getText"):
             return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
@@ -195,7 +195,7 @@ class LinkSelectEvent(SelectEvent):
         endPos = text.rfind("<")
         hyperlinkText = text[startPos:endPos]
         self.widget.click(hyperlinkText)
-        
+            
         
 class RadioSelectEvent(SelectEvent):
     def shouldRecord(self, event, *args):
@@ -339,6 +339,17 @@ class ResizeEvent(StateChangeEvent):
     def getStateText(self, *args):
         width, height = self.getSize()
         return "width " + self.dimensionText(width) + " and height " + self.dimensionText(height)
+
+class SpinnerSelectEvent(StateChangeEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "Selection"
+    
+    def getStateText(self, *args):
+        return self.widget.getText()
+    
+    def _generate(self, argumentString):
+        self.widget.setSelection(int(argumentString))
 
     
 class TextEvent(StateChangeEvent):
@@ -1116,6 +1127,7 @@ class WidgetMonitor:
                                            (swt.SWT.RADIO    , swtbot.widgets.SWTBotToolbarRadioButton),
                                            (swt.SWT.SEPARATOR, swtbot.widgets.SWTBotToolbarSeparatorButton),
                                            (swt.SWT.TOGGLE   , swtbot.widgets.SWTBotToolbarToggleButton) ]),
+                  swt.widgets.Spinner  : (swtbot.widgets.SWTBotSpinner, []),
                   swt.widgets.Text     : (swtbot.widgets.SWTBotText, []),
                   swt.widgets.Link     : (swtbot.widgets.SWTBotLink, []),
                   swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
@@ -1327,6 +1339,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarRadioButton, [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
+                (swtbot.widgets.SWTBotSpinner           , [ SpinnerSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
                 (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent, TableDoubleClickEvent ]),
