@@ -340,6 +340,28 @@ class ResizeEvent(StateChangeEvent):
         width, height = self.getSize()
         return "width " + self.dimensionText(width) + " and height " + self.dimensionText(height)
 
+class FreeTextEvent(SignalEvent):
+    def connectRecord(self, method):
+        pass # Intended for events in filechoosers etc, which we cannot record anyway
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return []
+    
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "TypeText"
+    
+    def shouldRecord(self, *args):
+        return False
+    
+    def generate(self, argumentString):
+        method = self.widget.widget.getClass().getSuperclass().getSuperclass().getDeclaredMethod("keyboard", None)
+        method.setAccessible(True)
+        keyboard = method.invoke(self.widget.widget, None)
+        keyboard.typeText(argumentString + "\n", swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
+
+
 class SpinnerSelectEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -1341,7 +1363,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotSpinner           , [ SpinnerSelectEvent ]),
                 (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent ]),
-                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent ]),
+                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent, FreeTextEvent ]),
                 (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent, TableDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),
                 (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
