@@ -619,3 +619,61 @@ SWT/Eclipse RCP bugfixes:
 New feature:
     - Shortcuts can be inserted from the command-line via --insert-shortcut. Not very useful until it's integrated
       into TextTest, which it hopefully will be in TextTest 3.25.
+
+Version 3.9
+-----------
+General enhancements:
+    - Shortcuts inserted in more cases, for example when extra waits appear at the end
+    - Editor GUI now supports renaming usecase names (integrates with TextTest 3.25)
+    - Editor GUI now supports updating the UI map file directly
+    - Editor GUI shortcut creation integrates with TextTest 3.25
+
+General bugfixes:
+    - Fixed complicated application event bug
+    - Table indexing doesn't fail when no columns are unique
+    - Now handle leading spaces in arguments
+    - Give error instead of hanging if shortcut calls itself
+
+SWT/Eclipse RCP enhancements:
+    - Support added for SWT Spinner widgets
+    - Support added for double-clicking in SWT Table widgets
+    - Describer support added for Groups
+    - Now handle MenuItems with style Radio correctly (workaround SWTBot bug)
+    - Now handle multiple RCP views with the same title
+    - Now differentiate between MenuItems with identical names, use parent menu name as context
+    - Now describe status of ToolBar items with style Check or Radio
+    - Remove mouse pointer from the window at the start, can cause unintended mouseovers and effects
+    - Describer handles FormLayout correctly
+    - Describer handles Table/Tree editor fields in a better way
+    - Browser output from files is now parsed and inlined directly. Only external URLs are left alone
+    - Find context menus belonging to Tables
+    - Images in browser output are now described
+    - No longer describe updates outside the currently active Shell
+    - Can now type free text on the keyboard, mostly to allow getting past native dialogs. Cannot record this, use TypeText as event type under a Shell directly in the UI map file.
+
+
+SWT/Eclipse bugfixes:
+    - Rewrote tab close handling, should be more reactive and less brittle now
+    - Don't record when RCP view selections are caused by other views being closed
+    - Don't record RCP view selection if there is only one view (cannot be relevant)
+    - Don't stacktrace if Browser contains HTML with duplicated end tags
+    - Handle windows line-endings and tab characters from HTML properly
+    - Don't stacktrace if widgets with disposed children are shown
+    - Introduced cache for image naming, speeds up initial monitoring
+    - Fix recording bug which affected some ComboBoxes
+    - Fix CCombo activation bugs
+    - Workaround SWTBot in table row selection
+
+GEF bugfixes
+    - Various crash fixes for draw2d describer
+    - When we move the mouse pointer to select figures, move it back again afterwards (avoids accidental mouseovers)
+    - Handle figures changing name, cache now updated correctly
+    - DragNDrop error handling enhanced, better errors if the drop location can't be found
+    - Removed Key Assist menu item added by SWTBot
+
+Swing bugfixes:
+    - Fixed shutdown hang with Java 7 on Windows
+    - Fix back-compatibility breakages with SwingLibrary 1.4.1, now the default version. Remove hacks for bugs now fixed in that version.
+
+PyGTK bugfixes:
+    - Fixed FileChooser crash on PyGTK 2.24, working around https://bugzilla.gnome.org/show_bug.cgi?id=688036
