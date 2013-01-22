@@ -48,7 +48,8 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
 
     def cleanup(self, interface):
         for frame in Frame.getFrames():
-            frame.setVisible(False) # don't leave the window up, looks weird
+            if frame.isValid() and frame.isDisplayable():
+                frame.setVisible(False) # don't leave the window up, looks weird
         self.replaceAutoRecordingForUsecase(interface, exitHook=True)
     
     def checkType(self, widget):
