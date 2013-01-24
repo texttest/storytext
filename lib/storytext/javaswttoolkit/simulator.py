@@ -359,8 +359,6 @@ class FreeTextEvent(SignalEvent):
         method = self.widget.widget.getClass().getSuperclass().getSuperclass().getDeclaredMethod("keyboard", None)
         method.setAccessible(True)
         keyboard = method.invoke(self.widget.widget, None)
-        # The point of this is to type into native dialogs, wait a bit for them to appear...
-        time.sleep(3)
         keyboard.typeText(argumentString + "\n", swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
 
 
