@@ -253,7 +253,7 @@ class UseCaseReplayer:
     def addScript(self, script, arguments=[], enableReading=False):
         if self.isNonRecursive(script):
             self.scripts.append((script, arguments))
-            self.runScript(script, enableReading)
+            self.runScript(script, arguments, enableReading)
             return True
         else:
             self.writeRecursiveError(script, arguments)
@@ -264,14 +264,15 @@ class UseCaseReplayer:
 
     def tryRunScript(self):
         if self.isActive():
-            script, _ = self.scripts[-1]
-            self.runScript(script, enableReading=True)
+            script, args = self.scripts[-1]
+            self.runScript(script, args, enableReading=True)
 
-    def runScript(self, script, enableReading):
+    def runScript(self, script, arguments, enableReading):
         if self.shortcutManager.shortcuts:
-            scriptCommand = script.getCommand(matching=self.shortcutManager.getRegexps())
+            scriptCommand = script.getCommand(arguments, matching=self.shortcutManager.getRegexps())
             if scriptCommand:
                 newScript, args = self.shortcutManager.findShortcut(scriptCommand)
+                self.logger.debug("Found initial shortcut '" + newScript.getShortcutName() + "' with args " + repr(args))
                 if self.addScript(newScript, args, enableReading):
                     return
             
