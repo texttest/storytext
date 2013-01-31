@@ -2,7 +2,7 @@
 """ Eclipse RCP has its own mechanism for background processing
     Hook application events directly into that for synchronisation."""
 
-import logging
+import logging, os
 import storytext.guishared
 from storytext.javaswttoolkit.simulator import DisplayFilter
 from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
@@ -10,7 +10,7 @@ from threading import Lock
 
 class JobListener(JobChangeAdapter):
     # Add things from customwidgetevents here, if desired...
-    systemJobNames = []
+    systemJobNames = os.getenv("STORYTEXT_SYSTEM_JOB_NAMES", "").split(",")
     instance = None
     def __init__(self):
         self.jobNameToUse = None
