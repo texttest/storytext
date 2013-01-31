@@ -28,6 +28,7 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
         javaswttoolkit.ScriptEngine.importCustomEventTypes(self) # Our hook to do it for real...
         
     def handleAdditionalOptions(self, options):
+        self.replayer.disable_usecase_names = options.disable_usecase_names
         if options.testscriptpluginid:
             self.testscriptPlugin = options.testscriptpluginid
         else:
@@ -51,12 +52,13 @@ class TestRunner(Runnable):
 
         
 class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
+    def __init__(self, *args, **kw):
+        javaswttoolkit.UseCaseReplayer.__init__(self, *args, **kw)
+        self.disable_usecase_names = False
+        
     def setThreadCallbacks(self):
-        if self.isActive():
-            methods = [ self.runReplay, self.enableJobListener, self.tryTerminateCoverage ]
-        else: # pragma: no cover - cannot test with replayer disabled
-            methods = [ self.setUpMonitoring, self.enableJobListener, self.runOnRecordExit ]
-
+        mainMethod = self.runReplay if self.isActive() else self.setUpMonitoring
+        methods = [ mainMethod, self.enableJobListener, self.runOnRecordExit ]
         runners = map(TestRunner, methods)
         try:
             from org.eclipse.swtbot.testscript import TestRunnableStore
@@ -67,7 +69,8 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
             sys.exit(1)
 
     def runOnRecordExit(self): # pragma: no cover - cannot test with replayer disabled
-        self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt", exitHook=True)
+        if not self.disable_usecase_names:
+            self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt", exitHook=True)
         self.tryTerminateCoverage()
 
     def enableJobListener(self):
