@@ -132,7 +132,6 @@ class UIMap(storytext.guishared.UIMap):
         gtk.Dialog = Dialog
         DialogHelper.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
-        gtk.quit_add(1, self.fileHandler.write) # Write changes to the GUI map when the application exits
     
     def monitorChildren(self, widget, *args, **kw):
         if widget.getName() != "Shortcut bar" and \

@@ -525,19 +525,6 @@ class UIMapFileHandler:
             if parser.has_section(section):
                 return parser
 
-    def updateSectionName(self, section, newName):
-        """ Note, we only add a new section, don't delete the old one as we once did
-        This is in case some other widget is using it, which is possible and not easily detected currently
-        Let the user clean away the old section if they want to."""
-        section = self._escape(section, self.bracketChars)
-        newName = self._escape(newName, self.bracketChars)
-        writeParser = self.findWriteParser(section)
-        if not writeParser.has_section(newName):
-            writeParser.add_section(newName)
-        for name, value in self.readParser.items(section):
-            writeParser.set(newName, name, value)
-        return newName
-
     def updateSectionAndOptionNames(self, section, newSectionName, option, newOptionName):
         section = self._escape(section, self.bracketChars)
         newSectionName = self._escape(newSectionName, self.bracketChars)
@@ -656,14 +643,6 @@ class UIMap:
                 self.autoInstrument(autoEventName, signalName, widget, argumentParseData, widgetType)
         return autoInstrumented
 
-    def tryImproveSectionName(self, widget, section):
-        if not section.startswith("Name="):
-            newName = widget.getUIMapIdentifier()
-            if newName != section:
-                self.logger.debug("Updating section " + repr(section) + " to " + repr(newName))
-                return self.fileHandler.updateSectionName(section, newName)
-        return section
-
     def instrumentFromMapFile(self, widget):
         widgetType = widget.getType()
         if widgetType in self.ignoreWidgetTypes:
@@ -672,7 +651,6 @@ class UIMap:
         autoInstrumented = False
         section = self.findSection(widget)
         if section:
-            section = self.tryImproveSectionName(widget, section)
             self.logger.debug("Reading map file section " + repr(section) + " for widget of type " + widgetType)
             for signature, eventName in self.fileHandler.items(section):
                 if self.tryAutoInstrument(eventName, signature, signaturesInstrumented, widget, widgetType):
@@ -1563,10 +1541,11 @@ class TextLabelFinder:
             if isinstance(parent, self.getContextParentClasses()):
                 return parent.__class__.__name__ + " Cell Editor" if useContext else ""
             children = self.getChildren(parent)
-            if len(children) == 1:
-                return self.__class__(parent, self.ignoreLabels).find()
-            else:
-                return self.findPrecedingLabel(children, parent)
+            if self.widget in children: # can't assume this, for example window-type objects often have a parent, but are not one of its children
+                if children.index(self.widget) == 0: # If we're the first child of our parent, look for the parent in its context
+                    return self.__class__(parent, self.ignoreLabels).find()
+                else:
+                    return self.findPrecedingLabel(children, parent)
         
         return ""
 
