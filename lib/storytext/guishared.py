@@ -1324,8 +1324,8 @@ class Describer(object):
         else:
             return text
 
-    def describeAppearedWidgets(self, stateChangeWidgets):
-        newWindows, commonParents = self.categoriseAppearedWidgets(stateChangeWidgets)
+    def describeAppearedWidgets(self, stateChangeWidgets, *args):
+        newWindows, commonParents = self.categoriseAppearedWidgets(stateChangeWidgets, *args)
         for window in newWindows:
             self.describe(window)
             
@@ -1345,13 +1345,13 @@ class Describer(object):
         elif widget.getParent():
             return self.getMarkedAncestor(widget.getParent(), markedWidgets)
 
-    def categoriseAppearedWidgets(self, stateChangeWidgets):
+    def categoriseAppearedWidgets(self, stateChangeWidgets, *args):
         newWindows, commonParents = [], []
         # Windows only get title changes described
         stateChangesFullDescribe = filter(lambda w: not isinstance(w, self.getWindowClasses()), stateChangeWidgets)
         markedWidgets = self.widgetsAppeared + stateChangesFullDescribe
         for widget in self.widgetsAppeared:
-            if not self.widgetShowing(widget):
+            if not self.widgetShowing(widget, *args):
                 continue
 
             if isinstance(widget, self.getWindowClasses()): 

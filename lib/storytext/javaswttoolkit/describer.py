@@ -71,22 +71,31 @@ class Describer(storytext.guishared.Describer):
         shell = shellMethod()
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
-            stateChangeWidgets = [ widget for widget, old, new in stateChanges ]
+            stateChangeWidgets = [ widget for widget, _, _ in stateChanges ]
             if self.structureLog.isEnabledFor(logging.DEBUG):
                 for widget in stateChangeWidgets:
                     self.describeStructure(widget)
-            describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets)
+            describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets, shell)
             self.describeStateChanges(stateChanges, describedForAppearance)
+            self.widgetsAppeared = filter(lambda w: self.validAndShowing(w) and self.inDifferentShell(w, shell), self.widgetsAppeared)
+        else:
+            self.widgetsAppeared = []
+            
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)
-        self.widgetsAppeared = []
         
     def shouldCheckForUpdates(self, widget, shell):
         return not widget.isDisposed() and widget.getShell() == shell
     
-    def widgetShowing(self, widget):
-        return not widget.isDisposed() and util.isVisible(widget)
+    def inDifferentShell(self, widget, shell):
+        return not isinstance(widget, swt.widgets.Shell) and widget.getShell() != shell
+    
+    def validAndShowing(self, widget):
+        return not widget.isDisposed() and util.isVisible(widget) 
+    
+    def widgetShowing(self, widget, shell):
+        return self.validAndShowing(widget) and not self.inDifferentShell(widget, shell)
 
     def describeClipboardChanges(self, display):
         clipboard = swt.dnd.Clipboard(display)
