@@ -637,11 +637,16 @@ class UIMap:
         if self.scriptEngine.recorderActive() or not self.fileHandler.hasInfo():
             widgetType = widget.getType()
             for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
-                identifier = self.fileHandler.escape(widget.getUIMapIdentifier())
+                identifier = self.getAutoInstrumentIdentifier(widget)
                 autoEventName = "Auto." + widgetType + "." + signature + ".'" + identifier + "'"
                 signalName, argumentParseData = self.parseSignature(signature)
                 self.autoInstrument([ autoEventName ], signalName, widget, argumentParseData, widgetType)
         return autoInstrumented
+    
+    def getAutoInstrumentIdentifier(self, widget):
+        sections = self.findSections(widget)
+        basicId = sections[0] if len(sections) else widget.getUIMapIdentifier()
+        return self.fileHandler.escape(basicId)
 
     def instrumentFromMapFile(self, widget):
         widgetType = widget.getType()
