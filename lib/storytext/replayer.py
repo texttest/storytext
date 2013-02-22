@@ -2,7 +2,7 @@
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
 import os, sys, signal, time, logging, re
-from threading import Thread, Timer
+from threading import Thread, Timer, Lock
 from definitions import *
 from copy import copy
 
@@ -220,6 +220,7 @@ class UseCaseReplayer:
         self.scripts = []
         self.shortcutManager = ShortcutManager()
         self.events = {}
+        self.appEventLock = Lock()
         self.waitingForEvents = []
         self.applicationEventNames = set()
         self.replayThread = None
@@ -332,6 +333,7 @@ class UseCaseReplayer:
     def registerApplicationEvent(self, eventName, timeDelay):
         origEventName = eventName
         count = 2
+        self.appEventLock.acquire()
         while eventName in self.applicationEventNames:
             eventName = origEventName + " * " + str(count)
             count += 1
@@ -340,6 +342,7 @@ class UseCaseReplayer:
         self.timeDelayNextCommand = timeDelay
         if len(self.waitingForEvents) > 0 and self.waitingCompleted():
             self.completedApplicationEvents()
+        self.appEventLock.release()
             
     def applicationEventRename(self, oldName, newName):
         toRename = filter(lambda eventName: oldName in eventName and newName not in eventName,
@@ -527,12 +530,14 @@ class UseCaseReplayer:
     def processWait(self, applicationEventStr):
         eventsToWaitFor = applicationEventStr.split(", ")
         self.describeAppEventsWaiting(eventsToWaitFor)
+        self.appEventLock.acquire()
         allEventsToWaitFor = self.waitingForEvents + eventsToWaitFor
         # Must make sure this is atomic - don't add events one at a time with +=
         self.waitingForEvents = allEventsToWaitFor
         complete = self.waitingCompleted()
         if not complete:
             self.setAppEventTimer()
+        self.appEventLock.release()
         return complete
     
     def processSignalCommand(self, signalArg):
