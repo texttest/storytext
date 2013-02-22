@@ -489,10 +489,7 @@ class UseCaseEditor:
             dialog.hide()
             
     def recreateUsecaseFile(self):
-        recordScript = RecordScript(self.fileName)
-        for _, shortcut in self.shortcutManager.shortcuts:
-            recordScript.registerShortcut(shortcut)
-            
+        recordScript = RecordScript(self.fileName, [shortcut for _, shortcut in self.shortcutManager.shortcuts])
         for iter in self.getTopLevelIters():
             recordScript.record(self.treeModel.get_value(iter, 1))
             

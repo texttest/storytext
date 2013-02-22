@@ -21,7 +21,7 @@ class ScriptEngine:
     def __init__(self, enableShortcuts=False, **kwargs):
         os.environ["STORYTEXT_HOME"] = self.storytextHome
         self.enableShortcuts = enableShortcuts
-        self.recorder = recorder.UseCaseRecorder()
+        self.recorder = recorder.UseCaseRecorder(self.getShortcuts())
         self.replayer = self.createReplayer(**kwargs)
         self.registerShortcuts()
         self.replayer.tryRunScript()
@@ -39,8 +39,6 @@ class ScriptEngine:
         for shortcut in self.getShortcuts():
             if self.replayerActive():
                 self.replayer.registerShortcut(shortcut)
-            if self.recorderActive():
-                self.recorder.registerShortcut(shortcut)
 
     def getShortcuts(self, storyTextHome=None):
         home = storyTextHome if storyTextHome else self.storytextHome

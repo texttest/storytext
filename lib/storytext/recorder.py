@@ -13,11 +13,18 @@ except ImportError:
 
 # Take care not to record empty files...
 class RecordScript:
-    def __init__(self, scriptName):
+    def __init__(self, scriptName, shortcuts):
         self.scriptName = scriptName
         self.fileForAppend = None
         self.shortcutTrackers = []
-    
+        self.initShortcutManager(shortcuts)
+        self.registerShortcuts()
+        
+    def initShortcutManager(self, shortcuts):
+        self.shortcutManager = replayer.ShortcutManager()
+        for shortcut in shortcuts:
+            self.shortcutManager.add(shortcut)
+
     def findCompletedTracker(self, line):
         bestTracker = None
         for tracker in self.shortcutTrackers:
@@ -95,8 +102,12 @@ class RecordScript:
         self.fileForAppend.write(line + "\n")
         self.fileForAppend.flush()
     
+    def registerShortcuts(self):
+        for _, shortcut in self.shortcutManager.shortcuts:
+            self.registerShortcut(shortcut)
+
     def registerShortcut(self, shortcut):
-        self.shortcutTrackers.append(ShortcutTracker(shortcut))
+        self.shortcutTrackers.append(ShortcutTracker(shortcut, self.shortcutManager))
     
     def close(self):
         if self.fileForAppend:
@@ -117,18 +128,24 @@ class RecordScript:
 
 
 class ShortcutTracker:
-    def __init__(self, replayScript):
+    def __init__(self, replayScript, shortcutManager):
         self.replayScript = replayScript
+        self.currentShortcuts = []
         self.commandsForMatch = []
         self.commandsForMismatch = []
+        self.visitedShortcuts = []
         self.logger = logging.getLogger("Shortcut Tracker")
+        self.shortcutManager = shortcutManager
         self.reset()
 
     def reset(self):
         self.replayScript = replayer.ReplayScript(self.replayScript.name, ignoreComments=True)
+        self.currentShortcuts = []
         self.commandsForMatch = copy(self.commandsForMismatch)
         self.argsUsed = []
-        self.currRegexp = self.replayScript.getCommandRegexp()
+        self.currentArgs = []
+        self.visitedShortcuts = []
+        self.currRegexp = self.getCommandRegexp()
 
     def hasStarted(self):
         return self.commandsForMismatch != self.commandsForMatch
@@ -139,26 +156,35 @@ class ShortcutTracker:
         match = self.currRegexp.match(line)
         self.logger.debug("Update completes? " +  self.replayScript.getShortcutName() + ", " + self.currRegexp.pattern \
                           + ", " +  repr(line) + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
-        return match and self.replayScript.hasTerminated()
+        return match and self.isCurrentScript() and self.replayScript.hasTerminated()
     
     def addCommand(self, line):
         if self.currRegexp is None:
             self.logger.debug("Ignore " +  self.replayScript.getShortcutName())  # We already reached the end and should forever be ignored...
+            return
         match = self.currRegexp.match(line)
         if match:
             self.commandsForMismatch.append(line)
             self.logger.debug("Match " +  self.replayScript.getShortcutName() + ", " + self.currRegexp.pattern \
                                + ", " +  repr(line) + ", " + repr(self.commandsForMismatch) + ", " + repr(self.commandsForMatch))
-            self.currRegexp = self.replayScript.getCommandRegexp()
+            positions = self.getPositions(self.currentArgs)
+            self.currRegexp = self.getCommandRegexp()
             groupdict = match.groupdict()
             if groupdict: # numbered arguments
                 for key, val in groupdict.items():
                     argPos = int(key.replace("var", "")) - 1
-                    while len(self.argsUsed) <= argPos:
-                        self.argsUsed.append("")
-                    self.argsUsed[argPos] = val
+                    if len(positions):
+                        self.handleNumberedArg(positions, argPos, val)
+                    else:
+                        while len(self.argsUsed) <= argPos:
+                            self.argsUsed.append("")
+                        self.argsUsed[argPos] = val
             else:
-                self.argsUsed += match.groups()
+                groups = match.groups()
+                if len(positions):
+                    self.handleUnnumberedArgs(positions, groups)
+                else:
+                    self.argsUsed += groups
         else:
             if self.hasStarted():
                 self.reset()
@@ -167,7 +193,38 @@ class ShortcutTracker:
             else:
                 self.commandsForMismatch.append(line)
                 self.reset()
-            
+    
+    def getPositions(self, args):
+        positions = []
+        for index, arg in enumerate(args):
+            newArg = arg.replace("$", "")
+            if newArg.isdigit():
+                positions.append([int(newArg) -1, True])
+            elif arg.startswith("$"):
+                positions.append([index, False])
+            else:
+                positions.append([-1, False])
+        return positions
+
+    def handleUnnumberedArgs(self, positions, groups):
+        for index, [pos, numbered] in enumerate(positions):
+            if pos >= 0 and len(groups):
+                if numbered:
+                    while len(self.argsUsed) <= pos:
+                        self.argsUsed.append("")
+                    self.argsUsed[pos] = groups[index]
+                else:
+                    self.argsUsed.append(groups[index])
+
+    def handleNumberedArg(self, positions, currentPos, value):
+        pos, numbered = positions[currentPos]
+        if numbered:
+            while len(self.argsUsed) <= pos:
+                self.argsUsed.append("")
+            self.argsUsed[pos] = value
+        elif pos >= 0:
+            self.argsUsed.append(value)
+        
     def rerecord(self, newCommands):
         # Some other tracker has completed, include it in our unmatched commands...
         started = self.hasStarted()
@@ -186,11 +243,47 @@ class ShortcutTracker:
         return self.commandsForMatch
     
     def isLongerThan(self, otherTracker):
-        return len(self.replayScript.commands) > len(otherTracker.replayScript.commands)
+        return self.getLength() > otherTracker.getLength()
 
+    def getCommandRegexp(self):
+        nestedShortcut = self.findNestedShortcut(self.currentShortcuts[-1] if not self.isCurrentScript() else self.replayScript)
+        if nestedShortcut and self.replayScript.name == nestedShortcut.name:
+            return None
+        while  nestedShortcut:
+            newScript = replayer.ReplayScript(nestedShortcut.name, ignoreComments=True)
+            self.visitedShortcuts.append(newScript)
+            self.currentShortcuts.append(newScript)
+            nestedShortcut = self.findNestedShortcut(self.currentShortcuts[-1] if not self.isCurrentScript() else self.replayScript)
+
+        if not self.isCurrentScript():
+            cmdRegexp = self.currentShortcuts[-1].getCommandRegexp()
+            if self.currentShortcuts[-1].hasTerminated():
+                self.currentShortcuts.pop()
+            if cmdRegexp:
+                return cmdRegexp
+            else:
+                return self.getCommandRegexp()
+        return self.replayScript.getCommandRegexp()
+    
+    def findNestedShortcut(self, replayScript):
+        scriptCommand = replayScript.getCommand(matching=self.shortcutManager.getRegexps())
+        if scriptCommand:
+            shortcut, args = self.shortcutManager.findShortcut(scriptCommand)
+            if replayScript == self.replayScript:
+                self.currentArgs = args
+            return shortcut
+    
+    def isCurrentScript(self):
+        return len(self.currentShortcuts) == 0
+
+    def getLength(self):
+        length = 0
+        for shortcut in self.visitedShortcuts:
+            length += len(shortcut.commands)
+        return length + len(self.replayScript.commands) - len(self.visitedShortcuts)
 
 class UseCaseRecorder:
-    def __init__(self):
+    def __init__(self, shortcuts):
         self.logger = logging.getLogger("storytext record")
         # Store events we don't record at the top level, usually controls on recording...
         self.eventsBlockedTopLevel = []
@@ -208,7 +301,7 @@ class UseCaseRecorder:
         self.hasAutoRecordings = False
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
-            self.addScript(recordScript)
+            self.addScript(recordScript, shortcuts)
             if os.pathsep != ";": # Not windows! os.name and sys.platform don't give this information if using Jython
                 self.addSignalHandlers()
 
@@ -227,8 +320,8 @@ class UseCaseRecorder:
         self.logger.debug("Storing comment " + repr(comment))
         self.comments.append(comment)
 
-    def addScript(self, scriptName):
-        self.scripts.append(RecordScript(scriptName))
+    def addScript(self, scriptName, shortcuts=[]):
+        self.scripts.append(RecordScript(scriptName, shortcuts))
 
     def closeScripts(self, exitHook):
         if any((c is not None for c in self.comments)):
