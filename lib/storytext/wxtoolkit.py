@@ -252,9 +252,12 @@ class CheckBoxEvent(SignalEvent):
         return self.widget.Set3StateValue if self.widget.Is3State() else self.widget.SetValue
 
     def generate(self, argumentString):
-        self.changeMethod(self.valueToSet)
         command = self.makeCommandEvent(wx.wxEVT_COMMAND_CHECKBOX_CLICKED)
+        self.setStateToSwitchTo(command)
         self.widget.Command(command)
+
+    def setStateToSwitchTo(self, command):
+        command.SetInt(self.valueToSet)
 
     def implies(self, *args):
         return False
