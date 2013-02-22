@@ -243,10 +243,10 @@ class UseCaseReplayer:
     def getShortcuts(self):
         return self.shortcutManager.getShortcuts()
     
-    def addEvent(self, event):
-        self.events.setdefault(event.name, []).append(event)
+    def addEvent(self, event, eventNames):
+        for name in eventNames:
+            self.events.setdefault(name, []).append(event)
     
-
     def writeRecursiveError(self, script, arguments):
         sys.stderr.write("ERROR: Cannot execute shortcut command '" + script.getShortcutNameWithArgs(arguments) + "' - shortcut is trying to call itself!\n")
 
