@@ -63,11 +63,20 @@ class FileDialog(origFileDialog):
         self.recordHandler = handler 
 
     def ShowModal(self):
-        if self.uiMap.scriptEngine.replayer.isActive():
-            return wx.ID_OK
+        if self.replaying():
+            return self.fakeShowModal()
         else:
             self.path = None
             return origFileDialog.ShowModal(self)
+ 
+    def fakeShowModal(self):
+        if self.path == None:
+            return wx.ID_CANCEL
+        else:
+            return wx.ID_OK
+        
+    def replaying(self):
+        return self.uiMap.scriptEngine.replayer.isActive()
 
     def GetPath(self):
         if self.path is None:
