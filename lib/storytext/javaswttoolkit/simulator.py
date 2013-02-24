@@ -798,12 +798,30 @@ class TreeClickEvent(TreeEvent):
     def getAssociatedSignal(cls, widget):
         return "Selection"
     
+    @staticmethod
+    def getPairings(argumentString):
+        pairings = []
+        arg1SoFar, arg2 = "", argumentString
+        for _ in range(argumentString.count(",")):
+            arg1, arg2 = arg2.split(",", 1)
+            if arg1SoFar:
+                arg1SoFar += ","
+            arg1SoFar += arg1
+            pairings.append((arg1SoFar, arg2))
+        return pairings
+            
     def parseArguments(self, argumentString):
         if argumentString:
             try:
                 return [ TreeEvent.parseArguments(self, argumentString) ]
             except UseCaseScriptError:
-                return [ TreeEvent.parseArguments(self, part) for part in argumentString.split(",") ]
+                if "," in argumentString:
+                    for arg1, arg2 in self.getPairings(argumentString):
+                        try:
+                            return self.parseArguments(arg1) + self.parseArguments(arg2)
+                        except UseCaseScriptError:
+                            pass
+                raise                    
         else:
             return []
 

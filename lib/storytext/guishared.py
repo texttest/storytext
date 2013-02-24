@@ -254,17 +254,17 @@ class ScriptEngine(scriptengine.ScriptEngine):
 
     def monitorSignal(self, eventName, signalName, widget, *args, **kw):
         if self.active():
-            return self._monitorSignal(eventName, signalName, WidgetAdapter.adapt(widget), *args, **kw)
+            return self._monitorSignal([ eventName ], signalName, WidgetAdapter.adapt(widget), *args, **kw)
 
-    def _monitorSignal(self, eventName, signalName, widget, argumentParseData=None):
-        signalEvent = self._createSignalEvent(eventName, signalName, widget, argumentParseData)
+    def _monitorSignal(self, eventNames, signalName, widget, argumentParseData=None):
+        signalEvent = self._createSignalEvent(eventNames[0], signalName, widget, argumentParseData)
         if signalEvent:
-            self._addEventToScripts(signalEvent)
+            self._addEventToScripts(signalEvent, eventNames)
             return signalEvent
 
-    def _addEventToScripts(self, event):
+    def _addEventToScripts(self, event, eventNames):
         if event.name and self.replayerActive():
-            self.replayer.addEvent(event)
+            self.replayer.addEvent(event, eventNames)
         if event.name and self.recorderActive():
             event.connectRecord(self.recorder.writeEvent)
 
@@ -637,11 +637,16 @@ class UIMap:
         if self.scriptEngine.recorderActive() or not self.fileHandler.hasInfo():
             widgetType = widget.getType()
             for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
-                identifier = self.fileHandler.escape(widget.getUIMapIdentifier())
+                identifier = self.getAutoInstrumentIdentifier(widget)
                 autoEventName = "Auto." + widgetType + "." + signature + ".'" + identifier + "'"
                 signalName, argumentParseData = self.parseSignature(signature)
-                self.autoInstrument(autoEventName, signalName, widget, argumentParseData, widgetType)
+                self.autoInstrument([ autoEventName ], signalName, widget, argumentParseData, widgetType)
         return autoInstrumented
+    
+    def getAutoInstrumentIdentifier(self, widget):
+        sections = self.findSections(widget)
+        basicId = sections[0] if len(sections) else widget.getUIMapIdentifier()
+        return self.fileHandler.escape(basicId)
 
     def instrumentFromMapFile(self, widget):
         widgetType = widget.getType()
@@ -649,18 +654,15 @@ class UIMap:
             return set(), False
         signaturesInstrumented = set()
         autoInstrumented = False
-        section = self.findSection(widget)
-        if section:
-            self.logger.debug("Reading map file section " + repr(section) + " for widget of type " + widgetType)
-            for signature, eventName in self.fileHandler.items(section):
-                if self.tryAutoInstrument(eventName, signature, signaturesInstrumented, widget, widgetType):
-                    autoInstrumented = True
+        for signature, eventNames in self.findAllSignatureInfo(widget):
+            if self.tryAutoInstrument(eventNames, signature, signaturesInstrumented, widget, widgetType):
+                autoInstrumented = True
         return signaturesInstrumented, autoInstrumented
 
-    def tryAutoInstrument(self, eventName, signature, signaturesInstrumented, widget, widgetType):
+    def tryAutoInstrument(self, eventNames, signature, signaturesInstrumented, widget, widgetType):
         try:
             signalName, argumentParseData = self.parseSignature(signature)
-            if self.autoInstrument(eventName, signalName, widget, argumentParseData, widgetType):
+            if self.autoInstrument(eventNames, signalName, widget, argumentParseData, widgetType):
                 signaturesInstrumented.add(signature)
                 # sometimes extra data is optional configuration, need to note that we don't need 
                 # several variants in the recorder
@@ -677,13 +679,25 @@ class UIMap:
                 if signature not in signatures and signature not in preInstrumented:
                     signatures.append(signature)
         return signatures
-
-    def findSection(self, widget):
+    
+    def findAllSignatureInfo(self, widget):
+        info = OrderedDict()
+        for section in self.findSections(widget):
+            self.logger.debug("Reading map file section " + repr(section) + " for widget of type " + widget.getType())
+            for signature, eventName in self.fileHandler.items(section):
+                eventNames = info.setdefault(signature, [])
+                if eventName not in eventNames:
+                    eventNames.append(eventName)
+        return info.items()
+    
+    def findSections(self, widget):
         sectionNames = widget.findPossibleUIMapIdentifiers()
+        sections = []
         for sectionName in sectionNames:
             self.logger.debug("Looking up section name " + repr(sectionName))
             if self.fileHandler.has_section(sectionName):
-                return sectionName
+                sections.append(sectionName)
+        return sections
 
     def parseSignature(self, signature):
         parts = signature.split(".", 1)
@@ -693,9 +707,9 @@ class UIMap:
         else:
             return signalName, None
 
-    def autoInstrument(self, eventName, signalName, widget, argumentParseData, *args):
-        self.logger.debug("Monitor " + eventName + ", " + signalName + ", " + widget.getType() + ", " + str(argumentParseData))
-        self.scriptEngine._monitorSignal(eventName, signalName, widget, argumentParseData)
+    def autoInstrument(self, eventNames, signalName, widget, argumentParseData, *args):
+        self.logger.debug("Monitor " + ",".join(eventNames) + ", " + signalName + ", " + widget.getType() + ", " + str(argumentParseData))
+        self.scriptEngine._monitorSignal(eventNames, signalName, widget, argumentParseData)
         return True
         
 # Base class for all replayers using a GUI
