@@ -252,7 +252,10 @@ class CheckBoxEvent(SignalEvent):
         return self.widget.Set3StateValue if self.widget.Is3State() else self.widget.SetValue
 
     def generate(self, argumentString):
+        # This line is necessary for things to work on Linux...
+        self.changeMethod(self.valueToSet)
         command = self.makeCommandEvent(wx.wxEVT_COMMAND_CHECKBOX_CLICKED)
+        # And this line is necessary for things to work on Windows.
         self.setStateToSwitchTo(command)
         self.widget.Command(command)
 
