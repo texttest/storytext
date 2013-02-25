@@ -485,9 +485,17 @@ class ParserSectionDict(OrderedDict):
 class UIMapFileHandler:
     quoteChars = [ ("'", "APOSTROPHE") ]
     bracketChars = [ ("[", "OPENBRACKET"), ("]", "CLOSEBRACKET")]
+    regexChars = re.compile("[\^\$\[\]\{\}\\\*\?\|\+]")
     def __init__(self, uiMapFiles): 
         self.readFiles(uiMapFiles)
-
+        self.regexSections = []
+        for section in self.readParser.sections():
+            if self.regexChars.search(section) != None:
+                try:
+                    self.regexSections.append(re.compile(section))
+                except re.error:
+                    pass
+                
     def readFiles(self, uiMapFiles):
         # See top of file: uses the version from 2.6
         self.writeParsers = [ WriteParserHandler(f, self.makeParser([ f ])) for f in uiMapFiles ]
@@ -574,8 +582,14 @@ class UIMapFileHandler:
     def hasInfo(self):
         return len(self.readParser.sections()) > 0
     
-    def has_section(self, section):
-        return self.readParser.has_section(self._escape(section, self.bracketChars))
+    def getSection(self, section):
+        rawSectionName = self._escape(section, self.bracketChars)
+        if self.readParser.has_section(rawSectionName):
+            return section
+        
+        for regex in self.regexSections:
+            if regex.match(rawSectionName):
+                return regex.pattern
 
     def items(self, section):
         return self.readParser.items(self._escape(section, self.bracketChars))
@@ -695,8 +709,9 @@ class UIMap:
         sections = []
         for sectionName in sectionNames:
             self.logger.debug("Looking up section name " + repr(sectionName))
-            if self.fileHandler.has_section(sectionName):
-                sections.append(sectionName)
+            actualSection = self.fileHandler.getSection(sectionName)
+            if actualSection:
+                sections.append(actualSection)
         return sections
 
     def parseSignature(self, signature):
