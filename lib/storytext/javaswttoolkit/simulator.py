@@ -559,6 +559,11 @@ class CComboSelectEvent(StateChangeEvent):
 
 
 class CComboChangeEvent(CComboSelectEvent):
+    def parseArguments(self, *args):
+        if runOnUIThread(self.widget.widget.widget.getStyle) & swt.SWT.READ_ONLY:
+            raise UseCaseScriptError, "Cannot edit text in this Combo Box as it is readonly"
+        return CComboSelectEvent.parseArguments(self, *args)
+    
     def _generate(self, argumentString):
         try:
             self.widget.setFocus()
