@@ -104,11 +104,24 @@ class RecordScript:
     
     def registerShortcuts(self):
         for _, shortcut in self.shortcutManager.shortcuts:
-            self.registerShortcut(shortcut)
+            self.shortcutTrackers.append(ShortcutTracker(shortcut, self.shortcutManager))
 
     def registerShortcut(self, shortcut):
+        self.shortcutManager.add(shortcut)
         self.shortcutTrackers.append(ShortcutTracker(shortcut, self.shortcutManager))
     
+    def unregisterShortcut(self, shortcut):
+        shortcuts = [s for s in self.shortcutManager.shortcuts]
+        trackers = [t for t in self.shortcutTrackers]
+        for regexp, script in shortcuts:
+            if script.name == shortcut.name:
+                self.shortcutManager.shortcuts.remove((regexp,script))
+                break
+        for tracker in trackers:
+            if tracker.replayScript.name == shortcut.name:
+                self.shortcutTrackers.remove(tracker)
+                break
+
     def close(self):
         if self.fileForAppend:
             if not self.fileForAppend.closed:
@@ -594,6 +607,10 @@ class UseCaseRecorder:
     def registerShortcut(self, replayScript):
         for script in self.scripts:
             script.registerShortcut(replayScript)
+
+    def unregisterShortcut(self, replayScript):
+        for script in self.scripts:
+            script.unregisterShortcut(replayScript)
             
     def unregisterApplicationEvent(self, matchFunction):
         for appEventKey, eventName in self.applicationEvents.items():

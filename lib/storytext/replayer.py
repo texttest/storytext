@@ -59,7 +59,11 @@ class ReplayScript(object):
         return self.getRegexp(self.getShortcutName())
 
     def getShortcutNameWithArgs(self, args):
-        splittedName = self.getShortcutName().lower().split("$")
+        return self.getTextWithArgs(self.getShortcutName().lower(), args)
+        
+    @staticmethod
+    def getTextWithArgs(text, args):
+        splittedName = text.split("$")
         if len(splittedName) == 1:
             return splittedName[0]
         name = ""

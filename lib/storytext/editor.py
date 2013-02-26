@@ -4,7 +4,7 @@
     Also allow hierarchical viewing of usecases.
     Tkinter users still need GTK for TextTest to work... """
 
-import gtktoolkit, gtk, os, sys, logging, shutil
+import gtktoolkit, gtk, os, sys, logging, shutil, re
 from optparse import OptionParser
 from locale import getdefaultlocale
 
@@ -710,7 +710,7 @@ class UseCaseEditor:
         return True
     
     def setRenameSensitivity(self, item, selection):
-        if selection.count_selected_rows() == 1 and self.usecaseSelected(selection):
+        if selection.count_selected_rows() == 1 and (self.shortcutsSelected(selection) or self.usecaseSelected(selection)):
             item.set_sensitive(True)
         else:
             item.set_sensitive(False)
@@ -751,23 +751,15 @@ class UseCaseEditor:
         self.scriptEngine.monitorSignal("accept update ui map file", "clicked", renameButton)
         self.scriptEngine.monitorSignal("cancel update ui map file", "clicked", cancelButton)
         
-        dialog.connect("response", self.respondRename, nameEntry, cmd, isShortcut)
+        dialog.connect("response", self.respondRenameShortcut if isShortcut else self.respondRenameUsecase, nameEntry, cmd)
         dialog.show_all()
 
-    def respondRename(self, dialog, responseId, nameEntry, oldValue, isShortcut):
+    def respondRenameUsecase(self, dialog, responseId, nameEntry, oldValue):
         methodName = "UsecaseRename"
         newValue = nameEntry.get_text()
         if responseId == gtk.RESPONSE_ACCEPT:
-            isValid = False
-            if isShortcut:
-                if self.checkShortcutName(dialog, newValue) and self.checkShortcutArguments(dialog, oldValue, newValue):
-                    isValid = True
-                    self.renameShortcut(oldValue, newValue)
-            elif self.checkUsecaseName(dialog, newValue):
-                isValid = True
+            if self.checkUsecaseName(dialog, newValue):
                 self.updateUsecaseNameInUIMap(oldValue, newValue)
-                
-            if isValid:
                 self.updateUsecaseNameInShorcuts(oldValue, newValue)
                 self.replaceInFile(self.fileName, self.makeReplacement, [(oldValue, newValue)])
                 print methodName, repr(oldValue), "renamed to", repr(newValue)
@@ -775,7 +767,33 @@ class UseCaseEditor:
             dialog.hide()
         else:
             dialog.hide()
-    
+            
+    def respondRenameShortcut(self, dialog, responseId, nameEntry, oldValue):
+        methodName = "ShortcutRename"
+        newValue = nameEntry.get_text()
+        if responseId == gtk.RESPONSE_ACCEPT:
+            if self.checkShortcutName(dialog, newValue) and self.checkShortcutArguments(dialog, oldValue, newValue):
+                oldFileName = self.renameShortcut(oldValue, newValue)
+                oldShortcut, args = self.shortcutManager.findShortcut(oldValue)
+                oldValueRegexp = oldShortcut.transformToRegexp(oldValue)
+                # Update shortcut name in shortcut files
+                for shortcut in self.scriptEngine.getShortcuts():
+                    if shortcut.name != oldFileName:
+                        self.replaceInFile(shortcut.name, self.replaceShortcutName, oldValueRegexp, newValue)
+                # Update shortcut name in current usecase file
+                self.replaceInFile(self.fileName, self.replaceShortcutName, oldValueRegexp, newValue)
+                print methodName, repr(oldValueRegexp), "renamed to", repr(newValue)
+                self.recreatePreview()
+                newShortcut, _ = self.shortcutManager.findShortcut(newValue)
+                # Update the recorder
+                self.scriptEngine.recorder.unregisterShortcut(oldShortcut)
+                self.scriptEngine.recorder.registerShortcut(newShortcut)
+                dialog.hide()
+            else:
+                nameEntry.set_text(oldValue)
+        else:
+            dialog.hide()
+            
     def checkUsecaseName(self, parent, name):
         if not name:
             self.showErrorDialog(parent, "The usecase name can't be empty.")
@@ -805,12 +823,21 @@ class UseCaseEditor:
         oldFileName = os.path.join(storytextDir, self.getShortcutFileName(oldName))
         newFileName = os.path.join(storytextDir, self.getShortcutFileName(newName))
         os.rename(oldFileName, newFileName)
+        return oldFileName, newFileName
 
     def recreatePreview(self):
         self.treeModel.clear()
         self.initShortcutManager()
         for command in self.getAllCommands():
             self.addCommandToModel(command, self.treeModel)
+
+    def regexpReplace(self, regexp, line, newText):
+        return re.sub(regexp, newText, line)
+
+    def replaceShortcutName(self, line, position, oldNameRegexp, newName):
+        def replaceArgs(matchobj):
+            return ReplayScript.getTextWithArgs(newName, [arg for arg in matchobj.groups()])
+        return self.regexpReplace(oldNameRegexp, line, replaceArgs)
 
 def main():
     usage = """usage: %prog [options] [FILE] ...
