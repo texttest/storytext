@@ -1515,7 +1515,7 @@ class TableIndexer:
             rowIndex = self.rowNames.index(rowName)
             return rowIndex, columnIndex
         except ValueError:
-            raise definitions.UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table."
+            raise definitions.UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table.\nRow names are " + repr(self.rowNames)
                     
     def useColumnTextInDescription(self, **kw):
         return self.table.getColumnCount() > 1
