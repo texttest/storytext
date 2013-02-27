@@ -13,14 +13,17 @@ from threading import Lock
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
+class PythonResult(swtbot.results.Result):
+    def __init__(self, method, args):
+        self.method = method
+        self.args = args
+    
+    def run(self):
+        return self.method(*self.args)
 
 def runOnUIThread(method, *args):
-    class PythonResult(swtbot.results.Result):
-        def run(self):
-            return method(*args)
-
     try:
-        return swtbot.finders.UIThreadRunnable.syncExec(PythonResult())
+        return swtbot.finders.UIThreadRunnable.syncExec(PythonResult(method, args))
     except NullPointerException, e:
         # Temporary code to try to find intermittent Windows error
         print "Caught intermittent Windows NullPointerException!"
@@ -947,6 +950,15 @@ class DateTimeEvent(StateChangeEvent):
             raise UseCaseScriptError, "Could not parse date/time argument '" + argumentString + \
                   "', not of format '" + self.dateFormat.toPattern() + "'."
 
+class EventFinishedListener(swt.widgets.Listener):
+    def __init__(self, event):
+        self.event = event
+        
+    def handleEvent(self, e2):
+        if e2 is self.event:
+            storytext.guishared.catchAll(DisplayFilter.instance.handleEventFinished, self.event)
+
+
 class DisplayFilter:
     instance = None
     def otherEventCount(self, event, isTriggeringEvent):
@@ -1023,12 +1035,7 @@ class DisplayFilter:
         if self.shouldCheckWidget(e.widget, e.type):
             self.logger.debug("Filter for event " + e.toString())
             self.eventsFromUser.append(e)
-            class EventFinishedListener(swt.widgets.Listener):
-                def handleEvent(listenerSelf, e2): #@NoSelf
-                    if e2 is e:
-                        storytext.guishared.catchAll(self.handleEventFinished, e)
-                    
-            runOnUIThread(e.widget.addListener, e.type, EventFinishedListener())
+            runOnUIThread(e.widget.addListener, e.type, EventFinishedListener(e))
             if e.item and not e.item.isDisposed():
                 # Safe guard against the application changing the text before we can record
                 self.itemTextCache[e.item] = e.item.getText()
