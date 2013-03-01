@@ -11,7 +11,7 @@ class TreeColumnHelper:
         for column in treeView.get_columns():
             if cls.getColumnName(column) == columnName:
                 return column
-        raise UseCaseScriptError, "Could not find column with name " + repr(columnName)
+        raise UseCaseScriptError, "Could not find column with name '" + columnName + "'"
 
     @staticmethod
     def getColumnName(column):

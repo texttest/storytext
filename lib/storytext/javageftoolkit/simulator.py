@@ -320,9 +320,9 @@ class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     def getUIMapIdentifier(self):
         partId = self.partReference.getId()
         if isinstance(self.partReference, EditorReference):
-            return self.encodeToLocale("Editor=" + partId + ", " +"Viewer")
+            return "Editor=" + partId + ", " +"Viewer"
         else:
-            return self.encodeToLocale("View=" + partId + ", " +"Viewer")
+            return "View=" + partId + ", " +"Viewer"
 
     def findPossibleUIMapIdentifiers(self):
         return [ self.getUIMapIdentifier() ]
@@ -456,7 +456,7 @@ class ViewerSelectEvent(ViewerEvent):
             else:
                 return parts
         else:
-            raise UseCaseScriptError, "could not find any objects in viewer matching description "  + repr(description)
+            raise UseCaseScriptError, "could not find any objects in viewer matching description '"  + description + "'"
         
     def generate(self, parts, partial=False):
         if not partial:
@@ -570,7 +570,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
         sourceDesc, dest = description.split(" to ", 1)
         editPart = self.findEditPart(self.widget.rootEditPart(), sourceDesc)
         if not editPart:
-            raise UseCaseScriptError, "could not find any objects in viewer matching description " + repr(sourceDesc)
+            raise UseCaseScriptError, "could not find any objects in viewer matching description '" + sourceDesc + "'"
         
         displayLocation = self.parseDestination(dest)
         return editPart, displayLocation.x, displayLocation.y

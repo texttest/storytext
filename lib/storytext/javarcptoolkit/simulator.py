@@ -159,7 +159,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
 class ViewAdapter(swtsimulator.WidgetAdapter):
     def getUIMapIdentifier(self):
         viewId = self.widget.getViewReference().getId()
-        return self.encodeToLocale("View=" + viewId)
+        return "View=" + viewId
 
     def findPossibleUIMapIdentifiers(self):
         return [ self.getUIMapIdentifier() ]
@@ -195,7 +195,7 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         if self.getTitleArgument() == argumentString:
             return argumentString
         else:
-            raise UseCaseScriptError, "Could not find View named " + repr(argumentString) + " to activate."
+            raise UseCaseScriptError, "Could not find View named '" + argumentString + "' to activate."
 
     def getTitle(self):
         return self.widget.getViewReference().getTitle()

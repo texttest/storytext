@@ -398,7 +398,7 @@ class MenuEvent(guishared.GuiEvent):
                 self.widget.entryconfigure(i, command=self.CommandWithRecord(i, self, command, method))
 
     def getItemText(self, index):
-        return self.widget.encodeToLocale(self.widget.entrycget(index, "label"))
+        return self.widget.entrycget(index, "label")
 
     def outputForScript(self, index, *args):
         return self.name + " " + self.getItemText(index)

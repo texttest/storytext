@@ -3,7 +3,7 @@
 
 import os, sys, signal, logging
 from copy import copy
-import replayer
+import replayer, encodingutils
 from definitions import *
 
 try:
@@ -98,7 +98,7 @@ class RecordScript:
     
     def _record(self, line):
         if not self.fileForAppend:
-            self.fileForAppend = open(self.scriptName, "w")
+            self.fileForAppend = encodingutils.openEncoded(self.scriptName, "w")
         self.fileForAppend.write(line + "\n")
         self.fileForAppend.flush()
     
