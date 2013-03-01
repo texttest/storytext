@@ -69,7 +69,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
     
     def getWidgetTitle(self):
         if hasattr(self.widget, "getTitle"):
-            return self.widget.getTitle()
+            return self.widget.getTitle() or ""
         else:
             return ""
             
@@ -83,7 +83,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
         text = ""
         if hasattr(self.widget, "getLabel") and not self.getContextName():
-            text = self.widget.getLabel()
+            text = self.widget.getLabel() or ""
         else:
             return ""
                 

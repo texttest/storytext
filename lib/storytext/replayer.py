@@ -1,7 +1,8 @@
 
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
-import os, sys, signal, time, logging, re
+import os, sys, signal, time, re
+import encodingutils
 from threading import Thread, Timer, Lock
 from definitions import *
 from copy import copy
@@ -38,7 +39,7 @@ class ReplayScript(object):
         self.name = scriptName
         if not os.path.isfile(scriptName):
             raise UseCaseScriptError, "Cannot replay script " + repr(scriptName) + ", no such file or directory."
-        for line in open(scriptName):
+        for line in encodingutils.openEncoded(scriptName):
             line = line.strip()
             if not ignoreComments or (line != "" and line[0] != "#"):
                 self.commands.append(line)
@@ -220,7 +221,7 @@ class ShortcutManager:
     
 class UseCaseReplayer:
     def __init__(self, timeout=60):
-        self.logger = logging.getLogger("storytext replay log")
+        self.logger = encodingutils.getEncodedLogger("storytext replay log")
         self.scripts = []
         self.shortcutManager = ShortcutManager()
         self.events = {}
@@ -466,7 +467,7 @@ class UseCaseReplayer:
         except UseCaseScriptError:
             # We don't terminate scripts if they contain errors
             type, value, _ = sys.exc_info()
-            self.write("ERROR: Could not simulate command " + repr(command) + " - " + str(value))
+            self.write("ERROR: Could not simulate command '" + command + "' - " + unicode(value))
             
     def describeEvent(self, commandName, argumentString):
         self.write("")
