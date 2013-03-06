@@ -259,8 +259,9 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
         for viewer in self.getViewers(botView):
             menu = viewer.getViewer().getControl().getMenu()
             if menu:
+                rcpsimulator.WidgetAdapter.storeId(menu, botView.getViewReference().getId())
                 self.monitorMenu(menu)
-
+                
     def sendShowEvent(self, menu):
         menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
         

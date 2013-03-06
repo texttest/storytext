@@ -27,14 +27,35 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
     def getUIMapIdentifier(self):
         orig = swtsimulator.WidgetAdapter.getUIMapIdentifier(self)
         if orig.startswith("Type="):
-            return self.addViewId(self.widget.widget, orig)
+            return self.addViewId(self.getViewWidget(), orig)
         else:
             return orig
+        
+    def getViewWidget(self):
+        widget = self.widget.widget
+        if isinstance(widget, MenuItem):
+            return swtsimulator.runOnUIThread(self.getRootMenu, widget)
+        else:
+            return widget
+
+    def getRootMenu(self, menuItem):
+        menu = menuItem.getParent()
+        while menu.getParentMenu() is not None:
+            menu = menu.getParentMenu()
+        return menu
 
     def findPossibleUIMapIdentifiers(self):
         orig = swtsimulator.WidgetAdapter.findPossibleUIMapIdentifiers(self)
-        orig[-1] = self.addViewId(self.widget.widget, orig[-1])
-        return orig
+        viewWidget = self.getViewWidget()
+        if viewWidget in self.widgetViewIds:
+            identifiersWithIds = []
+            for identifier in orig:
+                if not identifier.startswith("Name="):
+                    identifiersWithIds.append(self.addViewId(viewWidget, identifier))
+                identifiersWithIds.append(identifier)
+            return identifiersWithIds
+        else:
+            return orig
 
     def addViewId(self, widget, text):
         viewId = self.widgetViewIds.get(widget)
@@ -52,14 +73,21 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
             return viewId.lower().split(".")[-1]
         else:
             return self.getType().lower()
-
+        
+    @classmethod
+    def storeId(cls, widget, viewId):
+        cls.widgetViewIds[widget] = viewId
+        
     @classmethod
     def storeIdWithChildren(cls, widget, viewId):
-        cls.widgetViewIds[widget] = viewId
+        cls.storeId(widget, viewId)
         if hasattr(widget, "getChildren"):
             for child in widget.getChildren():
                 cls.storeIdWithChildren(child, viewId)
-
+        if hasattr(widget, "getMenu") and widget.getMenu():
+            cls.storeId(widget.getMenu(), viewId)
+        
+        
 class DisplayFilter(swtsimulator.DisplayFilter):
     def hasComplexAncestors(self, widget):
         return self.isFilterTreeText(widget) or swtsimulator.DisplayFilter.hasComplexAncestors(self, widget)
@@ -130,6 +158,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     
     def propertyChanged(self, propertyId, botView):
         if propertyId == IWorkbenchPartConstants.PROP_PART_NAME or propertyId == IWorkbenchPartConstants.PROP_TITLE:
+            self.logger.debug("Property changed in " + botView.getViewReference().getId())
             self.monitorMenus(botView)
     
     def addTitleChangedListener(self, botView):
@@ -146,13 +175,15 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.monitorViewContentsMenus(botView)
         
     def monitorViewMenus(self, botView):
-        pane = botView.getViewReference().getPane()
+        ref = botView.getViewReference()
+        pane = ref.getPane()
         if pane.hasViewMenu():            
             menuManager = pane.getMenuManager()
             menu = menuManager.createContextMenu(pane.getControl().getParent())
             menuManager.updateAll(True)
+            WidgetAdapter.storeId(menu, ref.getId())
             menu.notifyListeners(SWT.Show, Event())
-    
+            
     def monitorViewContentsMenus(self, botView):
         pass
 
