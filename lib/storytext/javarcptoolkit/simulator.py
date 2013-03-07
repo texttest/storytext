@@ -158,7 +158,6 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     
     def propertyChanged(self, propertyId, botView):
         if propertyId == IWorkbenchPartConstants.PROP_PART_NAME or propertyId == IWorkbenchPartConstants.PROP_TITLE:
-            self.logger.debug("Property changed in " + botView.getViewReference().getId())
             self.monitorMenus(botView)
     
     def addTitleChangedListener(self, botView):
