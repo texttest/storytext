@@ -141,9 +141,13 @@ class Describer(storytext.guishared.Describer):
                 descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount, **kw)
         return descs
 
-    def getCascadeMenuDescriptions(self, item, indent, storeStatesForSubMenus=False, **kw):
+    def getCascadeMenuDescriptions(self, item, indent, storeStatesForSubMenus=False, describeMenus=None, **kw):
         cascadeMenu = item.getMenu()
         if cascadeMenu:
+            if describeMenus:
+                text = item.getText().replace("&", "")
+                if text not in describeMenus:
+                    return []
             descs = self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, 
                                                 storeStatesForSubMenus=storeStatesForSubMenus, **kw)
             if indent == 1 and storeStatesForSubMenus:
@@ -187,8 +191,9 @@ class Describer(storytext.guishared.Describer):
         return self.getMenuDescription(menu, indent=2)
     
     def getMenuBarDescription(self, menubar):
-        if menubar and "Menu" not in self.excludeClassNames:
-            return "Menu Bar:\n" + self.getMenuDescription(menubar, storeStatesForSubMenus=True)
+        if menubar and self.describeClass("Menu"):
+            describeMenus = self.excludeClassNames.get("Menu")
+            return "Menu Bar:\n" + self.getMenuDescription(menubar, storeStatesForSubMenus=True, describeMenus=describeMenus)
         else:
             return ""
 

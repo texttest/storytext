@@ -327,7 +327,10 @@ class ScriptEngine(scriptengine.ScriptEngine):
         if options.pathstoimages:
             Describer.imagePaths = options.pathstoimages.split(",")
         if options.exclude_describe:
-            Describer.excludeClassNames = options.exclude_describe.split(",")
+            for excludeStr in options.exclude_describe.split(","):
+                parts = excludeStr.split("!")
+                Describer.excludeClassNames[parts[0]] = parts[1:]
+            
 
     def run_python_or_java(self, args):
         # Two options here: either a Jython program and hence a .py file, or a Java class
@@ -972,7 +975,7 @@ class Describer(object):
     maxOutputWidth = 130
     imagePaths = []
     imageDescriptionType = None
-    excludeClassNames = []
+    excludeClassNames = {}
     def __init__(self):
         self.logger = encodingutils.getEncodedLogger("gui log")
         self.windows = set()
@@ -1091,12 +1094,16 @@ class Describer(object):
             return desc.rstrip()
         else:
             return childDesc
+        
+    @classmethod
+    def describeClass(cls, className):
+        return cls.excludeClassNames.get(className) != []
     
     def getWidgetDescription(self, widget):
         for widgetClass in self.stateWidgets + self.statelessWidgets:
             if isinstance(widget, widgetClass):
                 className = widgetClass.__name__
-                if className not in self.excludeClassNames:
+                if self.describeClass(className):
                     methodName = "get" + className.replace("$", "") + "Description"
                     return getattr(self, methodName)(widget)
                 else:
