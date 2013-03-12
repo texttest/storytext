@@ -261,10 +261,7 @@ class WidgetMonitor(rcpsimulator.WidgetMonitor):
             if menu:
                 rcpsimulator.WidgetAdapter.storeId(menu, botView.getViewReference().getId())
                 self.monitorMenu(menu)
-                
-    def sendShowEvent(self, menu):
-        menu.notifyListeners(swt.SWT.Show, swt.widgets.Event())
-        
+                    
     def monitorMenu(self, menu):
         if menu.getItemCount() == 0:
             # The menu is a Contribution defined in plugin.xml. We have to send an extra

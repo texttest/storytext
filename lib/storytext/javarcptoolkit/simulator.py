@@ -143,6 +143,14 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
                 self.uiMap.monitorWidget(adapter)
                 self.monitorMenus(swtbotView)
                 self.addTitleChangedListener(swtbotView)
+                self.addActivePartListener(swtbotView)
+                
+    def addActivePartListener(self, swtbotView):
+        class RecordListener(IPartListener):
+            def partActivated(listenerSelf, part):#@NoSelf
+                self.monitorMenus(swtbotView)
+        page = swtbotView.getViewReference().getPage()
+        swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
                 
     def handleReplayFailure(self, errorText, *args):
         if "MenuItem has already been disposed" in errorText: # View Menus can easily get regenerated, try to re-monitor them.
@@ -173,6 +181,9 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.monitorViewMenus(botView)
         self.monitorViewContentsMenus(botView)
         
+    def sendShowEvent(self, menu):
+        menu.notifyListeners(SWT.Show, Event())
+        
     def monitorViewMenus(self, botView):
         ref = botView.getViewReference()
         pane = ref.getPane()
@@ -181,7 +192,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
             menu = menuManager.createContextMenu(pane.getControl().getParent())
             menuManager.updateAll(True)
             WidgetAdapter.storeId(menu, ref.getId())
-            menu.notifyListeners(SWT.Show, Event())
+            self.sendShowEvent(menu)
             
     def monitorViewContentsMenus(self, botView):
         pass
