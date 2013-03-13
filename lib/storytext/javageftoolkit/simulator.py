@@ -218,19 +218,11 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         
     def mouseMoveLeftClick(self, x, y, keyModifiers=0):
         displayLoc = swtsimulator.runOnUIThread(self.toDisplayLocation, x, y)
-        currPos = swtsimulator.runOnUIThread(self.getCursorLocation)
-        self.eventPoster.moveMouseAndWait(displayLoc.x, displayLoc.y)
-        self.eventPoster.checkAndPostKeyPressed(keyModifiers)
-        self.eventPoster.clickMouse()
-        self.eventPoster.checkAndPostKeyReleased(keyModifiers)
-        self.eventPoster.moveMouseAndWait(currPos.x, currPos.y)
+        self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y, keyModifiers)
                 
     def toDisplayLocation(self, x, y):
         return self.widget.getDisplay().map(self.widget, None, x, y)
 
-    def getCursorLocation(self):
-        return self.widget.getDisplay().getCursorLocation()
-   
 
 class DisplayFilter(rcpsimulator.DisplayFilter):
     def shouldCheckWidget(self, widget, eventType):

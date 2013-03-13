@@ -1166,6 +1166,15 @@ class EventPoster:
         while self.display.getCursorLocation().x != x and self.display.getCursorLocation().y != y:
             time.sleep(0.1)
 
+    def moveClickAndReturn(self, x, y, keyModifiers=0):            
+        currPos = runOnUIThread(self.display.getCursorLocation)
+        self.moveMouseAndWait(x, y)
+        self.checkAndPostKeyPressed(keyModifiers)
+        self.clickMouse()
+        self.checkAndPostKeyReleased(keyModifiers)
+        self.moveMouseAndWait(currPos.x, currPos.y)
+
+
 
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
