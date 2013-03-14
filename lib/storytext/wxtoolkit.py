@@ -4,6 +4,9 @@
 import guishared, os, time, wx, logging, inspect
 from definitions import UseCaseScriptError
 from ordereddict import OrderedDict
+from wxmessagebox import wrap_message_box
+from wxmessagebox import MessageBoxWidget
+from . import overrides
 
 origApp = wx.App
 origPySimpleApp = wx.PySimpleApp
@@ -179,6 +182,10 @@ class SignalEvent(guishared.GuiEvent):
     def getAssociatedSignal(cls, widget):
         return cls.signal
 
+    def generate(self, argumentString):
+        pass 
+
+
 class FrameEvent(SignalEvent):
     event = wx.EVT_CLOSE
     signal = "Close"
@@ -341,7 +348,22 @@ class FileDialogEvent(SignalEvent):
         return self.name + " " + path
 
     def generate(self, argumentString):
-        pass # Don't need to do anything here, we prime the data beforehand. See UseCaseReplayer.cacheFileDialogInfo below
+        pass 
+
+
+class MessageBoxEvent(SignalEvent):
+    signal = "MessageBoxReply"
+    
+    @overrides(SignalEvent)
+    def connectRecord(self, method):
+        def handler(reply):
+            method(reply, self)
+        self.widget.setRecordHandler(handler)
+
+    @overrides(SignalEvent)
+    def outputForScript(self, reply, *args):
+        MAP = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
+        return self.name + " " + MAP[reply]
 
 
 class MenuEvent(SignalEvent):
@@ -479,6 +501,7 @@ class UIMap(guishared.UIMap):
         Dialog.uiMap = self
         wx.FileDialog = FileDialog
         FileDialog.uiMap = self
+        wrap_message_box(self.replaying, self.monitorAndStoreWindow)
         
     def getFileDialogInfo(self):
         parser = self.fileHandler.readParser
@@ -488,6 +511,18 @@ class UIMap(guishared.UIMap):
                 cmdName = parser.get(section, "SelectFile")
                 dialogInfo.append((cmdName, section))
         return dialogInfo
+
+    def replaying(self):
+        return self.scriptEngine.replayer.isActive()
+                
+    def getMessageBoxReplies(self):
+        parser = self.fileHandler.readParser
+        messageBoxReplies = []
+        for section in parser.sections():
+            if parser.has_option(section, "MessageBoxReply"):
+                cmdName = parser.get(section, "MessageBoxReply")
+                messageBoxReplies.append((cmdName, section))
+        return messageBoxReplies
 
     def monitorAndStoreWindow(self, window):
         self.monitorWindow(WidgetAdapter(window)) # handle self.windows below instead
@@ -508,6 +543,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
         guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
         self.cacheFileDialogInfo()
+        self.cacheMessageBoxReplies()
 
     def addScript(self, script, *args):
         guishared.IdleHandlerUseCaseReplayer.addScript(self, script, *args)
@@ -515,18 +551,29 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
 
     def cacheFileDialogInfo(self):
         fileDialogInfo = self.uiMap.getFileDialogInfo()
+        autoPrefix = "Auto.FileDialog.SelectFile"
+        cacheMethod = FileDialog.cacheFileReplay
+        self.cacheInfo(fileDialogInfo, cacheMethod, autoPrefix)
+
+    def cacheMessageBoxReplies(self):
+        messageBoxReplies = self.uiMap.getMessageBoxReplies()
+        autoPrefix = "Auto.MessageBox.MessageBoxReply"
+        cacheMethod = MessageBoxWidget.cacheMessageBoxReplies
+        self.cacheInfo(messageBoxReplies, cacheMethod, autoPrefix)
+
+    def cacheInfo(self, infos, cacheMethod, autoPrefix):
         for script, _ in self.scripts:
             for cmd in script.commands:
-                for dialogCmd, identifier in fileDialogInfo:
+                for dialogCmd, identifier in infos:
                     if cmd.startswith(dialogCmd + " "):
                         filename = cmd.replace(dialogCmd + " ", "")
-                        FileDialog.cacheFileReplay(identifier, filename)
-                if cmd.startswith("Auto.FileDialog.SelectFile"):
+                        cacheMethod(identifier, filename)
+                if cmd.startswith(autoPrefix):
                     parts = cmd.split("'")
                     identifier = parts[1]
                     filename = parts[-1].strip()
-                    FileDialog.cacheFileReplay(identifier, filename)
-
+                    cacheMethod(identifier, filename)
+        
     def makeIdleHandler(self, method):
         if wx.GetApp():
             return wx.CallLater(0, method)
@@ -582,7 +629,8 @@ class ScriptEngine(guishared.ScriptEngine):
         (wx.TextCtrl    , [ TextCtrlEvent ]),
         (wx.CheckBox    , [ CheckEvent, UncheckEvent, CheckThirdStateEvent ]),
         (wx.ListCtrl    , [ ListCtrlEvent ]),
-        (wx.FileDialog  , [ FileDialogEvent ])
+        (wx.FileDialog  , [ FileDialogEvent ]),
+        (MessageBoxWidget  , [ MessageBoxEvent ]),
         ]
     signalDescs = {
         "<<ListCtrlSelect>>": "select item",
