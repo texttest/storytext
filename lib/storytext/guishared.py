@@ -1439,14 +1439,27 @@ class Describer(object):
     def formatDiffs(self, oldRow, newRow):
         return "'" + oldRow.strip() + "'" +  " changed to " + "'" + newRow.strip() + "'"
 
-class TableIndexer:
+class Indexer:
     allIndexers = {}
-    def __init__(self, table):
-        self.table = table
-        self.logger = logging.getLogger("TableIndexer")
-        self.primaryKeyColumn, self.rowNames = self.findRowNames()
-        self.logger.debug("Creating table indexer with rows " + repr(self.rowNames))
+    def __init__(self, widget):
+        self.widget = widget
+        self.logger = logging.getLogger("Indexer")
+        
+    @classmethod
+    def getIndexer(cls, widget):
+        # Don't just do setdefault, shouldn't create the Indexer if it already exists
+        if widget in cls.allIndexers:
+            return cls.allIndexers.get(widget)
+        else:
+            return cls.allIndexers.setdefault(widget, cls(widget))
 
+    
+class TableIndexer(Indexer):
+    def __init__(self, widget):
+        Indexer.__init__(self, widget)
+        self.primaryKeyColumn, self.rowNames = self.findRowNames()
+        self.logger.debug("Creating " + self.__class__.__name__ + " with rows " + repr(self.rowNames))
+    
     def updateTableInfo(self):
         if self.primaryKeyColumn is None:
             self.primaryKeyColumn, self.rowNames = self.findRowNames()
@@ -1458,14 +1471,6 @@ class TableIndexer:
                 self.rowNames = currRowNames
                 self.logger.debug("Model changed, row names now " + repr(self.rowNames))
 
-    @classmethod
-    def getIndexer(cls, table):
-        # Don't just do setdefault, shouldn't create the TableIndexer if it already exists
-        if table in cls.allIndexers:
-            return cls.allIndexers.get(table)
-        else:
-            return cls.allIndexers.setdefault(table, cls(table))
-        
     def getColumn(self, col):
         return [ self.getCellValueToUse(row, col) for row in range(self.getRowCount()) ]
     
@@ -1478,7 +1483,7 @@ class TableIndexer:
     def findRowNames(self):
         firstColumnWithData = None
         if self.getRowCount() > 1:
-            for colIndex in range(self.table.getColumnCount()):
+            for colIndex in range(self.widget.getColumnCount()):
                 column = self.getColumn(colIndex)
                 uniqueEntries = len(set(column))
                 if len(column) > 1 and uniqueEntries == len(column):
@@ -1508,7 +1513,7 @@ class TableIndexer:
         return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
 
     def findColumnIndex(self, columnName):
-        for col in range(self.table.getColumnCount()):
+        for col in range(self.widget.getColumnCount()):
             if self.getColumnTextToUse(col) == columnName:
                 return col
 
@@ -1533,7 +1538,7 @@ class TableIndexer:
             raise definitions.UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table.\nRow names are " + repr(self.rowNames)
                     
     def useColumnTextInDescription(self, **kw):
-        return self.table.getColumnCount() > 1
+        return self.widget.getColumnCount() > 1
 
     def getCellDescription(self, row, col, **kw):
         rowName = self.rowNames[row]
@@ -1542,6 +1547,42 @@ class TableIndexer:
         else:
             return rowName
 
+class TreeIndexer(Indexer):
+    def __init__(self, widget):
+        Indexer.__init__(self, widget)
+        self.allItems = {}
+        self.allDescriptions = {}
+        self.populate()
+        self.logger.debug("Creating " + self.__class__.__name__ + " with descriptions " + repr(self.allDescriptions.values()))
+    
+    def populate(self):
+        self.allItems = {}
+        self.allDescriptions = {}
+        for item in self.getItems():
+            self.storeItem(item)
+
+    def storeItem(self, item):
+        desc = self.getDescriptionToStore(item)
+        while desc and desc in self.allItems:
+            desc = self.addSuffix(desc)
+        self.allDescriptions[item] = desc
+        self.allItems[desc] = item
+
+    def addSuffix(self, desc):
+        if desc.endswith(")"):
+            startPos = desc.rfind("(") + 1
+            intVal = desc[startPos:-1]
+            if intVal.isdigit():
+                val = int(intVal)
+                return desc[:startPos] + str(val + 1) + ")"
+        return desc + " (2)"
+    
+    def getItem(self, desc):
+        return self.allItems.get(desc)
+    
+    def getItemDescription(self, item):
+        return self.allDescriptions.get(item)
+    
 
 def getExceptionString():
     return "".join(format_exception(*sys.exc_info()))
