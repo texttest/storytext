@@ -758,7 +758,7 @@ class TreeEvent(SignalEvent):
         if argumentString:
             indexer = self.indexerClass.getIndexer(self.widget.widget.widget)
             item = indexer.getItem(argumentString)
-            if not item:
+            if not item or item.isDisposed():
                 indexer.populate()
                 item = indexer.getItem(argumentString)
             if item:
