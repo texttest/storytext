@@ -7,29 +7,15 @@ monitor = None
 
 
 class MessageBoxWidget():
-    
-    messageBoxReplies = {}
-    callCounts = {}
-    
+    messageBoxReplies = {}    
     def __init__(self, title):
-        self._incrementCallCount(title)
-        self.title = self._concatenateTitleAndCallCount(title)
+        self.title = title
         self.recordHandler = None
         
     @classmethod
     def cacheMessageBoxReplies(cls, identifier, answer):
-        cls.messageBoxReplies[identifier] = answer
+        cls.messageBoxReplies.setdefault(identifier, []).append(answer)
         
-    @classmethod
-    def _incrementCallCount(cls, title):
-        if title in cls.callCounts.keys():
-            cls.callCounts[title] = int(cls.callCounts[title]) + 1
-        else:
-            cls.callCounts[title] = 1
-
-    def _concatenateTitleAndCallCount(self, title):
-        return "%s-%d" % (title, self.callCounts[title])
-
     def GetTitle(self):
         return self.title
     
@@ -46,7 +32,8 @@ class MessageBoxWidget():
         return []
     
     def getReturnValueFromCache(self):
-        userReply = self.messageBoxReplies["Title=" + self.title].lower()
+        userReplies = self.messageBoxReplies["Title=" + self.title]
+        userReply = userReplies.pop(0).lower()
         return getattr(wx, userReply.upper())
 
     def setRecordHandler(self, handler):
