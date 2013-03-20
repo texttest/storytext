@@ -57,11 +57,12 @@ def MessageBox(*args, **kw):
     widget = MessageBoxWidget(args[1])
     monitor(widget)
     if replaying():
-        return widget.getReturnValueFromCache()
+        userReply = widget.getReturnValueFromCache()
     else:
         userReply = wxMessageBox(*args, **kw)
+    if widget.recordHandler:
         widget.recordHandler(userReply)
-        return userReply
+    return userReply
 
     
 def wrap_message_box(replayingMethod, monitorMethod):
