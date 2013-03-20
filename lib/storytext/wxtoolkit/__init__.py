@@ -350,6 +350,8 @@ class FileDialogEvent(SignalEvent):
         pass 
 
 
+messageBoxReplies = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
+
 class MessageBoxEvent(SignalEvent):
     signal = "MessageBoxReply"
     def connectRecord(self, method):
@@ -358,8 +360,7 @@ class MessageBoxEvent(SignalEvent):
         self.widget.setRecordHandler(handler)
 
     def outputForScript(self, reply, *args):
-        MAP = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
-        return self.name + " " + MAP[reply]
+        return self.name + " " + messageBoxReplies[reply]
 
 
 class MenuEvent(SignalEvent):
@@ -497,7 +498,7 @@ class UIMap(storytext.guishared.UIMap):
         Dialog.uiMap = self
         wx.FileDialog = FileDialog
         FileDialog.uiMap = self
-        wrap_message_box(self.replaying, self.monitorAndStoreWindow)
+        wrap_message_box(self.replaying, self.monitorAndDescribe)
         
     def getFileDialogInfo(self):
         parser = self.fileHandler.readParser
@@ -519,6 +520,10 @@ class UIMap(storytext.guishared.UIMap):
                 cmdName = parser.get(section, "MessageBoxReply")
                 messageBoxReplies.append((cmdName, section))
         return messageBoxReplies
+
+    def monitorAndDescribe(self, window, *args, **kw):
+        self.monitorAndStoreWindow(window)
+        self.scriptEngine.replayer.describer.describeMessageBox(*args, **kw)
 
     def monitorAndStoreWindow(self, window):
         self.monitorWindow(WidgetAdapter(window)) # handle self.windows below instead
@@ -778,6 +783,22 @@ class Describer(storytext.guishared.Describer):
 
     def getFrameState(self, widget):
         return widget.GetTitle()
+    
+    def describeMessageBox(self, message, caption = "Message", style = wx.OK, *args, **kw):
+        header = "-" * 10 + " Message Box '" + caption + "' " + "-" * 10
+        self.logger.info("\n" + header)
+        self.logger.info(message)
+        footerLength = min(len(header), 100) # Don't let footers become too huge, they become ugly...
+        if style:
+            self.logger.info(".....")
+            buttons = []
+            for reply, name in sorted(messageBoxReplies.items()):
+                if style & reply:
+                    buttons.append("Button '" + name + "'")
+            if buttons:
+                self.logger.info("  ".join(buttons))
+                
+        self.logger.info("-" * footerLength)
 
 # Example menu structure as output by getMenuBarDescription, showing radio
 # items, checked items, submenus, and separators:

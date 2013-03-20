@@ -42,7 +42,7 @@ class MessageBoxWidget():
         
 def MessageBox(*args, **kw):
     widget = MessageBoxWidget(args[1])
-    monitor(widget)
+    monitor(widget, *args, **kw)
     if replaying():
         userReply = widget.getReturnValueFromCache()
     else:
