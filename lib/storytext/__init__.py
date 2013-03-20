@@ -31,9 +31,3 @@ def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
         scriptEngine.addUiMapFiles(uiMapFiles)
         scriptEngine.addCustomEventTypes(customEventTypes)
     return scriptEngine.createShortcutBar()
-
-def overrides(interface_class):
-    def overrider(method):
-        assert(method.__name__ in dir(interface_class))
-        return method
-    return overrider

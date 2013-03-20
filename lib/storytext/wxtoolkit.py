@@ -6,7 +6,6 @@ from definitions import UseCaseScriptError
 from ordereddict import OrderedDict
 from wxmessagebox import wrap_message_box
 from wxmessagebox import MessageBoxWidget
-from . import overrides
 
 origApp = wx.App
 origPySimpleApp = wx.PySimpleApp
@@ -353,14 +352,11 @@ class FileDialogEvent(SignalEvent):
 
 class MessageBoxEvent(SignalEvent):
     signal = "MessageBoxReply"
-    
-    @overrides(SignalEvent)
     def connectRecord(self, method):
         def handler(reply):
             method(reply, self)
         self.widget.setRecordHandler(handler)
 
-    @overrides(SignalEvent)
     def outputForScript(self, reply, *args):
         MAP = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
         return self.name + " " + MAP[reply]
