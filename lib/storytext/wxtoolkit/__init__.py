@@ -553,7 +553,7 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
 
     def cacheMessageBoxReplies(self):
         messageBoxReplies = self.uiMap.getMessageBoxReplies()
-        autoPrefix = "Auto.MessageBox.MessageBoxReply"
+        autoPrefix = "Auto.MessageBoxWidget.MessageBoxReply"
         cacheMethod = MessageBoxWidget.cacheMessageBoxReplies
         self.cacheInfo(messageBoxReplies, cacheMethod, autoPrefix)
 
