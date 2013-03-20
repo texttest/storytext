@@ -761,7 +761,7 @@ class TableIndexer(storytext.guishared.TableIndexer):
             def tableChanged(listenerSelf, event): #@NoSelf
                 storytext.guishared.catchAll(self.updateTableInfo)
                 
-        util.runOnEventDispatchThread(self.table.getModel().addTableModelListener, TableListener())
+        util.runOnEventDispatchThread(self.widget.getModel().addTableModelListener, TableListener())
 
     def updateTableInfo(self):
         if self.primaryKeyColumn is None:
@@ -775,21 +775,21 @@ class TableIndexer(storytext.guishared.TableIndexer):
                 self.logger.debug("Model changed, row names now " + repr(self.rowNames))
                 
     def getRowCount(self):
-        return self.table.getRowCount()
+        return self.widget.getRowCount()
 
     def getCellValue(self, row, col):
         return self.textFinder.getJTableText(row, col)
     
     def getCellDescription(self, row, *args, **kw):
-        rowModelIndex = self.table.convertRowIndexToModel(row)
+        rowModelIndex = self.widget.convertRowIndexToModel(row)
         return storytext.guishared.TableIndexer.getCellDescription(self, rowModelIndex, *args, **kw)
     
     def getViewCellIndices(self, description):
         rowModelIndex, col = storytext.guishared.TableIndexer.getViewCellIndices(self, description)
-        return self.table.convertRowIndexToView(rowModelIndex), col
+        return self.widget.convertRowIndexToView(rowModelIndex), col
     
     def useColumnTextInDescription(self, checkSelectionModel=True):
-        return self.table.getColumnCount() > 1 and (not checkSelectionModel or self.table.getCellSelectionEnabled())
+        return self.widget.getColumnCount() > 1 and (not checkSelectionModel or self.widget.getCellSelectionEnabled())
 
 
 class PhysicalEventManager:
