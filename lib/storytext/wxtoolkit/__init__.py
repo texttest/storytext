@@ -1,8 +1,8 @@
 
 # Experimental and rather basic support for wx
 
-import guishared, os, time, wx, logging, inspect
-from definitions import UseCaseScriptError
+import storytext.guishared, os, time, wx, logging, inspect
+from storytext.definitions import UseCaseScriptError
 from ordereddict import OrderedDict
 from wxmessagebox import wrap_message_box
 from wxmessagebox import MessageBoxWidget
@@ -90,7 +90,7 @@ class FileDialog(origFileDialog):
     def GetFilename(self):
         return os.path.basename(self.GetPath()) 
 
-class TextLabelFinder(guishared.TextLabelFinder):
+class TextLabelFinder(storytext.guishared.TextLabelFinder):
     def find(self):
         sizer = self.findSizer(self.widget)
         return self.findInSizer(sizer) if sizer is not None else ""
@@ -126,7 +126,7 @@ class TextLabelFinder(guishared.TextLabelFinder):
             return self.findSizer(widget.GetParent())
 
 
-class WidgetAdapter(guishared.WidgetAdapter):
+class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getChildWidgets(self):
         if self.isInstanceOf(wx.MenuItem):
             return []
@@ -156,9 +156,9 @@ class WidgetAdapter(guishared.WidgetAdapter):
     def getName(self):
         return self.widget.GetName() if hasattr(self.widget, "GetName") else ""
 
-guishared.WidgetAdapter.adapterClass = WidgetAdapter
+storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter
 
-class SignalEvent(guishared.GuiEvent):
+class SignalEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
         self._connectRecord(method, self.widget)
 
@@ -490,9 +490,9 @@ class ContextMenuEvent(MenuEvent):
         handler.ProcessEvent(menu_event)
         
 
-class UIMap(guishared.UIMap):
+class UIMap(storytext.guishared.UIMap):
     def __init__(self, *args):
-        guishared.UIMap.__init__(self, *args)
+        storytext.guishared.UIMap.__init__(self, *args)
         wx.Dialog = Dialog
         Dialog.uiMap = self
         wx.FileDialog = FileDialog
@@ -526,7 +526,7 @@ class UIMap(guishared.UIMap):
     def monitor(self, widget, *args):
         if widget.widget not in self.windows:
             self.windows.append(widget.widget)
-            guishared.UIMap.monitor(self, widget, *args)
+            storytext.guishared.UIMap.monitor(self, widget, *args)
             if hasattr(widget, "Bind"):
                 def OnPaint(event):
                     self.monitorChildren(widget)
@@ -534,15 +534,15 @@ class UIMap(guishared.UIMap):
                 widget.Bind(wx.EVT_PAINT, OnPaint)
 
 
-class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
+class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
-        guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
+        storytext.guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
         self.cacheFileDialogInfo()
         self.cacheMessageBoxReplies()
 
     def addScript(self, script, *args):
-        guishared.IdleHandlerUseCaseReplayer.addScript(self, script, *args)
+        storytext.guishared.IdleHandlerUseCaseReplayer.addScript(self, script, *args)
         self.cacheFileDialogInfo()
 
     def cacheFileDialogInfo(self):
@@ -582,7 +582,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
 
     def handleNewWindows(self, *args):
         self.describer.describeUpdates()
-        guishared.IdleHandlerUseCaseReplayer.handleNewWindows(self)
+        storytext.guishared.IdleHandlerUseCaseReplayer.handleNewWindows(self)
 
     def describeNewWindow(self, window):
         self.describer.describe(window)
@@ -597,7 +597,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
             args[0].RequestMore()
             return True
         else:
-            return guishared.IdleHandlerUseCaseReplayer.callReplayHandlerAgain(self, *args)
+            return storytext.guishared.IdleHandlerUseCaseReplayer.callReplayHandlerAgain(self, *args)
 
     def makeTimeoutReplayHandler(self, method, milliseconds):
         if wx.GetApp():
@@ -616,7 +616,7 @@ class UseCaseReplayer(guishared.IdleHandlerUseCaseReplayer):
         else:
             app.setUpHandlers()
 
-class ScriptEngine(guishared.ScriptEngine):
+class ScriptEngine(storytext.guishared.ScriptEngine):
     eventTypes = [
         (wx.Window      , [ ContextMenuEvent ]),
         (wx.Frame       , [ FrameEvent,  MenuEvent]),
@@ -649,7 +649,7 @@ class ScriptEngine(guishared.ScriptEngine):
     def getSupportedLogWidgets(self):
         return Describer.statelessWidgets + Describer.stateWidgets
 
-class Describer(guishared.Describer):
+class Describer(storytext.guishared.Describer):
     ignoreWidgets = [ wx.ScrolledWindow, wx.Window, wx.Dialog, wx.Sizer ]
     statelessWidgets = [ wx.Button, wx.MenuBar, wx.Menu, wx.MenuItem ]
     stateWidgets = [ wx.Frame, wx.Dialog, wx.ListCtrl, wx.TextCtrl, wx.StaticText,
