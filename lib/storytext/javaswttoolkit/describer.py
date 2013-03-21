@@ -465,8 +465,10 @@ class Describer(storytext.guishared.Describer):
             return "\n"
         elif isinstance(widget, swt.widgets.Menu):
             parentItem = widget.getParentItem()
+            menuRefNr = self.contextMenuCounter.getWidgetNumber(widget)
+            menuRefNr = " " + str(menuRefNr) if menuRefNr > 0 else ""
             menuName = parentItem.getText() if parentItem else "Context"
-            return "\nUpdated " + menuName + " Menu:\n"
+            return "\nUpdated " + menuName + " Menu" + menuRefNr +":\n"
         elif isinstance(widget, (swt.widgets.Label, swt.custom.CLabel)) and len(state) == 0:
             return "\nLabel now empty, previously " + oldState
         else:
