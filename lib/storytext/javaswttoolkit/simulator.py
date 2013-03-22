@@ -48,7 +48,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
             text = self.widget.getText()
         except:
             return ""
-        text = text.replace("&", "").split("\t")[0]
+        text = util.getItemText(text)
         if text in self.dialogTexts:
             dialogTitle = self.getDialogTitle()
             if dialogTitle:
@@ -115,19 +115,24 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
         
+class BasicRecordListener(swt.widgets.Listener):
+    def __init__(self, method, event):
+        self.method = method
+        self.event = event
+        
+    def handleEvent(self, e): 
+        storytext.guishared.catchAll(self.method, e, self.event)
+
+        
 class SignalEvent(storytext.guishared.GuiEvent):
     def __init__(self, name, widget, argumentParseData, *args):
         self.generationModifiers = argumentParseData.split(",") if argumentParseData else []
         storytext.guishared.GuiEvent.__init__(self, name, widget, *args)
         
     def connectRecord(self, method):
-        class RecordListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e): #@NoSelf
-                storytext.guishared.catchAll(method, e, self)
-
         eventType = self.getRecordEventType()
         try:
-            runOnUIThread(self.addListeners, eventType, RecordListener())
+            runOnUIThread(self.addListeners, eventType, BasicRecordListener(method, self))
         except: # Get 'widget is disposed' sometimes, don't know why...
             pass
         
@@ -233,6 +238,88 @@ class SWTBotRadioMenu(swtbot.widgets.SWTBotMenu):
             if item.getStyle() & swt.SWT.RADIO and item.getSelection():
                 return item
             
+class DropDownButtonEvent(SelectEvent):
+    def shouldRecord(self, event, *args):
+        return SignalEvent.shouldRecord(self, event, *args) and event.detail & swt.SWT.ARROW == 0
+    
+class DropDownGenerateFilter(swt.widgets.Listener):
+    def __init__(self, argumentString):
+        self.done = False
+        self.argumentString = argumentString
+                
+    def handleEvent(self, e):
+        if isinstance(e.widget, swt.widgets.Menu) and not self.done:
+            if e.widget.getItemCount():
+                self.describeMenu(e.widget)
+            for item in e.widget.getItems():
+                if util.getItemText(item.getText()) == self.argumentString:
+                    swtbot.widgets.SWTBotMenu(item).click()
+                    self.done = True
+                    
+    def describeMenu(self, menu):
+        from describer import Describer
+        desc = Describer()
+        desc.logger.info("\nChoosing from Drop Down Menu:")
+        desc.logger.info(desc.getMenuDescription(menu))
+        
+    
+class DropDownSelectionEvent(SelectEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "DropDownSelection"
+    
+    @classmethod
+    def getRecordEventType(cls):
+        return swt.SWT.Selection
+    
+    def _generate(self, argumentString):
+        genFilter = DropDownGenerateFilter(argumentString)
+        runOnUIThread(self.addFilter, swt.SWT.Show, genFilter)
+        try:
+            item = self.widget.menuItem(argumentString)
+            if not genFilter.done:
+                item.click()
+            # We caused the menu to be visible
+            # Need to hide it again to avoid unwanted effects
+            runOnUIThread(self.hideRootMenu, item)
+        except swtbot.exceptions.WidgetNotFoundException:
+            # thrown if there are no items
+            if not genFilter.done:
+                print "Got menu with no items"
+        runOnUIThread(self.removeFilter, swt.SWT.Show, genFilter)
+            
+    def connectRecord(self, method):
+        class RecordFilter(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e): #@NoSelf
+                if isinstance(e.widget, swt.widgets.MenuItem):
+                    storytext.guishared.catchAll(method, e, self)
+                    for listener in e.widget.getListeners(swt.SWT.Selection):
+                        if isinstance(listener, BasicRecordListener):
+                            e.widget.removeListener(swt.SWT.Selection, listener)
+                            break
+                    self.removeFilter(swt.SWT.Selection, listenerSelf)
+        def arrowClicked(event, *args):
+            # The MenuItem object is very transient, must use Filter to find it
+            if event.detail & swt.SWT.ARROW != 0:
+                self.addFilter(swt.SWT.Selection, RecordFilter())
+                
+        SelectEvent.connectRecord(self, arrowClicked)
+        
+    def addFilter(self, *args):
+        self.widget.widget.widget.getDisplay().addFilter(*args)
+    
+    def removeFilter(self, *args):
+        self.widget.widget.widget.getDisplay().removeFilter(*args)
+        
+    def shouldRecord(self, *args):
+        return True # Never going to get these programmatically, don't bother...
+    
+    def outputForScript(self, event, *args):
+        return self.name + " " + util.getItemText(event.widget.getText())
+                
+    def hideRootMenu(self, item):
+        menu = util.getRootMenu(item.widget)
+        menu.setVisible(False)
     
 class TabEvent(SelectEvent):
     def findTabWithText(self, text):
@@ -1410,7 +1497,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (SWTBotRadioMenu                        , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotToolbarDropDownButton , [ SelectEvent ]),
+                (swtbot.widgets.SWTBotToolbarDropDownButton , [ DropDownButtonEvent, DropDownSelectionEvent ]),
                 (swtbot.widgets.SWTBotToolbarRadioButton, [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),

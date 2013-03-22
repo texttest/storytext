@@ -2,6 +2,7 @@
 """ Simulation stuff specific to using Eclipse RCP. For example View IDs and Editor IDs etc."""
 
 from storytext.javaswttoolkit import simulator as swtsimulator
+from storytext.javaswttoolkit import util
 import storytext.guishared
 from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.finder as swtbot
@@ -34,15 +35,9 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
     def getViewWidget(self):
         widget = self.widget.widget
         if isinstance(widget, MenuItem):
-            return swtsimulator.runOnUIThread(self.getRootMenu, widget)
+            return swtsimulator.runOnUIThread(util.getRootMenu, widget)
         else:
             return widget
-
-    def getRootMenu(self, menuItem):
-        menu = menuItem.getParent()
-        while menu.getParentMenu() is not None:
-            menu = menu.getParentMenu()
-        return menu
 
     def findPossibleUIMapIdentifiers(self):
         orig = swtsimulator.WidgetAdapter.findPossibleUIMapIdentifiers(self)

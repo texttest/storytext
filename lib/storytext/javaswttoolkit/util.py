@@ -75,4 +75,14 @@ def isVisible(widget):
         return False
     else:
         return isVisible(parent)
+    
+def getRootMenu(menuItem):
+    menu = menuItem.getParent()
+    while menu.getParentMenu() is not None:
+        menu = menu.getParentMenu()
+    return menu
+
+def getItemText(text):
+    return text.replace("&", "").split("\t")[0]
+    
 
