@@ -1,47 +1,70 @@
 import wx
+from signalevent import SignalEvent
+from proxywidget import ProxyWidget
 
 
 wxMessageBox = wx.MessageBox
 replayingMethod = None
 monitor = None
+MESSAGE_BOX_REPLIES = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
 
 
-class MessageBoxWidget():
-    messageBoxReplies = {}    
-    def __init__(self, title):
-        self.title = title
-        self.recordHandler = None
-        
+class MessageBoxEvent(SignalEvent):
+    signal = "MessageBoxReply"
+    
+    def connectRecord(self, method):
+        def handler(reply):
+            method(reply, self)
+        self.widget.setRecordHandler(handler)
+
+    def outputForScript(self, reply, *args):
+        return self.name + " " + MESSAGE_BOX_REPLIES[reply]
+
     @classmethod
-    def cacheMessageBoxReplies(cls, identifier, answer):
-        cls.messageBoxReplies.setdefault(identifier, []).append(answer)
-        
-    def GetTitle(self):
-        return self.title
-    
-    def GetLabel(self):
-        return self.title
-    
-    def getTooltip(self):
-        return ""
-    
-    def getType(self):
-        return "MessageBoxWidget"
+    def getSignal(cls):
+        return cls.signal
 
-    def GetChildren(self):
-        return []
+
+class MessageBoxWidget(ProxyWidget):
     
+    def __init__(self, *args, **kw):
+        self._setAttributes(*args, **kw)
+        ProxyWidget.__init__(self, self.title, "MessageBoxWidget")
+        
+    def _setAttributes(self, *args, **kw):
+        self.headername = "Message Box"
+        self.message = self._setMessage(*args, **kw)
+        self.title = self._setTitle(*args, **kw)
+        self.style = self._setStyle(*args, **kw)
+
+    def _setMessage(self, *args, **kw):
+        return args[0]
+
+    def _setTitle(self, *args, **kw):
+        return self._getAttribute(1, "caption", *args, **kw)
+
+    def _setStyle(self, *args, **kw):
+        return self._getAttribute(2, "style", *args, **kw)
+        
     def getReturnValueFromCache(self):
-        userReplies = self.messageBoxReplies["Title=" + self.title]
-        userReply = userReplies.pop(0).lower()
+        userReply = super(MessageBoxWidget, self).getReturnValueFromCache()
         return getattr(wx, userReply.upper())
 
-    def setRecordHandler(self, handler):
-        self.recordHandler = handler 
-     
+    def describe(self, logger):
+        logger.info("\n" + self._getHeader())
+        logger.info(self.message)
+        if self.style:
+            logger.info(".....")
+            buttons = []
+            for reply, name in sorted(MESSAGE_BOX_REPLIES.items()):
+                if self.style & reply:
+                    buttons.append("Button '" + name + "'")
+            if buttons:
+                logger.info("  ".join(buttons))
+        logger.info("-" * self._getFooterLength())     
         
 def MessageBox(*args, **kw):
-    widget = MessageBoxWidget(args[1])
+    widget = MessageBoxWidget(*args, **kw)
     monitor(widget, *args, **kw)
     if replaying():
         userReply = widget.getReturnValueFromCache()
