@@ -83,7 +83,7 @@ if jython or sdist:
 
 if sdist or (not jython and sys.version_info[0] == 2):
     packages += [ "storytext.gtktoolkit", "storytext.gtktoolkit.simulator",
-                  "storytext.gtktoolkit.describer" ] 
+                  "storytext.gtktoolkit.describer", "storytext.wxtoolkit" ] 
 
 class python3_build_scripts(build_scripts):
     def finalize_options(self):
