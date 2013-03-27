@@ -24,14 +24,8 @@ from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
 from java.lang import NullPointerException
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
-    widgetViewIds = {}
-    def getUIMapIdentifier(self):
-        orig = swtsimulator.WidgetAdapter.getUIMapIdentifier(self)
-        if orig.startswith("Type="):
-            return self.addViewId(self.getViewWidget(), orig)
-        else:
-            return orig
-        
+    widgetViewIds = {}    
+    swtsimulator.WidgetAdapter.secondaryIdentifiers.append("View")
     def getViewWidget(self):
         widget = self.widget.widget
         if isinstance(widget, MenuItem):
@@ -43,21 +37,8 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
         orig = swtsimulator.WidgetAdapter.findPossibleUIMapIdentifiers(self)
         viewWidget = self.getViewWidget()
         if viewWidget in self.widgetViewIds:
-            identifiersWithIds = []
-            for identifier in orig:
-                if not identifier.startswith("Name="):
-                    identifiersWithIds.append(self.addViewId(viewWidget, identifier))
-                identifiersWithIds.append(identifier)
-            return identifiersWithIds
-        else:
-            return orig
-
-    def addViewId(self, widget, text):
-        viewId = self.widgetViewIds.get(widget)
-        if viewId:
-            return "View=" + viewId + "," + text
-        else:
-            return text
+            orig.append("View=" + self.widgetViewIds.get(viewWidget))
+        return orig
 
     def getNameForAppEvent(self):
         name = self.getName()
@@ -193,16 +174,13 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         pass
 
 class ViewAdapter(swtsimulator.WidgetAdapter):
-    def getUIMapIdentifier(self):
-        viewId = self.widget.getViewReference().getId()
-        return "View=" + viewId
-
     def findPossibleUIMapIdentifiers(self):
-        return [ self.getUIMapIdentifier() ]
-    
+        return [ "Type=View", "View=" + self.widget.getViewReference().getId() ]
+
     def getType(self):
         return "View"
 
+    
 class PartActivateEvent(storytext.guishared.GuiEvent):
     allInstances = []
     def __init__(self, *args, **kw):

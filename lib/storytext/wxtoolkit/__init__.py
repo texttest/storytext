@@ -57,7 +57,11 @@ class FileDialog(origFileDialog):
         self.origDirectory = self.GetDirectory()
         adapter = WidgetAdapter(self)
         self.uiMap.monitorWidget(adapter)
-        self.path = self.fileReplayInfo.get(adapter.getUIMapIdentifier())
+        self.path = None
+        for uiMapId in self.uiMap.allUIMapIdCombinations(adapter):
+            if uiMapId in self.fileReplayInfo:
+                self.path = self.fileReplayInfo.get(uiMapId)
+                break
         if self.path is not None and not os.path.isabs(self.path):
             self.path = os.path.join(self.origDirectory, self.path)
         
@@ -498,7 +502,7 @@ class UIMap(storytext.guishared.UIMap):
         Dialog.uiMap = self
         wx.FileDialog = FileDialog
         FileDialog.uiMap = self
-        wrap_message_box(self.replaying, self.monitorAndDescribe)
+        wrap_message_box(self)
         
     def getFileDialogInfo(self):
         parser = self.fileHandler.readParser

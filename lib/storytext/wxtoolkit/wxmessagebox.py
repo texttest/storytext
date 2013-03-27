@@ -1,12 +1,9 @@
 import wx
 
-
 wxMessageBox = wx.MessageBox
-replayingMethod = None
-monitor = None
+uiMap = None
 
-
-class MessageBoxWidget():
+class MessageBoxWidget:
     messageBoxReplies = {}    
     def __init__(self, title):
         self.title = title
@@ -20,7 +17,7 @@ class MessageBoxWidget():
         return self.title
     
     def GetLabel(self):
-        return self.title
+        return ""
     
     def getTooltip(self):
         return ""
@@ -32,9 +29,14 @@ class MessageBoxWidget():
         return []
     
     def getReturnValueFromCache(self):
-        userReplies = self.messageBoxReplies["Title=" + self.title]
-        userReply = userReplies.pop(0).lower()
-        return getattr(wx, userReply.upper())
+        for uiMapId in uiMap.allUIMapIdCombinations(self):
+            if uiMapId in self.messageBoxReplies:
+                userReplies = self.messageBoxReplies[uiMapId]
+                userReply = userReplies.pop(0).lower()
+                return getattr(wx, userReply.upper())
+            
+    def findPossibleUIMapIdentifiers(self):
+        return [ "Title=" + self.title, "Type=" + self.getType() ]
 
     def setRecordHandler(self, handler):
         self.recordHandler = handler 
@@ -42,8 +44,8 @@ class MessageBoxWidget():
         
 def MessageBox(*args, **kw):
     widget = MessageBoxWidget(args[1])
-    monitor(widget, *args, **kw)
-    if replaying():
+    uiMap.monitorAndDescribe(widget, *args, **kw)
+    if uiMap.replaying():
         userReply = widget.getReturnValueFromCache()
     else:
         userReply = wxMessageBox(*args, **kw)
@@ -52,8 +54,7 @@ def MessageBox(*args, **kw):
     return userReply
 
     
-def wrap_message_box(replayingMethod, monitorMethod):
+def wrap_message_box(uiMapRef):
     wx.MessageBox = MessageBox
-    global replaying, monitor
-    replaying = replayingMethod
-    monitor = monitorMethod
+    global uiMap
+    uiMap = uiMapRef
