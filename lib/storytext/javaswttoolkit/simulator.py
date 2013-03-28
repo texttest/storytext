@@ -459,7 +459,7 @@ class TextEvent(StateChangeEvent):
     physicalEventWidget = None
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
-        self.stateText = None
+        self.stateText = self.getStateText()
     
     @classmethod
     def getAssociatedSignal(cls, widget):
