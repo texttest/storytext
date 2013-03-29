@@ -1,8 +1,8 @@
 NBR_OF_DASHES_IN_SHORT_LINE = 10
 MAX_NBR_OF_DASHES_IN_LONG_LINE = 100
 
-    
-class ProxyWidget(object):
+
+class WidgetBase(object):
     
     replies = {}
     
@@ -10,6 +10,20 @@ class ProxyWidget(object):
     def cacheReplies(cls, identifier, answer):
         cls.replies.setdefault(identifier, []).append(answer)
 
+    def getReturnValueFromCache(self, key=None):
+        if key is None:
+            key = "Title=" + self.GetTitle()
+        userReplies = self.replies.get(key)
+        if userReplies is not None:
+            userReply = userReplies.pop(0)
+            return userReply
+
+    def setRecordHandler(self, handler):
+        self.recordHandler = handler 
+    
+        
+class ProxyWidget(WidgetBase):
+    
     def __init__(self, title, typename):
         self.recordHandler = None
         self.title = title
@@ -29,14 +43,6 @@ class ProxyWidget(object):
     
     def getType(self):
         return self.typename
-    
-    def getReturnValueFromCache(self):
-        userReplies = self.replies["Title=" + self.title]
-        userReply = userReplies.pop(0)
-        return userReply
-
-    def setRecordHandler(self, handler):
-        self.recordHandler = handler 
     
     def _getAttribute(self, pos, key, *args, **kw):
         if kw.has_key(key):

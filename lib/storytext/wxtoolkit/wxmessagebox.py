@@ -63,6 +63,7 @@ class MessageBoxWidget(ProxyWidget):
                 logger.info("  ".join(buttons))
         logger.info("-" * self._getFooterLength())     
         
+        
 def MessageBox(*args, **kw):
     widget = MessageBoxWidget(*args, **kw)
     monitor(widget, *args, **kw)
