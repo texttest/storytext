@@ -307,15 +307,9 @@ class GefViewerAdapter(rcpsimulator.WidgetAdapter):
         self.partReference = partRef
         rcpsimulator.WidgetAdapter.__init__(self, widget)
 
-    def getUIMapIdentifier(self):
-        partId = self.partReference.getId()
-        if isinstance(self.partReference, EditorReference):
-            return "Editor=" + partId + ", " +"Viewer"
-        else:
-            return "View=" + partId + ", " +"Viewer"
-
     def findPossibleUIMapIdentifiers(self):
-        return [ self.getUIMapIdentifier() ]
+        partId = self.partReference.getId()
+        return [ "Type=" + self.getType(), "View=" + partId ]
     
     def getType(self):
         return "Viewer"

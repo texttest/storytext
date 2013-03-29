@@ -53,9 +53,6 @@ def checkWidget(widget):
     return widget
         
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
-    # All the standard message box texts
-    dialogTexts = [ "ok", "cancel", "yes", "no", "abort", "retry", "ignore", "close" ]
-    
     def getChildWidgets(self):
         if isinstance(self.widget, swing.JMenu):
             return self.widget.getPopupMenu().getSubElements()
@@ -81,24 +78,17 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         if isinstance(self.widget, (swing.text.JTextComponent, swing.JComboBox, swing.JSpinner)):
             return util.getTextLabel(self.widget)
 
-        text = ""
         if hasattr(self.widget, "getLabel") and not self.getContextName():
-            text = self.widget.getLabel() or ""
+            return self.widget.getLabel() or ""
         else:
             return ""
                 
-        if text is not None and text.lower() in self.dialogTexts:
-            dialogTitle = self.getDialogTitle()
-            if dialogTitle:
-                return text + ", Dialog=" + dialogTitle
-        return text
-    
     def getTooltip(self):
         if hasattr(self.widget, "getToolTipText"):
             return self.widget.getToolTipText() or ""
         else:
             return ""
-    
+        
     def getContextName(self):
         if swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget):
             return "Internal Frame"
@@ -107,7 +97,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         
     def getDialogTitle(self):
         window = swing.SwingUtilities.getWindowAncestor(self.widget)
-        return window.getTitle() if window else ""
+        return window.getTitle() if window and hasattr(window, "getTitle") and window.getOwner() else ""
 
     def runKeyword(self, keywordName, *args):
         return runKeyword(keywordName, self.widget.getName(), *args)

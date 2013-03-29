@@ -56,6 +56,11 @@ class DialogHelper:
 class Dialog(DialogHelper, origDialog):
     pass
 
+        self.path = None
+        for uiMapId in self.uiMap.allUIMapIdCombinations(adapter):
+            if uiMapId in self.fileReplayInfo:
+                self.path = self.fileReplayInfo.get(uiMapId)
+                break
 
 class FrameEvent(SignalEvent):
     event = wx.EVT_CLOSE
@@ -339,7 +344,7 @@ class UIMap(storytext.guishared.UIMap):
         wx.Dialog = Dialog
         Dialog.uiMap = self
         FileDialog.wrap(self.monitorWidget, self.replaying)
-        wrap_message_box(self.replaying, self.monitorAndDescribe)
+        wrap_message_box(self)
         wrapDirSelector(self.replaying, self.monitorAndDescribe)
         wrapFileSelector(self.replaying, self.monitorAndDescribe)
         

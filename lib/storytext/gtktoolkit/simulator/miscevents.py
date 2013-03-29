@@ -3,6 +3,7 @@
 
 from baseevents import StateChangeEvent, SignalEvent
 from storytext.definitions import UseCaseScriptError
+from storytext.guishared import removeMarkup
 import gtk, types
 
 origToggleAction = gtk.ToggleAction
@@ -142,7 +143,7 @@ class TextViewEvent(StateChangeEvent):
 class ComboBoxEvent(StateChangeEvent):
     def getStateDescription(self, *args):
         # Hardcode 0, seems to work for the most part...
-        return self.widget.get_model().get_value(self.widget.get_active_iter(), 0)
+        return removeMarkup(self.widget.get_model().get_value(self.widget.get_active_iter(), 0))
 
     def getChangeMethod(self):
         return self.widget.set_active_iter
@@ -154,7 +155,7 @@ class ComboBoxEvent(StateChangeEvent):
         self.widget.get_model().foreach(self.setMatchingIter, argumentString)
 
     def setMatchingIter(self, model, path, iter, argumentString):
-        if model.get_value(iter, 0) == argumentString:
+        if removeMarkup(model.get_value(iter, 0)) == argumentString:
             self.changeMethod(iter)
             return True
 

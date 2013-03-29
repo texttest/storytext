@@ -2,12 +2,9 @@ import wx
 from signalevent import SignalEvent
 from proxywidget import ProxyWidget
 
-
 wxMessageBox = wx.MessageBox
-replayingMethod = None
-monitor = None
+uiMap = None
 MESSAGE_BOX_REPLIES = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
-
 
 class MessageBoxEvent(SignalEvent):
     signal = "MessageBoxReply"
@@ -47,12 +44,15 @@ class MessageBoxWidget(ProxyWidget):
         return self._getAttribute(2, "style", *args, **kw)
         
     def getReturnValueFromCache(self):
-        userReply = super(MessageBoxWidget, self).getReturnValueFromCache()
-        return getattr(wx, userReply.upper())
+        for uiMapId in uiMap.allUIMapIdCombinations(self):
+            if uiMapId in self.messageBoxReplies:
+                userReplies = self.messageBoxReplies[uiMapId]
+                userReply = userReplies.pop(0).lower()
+                return getattr(wx, userReply.upper())
+            
+    def findPossibleUIMapIdentifiers(self):
+        return [ "Title=" + self.title, "Type=" + self.getType() ]
 
-    def describe(self, logger):
-        logger.info("\n" + self._getHeader())
-        logger.info(self.message)
         if self.style:
             logger.info(".....")
             buttons = []
@@ -66,8 +66,8 @@ class MessageBoxWidget(ProxyWidget):
         
 def MessageBox(*args, **kw):
     widget = MessageBoxWidget(*args, **kw)
-    monitor(widget, *args, **kw)
-    if replaying():
+    uiMap.monitorAndDescribe(widget, *args, **kw)
+    if uiMap.replaying():
         userReply = widget.getReturnValueFromCache()
     else:
         userReply = wxMessageBox(*args, **kw)
@@ -76,8 +76,7 @@ def MessageBox(*args, **kw):
     return userReply
 
     
-def wrap_message_box(replayingMethod, monitorMethod):
+def wrap_message_box(uiMapRef):
     wx.MessageBox = MessageBox
-    global replaying, monitor
-    replaying = replayingMethod
-    monitor = monitorMethod
+    global uiMap
+    uiMap = uiMapRef
