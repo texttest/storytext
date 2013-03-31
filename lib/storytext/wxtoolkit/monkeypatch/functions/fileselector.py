@@ -55,12 +55,6 @@ class FileSelectorWidget(ProxyWidget):
     def styleHasFlag(self, flag):
         return (self.flags | flag) == self.flags
 
-    def getReturnValueFromCache(self):
-        for uiMapId in uiMap.allUIMapIdCombinations(self):
-            if uiMapId in self.replies:
-                userReplies = self.replies[uiMapId]
-                return userReplies.pop(0)
-
         
 def FileSelector(*args, **kw):
     widget = FileSelectorWidget(*args, **kw)
