@@ -5,6 +5,7 @@ import storytext.guishared
 from textlabelfinder import TextLabelFinder
 
 
+
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getChildWidgets(self):
         if self.isInstanceOf(wx.MenuItem):
@@ -34,6 +35,6 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
     def getName(self):
         return self.widget.GetName() if hasattr(self.widget, "GetName") else ""
-
-
+    
+    
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter

@@ -1,24 +1,15 @@
 import wx
-from signalevent import SignalEvent
-from proxywidget import ProxyWidget
+from storytext.wxtoolkit.monkeypatch import ProxyWidget
+from storytext.wxtoolkit.monkeypatch import MonkeyPatchEvent
 
 
 wxDirSelector = wx.DirSelector
-replayingMethod = None
-monitor = None
+uiMap = None
 
 
-class DirSelectorEvent(SignalEvent):
-    
+class DirSelectorEvent(MonkeyPatchEvent):
+   
     signal = "DirSelectorReply"
-    
-    def connectRecord(self, method):
-        def handler(reply):
-            method(reply, self)
-        self.widget.setRecordHandler(handler)
-
-    def outputForScript(self, reply, *args):
-        return self.name + " " + reply
 
     @classmethod
     def getSignal(cls):
@@ -28,6 +19,7 @@ class DirSelectorEvent(SignalEvent):
 class DirSelectorWidget(ProxyWidget):
     
     def __init__(self, message, *args, **kw):
+        self.uiMap = uiMap
         self._setAttributes(*args, **kw)
         ProxyWidget.__init__(self, message, "DirSelectorWidget")
     
@@ -65,8 +57,8 @@ class DirSelectorWidget(ProxyWidget):
         
 def DirSelector(*args, **kw):
     widget = DirSelectorWidget(*args, **kw)
-    monitor(widget, *args, **kw)
-    if replaying():
+    uiMap.monitorAndDescribe(widget, *args, **kw)
+    if uiMap.replaying():
         userReply = widget.getReturnValueFromCache()
     else:
         userReply = wxDirSelector(*args, **kw)
@@ -75,8 +67,8 @@ def DirSelector(*args, **kw):
     return userReply
 
     
-def wrapDirSelector(replayingMethod, monitorMethod):
+def wrapDirSelector(uiMapObject):
     wx.DirSelector = DirSelector
-    global replaying, monitor
-    replaying = replayingMethod
-    monitor = monitorMethod
+    global uiMap
+    uiMap = uiMapObject
+

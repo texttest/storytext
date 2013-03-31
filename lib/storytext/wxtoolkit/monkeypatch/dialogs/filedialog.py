@@ -2,9 +2,8 @@ import os
 
 import wx
 
-from widgetadapter import WidgetAdapter
-from signalevent import SignalEvent
-from proxywidget import WidgetBase
+from storytext.wxtoolkit.signalevent import SignalEvent
+from storytext.wxtoolkit.monkeypatch.dialogs import MonkeyPatchDialog
 
 
 wxFileDialog = wx.FileDialog
@@ -24,43 +23,35 @@ class FileDialogEvent(SignalEvent):
         return self.name + " " + path
 
 
-
-class FileDialog(wxFileDialog, WidgetBase):
+class FileDialog(wxFileDialog, MonkeyPatchDialog):
 
     @classmethod
-    def wrap(cls, monitorMethod, replayingMethod):
-        cls.monitor = monitorMethod
-        cls.replaying = replayingMethod
+    def wrap(cls, uiMap):
+        cls.uiMap = uiMap
         wx.FileDialog = cls
 
     def __init__(self, *args, **kw):
         wxFileDialog.__init__(self, *args, **kw)
-        self.recordHandler = None
+        MonkeyPatchDialog.__init__(self)
+        self.addDirectoryToReply()
+
+    def addDirectoryToReply(self):
         self.origDirectory = self.GetDirectory()
-        adapter = WidgetAdapter(self)
-        self.monitor(adapter)
-        self.path = self.getReturnValueFromCache(adapter.getUIMapIdentifier())
+        if self.reply is not None and not os.path.isabs(self.reply):
+                self.reply = os.path.join(self.origDirectory, self.reply)
         
     def ShowModal(self):
-        if self.replaying():
+        if self.uiMap.replaying():
             return self.fakeShowModal()
         else:
             return wxFileDialog.ShowModal(self)
- 
-    def fakeShowModal(self):
-        if self.path == None:
-            return wx.ID_CANCEL
-        else:
-            return wx.ID_OK
-        
+            
     def GetPath(self):
-        if self.path is None:
-            self.path = wxFileDialog.GetPath(self)
+        if self.reply is None:
+            self.reply = wxFileDialog.GetPath(self)
         if self.recordHandler:
-            self.recordHandler(self.path, self.origDirectory)
-        return self.path
+            self.recordHandler(self.reply, self.origDirectory)
+        return self.reply
 
     def GetFilename(self):
         return os.path.basename(self.GetPath()) 
-    
-    

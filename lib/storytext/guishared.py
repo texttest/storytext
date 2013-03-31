@@ -1037,9 +1037,9 @@ class Describer(object):
         defunctWidgets = []
         stateChanges = []
         for widget, oldState in self.widgetsWithState.items():
+
             if not self.shouldCheckForUpdates(widget, *args):
                 continue
-            
             try:
                 state = self.getState(widget)
             except:

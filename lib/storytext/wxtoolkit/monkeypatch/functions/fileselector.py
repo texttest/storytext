@@ -1,25 +1,15 @@
 import wx
-from signalevent import SignalEvent
-from proxywidget import ProxyWidget
+from storytext.wxtoolkit.monkeypatch import ProxyWidget
+from storytext.wxtoolkit.monkeypatch import MonkeyPatchEvent
 
 
 wxFileSelector = wx.FileSelector
-replayingMethod = None
-monitor = None
+uiMap = None
 
-
-class FileSelectorEvent(SignalEvent):
+class FileSelectorEvent(MonkeyPatchEvent):
     
     signal = "FileSelectorReply"
     
-    def connectRecord(self, method):
-        def handler(reply):
-            method(reply, self)
-        self.widget.setRecordHandler(handler)
-
-    def outputForScript(self, reply, *args):
-        return self.name + " " + reply
-
     @classmethod
     def getSignal(cls):
         return cls.signal
@@ -28,6 +18,7 @@ class FileSelectorEvent(SignalEvent):
 class FileSelectorWidget(ProxyWidget):
     
     def __init__(self, message, *args, **kw):
+        self.uiMap = uiMap
         self._setAttributes(*args, **kw)
         ProxyWidget.__init__(self, message, "FileSelectorWidget")
     
@@ -64,11 +55,17 @@ class FileSelectorWidget(ProxyWidget):
     def styleHasFlag(self, flag):
         return (self.flags | flag) == self.flags
 
+    def getReturnValueFromCache(self):
+        for uiMapId in uiMap.allUIMapIdCombinations(self):
+            if uiMapId in self.replies:
+                userReplies = self.replies[uiMapId]
+                return userReplies.pop(0)
+
         
 def FileSelector(*args, **kw):
     widget = FileSelectorWidget(*args, **kw)
-    monitor(widget, *args, **kw)
-    if replaying():
+    uiMap.monitorAndDescribe(widget, *args, **kw)
+    if uiMap.replaying():
         userReply = widget.getReturnValueFromCache()
     else:
         userReply = wxFileSelector(*args, **kw)
@@ -77,8 +74,7 @@ def FileSelector(*args, **kw):
     return userReply
 
     
-def wrapFileSelector(replayingMethod, monitorMethod):
+def wrapFileSelector(uiMapObject):
     wx.FileSelector = FileSelector
-    global replaying, monitor
-    replaying = replayingMethod
-    monitor = monitorMethod
+    global uiMap
+    uiMap = uiMapObject

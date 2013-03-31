@@ -1,10 +1,13 @@
 import wx
-from signalevent import SignalEvent
-from proxywidget import ProxyWidget
+
+from storytext.wxtoolkit.signalevent import SignalEvent  
+from storytext.wxtoolkit.monkeypatch import ProxyWidget
+
 
 wxMessageBox = wx.MessageBox
 uiMap = None
 MESSAGE_BOX_REPLIES = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
+
 
 class MessageBoxEvent(SignalEvent):
     signal = "MessageBoxReply"
@@ -25,6 +28,7 @@ class MessageBoxEvent(SignalEvent):
 class MessageBoxWidget(ProxyWidget):
     
     def __init__(self, *args, **kw):
+        self.uiMap = uiMap
         self._setAttributes(*args, **kw)
         ProxyWidget.__init__(self, self.title, "MessageBoxWidget")
         
@@ -44,15 +48,12 @@ class MessageBoxWidget(ProxyWidget):
         return self._getAttribute(2, "style", *args, **kw)
         
     def getReturnValueFromCache(self):
-        for uiMapId in uiMap.allUIMapIdCombinations(self):
-            if uiMapId in self.messageBoxReplies:
-                userReplies = self.messageBoxReplies[uiMapId]
-                userReply = userReplies.pop(0).lower()
-                return getattr(wx, userReply.upper())
-            
-    def findPossibleUIMapIdentifiers(self):
-        return [ "Title=" + self.title, "Type=" + self.getType() ]
+        userReply = super(MessageBoxWidget, self).getReturnValueFromCache()
+        return getattr(wx, userReply.upper())
 
+    def describe(self, logger):
+        logger.info(self._getHeader())
+        logger.info(self.message)
         if self.style:
             logger.info(".....")
             buttons = []
