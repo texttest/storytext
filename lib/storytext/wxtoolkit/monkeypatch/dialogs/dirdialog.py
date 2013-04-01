@@ -12,10 +12,18 @@ wxDirDialog = wx.DirDialog
 
 class DirDialogEvent(MonkeyPatchEvent):
     signal = "SelectDir"
-
+    
+    @classmethod
+    def getSignal(cls):
+        return cls.signal
+    
 
 class DirDialog(wxDirDialog, MonkeyPatchDialog):
 
+    @classmethod
+    def getAutoPrefix(cls):
+        return "Auto.DirDialog.SelectDir"
+    
     @classmethod
     def wrap(cls, uiMap):
         cls.uiMap = uiMap

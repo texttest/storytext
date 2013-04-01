@@ -12,6 +12,10 @@ wxFileDialog = wx.FileDialog
 class FileDialogEvent(SignalEvent):
     signal = "SelectFile"
     
+    @classmethod
+    def getSignal(cls):
+        return cls.signal
+        
     def connectRecord(self, method):
         def handler(path, d):
             method(path, d, self)
@@ -25,6 +29,10 @@ class FileDialogEvent(SignalEvent):
 
 class FileDialog(wxFileDialog, MonkeyPatchDialog):
 
+    @classmethod
+    def getAutoPrefix(cls):
+        return "Auto.FileDialog.SelectFile"
+    
     @classmethod
     def wrap(cls, uiMap):
         cls.uiMap = uiMap

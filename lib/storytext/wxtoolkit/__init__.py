@@ -13,6 +13,9 @@ from monkeypatch.functions.dirselector import DirSelectorEvent
 from monkeypatch.functions.fileselector import wrapFileSelector
 from monkeypatch.functions.fileselector import FileSelectorWidget
 from monkeypatch.functions.fileselector import FileSelectorEvent
+from monkeypatch.functions.getcolourfromuser import wrapGetColourFromUser
+from monkeypatch.functions.getcolourfromuser import GetColourFromUserEvent
+from monkeypatch.functions.getcolourfromuser import GetColourFromUserWidget
 from signalevent import SignalEvent
 from widgetadapter import WidgetAdapter
 from textlabelfinder import TextLabelFinder
@@ -344,43 +347,17 @@ class UIMap(storytext.guishared.UIMap):
         wrap_message_box(self)
         wrapDirSelector(self)
         wrapFileSelector(self)
+        wrapGetColourFromUser(self)
         
-    def getFileDialogInfo(self):
-        parser = self.fileHandler.readParser
-        dialogInfo = []
-        for section in parser.sections():
-            if parser.has_option(section, "SelectFile"):
-                cmdName = parser.get(section, "SelectFile")
-                dialogInfo.append((cmdName, section))
-        return dialogInfo
-
-    def getDirDialogInfo(self):
-        parser = self.fileHandler.readParser
-        dialogInfo = []
-        for section in parser.sections():
-            if parser.has_option(section, "SelectDir"):
-                cmdName = parser.get(section, "SelectDir")
-                dialogInfo.append((cmdName, section))
-        return dialogInfo
-    
     def replaying(self):
         return self.scriptEngine.replayer.isActive()
-                
-    def getMessageBoxReplies(self):
-        return self._getReplies(MessageBoxEvent.getSignal)
 
-    def getDirSelectorReplies(self):
-        return self._getReplies(DirSelectorEvent.getSignal)
-
-    def getFileSelectorReplies(self):
-        return self._getReplies(FileSelectorEvent.getSignal)
-
-    def _getReplies(self, getSignalMethod):
+    def getReplies(self, event):
         parser = self.fileHandler.readParser
         replies = []
         for section in parser.sections():
-            if parser.has_option(section, getSignalMethod()):
-                cmdName = parser.get(section, getSignalMethod())
+            if parser.has_option(section, event.getSignal()):
+                cmdName = parser.get(section, event.getSignal())
                 replies.append((cmdName, section))
         return replies
         
@@ -406,59 +383,34 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
         storytext.guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
-        self.cacheFileDialogInfo()
-        self.cacheDirDialogInfo()
-        self.cacheMessageBoxReplies()
-        self.cacheDirSelectorReplies()
-        self.cacheFileSelectorReplies()
+        self.cacheReplies()
 
-    def addScript(self, script, *args):
-        storytext.guishared.IdleHandlerUseCaseReplayer.addScript(self, script, *args)
-        self.cacheFileDialogInfo()
+    def cacheReplies(self):
+        proxies = (
+            (MessageBoxWidget,        MessageBoxEvent),
+            (GetColourFromUserWidget, GetColourFromUserEvent),
+            (DirSelectorWidget,       DirSelectorEvent),
+            (FileSelectorWidget,      FileSelectorEvent),
+            (FileDialog,              FileDialogEvent),
+            (DirDialog,               DirDialogEvent),
+        )
+        for proxy in proxies:
+            self.cacheProxyReplies(proxy[0], proxy[1])
 
-    def cacheFileDialogInfo(self):
-        fileDialogInfo = self.uiMap.getFileDialogInfo()
-        autoPrefix = "Auto.FileDialog.SelectFile"
-        cacheMethod = FileDialog.cacheReplies
-        self.cacheInfo(fileDialogInfo, cacheMethod, autoPrefix)
-
-    def cacheDirDialogInfo(self):
-        replies = self.uiMap.getDirDialogInfo()
-        autoPrefix = "Auto.DirDialog.SelectDir"
-        cacheMethod = DirDialog.cacheReplies
-        self.cacheInfo(replies, cacheMethod, autoPrefix)
-
-    def cacheMessageBoxReplies(self):
-        replies = self.uiMap.getMessageBoxReplies()
-        autoPrefix = "Auto.MessageBoxWidget.MessageBoxReply"
-        cacheMethod = MessageBoxWidget.cacheReplies
-        self.cacheInfo(replies, cacheMethod, autoPrefix)
-
-    def cacheDirSelectorReplies(self):
-        replies = self.uiMap.getDirSelectorReplies()
-        autoPrefix = "Auto.DirSelectorWidget.DirSelectorReply"
-        cacheMethod = DirSelectorWidget.cacheReplies
-        self.cacheInfo(replies, cacheMethod, autoPrefix)
-
-    def cacheFileSelectorReplies(self):
-        replies = self.uiMap.getFileSelectorReplies()
-        autoPrefix = "Auto.FileSelectorWidget.FileSelectorReply"
-        cacheMethod = FileSelectorWidget.cacheReplies
-        self.cacheInfo(replies, cacheMethod, autoPrefix)
-
-    def cacheInfo(self, infos, cacheMethod, autoPrefix):
+    def cacheProxyReplies(self, widgetClass, eventClass):
+        replies = self.uiMap.getReplies(eventClass)
         for script, _ in self.scripts:
             for cmd in script.commands:
-                for dialogCmd, identifier in infos:
+                for dialogCmd, identifier in replies:
                     if cmd.startswith(dialogCmd + " ") or cmd == dialogCmd:
                         argument = cmd.replace(dialogCmd, "")
                         argument = argument.strip()
-                        cacheMethod(identifier, argument)
-                if cmd.startswith(autoPrefix):
+                        widgetClass.cacheReplies(identifier, argument)
+                if cmd.startswith(widgetClass.getAutoPrefix()):
                     parts = cmd.split("'")
                     identifier = parts[1]
                     argument = parts[-1].strip()
-                    cacheMethod(identifier, argument)
+                    widgetClass.cacheReplies(identifier, argument)
         
     def makeIdleHandler(self, method):
         if wx.GetApp():
@@ -508,18 +460,19 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
 
 class ScriptEngine(storytext.guishared.ScriptEngine):
     eventTypes = [
-        (wx.Window      , [ ContextMenuEvent ]),
-        (wx.Frame       , [ FrameEvent,  MenuEvent]),
-        (wx.Button      , [ ButtonEvent   ]),
-        (wx.Choice      , [ ChoiceEvent   ]),
-        (wx.TextCtrl    , [ TextCtrlEvent ]),
-        (wx.CheckBox    , [ CheckEvent, UncheckEvent, CheckThirdStateEvent ]),
-        (wx.ListCtrl    , [ ListCtrlEvent ]),
-        (wx.FileDialog,      [ FileDialogEvent ]),
-        (wx.DirDialog,       [ DirDialogEvent ]),
-        (MessageBoxWidget,   [ MessageBoxEvent ]),
-        (DirSelectorWidget,  [ DirSelectorEvent ]),
-        (FileSelectorWidget, [ FileSelectorEvent ]),
+        (wx.Window,               [ContextMenuEvent]),
+        (wx.Frame,                [FrameEvent, MenuEvent]),
+        (wx.Button,               [ButtonEvent]),
+        (wx.Choice,               [ChoiceEvent]),
+        (wx.TextCtrl,             [TextCtrlEvent]),
+        (wx.CheckBox,             [CheckEvent, UncheckEvent, CheckThirdStateEvent]),
+        (wx.ListCtrl,             [ListCtrlEvent]),
+        (wx.FileDialog,           [FileDialogEvent]),
+        (wx.DirDialog,            [DirDialogEvent]),
+        (MessageBoxWidget,        [MessageBoxEvent]),
+        (DirSelectorWidget,       [DirSelectorEvent]),
+        (FileSelectorWidget,      [FileSelectorEvent]),
+        (GetColourFromUserWidget, [GetColourFromUserEvent]),
         ]
     signalDescs = {
         "<<ListCtrlSelect>>": "select item",

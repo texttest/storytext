@@ -17,6 +17,10 @@ class FileSelectorEvent(MonkeyPatchEvent):
     
 class FileSelectorWidget(ProxyWidget):
     
+    @classmethod
+    def getAutoPrefix(cls):
+        return "Auto.FileSelectorWidget.FileSelectorReply"
+    
     def __init__(self, message, *args, **kw):
         self.uiMap = uiMap
         self._setAttributes(*args, **kw)

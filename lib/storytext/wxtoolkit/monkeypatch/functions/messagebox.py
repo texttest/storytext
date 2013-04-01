@@ -27,6 +27,10 @@ class MessageBoxEvent(SignalEvent):
 
 class MessageBoxWidget(ProxyWidget):
     
+    @classmethod
+    def getAutoPrefix(cls):
+        return "Auto.MessageBoxWidget.MessageBoxReply"
+        
     def __init__(self, *args, **kw):
         self.uiMap = uiMap
         self._setAttributes(*args, **kw)

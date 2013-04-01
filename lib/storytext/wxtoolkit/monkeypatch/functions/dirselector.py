@@ -18,6 +18,10 @@ class DirSelectorEvent(MonkeyPatchEvent):
     
 class DirSelectorWidget(ProxyWidget):
     
+    @classmethod
+    def getAutoPrefix(cls):
+        return "Auto.DirSelectorWidget.DirSelectorReply"
+        
     def __init__(self, message, *args, **kw):
         self.uiMap = uiMap
         self._setAttributes(*args, **kw)
