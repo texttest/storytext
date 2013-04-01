@@ -1,7 +1,4 @@
-import os
-
 import wx
-
 
 from storytext.wxtoolkit.monkeypatch.dialogs import MonkeyPatchDialog
 from storytext.wxtoolkit.monkeypatch import MonkeyPatchEvent

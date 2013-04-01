@@ -16,6 +16,9 @@ from monkeypatch.functions.fileselector import FileSelectorEvent
 from monkeypatch.functions.getcolourfromuser import wrapGetColourFromUser
 from monkeypatch.functions.getcolourfromuser import GetColourFromUserEvent
 from monkeypatch.functions.getcolourfromuser import GetColourFromUserWidget
+from monkeypatch.functions.getfontfromuser import wrapGetFontFromUser
+from monkeypatch.functions.getfontfromuser import GetFontFromUserEvent
+from monkeypatch.functions.getfontfromuser import GetFontFromUserWidget
 from signalevent import SignalEvent
 from widgetadapter import WidgetAdapter
 from textlabelfinder import TextLabelFinder
@@ -348,6 +351,7 @@ class UIMap(storytext.guishared.UIMap):
         wrapDirSelector(self)
         wrapFileSelector(self)
         wrapGetColourFromUser(self)
+        wrapGetFontFromUser(self)
         
     def replaying(self):
         return self.scriptEngine.replayer.isActive()
@@ -389,6 +393,7 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         proxies = (
             (MessageBoxWidget,        MessageBoxEvent),
             (GetColourFromUserWidget, GetColourFromUserEvent),
+            (GetFontFromUserWidget,   GetFontFromUserEvent),
             (DirSelectorWidget,       DirSelectorEvent),
             (FileSelectorWidget,      FileSelectorEvent),
             (FileDialog,              FileDialogEvent),
@@ -473,6 +478,7 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
         (DirSelectorWidget,       [DirSelectorEvent]),
         (FileSelectorWidget,      [FileSelectorEvent]),
         (GetColourFromUserWidget, [GetColourFromUserEvent]),
+        (GetFontFromUserWidget,   [GetFontFromUserEvent]),
         ]
     signalDescs = {
         "<<ListCtrlSelect>>": "select item",
