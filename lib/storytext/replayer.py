@@ -178,7 +178,7 @@ class ReplayScript(object):
                 if newEvent in currEvents:
                     currEvents[newEvent] += count
                 else:
-                    currEvents[newEvent] = 1
+                    currEvents[newEvent] = count
             self.commands[-1] = assembleWaitCommand(currEvents.items())
         else:
             self.commands.append(command)
