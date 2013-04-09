@@ -1,11 +1,11 @@
 
 [logger_root]
 handlers=root
-level=WARNING
+level=ERROR
 
 [handler_root]
 class=StreamHandler
-level=WARNING
+level=ERROR
 args=(sys.stdout,)
 
 [handler_stdout]
@@ -39,6 +39,18 @@ qualname=storytext replay log
 level=INFO
 
 # ====== The following are disabled by default ======
+# ======= Section for Centre finding ======
+[logger_Centre finding]
+handlers=Centre finding
+qualname=Centre finding
+#level=INFO
+
+[handler_Centre finding]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('centrefinding.sample', 'a')
+
 # ======= Section for Eclipse RCP jobs ======
 [logger_Eclipse RCP jobs]
 handlers=Eclipse RCP jobs
@@ -51,17 +63,29 @@ formatter=debug
 args=(os.devnull, 'a')
 #args=('eclipsercpjobs.sample', 'a')
 
-# ======= Section for widget structure ======
-[logger_widget structure]
-handlers=widget structure
-qualname=widget structure
+# ======= Section for Indexer ======
+[logger_Indexer]
+handlers=Indexer
+qualname=Indexer
 #level=INFO
 
-[handler_widget structure]
+[handler_Indexer]
 class=FileHandler
 formatter=debug
 args=(os.devnull, 'a')
-#args=('widgetstructure.sample', 'a')
+#args=('indexer.sample', 'a')
+
+# ======= Section for Shortcut Tracker ======
+[logger_Shortcut Tracker]
+handlers=Shortcut Tracker
+qualname=Shortcut Tracker
+#level=INFO
+
+[handler_Shortcut Tracker]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('shortcuttracker.sample', 'a')
 
 # ======= Section for TreeModelIndexer ======
 [logger_TreeModelIndexer]
@@ -111,12 +135,24 @@ formatter=debug
 args=(os.devnull, 'a')
 #args=('storytextrecord.sample', 'a')
 
+# ======= Section for widget structure ======
+[logger_widget structure]
+handlers=widget structure
+qualname=widget structure
+#level=INFO
+
+[handler_widget structure]
+class=FileHandler
+formatter=debug
+args=(os.devnull, 'a')
+#args=('widgetstructure.sample', 'a')
+
 # ====== Cruft that python logging module needs ======
 [loggers]
-keys=root,gui log,storytext replay log,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui map,storytext record
+keys=root,gui log,storytext replay log,Centre finding,Eclipse RCP jobs,Indexer,Shortcut Tracker,TreeModelIndexer,TreeViewDescriber,gui map,storytext record,widget structure
 
 [handlers]
-keys=root,Eclipse RCP jobs,widget structure,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,storytext record
+keys=root,Centre finding,Eclipse RCP jobs,Indexer,Shortcut Tracker,TreeModelIndexer,TreeViewDescriber,gui log,gui map,stdout,storytext record,widget structure
 
 [formatters]
 keys=timed,debug
