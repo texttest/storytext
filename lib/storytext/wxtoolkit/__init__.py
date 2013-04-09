@@ -4,8 +4,29 @@
 import storytext.guishared, os, time, wx, logging, inspect
 from storytext.definitions import UseCaseScriptError
 from ordereddict import OrderedDict
-from wxmessagebox import wrap_message_box
-from wxmessagebox import MessageBoxWidget
+from monkeypatch.functions.messagebox import wrap_message_box
+from monkeypatch.functions.messagebox import MessageBoxWidget
+from monkeypatch.functions.messagebox import MessageBoxEvent
+from monkeypatch.functions.dirselector import wrapDirSelector
+from monkeypatch.functions.dirselector import DirSelectorWidget
+from monkeypatch.functions.dirselector import DirSelectorEvent
+from monkeypatch.functions.fileselector import wrapFileSelector
+from monkeypatch.functions.fileselector import FileSelectorWidget
+from monkeypatch.functions.fileselector import FileSelectorEvent
+from monkeypatch.functions.getcolourfromuser import wrapGetColourFromUser
+from monkeypatch.functions.getcolourfromuser import GetColourFromUserEvent
+from monkeypatch.functions.getcolourfromuser import GetColourFromUserWidget
+from monkeypatch.functions.getfontfromuser import wrapGetFontFromUser
+from monkeypatch.functions.getfontfromuser import GetFontFromUserEvent
+from monkeypatch.functions.getfontfromuser import GetFontFromUserWidget
+from signalevent import SignalEvent
+from widgetadapter import WidgetAdapter
+from textlabelfinder import TextLabelFinder
+from monkeypatch.dialogs.filedialog import FileDialog
+from monkeypatch.dialogs.filedialog import FileDialogEvent
+from monkeypatch.dialogs.dirdialog import DirDialog
+from monkeypatch.dialogs.dirdialog import DirDialogEvent
+
 
 origApp = wx.App
 origPySimpleApp = wx.PySimpleApp
@@ -42,152 +63,6 @@ class DialogHelper:
 
 class Dialog(DialogHelper, origDialog):
     pass
-
-origFileDialog = wx.FileDialog
-
-class FileDialog(origFileDialog):
-    fileReplayInfo = {}
-    @classmethod
-    def cacheFileReplay(cls, identifier, filename):
-        cls.fileReplayInfo[identifier] = filename
-
-    def __init__(self, *args, **kw):
-        origFileDialog.__init__(self, *args, **kw)
-        self.recordHandler = None
-        self.origDirectory = self.GetDirectory()
-        adapter = WidgetAdapter(self)
-        self.uiMap.monitorWidget(adapter)
-        self.path = None
-        for uiMapId in self.uiMap.allUIMapIdCombinations(adapter):
-            if uiMapId in self.fileReplayInfo:
-                self.path = self.fileReplayInfo.get(uiMapId)
-                break
-        if self.path is not None and not os.path.isabs(self.path):
-            self.path = os.path.join(self.origDirectory, self.path)
-        
-    def setRecordHandler(self, handler):
-        self.recordHandler = handler 
-
-    def ShowModal(self):
-        if self.replaying():
-            return self.fakeShowModal()
-        else:
-            self.path = None
-            return origFileDialog.ShowModal(self)
- 
-    def fakeShowModal(self):
-        if self.path == None:
-            return wx.ID_CANCEL
-        else:
-            return wx.ID_OK
-        
-    def replaying(self):
-        return self.uiMap.scriptEngine.replayer.isActive()
-
-    def GetPath(self):
-        if self.path is None:
-            self.path = origFileDialog.GetPath(self)
-        if self.recordHandler:
-            self.recordHandler(self.path, self.origDirectory)
-        return self.path
-
-    def GetFilename(self):
-        return os.path.basename(self.GetPath()) 
-
-class TextLabelFinder(storytext.guishared.TextLabelFinder):
-    def find(self):
-        sizer = self.findSizer(self.widget)
-        return self.findInSizer(sizer) if sizer is not None else ""
-
-    def findInSizer(self, sizer):
-        sizers, widgets = self.findSizerChildren(sizer)
-        if self.widget in widgets:
-            return self.findPrecedingLabel(widgets)
-        for subsizer in sizers:
-            label = self.findInSizer(subsizer)
-            if label is not None:
-                return label
-            
-    def getLabelClass(self):
-        return wx.StaticText
-    
-    def getLabelText(self, label):
-        return label.GetLabel()
-
-    def findSizerChildren(self, sizer):
-        sizers, widgets = [], []
-        for item in sizer.GetChildren():
-            if item.GetWindow():
-                widgets.append(item.GetWindow())
-            if item.GetSizer():
-                sizers.append(item.GetSizer())
-        return sizers, widgets
-        
-    def findSizer(self, widget):
-        if widget.GetSizer():
-            return widget.GetSizer()
-        if widget.GetParent():
-            return self.findSizer(widget.GetParent())
-
-
-class WidgetAdapter(storytext.guishared.WidgetAdapter):
-    def getChildWidgets(self):
-        if self.isInstanceOf(wx.MenuItem):
-            return []
-        children = filter(lambda w: not isinstance(w, wx.Dialog), 
-                                                self.widget.GetChildren())
-        if self.isInstanceOf(wx.Frame) and self.GetMenuBar() is not None:
-            for menu, _ in self.GetMenuBar().GetMenus():
-                children += menu.GetMenuItems()
-        return children
-        
-    def getWidgetTitle(self):
-        return self.widget.GetTitle() or self.widget.GetMessage()
-        
-    def getLabel(self):
-        if isinstance(self.widget, wx.TextCtrl):
-            return TextLabelFinder(self.widget).find()
-        else:
-            return self.widget.GetLabel()
-
-    def isAutoGenerated(self, name):
-        if not name:
-            return True
-        baseclasses = inspect.getmro(self.widget.__class__)
-        autoGenNames = [ "check" ] + [ cls.__name__.lower().replace("ctrl", "") for cls in baseclasses ]
-        return name.lower().replace("ctrl", "") in autoGenNames
-
-    def getName(self):
-        return self.widget.GetName() if hasattr(self.widget, "GetName") else ""
-
-storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter
-
-class SignalEvent(storytext.guishared.GuiEvent):
-    def connectRecord(self, method):
-        self._connectRecord(method, self.widget)
-
-    def _connectRecord(self, method, widget):
-        def handler(event):
-            method(event, self)
-            event.Skip()
-        widget.Bind(self.event, handler)
-
-    def makeCommandEvent(self, eventType):
-        try:
-            id = self.widget.widget.GetId()
-        except:
-            raise UseCaseScriptError, "Widget is no longer active"
-        command = wx.CommandEvent(eventType, id)
-        command.SetEventObject(self.widget.widget)
-        return command
-        
-    @classmethod
-    def getAssociatedSignal(cls, widget):
-        return cls.signal
-
-    def generate(self, argumentString):
-        pass 
-
 
 class FrameEvent(SignalEvent):
     event = wx.EVT_CLOSE
@@ -337,36 +212,6 @@ class ListCtrlEvent(SignalEvent):
                 texts.append(self.widget.GetItemText(i))
         return self.name + " " + ",".join(texts)
 
-
-class FileDialogEvent(SignalEvent):
-    signal = "SelectFile"
-    def connectRecord(self, method):
-        def handler(path, d):
-            method(path, d, self)
-        self.widget.setRecordHandler(handler)
-
-    def outputForScript(self, path, directory, *args):
-        if directory and path.startswith(directory):
-            path = path.replace(directory + os.sep, "")
-        return self.name + " " + path
-
-    def generate(self, argumentString):
-        pass 
-
-
-messageBoxReplies = {wx.YES: "Yes", wx.NO: "No", wx.CANCEL: "Cancel", wx.OK: "Ok"}
-
-class MessageBoxEvent(SignalEvent):
-    signal = "MessageBoxReply"
-    def connectRecord(self, method):
-        def handler(reply):
-            method(reply, self)
-        self.widget.setRecordHandler(handler)
-
-    def outputForScript(self, reply, *args):
-        return self.name + " " + messageBoxReplies[reply]
-
-
 class MenuEvent(SignalEvent):
     event = wx.EVT_MENU
     signal = "Menu"
@@ -500,34 +345,29 @@ class UIMap(storytext.guishared.UIMap):
         storytext.guishared.UIMap.__init__(self, *args)
         wx.Dialog = Dialog
         Dialog.uiMap = self
-        wx.FileDialog = FileDialog
-        FileDialog.uiMap = self
+        FileDialog.wrap(self)
+        DirDialog.wrap(self)
         wrap_message_box(self)
+        wrapDirSelector(self)
+        wrapFileSelector(self)
+        wrapGetColourFromUser(self)
+        wrapGetFontFromUser(self)
         
-    def getFileDialogInfo(self):
-        parser = self.fileHandler.readParser
-        dialogInfo = []
-        for section in parser.sections():
-            if parser.has_option(section, "SelectFile"):
-                cmdName = parser.get(section, "SelectFile")
-                dialogInfo.append((cmdName, section))
-        return dialogInfo
-
     def replaying(self):
         return self.scriptEngine.replayer.isActive()
-                
-    def getMessageBoxReplies(self):
-        parser = self.fileHandler.readParser
-        messageBoxReplies = []
-        for section in parser.sections():
-            if parser.has_option(section, "MessageBoxReply"):
-                cmdName = parser.get(section, "MessageBoxReply")
-                messageBoxReplies.append((cmdName, section))
-        return messageBoxReplies
 
+    def getReplies(self, event):
+        parser = self.fileHandler.readParser
+        replies = []
+        for section in parser.sections():
+            if parser.has_option(section, event.getSignal()):
+                cmdName = parser.get(section, event.getSignal())
+                replies.append((cmdName, section))
+        return replies
+        
     def monitorAndDescribe(self, window, *args, **kw):
         self.monitorAndStoreWindow(window)
-        self.scriptEngine.replayer.describer.describeMessageBox(*args, **kw)
+        window.describe(self.logger)
 
     def monitorAndStoreWindow(self, window):
         self.monitorWindow(WidgetAdapter(window)) # handle self.windows below instead
@@ -547,37 +387,35 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
     def __init__(self, *args, **kw):
         storytext.guishared.IdleHandlerUseCaseReplayer.__init__(self, *args, **kw)
         self.describer = Describer()
-        self.cacheFileDialogInfo()
-        self.cacheMessageBoxReplies()
+        self.cacheReplies()
 
-    def addScript(self, script, *args):
-        storytext.guishared.IdleHandlerUseCaseReplayer.addScript(self, script, *args)
-        self.cacheFileDialogInfo()
+    def cacheReplies(self):
+        proxies = (
+            (MessageBoxWidget,        MessageBoxEvent),
+            (GetColourFromUserWidget, GetColourFromUserEvent),
+            (GetFontFromUserWidget,   GetFontFromUserEvent),
+            (DirSelectorWidget,       DirSelectorEvent),
+            (FileSelectorWidget,      FileSelectorEvent),
+            (FileDialog,              FileDialogEvent),
+            (DirDialog,               DirDialogEvent),
+        )
+        for proxy in proxies:
+            self.cacheProxyReplies(proxy[0], proxy[1])
 
-    def cacheFileDialogInfo(self):
-        fileDialogInfo = self.uiMap.getFileDialogInfo()
-        autoPrefix = "Auto.FileDialog.SelectFile"
-        cacheMethod = FileDialog.cacheFileReplay
-        self.cacheInfo(fileDialogInfo, cacheMethod, autoPrefix)
-
-    def cacheMessageBoxReplies(self):
-        messageBoxReplies = self.uiMap.getMessageBoxReplies()
-        autoPrefix = "Auto.MessageBoxWidget.MessageBoxReply"
-        cacheMethod = MessageBoxWidget.cacheMessageBoxReplies
-        self.cacheInfo(messageBoxReplies, cacheMethod, autoPrefix)
-
-    def cacheInfo(self, infos, cacheMethod, autoPrefix):
+    def cacheProxyReplies(self, widgetClass, eventClass):
+        replies = self.uiMap.getReplies(eventClass)
         for script, _ in self.scripts:
             for cmd in script.commands:
-                for dialogCmd, identifier in infos:
-                    if cmd.startswith(dialogCmd + " "):
-                        filename = cmd.replace(dialogCmd + " ", "")
-                        cacheMethod(identifier, filename)
-                if cmd.startswith(autoPrefix):
+                for dialogCmd, identifier in replies:
+                    if cmd.startswith(dialogCmd + " ") or cmd == dialogCmd:
+                        argument = cmd.replace(dialogCmd, "")
+                        argument = argument.strip()
+                        widgetClass.cacheReplies(identifier, argument)
+                if cmd.startswith(widgetClass.getAutoPrefix()):
                     parts = cmd.split("'")
                     identifier = parts[1]
-                    filename = parts[-1].strip()
-                    cacheMethod(identifier, filename)
+                    argument = parts[-1].strip()
+                    widgetClass.cacheReplies(identifier, argument)
         
     def makeIdleHandler(self, method):
         if wx.GetApp():
@@ -627,15 +465,20 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
 
 class ScriptEngine(storytext.guishared.ScriptEngine):
     eventTypes = [
-        (wx.Window      , [ ContextMenuEvent ]),
-        (wx.Frame       , [ FrameEvent,  MenuEvent]),
-        (wx.Button      , [ ButtonEvent   ]),
-        (wx.Choice      , [ ChoiceEvent   ]),
-        (wx.TextCtrl    , [ TextCtrlEvent ]),
-        (wx.CheckBox    , [ CheckEvent, UncheckEvent, CheckThirdStateEvent ]),
-        (wx.ListCtrl    , [ ListCtrlEvent ]),
-        (wx.FileDialog  , [ FileDialogEvent ]),
-        (MessageBoxWidget  , [ MessageBoxEvent ]),
+        (wx.Window,               [ContextMenuEvent]),
+        (wx.Frame,                [FrameEvent, MenuEvent]),
+        (wx.Button,               [ButtonEvent]),
+        (wx.Choice,               [ChoiceEvent]),
+        (wx.TextCtrl,             [TextCtrlEvent]),
+        (wx.CheckBox,             [CheckEvent, UncheckEvent, CheckThirdStateEvent]),
+        (wx.ListCtrl,             [ListCtrlEvent]),
+        (wx.FileDialog,           [FileDialogEvent]),
+        (wx.DirDialog,            [DirDialogEvent]),
+        (MessageBoxWidget,        [MessageBoxEvent]),
+        (DirSelectorWidget,       [DirSelectorEvent]),
+        (FileSelectorWidget,      [FileSelectorEvent]),
+        (GetColourFromUserWidget, [GetColourFromUserEvent]),
+        (GetFontFromUserWidget,   [GetFontFromUserEvent]),
         ]
     signalDescs = {
         "<<ListCtrlSelect>>": "select item",
@@ -788,22 +631,6 @@ class Describer(storytext.guishared.Describer):
     def getFrameState(self, widget):
         return widget.GetTitle()
     
-    def describeMessageBox(self, message, caption = "Message", style = wx.OK, *args, **kw):
-        header = "-" * 10 + " Message Box '" + caption + "' " + "-" * 10
-        self.logger.info("\n" + header)
-        self.logger.info(message)
-        footerLength = min(len(header), 100) # Don't let footers become too huge, they become ugly...
-        if style:
-            self.logger.info(".....")
-            buttons = []
-            for reply, name in sorted(messageBoxReplies.items()):
-                if style & reply:
-                    buttons.append("Button '" + name + "'")
-            if buttons:
-                self.logger.info("  ".join(buttons))
-                
-        self.logger.info("-" * footerLength)
-
 # Example menu structure as output by getMenuBarDescription, showing radio
 # items, checked items, submenus, and separators:
 #
