@@ -306,6 +306,8 @@ class ScriptEngine(scriptengine.ScriptEngine):
                     self.replaceAutoRecordingForUsecase(options.interface, exitHook=False)
 
     def handleAdditionalOptions(self, options):
+        if options.screenshot:
+            Describer.writeScreenshots = True
         if options.maxoutputwidth:
             Describer.maxOutputWidth = int(options.maxoutputwidth)
         if options.imagedescription:
@@ -995,6 +997,7 @@ class WidgetCounter:
 # Base class for everything except GTK's describer, which works a bit differently
 class Describer(object):
     maxOutputWidth = 130
+    writeScreenshots = False
     imagePaths = []
     imageDescriptionType = None
     excludeClassNames = {}

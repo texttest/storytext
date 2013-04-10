@@ -50,6 +50,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="record script to FILE. Also enabled via the environment variable USECASE_RECORD_SCRIPT.", metavar="FILE")
     parser.add_option("-s", "--supported", action="store_true",
                       help="list which PyGTK widgets and signals are currently supported 'out-of-the-box'")
+    parser.add_option("-S", "--screenshot", action="store_true",
+                      help="Take screenshots of the GUI after each action. Only works in SWT/Eclipse currently")
     parser.add_option("-t", "--timeout", metavar="SECONDS", default=60, action="store", type="int",
                       help="amount of time to wait for application events before giving up and trying to proceed.")
     parser.add_option("-T", "--testscriptpluginid",

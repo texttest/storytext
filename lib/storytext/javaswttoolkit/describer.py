@@ -42,6 +42,7 @@ class Describer(storytext.guishared.Describer):
         self.storedImages = {}
         self.imageToName = {}
         self.handleImages()
+        self.screenshotNumber = 0
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -67,8 +68,26 @@ class Describer(storytext.guishared.Describer):
         display.addFilter(swt.SWT.Show, ShowListener())
         display.addFilter(swt.SWT.Paint, PaintListener())
         
+    def writeScreenshot(self, shell):
+        display = shell.getDisplay()
+        gc = swt.graphics.GC(display);
+        image = swt.graphics.Image(display, shell.getBounds())
+        gc.copyArea(image, shell.getBounds().x, shell.getBounds().y)
+        gc.dispose()
+        
+        imageLoader = swt.graphics.ImageLoader()
+        imageLoader.data = [ image.getImageData() ]
+        self.screenshotNumber += 1
+        screenshotDir = os.path.join(os.getenv("TEXTTEST_LOG_DIR", os.getcwd()), "screenshots")
+        if not os.path.isdir(screenshotDir):
+            os.makedirs(screenshotDir)
+        fileName = os.path.join(screenshotDir, "screenshot" + str(self.screenshotNumber) + ".png")
+        imageLoader.save(fileName, swt.SWT.IMAGE_PNG) 
+    
     def describeWithUpdates(self, shellMethod):
         shell = shellMethod()
+        if self.writeScreenshots:
+            self.writeScreenshot(shell)
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, _, _ in stateChanges ]
