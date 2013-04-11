@@ -402,8 +402,7 @@ class UseCaseEditor:
 
     def setCreateShortcutSensitivity(self, item, selection):
         # Check selection has at least 2 elements and is consecutive
-        if selection.count_selected_rows() > 1 and self.isConsecutive(selection) and \
-        not self.shortcutsSelected(selection):
+        if selection.count_selected_rows() > 1 and self.isConsecutive(selection):
             item.set_sensitive(True)
         else:
             item.set_sensitive(False)
@@ -521,6 +520,7 @@ class UseCaseEditor:
                     self.treeModel.remove(iter)
             else:
                 sys.stderr.write("ERROR: mismatch in files, expected shortcut for '" + allCommands[iterIx] + "', but found none.")
+                break
 
     def respond(self, dialog, responseId, entry, frame, shortcutView):
         if responseId == gtk.RESPONSE_ACCEPT:
@@ -536,8 +536,32 @@ class UseCaseEditor:
     def recreateUsecaseFile(self):
         recordScript = RecordScript(self.fileName, [shortcut for _, shortcut in self.shortcutManager.shortcuts])
         for iter in self.getTopLevelIters():
-            recordScript.record(self.treeModel.get_value(iter, 1))
-            
+            value =self.treeModel.get_value(iter, 1)
+            if "<b>" in self.treeModel.get_value(iter, 0):
+                args = self.treeModel.get_value(iter, 2)
+                shortcut = self.getShortcut(value, args)
+                self.runShortcutCommands(recordScript, shortcut, args)
+            else:
+                recordScript.record(value)
+
+    def runShortcutCommands(self, recordScript, shortcut, args ):
+        shortcutCopy = ReplayScript(shortcut.name, True)
+        while not shortcutCopy.hasTerminated():
+            command = shortcutCopy.getCommand(args)
+            self.recordShortcutCommand(recordScript, command)
+    
+    def recordShortcutCommand(self, recordScript, command):
+        shortcut, args = self.shortcutManager.findShortcut(command)
+        if shortcut:
+            self.runShortcutCommands(recordScript, shortcut, args)
+        else:
+            recordScript.record(command)
+
+    def getShortcut(self, shortcutNameWithArgs, args):
+        for _, shortcut in self.shortcutManager.shortcuts:
+            if shortcut.getShortcutNameWithArgs(args) == shortcutNameWithArgs:
+                return shortcut
+
     def getShortcutLines(self, shortcutView):
         model = shortcutView.get_model()
         lines = []
@@ -626,7 +650,7 @@ class UseCaseEditor:
         return dialog
     
     def createShortcutPreview(self, commands, arguments, textEntry):
-        listModel = gtk.ListStore(str, str, str)
+        listModel = gtk.ListStore(str, str, object)
         view = gtk.TreeView(listModel)
         view.set_headers_visible(False)
         cmdRenderer = gtk.CellRendererText()
@@ -635,13 +659,18 @@ class UseCaseEditor:
         view.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         argumentIndex = 0
         for command in commands:
-            arg = arguments[argumentIndex] if argumentIndex < len(arguments) else ""
-            text, argument = self.replaceArguments(command, arg)
-            iter1 = listModel.append([text, command, argument])
-            if argument:
-                argumentIndex = argumentIndex + 1 % len(arguments)
+            shortcut, args =self.shortcutManager.findShortcut(command)
+            if shortcut:
+                text = shortcut.getShortcutName()
+            else:
+                arg = arguments[argumentIndex] if argumentIndex < len(arguments) else ""
+                text, argument = self.replaceArguments(command, arg)
+                args = [argument] if argument else []
+                if argument:
+                    argumentIndex = argumentIndex + 1 % len(arguments)
+            iter1 = listModel.append([text, command, args])
+            if not shortcut and args:
                 textEntry.connect("changed", self.handleArguments, (listModel, iter1))
-
         self.scriptEngine.monitorSignal("select preview node", "changed", view)
         self.scriptEngine.monitorSignal("show preview node options for", "button-press-event", view)
         return view
@@ -657,10 +686,10 @@ class UseCaseEditor:
         newName = widget.get_text()
         originalValue = model.get_value(iter, 1)
         currentValue = model.get_value(iter, 0)
-        arg = model.get_value(iter, 2)
-        if newName.find(" " + arg + " ") >= 0 or newName.startswith(arg + " ") or newName.endswith(" " + arg):
+        args = model.get_value(iter, 2)
+        if len(args) == 1 and (newName.find(" " + args[0] + " ") >= 0 or newName.startswith(args[0] + " ") or newName.endswith(" " + args[0])):
             if originalValue == currentValue:
-                model.set_value(iter, 0, currentValue.replace(arg, "$"))
+                model.set_value(iter, 0, currentValue.replace(args[0], "$"))
         else:
             model.set_value(iter, 0, originalValue)
             
