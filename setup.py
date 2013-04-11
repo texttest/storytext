@@ -82,8 +82,9 @@ if jython or sdist:
     package_data = { "storytext.javaswingtoolkit" : [ "swinglibrary*.jar" ]}
 
 if sdist or (not jython and sys.version_info[0] == 2):
-    packages += [ "storytext.gtktoolkit", "storytext.gtktoolkit.simulator",
-                  "storytext.gtktoolkit.describer", "storytext.wxtoolkit" ] 
+    packages += [ "storytext.gtktoolkit", "storytext.gtktoolkit.simulator", "storytext.gtktoolkit.describer", 
+                  "storytext.wxtoolkit", "storytext.wxtoolkit.monkeypatch", 
+                  "storytext.wxtoolkit.monkeypatch.dialogs", "storytext.wxtoolkit.monkeypatch.functions"  ] 
 
 class python3_build_scripts(build_scripts):
     def finalize_options(self):
