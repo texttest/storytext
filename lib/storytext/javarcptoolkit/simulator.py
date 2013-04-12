@@ -190,7 +190,8 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
         class RecordListener(IPartListener):
             def partActivated(listenerSelf, part):#@NoSelf
-                storytext.guishared.catchAll(method, part, self)
+                if part is self.widget.getViewReference().getView(False):
+                    storytext.guishared.catchAll(method, part, self)
         page = self.widget.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
         
@@ -216,7 +217,7 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
 
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return part is self.widget.getViewReference().getView(False) and self.hasMultipleViews() and not swtsimulator.DisplayFilter.instance.hasEvents()
+        return self.hasMultipleViews() and not swtsimulator.DisplayFilter.instance.hasEvents()
 
     def hasMultipleViews(self):
         # If there is only one view, don't try to record if it's activated, it's probably just been created...
