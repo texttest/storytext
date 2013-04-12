@@ -165,10 +165,11 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         pane = ref.getPane()
         if pane.hasViewMenu():            
             menuManager = pane.getMenuManager()
-            menu = menuManager.createContextMenu(pane.getControl().getParent())
-            menuManager.updateAll(True)
-            WidgetAdapter.storeId(menu, ref.getId())
-            self.sendShowEvent(menu)
+            if pane.getControl():
+                menu = menuManager.createContextMenu(pane.getControl().getParent())
+                menuManager.updateAll(True)
+                WidgetAdapter.storeId(menu, ref.getId())
+                self.sendShowEvent(menu)
             
     def monitorViewContentsMenus(self, botView):
         pass

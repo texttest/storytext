@@ -910,10 +910,21 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 return compositeEventProxy, ""
             else:
                 return event, parsedArguments
+    
+    def getPossibleEvents(self, events):
+        checkedEvents = []
+        badEvents = []
+        for event in events:
+            try:
+                event.checkWidgetStatus()
+                checkedEvents.append(event)
+            except definitions.UseCaseScriptError:
+                badEvents.append(event)
+        return checkedEvents, badEvents
         
     def checkWidgetStatus(self, commandName, argumentString):
         if commandName != replayer.signalCommandName:
-            possibleEvents = self.events[commandName]   
+            possibleEvents, badEvents = self.getPossibleEvents(self.events[commandName])
             compositeEventProxy = definitions.CompositeEventProxy(argumentString)
             # We may have several plausible events with this name,
             # but some of them won't work because widgets are disabled, invisible etc
@@ -928,7 +939,12 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 except definitions.UseCaseScriptError:
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, trying another: " + str(value))
-            event = possibleEvents[0]
+            # Would be improved
+            if len(possibleEvents) > 0:
+                event = possibleEvents[0]
+            else:
+                event = badEvents[0]
+
             retval = self.checkAndParse(event, compositeEventProxy)
             if retval:
                 return retval

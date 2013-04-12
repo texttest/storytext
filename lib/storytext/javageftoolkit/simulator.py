@@ -223,6 +223,8 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
     def toDisplayLocation(self, x, y):
         return self.widget.getDisplay().map(self.widget, None, x, y)
 
+    def isDisposed(self):
+        return self.widget.isDisposed()
 
 class DisplayFilter(rcpsimulator.DisplayFilter):
     def shouldCheckWidget(self, widget, eventType):
@@ -412,6 +414,11 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     def getEditPartComparator(self):
         return None
 
+    def widgetDisposed(self):
+        return self.widget.getFigureCanvas().isDisposed()
+    
+    def describeWidget(self):
+        return "of type " + self.widget.getType()
 
 class ViewerSelectEvent(ViewerEvent):
     def connectRecord(self, method):
