@@ -227,8 +227,8 @@ class UseCaseEditor:
         return iter
             
     def extractArgsAddMarkup(self, text, cmd):
-        markup = text.replace(cmd, cmd + "<i>") + "</i>"
-        arg = text.replace(cmd, "").strip()
+        markup = text.replace(cmd, cmd + "<i>", 1) + "</i>"
+        arg = text.replace(cmd, "", 1).strip()
         args = [ arg ] if arg else []
         return markup, args
 
