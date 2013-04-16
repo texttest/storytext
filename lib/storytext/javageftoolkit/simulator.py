@@ -414,6 +414,9 @@ class ViewerEvent(storytext.guishared.GuiEvent):
     def getEditPartComparator(self):
         return None
 
+    def getControl(self):
+        return self.getGefViewer().getControl()
+
     def widgetDisposed(self):
         return self.widget.getFigureCanvas().isDisposed()
     
@@ -474,7 +477,7 @@ class ViewerSelectEvent(ViewerEvent):
 
     def shouldRecord(self, parts, *args):
         types = self.getSignalsToFilter()
-        hasMouseEvent = DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
+        hasMouseEvent = DisplayFilter.instance.hasEventOfType(types, self.getControl())
         return hasMouseEvent and len(parts) > 0
 
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
@@ -501,7 +504,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
             def dragDetected(lself, event):#@NoSelf
                 storytext.guishared.catchAll(self.applyToDragged, event, method)
 
-        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addDragDetectListener, DDListener())
+        rcpsimulator.swtsimulator.runOnUIThread(self.getControl().addDragDetectListener, DDListener())
         self.addDropListener(method)
 
     def applyToDragged(self, event, method):
@@ -516,7 +519,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
                 storytext.guishared.catchAll(self.handleDrop, event, method)
 
         self.allInstances.setdefault(self.__class__, []).append(self)
-        rcpsimulator.swtsimulator.runOnUIThread(self.getGefViewer().getControl().addMouseListener, MListener())
+        rcpsimulator.swtsimulator.runOnUIThread(self.getControl().addMouseListener, MListener())
 
     def handleDrop(self, event, method):
         if DragHolder.sourceEvent is not None and self.__class__ is DragHolder.sourceEvent.__class__:
@@ -552,7 +555,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
     
     def shouldRecord(self, part, *args):
         types = self.getSignalsToFilter()
-        return DisplayFilter.instance.hasEventOfType(types, self.getGefViewer().getControl())
+        return DisplayFilter.instance.hasEventOfType(types, self.getControl())
 
     def generate(self, partAndPos):
         self.widget.drag(*partAndPos)
