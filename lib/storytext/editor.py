@@ -12,7 +12,7 @@ from guishared import UIMapFileHandler, removeMarkup
 from replayer import ShortcutManager, ReplayScript
 from recorder import RecordScript
 from definitions import __version__, waitCommandName
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, unescape
 import itertools
 
 class UseCaseEditor:
@@ -43,7 +43,7 @@ class UseCaseEditor:
     
     def getNewWidgetDescriptions(self):
         def get_text(widget):
-            return removeMarkup(widget.get_active_text()) if hasattr(widget, "get_active_text") else widget.get_text()
+            return removeMarkup(unescape(widget.get_active_text())) if hasattr(widget, "get_active_text") else widget.get_text()
         return map(get_text, self.allDescriptionWidgets)
         
     def run(self):
@@ -316,9 +316,9 @@ class UseCaseEditor:
                 sectionName = ", ".join(sectionNameParts)
                 actualSection = self.uiMapFileHandler.getSection(sectionName)
                 if actualSection:
-                    sections.append(self.convertToUtf8(actualSection))
+                    sections.append(self.convertToUtf8(escape(actualSection)))
                 else:
-                    utf8Name = self.convertToUtf8(sectionName)
+                    utf8Name = self.convertToUtf8(escape(sectionName))
                     if sectionName in badNames or (i == 1 and sectionName.startswith("Type=")):
                         badDescs.append(self.getErrorColouredText(utf8Name))
                     else:
@@ -359,7 +359,7 @@ class UseCaseEditor:
             table.attach(widgetDescWidget, 1, 2, rowIndex + 1, rowIndex + 2, xoptions=gtk.FILL, yoptions=gtk.FILL)
             table.attach(gtk.Label(actionDesc), 2, 3, rowIndex + 1, rowIndex + 2, xoptions=gtk.FILL, yoptions=gtk.FILL)
             entry = gtk.Entry()
-            scriptName = "enter usecase name for signal '" + signalName + "' on " + widgetType + " '" + removeMarkup(possibleWidgetDescs[0]) + "' ="
+            scriptName = "enter usecase name for signal '" + signalName + "' on " + widgetType + " '" + removeMarkup(unescape(possibleWidgetDescs[0])) + "' ="
             self.scriptEngine.monitorSignal(scriptName, "changed", entry)
             entry.connect("activate", self.activateEntry, dialog)
             self.scriptEngine.monitorSignal("finish name entry editing by pressing <enter>", "activate", entry)
