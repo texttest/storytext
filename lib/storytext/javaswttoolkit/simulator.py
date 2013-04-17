@@ -38,7 +38,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         return ""
         
     def getLabel(self):
-        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo, swtbot.widgets.SWTBotSpinner)) or \
+        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo, swtbot.widgets.SWTBotSpinner, FakeSWTBotCCombo)) or \
                not hasattr(self.widget.widget, "getText"):
             return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
@@ -1424,12 +1424,26 @@ class WidgetMonitor:
             
     def getBrowserUpdateMonitorClass(self):
         return BrowserUpdateMonitor
+    
+    def addToolbarEmbeddedWidgets(self, widgets, matcher):
+        # Should not be necessary, but SWTBot doesn't find these, as of 2.0.5
+        # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=356883
+        # We work around and find them ourselves
+        extraControls = []
+        for widget in widgets:
+            if isinstance(widget, swt.widgets.ToolItem):
+                control = runOnUIThread(widget.getControl)
+                if control is not None:
+                    extraControls.append(control)
+        for control in extraControls:
+            widgets.addAll(self.bot.widgets(matcher, control))
 
     def findAllWidgets(self):
         matcher = IsAnything()
         shell = runOnUIThread(self.getActiveShell)
         try:
             widgets = self.bot.widgets(matcher, shell)
+            self.addToolbarEmbeddedWidgets(widgets, matcher)
             menus = self.bot.getFinder().findMenus(matcher)
             widgets.addAll(menus)
             return widgets

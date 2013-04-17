@@ -20,8 +20,8 @@ class Describer(storytext.guishared.Describer):
                    (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     ignoreWidgets = [ types.NoneType ]
     # DateTime children are an implementation detail
-    # Coolbars and Expandbars describe their children directly : they have two parallel children structures
-    ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.DateTime, swt.widgets.Group)
+    # Coolbars, Toolbars and Expandbars describe their children directly : they have two parallel children structures
+    ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.ToolBar, swt.widgets.DateTime, swt.widgets.Group)
     statelessWidgets = [ swt.widgets.Sash ]
     stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,
                      swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
@@ -183,26 +183,25 @@ class Describer(storytext.guishared.Describer):
 
     def getExpandItemDescriptions(self, item, indent, *args, **kw):
         if item.getExpanded():
-            return [ self.getItemControlDescription(item, indent + 1, *args, **kw) ]
+            return self.getCoolItemDescriptions(item, indent + 1)
+        else:
+            return []
+        
+    def getToolItemControls(self, item, indent, **kw):
+        control = item.getControl()
+        if control:
+            return [ (control, indent) ] 
         else:
             return []
 
     def getCoolItemDescriptions(self, item, *args, **kw):
-        itemDesc = self.getItemControlDescription(item, *args, **kw)
-        if itemDesc:
-            return [ itemDesc ] 
-        else:
-            return []
+        return [ self.getItemControlDescription(c, i) for c, i in self.getToolItemControls(item, *args, **kw) ]
 
-    def getItemControlDescription(self, item, indent, **kw):
-        control = item.getControl()
-        if control:
-            descLines = self.getDescription(control).splitlines()
-            paddedLines = [ " " * indent * 2 + line for line in descLines ]
-            return "\n".join(paddedLines) + "\n"
-        else:
-            return ""
-
+    def getItemControlDescription(self, control, indent):
+        descLines = self.getDescription(control).splitlines()
+        paddedLines = [ " " * indent * 2 + line for line in descLines ]
+        return "\n".join(paddedLines) + "\n"
+        
     def getMenuDescription(self, menu, indent=1, **kw):
         return self.getItemBarDescription(menu, indent=indent, subItemMethod=self.getCascadeMenuDescriptions, **kw)
     
@@ -224,11 +223,21 @@ class Describer(storytext.guishared.Describer):
     def getExpandBarState(self, expandbar):
         return expandbar.getChildren(), [ item.getExpanded() for item in expandbar.getItems() ] 
 
+    def itemStateToString(self, itemState):
+        if isinstance(itemState, (str, unicode)):
+            return itemState
+        else:
+            return self.getItemControlDescription(*itemState)
+
     def getToolBarDescription(self, toolbar):
-        return self.getAndStoreState(toolbar)
+        itemStates = self.getToolBarState(toolbar)
+        self.widgetsWithState[toolbar] = itemStates
+        descs = map(self.itemStateToString, itemStates)
+        return "\n".join(descs)
 
     def getToolBarState(self, toolbar):
-        return "Tool Bar:\n" + self.getItemBarDescription(toolbar, indent=1)
+        return [ "Tool Bar:" ] + self.getAllItemDescriptions(toolbar, indent=1, 
+                                                             subItemMethod=self.getToolItemControls)
     
     def getCoolBarDescription(self, coolbar):
         return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1,
@@ -478,7 +487,7 @@ class Describer(storytext.guishared.Describer):
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser, swt.widgets.Spinner)):
             return "\nUpdated " + (util.getTextLabel(widget, useContext=True) or "Text") +  " Field\n"
-        elif isinstance(widget, swt.widgets.Combo):
+        elif isinstance(widget, (swt.widgets.Combo, swt.custom.CCombo)):
             return "\nUpdated " + util.getTextLabel(widget, useContext=True) + " Combo Box\n"
         elif util.getTopControl(widget) or isinstance(widget, swt.widgets.Group):
             return "\n"
@@ -769,11 +778,14 @@ class Describer(storytext.guishared.Describer):
     def checkWindow(self, window):
         # Don't describe tooltips
         return (window.getStyle() & swt.SWT.TOOL) == 0
-    
+
+    def splitState(self, state):
+        return state if isinstance(state, list) else state.split("\n")
+
     def getStateChangeDescription(self, widget, oldState, state):
         if isinstance(widget, (swt.widgets.Menu, swt.widgets.ToolBar)):
-            old = oldState.split("\n")
-            new = state.split("\n")
+            old = self.splitState(oldState)
+            new = self.splitState(state)
             if len(old) == len(new):
                 return self.getDiffedDescription(widget, old, new)
         return storytext.guishared.Describer.getStateChangeDescription(self, widget, oldState, state)
