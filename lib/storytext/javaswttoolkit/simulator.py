@@ -1,5 +1,5 @@
 
-import storytext.guishared, util, logging, os, time
+import storytext.guishared, util, logging, os, time, sys
 from storytext.definitions import UseCaseScriptError
 from storytext import applicationEvent, applicationEventDelay
 from difflib import SequenceMatcher
@@ -1336,9 +1336,13 @@ class WidgetMonitor:
         self.forceShellActive()
         self.setUpDisplayFilter()
         allWidgets = self.findAllWidgets()
-        self.uiMap.logger.debug("Monitoring all widgets in active shell...")
-        self.monitorAllWidgets(list(allWidgets))
-        self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
+        if len(allWidgets) > 0:
+            self.uiMap.logger.debug("Monitoring all widgets in active shell...")
+            self.monitorAllWidgets(list(allWidgets))
+            self.uiMap.logger.debug("Done Monitoring all widgets in active shell.")
+            return True
+        else:
+            return False
         
     def forceShellActive(self):
         if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
@@ -1423,10 +1427,18 @@ class WidgetMonitor:
 
     def findAllWidgets(self):
         matcher = IsAnything()
-        widgets = self.bot.widgets(matcher, runOnUIThread(self.getActiveShell))
-        menus = self.bot.getFinder().findMenus(matcher)
-        widgets.addAll(menus)
-        return widgets
+        shell = runOnUIThread(self.getActiveShell)
+        try:
+            widgets = self.bot.widgets(matcher, shell)
+            menus = self.bot.getFinder().findMenus(matcher)
+            widgets.addAll(menus)
+            return widgets
+        except TypeError:
+            sys.stderr.write("ERROR: classloader clash when trying to use SWTBot.\n" +
+                             "Possible causes: has Mockito been exported with the product (suggest to make dependency optional if so)?\n"
+                             "Are you using Jython 2.5.2 instead of Jython 2.5.1?\n")
+            swtbot.widgets.SWTBotShell(shell).close()
+            return []
 
     def getPopupMenus(self, widgets):
         menus = []

@@ -67,11 +67,13 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils
         SWTUtils.waitForDisplayToAppear()
         monitor = self.getMonitorClass()(self.uiMap)
-        monitor.setUp()
-        return monitor
+        if monitor.setUp():
+            return monitor
     
     def runReplay(self):
         monitor = self.setUpMonitoring()
+        if monitor is None:
+            return # fatal error in setup
         monitor.removeMousePointerIfNeeded()
         from simulator import runOnUIThread
         # Can't make this a member, otherwise fail with classloader problems for RCP
