@@ -528,7 +528,7 @@ class ComboBoxEvent(StateChangeEvent):
             
     def getStateText(self, *args):
         if self.widget.isEditable():
-            texts = [ self.widget.getEditor().getItem() ]
+            texts = [ str(self.widget.getEditor().getItem()) ]
         else:
             texts = [ self.getJComboBoxText(self.widget.getSelectedIndex()) ]
         return ", ".join(texts)
