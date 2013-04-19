@@ -93,6 +93,7 @@ class Describer(storytext.guishared.Describer):
             stateChangeWidgets = [ widget for widget, _, _ in stateChanges ]
             if self.structureLog.isEnabledFor(logging.DEBUG):
                 for widget in stateChangeWidgets:
+                    self.structureLog.info("Widget changed state:")
                     self.describeStructure(widget)
             describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets, shell)
             self.describeStateChanges(stateChanges, describedForAppearance)
@@ -668,7 +669,7 @@ class Describer(storytext.guishared.Describer):
         layout = widget.getLayout()
         return layout is not None and isinstance(layout, (swt.layout.GridLayout, swt.layout.FillLayout,
                                                           swt.layout.RowLayout, swt.custom.StackLayout))
-
+    
     def _getDescription(self, widget):
         self.widgetsDescribed.add(widget)
         desc = storytext.guishared.Describer._getDescription(self, widget)

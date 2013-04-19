@@ -1032,6 +1032,7 @@ class Describer(object):
             return
         
         if self.structureLog.isEnabledFor(logging.DEBUG):
+            self.structureLog.info("New window:")
             self.describeStructure(window)
 
         self.windows.add(window)
@@ -1135,7 +1136,7 @@ class Describer(object):
             return desc.rstrip()
         else:
             return childDesc
-        
+            
     @classmethod
     def describeClass(cls, className):
         return cls.excludeClassNames.get(className) != []
@@ -1143,9 +1144,10 @@ class Describer(object):
     def getWidgetDescription(self, widget):
         for widgetClass in self.stateWidgets + self.statelessWidgets:
             if isinstance(widget, widgetClass):
-                className = widgetClass.__name__
-                if self.describeClass(className):
-                    methodName = "get" + className.replace("$", "") + "Description"
+                describeClassName = widgetClass.__name__
+                actualClassName = widget.__class__.__name__
+                if self.describeClass(describeClassName) and self.describeClass(actualClassName):
+                    methodName = "get" + describeClassName.replace("$", "") + "Description"
                     return getattr(self, methodName)(widget)
                 else:
                     return ""
@@ -1278,7 +1280,7 @@ class Describer(object):
         return line + header + "\n" + line + body + "\n" + line
 
     def shouldDescribeChildren(self, widget):
-        return hasattr(widget, self.childrenMethodName) and not isinstance(widget, self.ignoreChildren)
+        return hasattr(widget, self.childrenMethodName) and not isinstance(widget, self.ignoreChildren) and self.describeClass(widget.__class__.__name__)
 
     def _getChildrenDescription(self, widget):
         return self.formatChildrenDescription(widget) if self.shouldDescribeChildren(widget) else ""
@@ -1417,11 +1419,13 @@ class Describer(object):
         descriptions = map(self.getDescriptionForVisibilityChange, commonParents)
         if self.structureLog.isEnabledFor(logging.DEBUG):
             for parent in commonParents:
+                self.structureLog.info("Newly appeared widget:")
                 self.describeStructure(parent)
             
         for desc in sorted(descriptions):
-            self.logger.info("\nNew widgets have appeared: describing common parent :\n")
-            self.logger.info(desc)
+            if desc:
+                self.logger.info("\nNew widgets have appeared: describing common parent :\n")
+                self.logger.info(desc)
         return commonParents
     
     def getMarkedAncestor(self, widget, markedWidgets):
