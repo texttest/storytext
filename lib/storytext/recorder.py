@@ -2,7 +2,6 @@
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
 import os, sys, signal, logging
-from threading import currentThread 
 from copy import copy
 import replayer, encodingutils
 from definitions import *
@@ -530,9 +529,6 @@ class UseCaseRecorder:
                 return arg
             
     def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
-        if currentThread().getName() != "MainThread":
-            self.logger.debug("Rejected attempt to register application event from different thread for event ", eventName + " and thread " + currentThread().getName())
-            return
         category = category or "storytext_DEFAULT"
         delayLevel = max(delayLevel, self.getMaximumStoredDelay())
         appEventKey = category, delayLevel
