@@ -1143,12 +1143,10 @@ class DisplayFilter:
  
     @classmethod       
     def registerApplicationEvent(cls, name, category):
-        def sendApplicationEvent(name, category, delayLevel):
-            applicationEvent(name, category, delayLevel=delayLevel)
         delayLevel = len(cls.instance.eventsFromUser) if cls.instance else 0
         if delayLevel:
             cls.instance.delayedAppEvents.append(name)
-        runOnUIThread(sendApplicationEvent, name, category, delayLevel)
+        applicationEvent(name, category, delayLevel=delayLevel)
 
     def shouldCheckWidget(self, widget, eventType):
         if not util.isVisible(widget):
