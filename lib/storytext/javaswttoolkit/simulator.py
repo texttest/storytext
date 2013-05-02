@@ -762,7 +762,7 @@ class TableIndexer(storytext.guishared.TableIndexer):
         return column, rowNames
     
     def checkNameCache(self):
-        if self.getRowCount() != self.cachedRowCount:
+        if self.getRowCount() != self.cachedRowCount or all((r.startswith("<unnamed>") for r in self.rowNames)):
             self.primaryKeyColumn, self.rowNames = self.findRowNames()
             self.logger.debug("Rebuilt indexer cache, primary key " + str(self.primaryKeyColumn) +
                               ", row names now " + repr(self.rowNames))
