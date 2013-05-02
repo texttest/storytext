@@ -1414,6 +1414,7 @@ class WidgetMonitor:
         self.widgetMonitorLock.acquire()
         try:
             newWidgets = [ w for w in widgets if w not in self.widgetsMonitored and not w.isDisposed() ]
+            self.uiMap.logger.debug(str(len(widgets)) + " widgets found, " + str(len(newWidgets)) + " new.")  
             self.widgetsMonitored.update(newWidgets)
         finally:
             self.widgetMonitorLock.release()

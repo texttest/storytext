@@ -129,7 +129,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
                 
     def handleReplayFailure(self, errorText, *args):
-        if "MenuItem has already been disposed" in errorText: # View Menus can easily get regenerated, try to re-monitor them.
+        if "MenuItem has already been disposed" in errorText or "no widget found" in errorText: # View Menus can easily get regenerated, try to re-monitor them.
             swtsimulator.runOnUIThread(self.monitorAllMenus)
     
     def monitorAllMenus(self):
