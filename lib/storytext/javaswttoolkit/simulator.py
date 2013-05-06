@@ -1303,13 +1303,21 @@ class WidgetMonitor:
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
         self.widgetsMonitored = set()
+        self.allMenus = set()
         self.uiMap = uiMap
         self.uiMap.scriptEngine.eventTypes = eventTypes
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
         self.widgetMonitorLock = Lock()
 
-    def handleReplayFailure(self, *args):
-        pass # nothing yet, used in derived classes
+    def handleReplayFailure(self, errorText, *args):
+        if "MenuItem has already been disposed" in errorText or "no widget found" in errorText:
+            runOnUIThread(self.recheckPopupMenus)
+
+    def recheckPopupMenus(self):
+        for menu in self.allMenus:
+            self.uiMap.logger.debug("Rechecking popup menu " + str(id(menu)))
+            if not menu.isDisposed():
+                self.monitorNewWidgets(menu)
 
     def getDisplayFilterClass(self):
         return DisplayFilter
@@ -1386,6 +1394,8 @@ class WidgetMonitor:
 
         self.uiMap.logger.debug("Showing/painting widget of type " +
                                 parent.__class__.__name__ + " " + str(id(parent)) + ", monitoring found widgets")
+        if isinstance(parent, swt.widgets.Menu):
+            self.allMenus.add(parent)
         self.monitorAllWidgets(widgets)
         self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + 
                                 parent.__class__.__name__ + " " + str(id(parent)) + ".")
@@ -1410,7 +1420,9 @@ class WidgetMonitor:
     def monitorAllWidgets(self, widgets):
         # Called both on the entire initial widget set and whenever a widgets is shown -> different threads
         # Use lock to avoid racing
-        widgets += self.getPopupMenus(widgets)
+        popupMenus = self.getPopupMenus(widgets)
+        self.allMenus.update(popupMenus)
+        widgets += popupMenus
         self.widgetMonitorLock.acquire()
         try:
             newWidgets = [ w for w in widgets if w not in self.widgetsMonitored and not w.isDisposed() ]

@@ -128,14 +128,11 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         page = swtbotView.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
                 
-    def handleReplayFailure(self, errorText, *args):
-        if "MenuItem has already been disposed" in errorText or "no widget found" in errorText: # View Menus can easily get regenerated, try to re-monitor them.
-            swtsimulator.runOnUIThread(self.monitorAllMenus)
-    
-    def monitorAllMenus(self):
+    def recheckPopupMenus(self):
         for swtbotView in self.getViews():
             self.uiMap.logger.debug("Menu item disposed - remonitoring menu in view " + swtbotView.getViewReference().getId())
             self.monitorMenus(swtbotView)
+        swtsimulator.WidgetMonitor.recheckPopupMenus(self)
                 
     def setWidgetAdapter(self):
         WidgetAdapter.setAdapterClass(WidgetAdapter)
