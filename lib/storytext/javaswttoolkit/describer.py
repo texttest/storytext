@@ -641,7 +641,7 @@ class Describer(storytext.guishared.Describer):
         header = "." * 6 + " " + widget.getText() + " " + "." * 6
         footer = "." * len(header)
         compositeDesc = self.getCompositeDescription(widget) or self.formatChildrenDescription(widget)
-        return header + "\n" + compositeDesc + "\n" + footer
+        return header + "\n" + str(compositeDesc) + "\n" + footer
 
     def getStateControlDescription(self, widget):
         stateControlInfo = self.getState(widget)
