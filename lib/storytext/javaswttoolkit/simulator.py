@@ -561,30 +561,6 @@ class TextActivateEvent(SignalEvent):
         self.widget.setFocus()
         self.widget.typeText("\n")
 
-class ComboTextEvent(TextEvent):
-    def _generate(self, argumentString):
-        try:
-            if runOnUIThread(TextEvent.isEditable, self):
-                TextEvent._generate(self, argumentString)
-            else:
-                self.widget.setSelection(argumentString)
-        except RuntimeException, e:
-            raise UseCaseScriptError, e.getMessage()
-
-    def selectAll(self):
-        # Strangely, there is no selectAll method...
-        selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
-        runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
-
-    def isEditable(self):
-        # Better would be to listen for selection in the readonly case. As it is, can't do what we do on TextEvent
-        return True
-    
-    def isTriggeringEvent(self, e):
-        # Combo editing sometimes generates two modify events, one "inside" the other
-        # Without this we risk the inner one being rejected because the outer one hasn't run,
-        # and the outer being rejected because the inner one has updated the text already
-        return e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget
     
 def getPrivateField(obj, fieldName):
     cls = obj.getClass()
@@ -595,22 +571,16 @@ def getPrivateField(obj, fieldName):
             return declaredField.get(obj)
         except NoSuchFieldException:
             cls = cls.getSuperclass()
-
-class CComboSelectEvent(StateChangeEvent):
-    internalWidgets = []
+            
+            
+class ComboSelectEvent(StateChangeEvent):
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
         self.stateText = None
-        self.addWidgets()
 
-    def addWidgets(self):
-        list_ =  getPrivateField(self.widget.widget.widget, "list")
-        text_ =  getPrivateField(self.widget.widget.widget, "text")
-        self.internalWidgets.append(list_)
-        self.internalWidgets.append(text_)
-    
     def getStateText(self, *args):
-        return self.widget.getText()
+        widget = self.widget.widget.widget
+        return DisplayFilter.instance.itemTextCache.get(widget, widget.getText())
     
     def _generate(self, argumentString):
         try:
@@ -622,12 +592,6 @@ class CComboSelectEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Selection"
 
-    def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        currOutput = self.outputForScript(*args)
-        _, currSelection = currOutput.split(self.name, 1)
-        _, oldSelection = stateChangeOutput.split(stateChangeEvent.name, 1)
-        return (isinstance(stateChangeEvent, CComboChangeEvent) and currSelection == oldSelection) or StateChangeEvent.implies(self, stateChangeOutput, *args)
-
     def shouldRecord(self, event, *args):
         newStateText = self.getStateText()
         if self.stateText is not None and self.stateText == newStateText:
@@ -635,9 +599,44 @@ class CComboSelectEvent(StateChangeEvent):
         self.stateText = newStateText
         return StateChangeEvent.shouldRecord(self, event, *args)
     
+
+class CComboSelectEvent(ComboSelectEvent):
+    internalWidgets = []
+    def __init__(self, *args):
+        ComboSelectEvent.__init__(self, *args)
+        self.addWidgets()
+
+    def addWidgets(self):
+        list_ =  getPrivateField(self.widget.widget.widget, "list")
+        text_ =  getPrivateField(self.widget.widget.widget, "text")
+        self.internalWidgets.append(list_)
+        self.internalWidgets.append(text_)
+
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        _, currSelection = currOutput.split(self.name, 1)
+        _, oldSelection = stateChangeOutput.split(stateChangeEvent.name, 1)
+        return (isinstance(stateChangeEvent, CComboChangeEvent) and currSelection == oldSelection) or StateChangeEvent.implies(self, stateChangeOutput, *args)
+
     def isTriggeringEvent(self, e):
         return e.widget in self.internalWidgets or StateChangeEvent.isTriggeringEvent(self, e)
 
+class ComboTextEvent(TextEvent):
+    def parseArguments(self, *args):
+        if not runOnUIThread(self.isEditable):
+            raise UseCaseScriptError, "Cannot edit text in this Combo Box as it is readonly"
+        return TextEvent.parseArguments(self, *args)
+    
+    def selectAll(self):
+        # Strangely, there is no selectAll method...
+        selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
+        runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
+    
+    def isTriggeringEvent(self, e):
+        # Combo editing sometimes generates two modify events, one "inside" the other
+        # Without this we risk the inner one being rejected because the outer one hasn't run,
+        # and the outer being rejected because the inner one has updated the text already
+        return e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget
 
 class CComboChangeEvent(CComboSelectEvent):
     def parseArguments(self, *args):
@@ -659,6 +658,9 @@ class CComboChangeEvent(CComboSelectEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return StateChangeEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
 
+    def getStateText(self, *args):
+        return self.widget.getText()
+    
 
 class StoryTextSwtBotTable(swtbot.widgets.SWTBotTable):    
     def select(self, indices):
@@ -1123,14 +1125,19 @@ class DisplayFilter:
         self.logger.debug("Filter removed for event " + e.toString())
         self.eventsFromUser.remove(e)
 
+    def cacheItemText(self, e):
+        if e.item and not e.item.isDisposed():
+            self.itemTextCache[e.item] = e.item.getText()
+        elif hasattr(e.widget, "getSelectionIndex") and hasattr(e.widget, "getText") and e.type == swt.SWT.Selection:
+            self.itemTextCache[e.widget] = e.widget.getText()
+            
     def handleFilterEvent(self, e):
         if self.shouldCheckWidget(e.widget, e.type):
             self.logger.debug("Filter for event " + e.toString())
             self.eventsFromUser.append(e)
             runOnUIThread(e.widget.addListener, e.type, EventFinishedListener(e))
-            if e.item and not e.item.isDisposed():
-                # Safe guard against the application changing the text before we can record
-                self.itemTextCache[e.item] = e.item.getText()
+            # Safe guard against the application changing the text before we can record
+            self.cacheItemText(e)
         else:
             self.logger.debug("Filter ignored event " + e.toString())
 
@@ -1545,7 +1552,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                                                             TreeClickEvent, TreeDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
                 (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
-                (swtbot.widgets.SWTBotCombo             , [ ComboTextEvent, TextActivateEvent ]),
+                (swtbot.widgets.SWTBotCombo             , [ ComboSelectEvent,  ComboTextEvent, TextActivateEvent ]),
                 (FakeSWTBotCCombo                       , [ CComboSelectEvent, CComboChangeEvent, TextActivateEvent ]),
                 (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
                 (FakeSWTBotCTabFolder                   , [ CTabSelectEvent, CTabCloseEvent ]),
