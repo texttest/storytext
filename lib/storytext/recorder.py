@@ -5,6 +5,7 @@ import os, sys, signal, logging
 from copy import copy
 import replayer, encodingutils
 from definitions import *
+from threading import Lock
 
 try:
     from collections import OrderedDict
@@ -311,6 +312,7 @@ class UseCaseRecorder:
         self.signalNames = {}
         self.stateChangeEventInfo = {}
         self.delayedEvents = []
+        self.applicationEventLock = Lock()
         self.hasAutoRecordings = False
         recordScript = os.getenv("USECASE_RECORD_SCRIPT")
         if recordScript:
@@ -529,6 +531,7 @@ class UseCaseRecorder:
                 return arg
             
     def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
+        self.applicationEventLock.acquire()
         category = category or "storytext_DEFAULT"
         delayLevel = max(delayLevel, self.getMaximumStoredDelay())
         appEventKey = category, delayLevel
@@ -552,6 +555,7 @@ class UseCaseRecorder:
             for supercedeCategory in supercedeCategories + [ "storytext_DEFAULT" ]:
                 self.logger.debug("Adding supercede info : " + category + " will be superceded by " + supercedeCategory)
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
+        self.applicationEventLock.release()
 
     def applicationEventRename(self, oldName, newName, oldCategory, newCategory):
         for appEventKey, oldEventName in self.applicationEvents.items():
