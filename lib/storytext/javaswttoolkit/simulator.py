@@ -1271,6 +1271,7 @@ class EventPoster:
         self.checkAndPostKeyPressed(keyModifiers)
         self.clickMouse()
         self.checkAndPostKeyReleased(keyModifiers)
+        time.sleep(0.1)
         self.moveMouseAndWait(currPos.x, currPos.y)
 
 
