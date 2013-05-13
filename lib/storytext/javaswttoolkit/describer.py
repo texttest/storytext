@@ -598,7 +598,14 @@ class Describer(storytext.guishared.Describer):
         rows = self.getAllTableItemDescriptions(widget, indent=0, 
                                            selection=widget.getSelection(),
                                            columnCount=columnCount)
-        headerRow = [ c.getText() for c in columns if c.getWidth() > 0] # Don't show hidden columns
+        sortColumn = widget.getSortColumn()
+        if widget.getSortDirection() == swt.SWT.UP:
+            sortDirection = "(->)"
+        elif widget.getSortDirection() == swt.SWT.DOWN:
+            sortDirection = "(<-)"
+        else:
+            sortDirection = ""
+        headerRow = [ c.getText() + sortDirection  if c == sortColumn else c.getText() for c in columns if c.getWidth() > 0] # Don't show hidden columns
         return text + self.formatTable(headerRow, rows, columnCount)
 
     def getAllTableItemDescriptions(self, widget, indent=0,
