@@ -208,7 +208,9 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         if self.getTitleArgument() == argumentString:
             return argumentString
         else:
-            raise UseCaseScriptError, "Could not find View named '" + argumentString + "' to activate."
+            raise UseCaseScriptError, "Could not find View named '" + argumentString + "' to activate.\n" + \
+                "Views are named " + repr([ str(i.getTitleArgument()) for i in self.allInstances ])
+            
 
     def getTitle(self):
         return self.widget.getViewReference().getTitle()
