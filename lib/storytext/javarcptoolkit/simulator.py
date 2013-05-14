@@ -81,13 +81,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.allViews = set()
         self.swtbotMap[ExpandableComposite] = (SWTBotExpandableComposite, [])
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
-        
-    def getWidgetEventTypes(self):
-        # Do this here, when things will be loaded with the right classloader
-        # Might affect which event types are used 
-        self.uiMap.scriptEngine.importCustomEventTypesFromSimulator()
-        return swtsimulator.WidgetMonitor.getWidgetEventTypes(self)
-        
+            
     def createSwtBot(self):
         return swtbot.SWTWorkbenchBot()
     

@@ -318,6 +318,10 @@ class GefViewerAdapter(rcpsimulator.WidgetAdapter):
     
     def getPartName(self):
         return self.partReference.getPartName()
+    
+    def isInActiveView(self):
+        page = self.partReference.getPage()
+        return page.getActivePart() == self.partReference.getPart(False)
 
 class ViewerEvent(storytext.guishared.GuiEvent):
     def __init__(self, *args, **kw):
@@ -340,6 +344,11 @@ class ViewerEvent(storytext.guishared.GuiEvent):
                 val = int(intVal)
                 return desc[:startPos] + str(val + 1) + ")"
         return desc + " (2)"
+    
+    def isPreferred(self):
+        # Ensure we replay for the one in the active view, if this is possible
+        # Same object (identifier) may exist in several views
+        return self.widget.isInActiveView()
 
     def storeObjectDescription(self, part, checkParent=True):
         if part in self.allDescriptions:

@@ -20,12 +20,6 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
 
     def getDefaultTestscriptPluginName(self):
         return "org.eclipse.swtbot.testscript"
-
-    def importCustomEventTypes(self):
-        pass # Otherwise they get loaded too early and hence get the wrong classloader
-
-    def importCustomEventTypesFromSimulator(self):
-        javaswttoolkit.ScriptEngine.importCustomEventTypes(self) # Our hook to do it for real...
         
     def handleAdditionalOptions(self, options):
         self.replayer.disable_usecase_names = options.disable_usecase_names

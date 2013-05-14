@@ -21,6 +21,13 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
         self.testThread.start()
         self.run_python_or_java(args)
         
+    def importCustomEventTypes(self):
+        pass # Otherwise they get loaded too early and hence get the wrong classloader (in RCP)
+
+    def importCustomEventTypesFromSimulator(self, eventTypes):
+        self.eventTypes = eventTypes
+        storytext.guishared.ScriptEngine.importCustomEventTypes(self) # Our hook to do it for real...
+        
     def getDescriptionInfo(self):
         return "SWT", "javaswt", "event types", \
                "http://help.eclipse.org/helios/index.jsp?topic=/org.eclipse.platform.doc.isv/reference/api/"

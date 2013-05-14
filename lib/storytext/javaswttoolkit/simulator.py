@@ -1308,7 +1308,9 @@ class WidgetMonitor:
         self.widgetsMonitored = set()
         self.allMenus = set()
         self.uiMap = uiMap
-        self.uiMap.scriptEngine.eventTypes = eventTypes
+        # Do this here, when things will be loaded with the right classloader
+        # Might affect which event types are used. Has to be set up like this so RCP works.
+        self.uiMap.scriptEngine.importCustomEventTypesFromSimulator(eventTypes)
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
         self.widgetMonitorLock = Lock()
 

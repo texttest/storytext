@@ -42,6 +42,9 @@ class UserEvent:
         # Historical assumption has been that 'shouldRecord' often takes out events that are totally irrelevant
         # But in some circumstances they can still be relevant in that sense
         return False
+    def isPreferred(self):
+        # If this is true, this event should be executed even if others also match
+        return False
     def getWarning(self):
         return ""
     def checkWidgetStatus(self):
@@ -88,5 +91,8 @@ class CompositeEventProxy:
             
     def hasEvents(self):
         return len(self.eventsWithArgs) > 0
+    
+    def isPreferred(self):
+        return True # If this is good, return it immediately
         
         

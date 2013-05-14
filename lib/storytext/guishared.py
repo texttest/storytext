@@ -904,6 +904,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         parsedArguments = event.parseArguments(compositeEventProxy.unparsedArgs)
         if isinstance(parsedArguments, definitions.CompositeEventProxy):
             compositeEventProxy.updateFromProxy(parsedArguments)
+            return None, None
         else:
             if compositeEventProxy.hasEvents():
                 compositeEventProxy.addEvent(event, parsedArguments)
@@ -912,44 +913,47 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                 return event, parsedArguments
     
     def getPossibleEvents(self, events):
+        # We may have several plausible events with this name,
+        # but some of them won't work because widgets are disabled, invisible etc
+        # Go backwards to preserve back-compatibility, previously only the last one was considered.
+        # The more recently it was added, the more likely it is to work also
         checkedEvents = []
         badEvents = []
         for event in events:
             try:
                 event.checkWidgetStatus()
-                checkedEvents.append(event)
+                checkedEvents.insert(0, event)
             except definitions.UseCaseScriptError:
-                badEvents.append(event)
-        return checkedEvents, badEvents
+                badEvents.insert(0, event)
+        return checkedEvents if checkedEvents else badEvents[:1]
         
     def checkWidgetStatus(self, commandName, argumentString):
-        if commandName != replayer.signalCommandName:
-            possibleEvents, badEvents = self.getPossibleEvents(self.events[commandName])
-            compositeEventProxy = definitions.CompositeEventProxy(argumentString)
-            # We may have several plausible events with this name,
-            # but some of them won't work because widgets are disabled, invisible etc
-            # Go backwards to preserve back-compatibility, previously only the last one was considered.
-            # The more recently it was added, the more likely it is to work also
-            for event in reversed(possibleEvents[1:]):
-                try:
-                    self.logger.debug("Check widget status for " + repr(commandName) + ", event of type " + event.__class__.__name__) 
-                    retval = self.checkAndParse(event, compositeEventProxy)
-                    if retval:
-                        return retval
-                except definitions.UseCaseScriptError:
+        if commandName == replayer.signalCommandName:
+            return
+        
+        allInterpretations = []
+        possibleEvents = self.getPossibleEvents(self.events[commandName])
+        compositeEventProxy = definitions.CompositeEventProxy(argumentString)
+        for i, event in enumerate(possibleEvents):
+            try:
+                self.logger.debug("Check widget status for " + repr(commandName) + ", event of type " + event.__class__.__name__) 
+                parsedEvent, parsedArguments = self.checkAndParse(event, compositeEventProxy)
+                if parsedEvent:
+                    if parsedEvent.isPreferred():
+                        return parsedEvent, parsedArguments
+                    else:
+                        allInterpretations.append((parsedEvent, parsedArguments))
+            except definitions.UseCaseScriptError:
+                if i == len(possibleEvents) - 1 and len(allInterpretations) == 0:
+                    raise
+                else:
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, trying another: " + str(value))
-            # Would be improved
-            if len(possibleEvents) > 0:
-                event = possibleEvents[0]
-            else:
-                event = badEvents[0]
-
-            retval = self.checkAndParse(event, compositeEventProxy)
-            if retval:
-                return retval
-            else:
-                return compositeEventProxy, ""
+        
+        if len(allInterpretations):
+            return allInterpretations[0]    
+        else:
+            return compositeEventProxy, ""
             
     def writeWarnings(self, event):
         warn = event.getWarning()
