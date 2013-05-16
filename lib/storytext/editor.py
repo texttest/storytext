@@ -784,10 +784,20 @@ class UseCaseEditor:
         return True
     
     def setRenameSensitivity(self, item, selection):
-        if selection.count_selected_rows() == 1 and (self.shortcutsSelected(selection) or self.usecaseSelected(selection)):
+        if selection.count_selected_rows() == 1 and (self.shortcutsSelected(selection) or (self.usecaseSelected(selection) and self.isNewName(selection))):
             item.set_sensitive(True)
         else:
             item.set_sensitive(False)
+    
+    def isNewName(self, selection):
+        newNames = []
+        def addNames(treeModel, path, iter, *args):
+            command = treeModel.get_value(iter, 1)
+            cmd, args = self.uiMapFileHandler.splitOptionValue(command)
+            if cmd:
+                newNames.append(cmd)
+        selection.selected_foreach(addNames)
+        return any(newNames)
     
     def usecaseSelected(self, selection):
         return not self.shortcutsSelected(selection) and not self.uiMapSelected(selection) \
@@ -837,7 +847,8 @@ class UseCaseEditor:
                 self.updateUsecaseNameInShorcuts(oldValue, newValue)
                 self.replaceInFile(self.fileName, self.makeReplacement, [(oldValue, newValue)])
                 print encodingutils.encodeToLocale(methodName + " '" + oldValue + "' renamed to '" + newValue + "'")
-                self.recreatePreview()
+                self.initShortcutManager()
+                self.updateNameInPreview(oldValue, newValue)
             dialog.hide()
         else:
             dialog.hide()
@@ -857,7 +868,8 @@ class UseCaseEditor:
                 # Update shortcut name in current usecase file
                 self.replaceInFile(self.fileName, self.replaceShortcutName, oldValueRegexp, newValue)
                 print methodName, repr(oldValueRegexp), "renamed to", repr(newValue)
-                self.recreatePreview()
+                self.initShortcutManager()
+                self.updateShortcutNameInPreview(oldValueRegexp, newValue)
                 newShortcut, _ = self.shortcutManager.findShortcut(newValue)
                 # Update the recorder
                 self.scriptEngine.recorder.unregisterShortcut(oldShortcut)
@@ -899,11 +911,33 @@ class UseCaseEditor:
         os.rename(oldFileName, newFileName)
         return oldFileName, newFileName
 
-    def recreatePreview(self):
-        self.treeModel.clear()
-        self.initShortcutManager()
-        for command in self.getAllCommands():
-            self.addCommandToModel(command, self.treeModel)
+    def updateNameInPreview(self, oldValue, newValue):
+        def updateNode(model, path, iter, *args):
+            markup = model.get_value(iter, 0)
+            text = model.get_value(iter, 1)
+            if text.startswith(oldValue):
+                model.set_value(iter, 0, markup.replace(oldValue, newValue))
+                model.set_value(iter, 1, text.replace(oldValue, newValue))
+        self.treeModel.foreach(updateNode)
+    
+    def updateShortcutNameInPreview(self, oldNameRegexp, newName):
+        def updateNode(model, path, iter, *args):
+            markup = model.get_value(iter, 0)
+            if markup.startswith("<b>"):
+                text = model.get_value(iter, 1)
+                newText = self.replaceShortcutName(text, 0, oldNameRegexp , newName)
+                newMarkup = self.replaceShortcutName(markup, 0, oldNameRegexp, newName)
+                if text != newText:
+                    if newMarkup == markup:
+                        newMarkup = newMarkup.replace(text, newText)
+                    model.set_value(iter, 0, newMarkup)
+                    model.set_value(iter, 1, newText)
+        self.treeModel.foreach(updateNode)
+
+    def disconnectEntries(self):
+        for entry, handler in self.connectedEntries:
+            entry.disconnect(handler)
+        self.connectedEntries = []
 
     def regexpReplace(self, regexp, line, newText):
         return re.sub(regexp, newText, line)
