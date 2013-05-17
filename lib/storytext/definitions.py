@@ -50,7 +50,10 @@ class UserEvent:
     def checkWidgetStatus(self):
         pass # raise UseCaseScriptError if anything is wrong
     def parseArguments(self, argumentString):
-        return argumentString
+        if argumentString:
+            raise UseCaseScriptError, "Action '" + self.name + "' did not expect an argument '" + argumentString + "'."
+        else:
+            return argumentString
     def makePartialParseFailure(self, parsedArgs, unparsedArgs, firstEvent=True):
         return CompositeEventProxy(unparsedArgs, self, parsedArgs, firstEvent)
 

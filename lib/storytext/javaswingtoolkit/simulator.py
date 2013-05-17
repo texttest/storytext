@@ -146,6 +146,9 @@ class KeyPressForTestingEvent(storytext.guishared.GuiEvent):
     def getAssociatedSignal(cls, *args):
         return "KeyPress"
     
+    def parseArguments(self, text):
+        return text
+    
     def generate(self, argument):
         arg = argument.upper()
         if "+" in arg:
@@ -330,6 +333,9 @@ class SpinnerEvent(StateChangeEvent):
 
     def getStateText(self, *args):
         return str(self.widget.getValue())
+    
+    def parseArguments(self, argumentString):
+        return argumentString
 
     def _generate(self, argumentString):
         kwd = "setSpinnerNumberValue" if isinstance(self.widget.getValue(), int) else "setSpinnerStringValue"
@@ -346,6 +352,9 @@ class TextEditEvent(StateChangeEvent):
             removeUpdate = insertUpdate
 
         util.runOnEventDispatchThread(self.widget.getDocument().addDocumentListener, TextDocumentListener())
+
+    def parseArguments(self, text):
+        return text
 
     def _generate(self, argumentString):
         self.widget.runKeyword("clearTextField")
@@ -421,6 +430,9 @@ class MenuSelectEvent(SignalEvent):
 class TabSelectEvent(ClickEvent):
     def isStateChange(self):
         return True
+    
+    def parseArguments(self, text):
+        return text
                     
     def _generate(self, argumentString):
         try:
@@ -438,9 +450,11 @@ class TabSelectEvent(ClickEvent):
         return False
 
 class TabPopupActivateEvent(PopupActivateEvent):
-    def _generate(self, title, *args):
+    def parseArguments(self, title):
+        return self.widget.indexOfTab(title)
+        
+    def _generate(self, index):
         System.setOut(PrintStream(NullOutputStream()))
-        index = self.widget.indexOfTab(title)
         rect = self.widget.getBoundsAt(index)
         operator = jemmy.operators.ComponentOperator(self.widget.widget)
         System.setOut(out_orig)
@@ -513,16 +527,18 @@ class ComboBoxEvent(StateChangeEvent):
             
             return value and not self.isInComboBox(value) and SignalEvent.shouldRecord(self, None, *args)
 
+    def parseArguments(self, text):
+        if not self.widget.isEditable() and not self.isInComboBox(text):
+            raise UseCaseScriptError, "Could not find item named '" + text + "' to select."
+        return text
+
     def _generate(self, argumentString):
         self.argumentString = argumentString
         if self.widget.isEditable() and not self.isInComboBox(argumentString):
             self.widget.runKeyword("typeIntoComboBox", argumentString)
         else:
-            try:
-                self.widget.runKeyword("selectFromComboBox", argumentString)#self.getIndex(argumentString))
-            except RuntimeException:
-                raise UseCaseScriptError, "Could not find item named '" + argumentString + "' to select."
-    
+            self.widget.runKeyword("selectFromComboBox", argumentString)
+                
     def getJComboBoxText(self, index):
         return util.ComponentTextFinder(self.widget.widget, describe=False).getJComboBoxText(index)
             
@@ -550,6 +566,7 @@ class ComboBoxEvent(StateChangeEvent):
         for i in range(self.widget.getModel().getSize()):
             if self.getJComboBoxText(i) == text:
                 return True
+        return False
 
 class TableSelectEvent(ListSelectEvent):
     def __init__(self, *args):
@@ -574,8 +591,11 @@ class TableSelectEvent(ListSelectEvent):
     
 
 class CellPopupMenuActivateEvent(PopupActivateEvent):
-    def _generate(self, argumentString):
-        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
+    def parseArguments(self, argumentString):
+        return TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
+    
+    def _generate(self, argument):
+        row, column = argument
         System.setOut(PrintStream(NullOutputStream()))
         operator = jemmy.operators.JTableOperator(self.widget.widget)
         System.setOut(out_orig)
@@ -591,8 +611,15 @@ class TableHeaderEvent(SignalEvent):
     def isStateChange(self):
         return True
     
-    def _generate(self, argumentString):
-        self.widget.runKeyword("clickTableHeader", argumentString)
+    def parseArguments(self, text):
+        textFinder = util.ComponentTextFinder(self.widget.widget, describe=False)
+        for i in range(self.widget.getColumnCount()):
+            if textFinder.getJTableHeaderText(i) == text:
+                return i
+        raise UseCaseScriptError, "Could not find column named '" + text + "'"
+            
+    def _generate(self, column):
+        self.widget.runKeyword("clickTableHeader", column)
 
     def outputForScript(self, event, *args):
         colIndex = self.widget.getTableHeader().columnAtPoint(event.getPoint())
@@ -614,8 +641,11 @@ class TableHeaderEvent(SignalEvent):
         return False
     
 class CellDoubleClickEvent(DoubleClickEvent):
-    def _generate(self, argumentString):
-        row, column = TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)            
+    def parseArguments(self, argumentString):
+        return TableIndexer.getIndexer(self.widget.widget).getViewCellIndices(argumentString)
+    
+    def _generate(self, cell):
+        row, column = cell             
         self.widget.runKeyword("clickOnTableCell", row, column, 2, "BUTTON1_MASK")
 
     def shouldRecord(self, *args):
@@ -636,9 +666,16 @@ class CellEditEvent(SignalEvent):
         self.indexer = TableIndexer.getIndexer(self.widget.widget)
         self.logger = logging.getLogger("storytext replay log")
         
-    def _generate(self, argumentString):
-        cellDescription, newValue = argumentString.split("=")
-        row, column = self.indexer.getViewCellIndices(cellDescription)
+    def parseArguments(self, argumentString):
+        if "=" in argumentString:
+            cellDescription, newValue = argumentString.split("=")
+            row, column = self.indexer.getViewCellIndices(cellDescription)
+            return row, column, newValue
+        else:
+            raise UseCaseScriptError, "Missing '=' sign in argument '" + argumentString + "'"
+        
+    def _generate(self, args):
+        row, column, newValue = args
         cellEditor = self.widget.getCellEditor(row, column)
         if self.isTextComponent(cellEditor):
             self.editTextComponent(newValue, row, column)

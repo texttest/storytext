@@ -263,6 +263,9 @@ class DropDownSelectionEvent(SelectEvent):
     def getRecordEventType(cls):
         return swt.SWT.Selection
     
+    def parseArguments(self, argumentString):
+        return argumentString
+    
     def _generate(self, argumentString):
         genFilter = DropDownGenerateFilter(argumentString)
         runOnUIThread(self.addFilter, swt.SWT.Show, genFilter)
@@ -403,11 +406,15 @@ class ResizeEvent(StateChangeEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Resize"
-
-    def _generate(self, argumentString):
+    
+    def parseArguments(self, argumentString):
         words = argumentString.split()
         width = int(words[1])
         height = int(words[-1])
+        return width, height
+
+    def _generate(self, arguments):
+        width, height = arguments
         runOnUIThread(self.widget.widget.widget.setSize, width, height)
 
     def dimensionText(self, dimension):
@@ -436,6 +443,9 @@ class FreeTextEvent(SignalEvent):
     def shouldRecord(self, *args):
         return False
     
+    def parseArguments(self, text):
+        return text
+    
     def generate(self, argumentString):
         method = self.widget.widget.getClass().getSuperclass().getSuperclass().getDeclaredMethod("keyboard", None)
         method.setAccessible(True)
@@ -451,8 +461,14 @@ class SpinnerSelectEvent(StateChangeEvent):
     def getStateText(self, *args):
         return self.widget.getText()
     
-    def _generate(self, argumentString):
-        self.widget.setSelection(int(argumentString))
+    def parseArguments(self, argumentString):
+        if argumentString.isdigit():
+            return int(argumentString)
+        else:
+            raise UseCaseScriptError, "Cannot set Spinners to non-numeric values!"
+    
+    def _generate(self, argument):
+        self.widget.setSelection(argument)
 
     
 class TextEvent(StateChangeEvent):
@@ -474,6 +490,9 @@ class TextEvent(StateChangeEvent):
 
             runOnUIThread(self.addListeners, swt.SWT.KeyDown, PhysicalEventListener())
             runOnUIThread(self.addListeners, swt.SWT.MouseDown, PhysicalEventListener())
+        
+    def parseArguments(self, text):
+        return text
         
     def selectAll(self):
         self.widget.selectAll()
@@ -582,11 +601,14 @@ class ComboSelectEvent(StateChangeEvent):
         widget = self.widget.widget.widget
         return DisplayFilter.instance.itemTextCache.get(widget, widget.getText())
     
-    def _generate(self, argumentString):
-        try:
-            self.widget.setSelection(argumentString)
-        except RuntimeException, e:
-            raise UseCaseScriptError, e.getMessage()
+    def parseArguments(self, argumentString):
+        index = runOnUIThread(self.widget.widget.widget.indexOf, argumentString)
+        if index == -1:
+            raise UseCaseScriptError, "Could not find item labelled '" + argumentString + "' in Combo box."
+        return index
+    
+    def _generate(self, index):
+        self.widget.setSelection(index)
         
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -639,10 +661,10 @@ class ComboTextEvent(TextEvent):
         return e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget
 
 class CComboChangeEvent(CComboSelectEvent):
-    def parseArguments(self, *args):
+    def parseArguments(self, text):
         if runOnUIThread(self.widget.widget.widget.getStyle) & swt.SWT.READ_ONLY:
             raise UseCaseScriptError, "Cannot edit text in this Combo Box as it is readonly"
-        return CComboSelectEvent.parseArguments(self, *args)
+        return text
     
     def _generate(self, argumentString):
         try:
@@ -1035,15 +1057,18 @@ class DateTimeEvent(StateChangeEvent):
     
     def getStateText(self, *args):
         return self.dateFormat.format(self.widget.getDate())
-
-    def _generate(self, argumentString):
+    
+    def parseArguments(self, argumentString):
         try:
-            currDate = self.dateFormat.parse(argumentString)
-            self.widget.setDate(currDate)
+            return self.dateFormat.parse(argumentString)
         except ParseException:
             raise UseCaseScriptError, "Could not parse date/time argument '" + argumentString + \
                   "', not of format '" + self.dateFormat.toPattern() + "'."
 
+    def _generate(self, currDate):
+        self.widget.setDate(currDate)
+
+        
 class EventFinishedListener(swt.widgets.Listener):
     def __init__(self, event):
         self.event = event
