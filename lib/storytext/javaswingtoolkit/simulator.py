@@ -425,6 +425,9 @@ class MenuSelectEvent(SignalEvent):
     
     def widgetVisible(self):
         return True
+    
+    def allowsIdenticalCopies(self):
+        return True
 
 
 class TabSelectEvent(ClickEvent):

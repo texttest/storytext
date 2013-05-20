@@ -159,6 +159,9 @@ class GuiEvent(definitions.UserEvent):
     def isPreferred(self):
         return self.widget.isPreferred()
 
+    def allowsIdenticalCopies(self):
+        return False
+
     def checkWidgetStatus(self):
         if self.widgetDisposed():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
@@ -564,12 +567,13 @@ class UIMapFileHandler:
     def __getattr__(self, name):
         return getattr(self.readParser, name)
 
-    def findSectionAndOption(self, valueString):
+    def findSectionsAndOptions(self, valueString):
+        details = []
         for section in self.readParser.sections():
             for optionName, value in self.readParser.items(section):
                 if value and valueString.startswith(value):
-                    return self._unescape(section, self.bracketChars), optionName
-        return None, None
+                    details.append((self._unescape(section, self.bracketChars), optionName))
+        return details
 
     def splitOptionValue(self, valueString):
         for section in self.readParser.sections():
@@ -628,7 +632,7 @@ class UIMap:
         self.fileHandler.readFiles(uiMapFiles)
 
     def findWidgetDetails(self, scriptCommand):
-        return self.fileHandler.findSectionAndOption(scriptCommand)
+        return self.fileHandler.findSectionsAndOptions(scriptCommand)
 
     def getMapFileNames(self):
         return [ parser.fileName for parser in self.fileHandler.writeParsers ]
@@ -662,10 +666,14 @@ class UIMap:
                 self.autoInstrument([ autoEventName ], signalName, widget, argumentParseData, widgetType)
         return autoInstrumented
     
-    def getAutoInstrumentIdentifier(self, widget):
+    def getFullWidgetDescriptor(self, widget):
         basicId = ", ".join(widget.findPossibleUIMapIdentifiers())
         if basicId.startswith("Name="):
             basicId = basicId.split(", ")[0]
+        return basicId
+
+    def getAutoInstrumentIdentifier(self, widget):
+        basicId = self.getFullWidgetDescriptor(widget)
         return self.fileHandler.escape(basicId)
 
     def instrumentFromMapFile(self, widget):
@@ -785,9 +793,12 @@ class UseCaseReplayer(replayer.UseCaseReplayer):
         self.readingEnabled = True
     
     def getParseError(self, scriptCommand):
-        widgetDescriptor, actionName = self.uiMap.findWidgetDetails(scriptCommand)
-        if widgetDescriptor:
-            return "no widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on."
+        widgetDetails = self.uiMap.findWidgetDetails(scriptCommand)
+        if widgetDetails:
+            errs = []
+            for widgetDescriptor, actionName in widgetDetails:
+                errs.append("no widget found with descriptor '" + widgetDescriptor + "' to perform action '" + actionName + "' on.")
+            return "\n".join(errs)
         else:
             return "could not find matching entry in UI map file."
 
@@ -932,7 +943,39 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
             except definitions.UseCaseScriptError:
                 badEvents.insert(0, event)
         return checkedEvents if checkedEvents else badEvents[:1]
-        
+
+    def checkForAmbiguityError(self, allInterpretations):
+        sampleEvent = allInterpretations[0][0]
+        uiMapSections = self.uiMap.findWidgetDetails(sampleEvent.name)
+        # Only warn if they're in the same section, otherwise assume ambiguity is deliberate
+        if len(set(uiMapSections)) == 1:
+            fullIdentifiers = [self.uiMap.getFullWidgetDescriptor(e.widget) for e, _ in allInterpretations]
+            if len(set(fullIdentifiers)) == 1:
+                if not sampleEvent.allowsIdenticalCopies():
+                    raise definitions.UseCaseScriptError, self.getIdenticalWidgetError(uiMapSections[0][0], fullIdentifiers[0])
+            else:
+                raise definitions.UseCaseScriptError, self.getIdenticalSectionError(uiMapSections[0][0], fullIdentifiers)
+
+    def getIdenticalWidgetError(self, uiMapSection, fullIdentifier):
+        err = "Instruction could be interpreted more than one way!\n"
+        err += "There is more than one widget matching [" + uiMapSection + "] and no other attributes which distinguish them.\n"
+        if "Tooltip=" not in fullIdentifier:
+            err += "You can fix this by adding distinguishing tooltips to the different widgets.\n"
+            err += "You can also fix this by adding widget names/internal IDs if this is not desirable.\n"
+        else:
+            err += "You can fix this by adding widget names/internal IDs to the different widgets.\n"
+        err += "(see the StoryText documentation for how to do this for your chosen toolkit)."
+        return err
+    
+    def getIdenticalSectionError(self, uiMapSection, fullIdentifiers):
+        err = "Instruction could be interpreted more than one way!\n"
+        err += "There is more than one widget matching [" + uiMapSection + "], but there are other attributes that may be used to distinguish them.\n"
+        err += "The widgets would be identified fully by sections as follows:\n"
+        for identifier in fullIdentifiers:
+            err += "[" + identifier + "]\n"
+        err += "It is suggested to replace the section appropriately in your UI map file and add distinguishing names for these widgets."
+        return err
+
     def checkWidgetStatus(self, commandName, argumentString):
         if commandName == replayer.signalCommandName:
             return
@@ -956,11 +999,14 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
                     type, value, _ = sys.exc_info()
                     self.logger.debug("Error, trying another: " + str(value))
         
-        if len(allInterpretations):
-            return allInterpretations[0]    
-        else:
+        if len(allInterpretations) == 0:
             return compositeEventProxy, ""
-            
+        
+        if len(allInterpretations) > 1:
+            self.checkForAmbiguityError(allInterpretations)
+        
+        return allInterpretations[0]    
+                                
     def writeWarnings(self, event):
         warn = event.getWarning()
         if warn:

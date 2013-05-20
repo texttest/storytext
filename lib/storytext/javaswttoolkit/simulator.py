@@ -183,6 +183,9 @@ class SelectEvent(SignalEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
+    
+    def allowsIdenticalCopies(self):
+        return self.widget.isInstanceOf(swtbot.widgets.SWTBotMenu)
 
 
 class LinkSelectEvent(SelectEvent):

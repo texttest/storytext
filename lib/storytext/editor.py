@@ -266,18 +266,19 @@ class UseCaseEditor:
             markup, _ = self.extractArgsAddMarkup(escape(command), waitCommandName)
             # Ignore args for wait commands, they don't have anything in common
             text = '<span foreground="#826200">' + markup + "</span>"
-            widgetDesc = None
+            widgetDetails = []
         else:
-            widgetDesc, signalName = self.uiMapFileHandler.findSectionAndOption(command)
+            widgetDetails = self.uiMapFileHandler.findSectionsAndOptions(command)
             text = escape(command)
-            if widgetDesc:
+            if widgetDetails:
+                widgetDesc, signalName = widgetDetails[0]
                 cmd = self.uiMapFileHandler.get(widgetDesc, signalName)
                 if cmd != text:
                     text, args = self.extractArgsAddMarkup(text, cmd)
             else:
                 text = self.getErrorColouredText(text)
         iter = self.addText(model, rootIter, text, command, args)
-        if widgetDesc:
+        for widgetDesc, signalName in widgetDetails:
             msg = self.makeUIMapMessage(signalName, widgetDesc)
             self.addText(model, iter, msg, signalName, [widgetDesc])
 
@@ -608,8 +609,7 @@ class UseCaseEditor:
         return True
     
     def isInUIMap(self, name):
-        _,option = self.uiMapFileHandler.findSectionAndOption(name)
-        return option is not None
+        return len(self.uiMapFileHandler.findSectionsAndOptions(name)) > 0
     
     def isInShortcuts(self, name):
         return any(shortcut.getShortcutName() == name for shortcut in self.scriptEngine.getShortcuts())
@@ -915,8 +915,8 @@ class UseCaseEditor:
         return True
     
     def updateUsecaseNameInUIMap(self, oldCommand, newCommand):
-        section, option = self.uiMapFileHandler.findSectionAndOption(oldCommand)
-        self.uiMapFileHandler.updateOptionValue(section, option, newCommand)
+        for section, option in self.uiMapFileHandler.findSectionsAndOptions(oldCommand):
+            self.uiMapFileHandler.updateOptionValue(section, option, newCommand)
         
     def updateUsecaseNameInShorcuts(self, oldCommand, newCommand):
         for shortcut in self.scriptEngine.getShortcuts():
