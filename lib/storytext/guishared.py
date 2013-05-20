@@ -96,6 +96,9 @@ class WidgetAdapter:
     
     def getUIMapIdentifier(self):
         return self.findPossibleUIMapIdentifiers()[0]
+    
+    def isPreferred(self):
+        return False
 
 
 class GuiEvent(definitions.UserEvent):
@@ -152,6 +155,9 @@ class GuiEvent(definitions.UserEvent):
 
     def widgetSensitive(self):
         return True
+    
+    def isPreferred(self):
+        return self.widget.isPreferred()
 
     def checkWidgetStatus(self):
         if self.widgetDisposed():

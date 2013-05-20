@@ -6,7 +6,7 @@ from storytext.javaswttoolkit import util
 import storytext.guishared
 from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.finder as swtbot
-from org.eclipse.ui import IPartListener, IPropertyListener, IWorkbenchPartConstants
+from org.eclipse.ui import PlatformUI, IPartListener, IPropertyListener, IWorkbenchPartConstants
 
 # If classes get mentioned for the first time in the event dispatch thread, they will get the wrong classloader
 # So we load everything we'll ever need here, once, where we know what the classloader is
@@ -63,6 +63,22 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
         if hasattr(widget, "getMenu") and widget.getMenu():
             cls.storeId(widget.getMenu(), viewId)
         
+    def isPreferred(self):
+        viewWidget = self.getViewWidget()
+        if viewWidget in self.widgetViewIds:
+            viewId = self.widgetViewIds.get(viewWidget)
+            activeViewId = swtsimulator.runOnUIThread(self.getActiveViewId)
+            return viewId == activeViewId
+        else:
+            return False
+        
+    @staticmethod
+    def getActiveViewId():
+        try:
+            return PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().getActivePartReference().getId()
+        except AttributeError, e:
+            if "NoneType" not in str(e):
+                raise
         
 class DisplayFilter(swtsimulator.DisplayFilter):
     def hasComplexAncestors(self, widget):
