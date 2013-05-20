@@ -683,6 +683,12 @@ class Describer(storytext.guishared.Describer):
         if desc and isinstance(widget, (swt.widgets.ExpandBar, swt.widgets.Tree, swt.widgets.List, swt.widgets.Table)):
             desc = str(desc) + self.formatContextMenuDescriptions()
         return desc
+    
+    def handleGridFormatter(self, formatter):
+        output = storytext.guishared.Describer.handleGridFormatter(self, formatter)
+        if isinstance(output, (str, unicode)):
+            output += self.formatContextMenuDescriptions()
+        return output
 
     def getWindowContentDescription(self, shell):
         desc = ""
