@@ -121,10 +121,15 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
             ref = swtbotView.getViewReference()
             if ref not in self.allViews:
                 self.allViews.add(ref)
-                viewparent = ref.getPane().getControl()
+                pane = ref.getPane()
+                viewparent = pane.getControl()
                 if viewparent:
                     self.uiMap.logger.debug("Caching View with ID " + ref.getId())
                     WidgetAdapter.storeIdWithChildren(viewparent, ref.getId())
+                toolbar = pane.getToolBar()
+                if toolbar:
+                    for item in toolbar.getItems():
+                        WidgetAdapter.storeId(item, ref.getId())
                 adapter = ViewAdapter(swtbotView)
                 self.uiMap.monitorWidget(adapter)
                 self.monitorMenus(swtbotView)
