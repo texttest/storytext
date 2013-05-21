@@ -31,6 +31,7 @@ def runOnUIThread(method, *args):
         raise
 
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
+    popupMenuContexts = {}
     def getChildWidgets(self):
         return [] # don't use this...
         
@@ -90,8 +91,35 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getMenuContextNameFromAncestor(self, parent):
         def getParentText():
             item = parent.getParentItem()
-            return util.getItemText(item.getText()) if item else "Popup Menu"
+            return util.getItemText(item.getText()) if item else self.getPopupMenuContext(parent)
         return runOnUIThread(getParentText)
+    
+    def getMenuContextFromWidget(self, widget):
+        if widget:
+            adapter = WidgetMonitor.makeAdapter(widget)
+            if adapter:
+                return adapter.findPossibleUIMapIdentifiers()[0].replace("Label=", "").replace("=", ":")
+            
+        return "Popup Menu"
+    
+    def getPopupMenuContext(self, menu):
+        if menu in self.popupMenuContexts:
+            return self.popupMenuContexts.get(menu)
+        parentShell = menu.getParent()
+        widget = self.findWidgetWithMenu(parentShell, menu)
+        context = self.getMenuContextFromWidget(widget)
+        self.popupMenuContexts[menu] = context
+        return context
+    
+    def findWidgetWithMenu(self, widget, menu):
+        if widget.getMenu() == menu:
+            return widget
+        
+        if hasattr(widget, "getChildren"):
+            for child in widget.getChildren():
+                fromChild = self.findWidgetWithMenu(child, menu)
+                if fromChild:
+                    return fromChild
     
     def getContextNameFromAncestor(self, parent):
         if isinstance(parent, swt.widgets.Menu):
@@ -1513,8 +1541,9 @@ class WidgetMonitor:
                 menus += filter(lambda m: m not in self.widgetsMonitored, menuFinder.findMenus(IsAnything()))
         return menus
 
-    def findSwtbotClass(self, widget, widgetClass):
-        defaultClass, styleClasses = self.swtbotMap.get(widgetClass)
+    @classmethod
+    def findSwtbotClass(cls, widget, widgetClass):
+        defaultClass, styleClasses = cls.swtbotMap.get(widgetClass)
         for currStyle, styleClass in styleClasses:
             if runOnUIThread(widget.getStyle) & currStyle:
                 return styleClass
@@ -1528,10 +1557,11 @@ class WidgetMonitor:
                 adapters.append(adapter)
         return adapters
 
-    def makeAdapter(self, widget):
-        for widgetClass in self.swtbotMap.keys():
+    @classmethod
+    def makeAdapter(cls, widget):
+        for widgetClass in cls.swtbotMap.keys():
             if isinstance(widget, widgetClass):
-                swtbotClass = self.findSwtbotClass(widget, widgetClass)
+                swtbotClass = cls.findSwtbotClass(widget, widgetClass)
                 try:
                     return WidgetAdapter.adapt(swtbotClass(widget))
                 except RuntimeException:
