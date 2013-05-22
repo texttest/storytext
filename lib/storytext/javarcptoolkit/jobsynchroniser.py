@@ -42,22 +42,20 @@ class JobListener(JobChangeAdapter):
         storytext.guishared.catchAll(self.jobScheduled, e)
         
     def jobScheduled(self, e):
-        jobName = e.getJob().getName().lower()
         self.jobCountLock.acquire()
+        jobName = e.getJob().getName().lower()
         self.jobCount += 1
         self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount))
-        self.jobCountLock.release()
         if jobName in self.systemJobNames or not e.getJob().isSystem():
             self.logger.debug("Now using job name '" + jobName + "'")
             self.jobNameToUse = jobName
         
         # As soon as we can, we move to the back of the list, so that jobs scheduled in 'done' methods get noticed
         if not e.getJob().isSystem():
-            self.jobCountLock.acquire()
             Job.getJobManager().removeJobChangeListener(self)
             Job.getJobManager().addJobChangeListener(self)
-            self.jobCountLock.release()
             self.logger.debug("At back of list now")
+        self.jobCountLock.release()
             
     @classmethod
     def enable(cls, *args):
