@@ -45,8 +45,11 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.acquire()
         jobName = e.getJob().getName().lower()
         self.jobCount += 1
-        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount))
-        if jobName in self.systemJobNames or not e.getJob().isSystem():
+        parentJob = Job.getJobManager().currentJob()
+        parentJobName = parentJob.getName().lower() if parentJob else ""
+        postfix = ", parent job " + parentJobName if parentJobName else "" 
+        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + postfix)
+        if (jobName in self.systemJobNames or not e.getJob().isSystem()) and (not self.jobNameToUse or not parentJobName or self.jobNameToUse == parentJobName):
             self.logger.debug("Now using job name '" + jobName + "'")
             self.jobNameToUse = jobName
         
