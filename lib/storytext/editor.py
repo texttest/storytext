@@ -136,29 +136,6 @@ class UseCaseEditor:
         dialog.set_default_response(gtk.RESPONSE_ACCEPT)
         dialog.show_all()
         return dialog
-    
-    def getIncompletedShortcuts(self):
-        shortcutNames = set()
-        for iter in self.getTopLevelIters():
-            value =self.treeModel.get_value(iter, 1)
-            if "<b>" in self.treeModel.get_value(iter, 0):
-                args = self.treeModel.get_value(iter, 2)
-                shortcut = self.getShortcut(value, args)
-                if shortcut.name not in shortcutNames:
-                    self.findIncompleteNames(shortcut, args, shortcutNames)
-        return shortcutNames
-
-    def findIncompleteNames(self, shortcut, args, shortcutNames ):
-        shortcutCopy = ReplayScript(shortcut.name, True)
-        while not shortcutCopy.hasTerminated():
-            command = shortcutCopy.getCommand(args)
-            nestedShortcut, args = self.shortcutManager.findShortcut(command)
-            if nestedShortcut and nestedShortcut.name not in shortcutNames:
-                self.findIncompleteNames(shortcut, args, shortcutNames)
-            else:
-                cmd, args = self.uiMapFileHandler.splitOptionValue(command)
-                if cmd is None:
-                    shortcutNames.add(shortcut.name)
 
     def addScrollBar(self, widget, viewport=False): 
         window = gtk.ScrolledWindow()
