@@ -40,7 +40,7 @@ class ReplayScript(object):
         if not os.path.isfile(scriptName):
             raise UseCaseScriptError, "Cannot replay script " + repr(scriptName) + ", no such file or directory."
         for line in encodingutils.openEncoded(scriptName):
-            line = line.strip()
+            line = line.strip("\n")
             if not ignoreComments or (line != "" and line[0] != "#"):
                 self.commands.append(line)
                 
@@ -506,7 +506,7 @@ class UseCaseReplayer:
         if scriptCommand.strip() == commandName:
             return ""
         else:
-            return scriptCommand.replace(commandName + " ", "").rstrip()
+            return scriptCommand.replace(commandName + " ", "").rstrip("\n")
 
     def findCommandName(self, command):
         if command.startswith(signalCommandName):
