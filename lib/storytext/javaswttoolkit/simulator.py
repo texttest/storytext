@@ -1442,8 +1442,13 @@ class WidgetMonitor:
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
         
     def widgetShown(self, parent, eventType):
-        if parent not in self.widgetsMonitored:
+        if self.shouldMonitor(parent):
             self.monitorNewWidgets(parent, eventType == swt.SWT.Show)
+            
+    def shouldMonitor(self, widget):
+        # Don't try to monitor widgets before the shells they appear in!
+        return widget not in self.widgetsMonitored and \
+            (isinstance(widget, swt.widgets.Shell) or not isinstance(widget, swt.widgets.Control) or widget.getShell() in self.widgetsMonitored)
             
     def monitorNewWidgets(self, parent, findInvisible=True):
         if findInvisible:
