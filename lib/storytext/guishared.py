@@ -1704,9 +1704,19 @@ class TextLabelFinder:
                 else:
                     textPos -= 1
             else:
-                return ""
+                return self.findLastLabel(prevWidget)
         return ""
     
+    def findLastLabel(self, widget):
+        children = self.getChildren(widget)
+        if len(children) > 0:
+            lastChild = children[-1]
+            if isinstance(lastChild, self.getLabelClass()):
+                return self.getLabelText(lastChild)
+            else:
+                return self.findLastLabel(lastChild)
+        return ""
+        
     def getEarliestRelevantIndex(self, *args):
         return 0
     

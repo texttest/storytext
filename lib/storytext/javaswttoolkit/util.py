@@ -17,13 +17,17 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
         return swt.widgets.Tree, swt.widgets.Table
     
     def getChildren(self, widget):
-        return widget.getChildren()
+        return widget.getChildren() if hasattr(widget, "getChildren") else []
     
     def getEarliestRelevantIndex(self, widgetPos, children, parent):
-        if not isinstance(parent.getLayout(), swt.layout.GridLayout):
+        layout = parent.getLayout()
+        if isinstance(layout, swt.custom.StackLayout):
+            return widgetPos # No text is relevant: stack layout will hide it
+        
+        if not isinstance(layout, swt.layout.GridLayout):
             return 0
         
-        numColumns = parent.getLayout().numColumns
+        numColumns = layout.numColumns
         if numColumns == 1: # If there's only one column, don't worry about it...
             return 0
         
