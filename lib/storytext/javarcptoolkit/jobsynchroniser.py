@@ -26,6 +26,10 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.acquire()
         self.jobCount -= 1
         self.logger.debug("Completed " + ("system" if e.getJob().isSystem() else "non-system") + " job '" + jobName + "' jobs = " + repr(self.jobCount))    
+        if jobName in self.systemJobNames or not e.getJob().isSystem():
+            self.logger.debug("Now using job name '" + jobName + "'")
+            self.jobNameToUse = jobName
+        
         # We wait for the system to reach a stable state, i.e. no scheduled jobs
         # Would be nice to call Job.getJobManager().isIdle(),
         # but that doesn't count scheduled jobs for some reason
@@ -45,13 +49,7 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.acquire()
         jobName = e.getJob().getName().lower()
         self.jobCount += 1
-        parentJob = Job.getJobManager().currentJob()
-        parentJobName = parentJob.getName().lower() if parentJob else ""
-        postfix = ", parent job " + parentJobName if parentJobName else "" 
-        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + postfix)
-        if (jobName in self.systemJobNames or not e.getJob().isSystem()) and (not self.jobNameToUse or not parentJobName or self.jobNameToUse == parentJobName):
-            self.logger.debug("Now using job name '" + jobName + "'")
-            self.jobNameToUse = jobName
+        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount))
         
         # As soon as we can, we move to the back of the list, so that jobs scheduled in 'done' methods get noticed
         if not e.getJob().isSystem():
