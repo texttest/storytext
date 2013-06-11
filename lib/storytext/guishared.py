@@ -6,6 +6,7 @@ import scriptengine, replayer, definitions, encodingutils
 import os, sys, logging, subprocess, time, re
 from gridformatter import GridFormatter
 from itertools import izip
+from random import choice
 
 try:
     from collections import OrderedDict
@@ -100,7 +101,6 @@ class WidgetAdapter:
     def isPreferred(self):
         return False
 
-
 class GuiEvent(definitions.UserEvent):
     def __init__(self, name, widget, *args):
         definitions.UserEvent.__init__(self, name)
@@ -174,7 +174,6 @@ class GuiEvent(definitions.UserEvent):
         if not self.widgetSensitive():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
                   " is not sensitive to input at the moment."
-
 
 class MethodIntercept:
     def __init__(self, method, event):
@@ -1004,8 +1003,9 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         
         if len(allInterpretations) > 1:
             self.checkForAmbiguityError(allInterpretations)
-        
-        return allInterpretations[0]    
+            return choice(allInterpretations)
+        return allInterpretations[0]
+    
                                 
     def writeWarnings(self, event):
         warn = event.getWarning()
