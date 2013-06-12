@@ -655,16 +655,8 @@ class Describer(storytext.guishared.Describer):
         stateControl = stateControlInfo[0] if isinstance(stateControlInfo, tuple) else stateControlInfo
         if stateControlInfo:
             self.widgetsWithState[widget] = stateControlInfo
-        if stateControl:
-            if len(widget.getChildren()) > 1:
-                header = "+" * 6 + " Stacked Layout " + "+" * 6
-                footer = "+" * len(header)
-                return header + "\n" + self.getDescription(stateControl) + "\n" + footer
-            else:
-                return self.getDescription(stateControl)
-        else:
-            return ""
-
+        return self.getDescription(stateControl) if stateControl else ""
+        
     def getVerticalDividePositions(self, children):
         positions = []
         for child in children:
