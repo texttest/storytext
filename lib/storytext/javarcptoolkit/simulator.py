@@ -245,6 +245,14 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         # If there are events for other shells, implies we should delay as we're in a dialog
         return swtsimulator.DisplayFilter.instance.otherEventCount(part, [])
     
+    def widgetDisposed(self):
+        control = self.getControl()
+        return control is None or swtsimulator.runOnUIThread(control.isDisposed)
+
+    def describeWidget(self):
+        control = self.getControl()
+        return "of type " + control.__class__.__name__
+        
     def getControl(self):
         return self.widget.getViewReference().getPane().getControl()
     
