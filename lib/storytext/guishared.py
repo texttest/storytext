@@ -1003,6 +1003,7 @@ class ThreadedUseCaseReplayer(UseCaseReplayer):
         
         if len(allInterpretations) > 1:
             self.checkForAmbiguityError(allInterpretations)
+            self.logger.debug("Ambiguity: picking control at random!")
             return choice(allInterpretations)
         return allInterpretations[0]
     
