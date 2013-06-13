@@ -1036,7 +1036,7 @@ class TreeDoubleClickEvent(TreeEvent):
 
     def implies(self, stateChangeLine, stateChangeEvent, swtEvent, *args):
         return isinstance(stateChangeEvent, TreeClickEvent) and \
-               stateChangeLine == stateChangeEvent.name + " " + swtEvent.item.getText()
+               stateChangeLine == stateChangeEvent.name + " " + stateChangeEvent.getTextToRecord(swtEvent.item)
 
 class ListClickEvent(StateChangeEvent):
     @classmethod
@@ -1244,10 +1244,6 @@ class FakeSWTBotCCombo(swtbot.widgets.SWTBotCCombo):
 class BrowserUpdateMonitor(swt.browser.ProgressListener):
     def __init__(self, widget):
         self.widget = widget
-        self.urlOrText = self.getUrlOrText()
-
-    def getUrlOrText(self):
-        return util.getRealUrl(self.widget) or self.widget.getText()
     
     def changed(self, e):
         pass
@@ -1256,10 +1252,7 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
         storytext.guishared.catchAll(self.onCompleted, e)
         
     def onCompleted(self, e):
-        newText = self.getUrlOrText()
-        if newText != self.urlOrText:
-            self.urlOrText = newText
-            self.sendApplicationEvent(self.widget.getNameForAppEvent() + " to finish loading", "browser")
+        self.sendApplicationEvent(self.widget.getNameForAppEvent() + " to finish loading", "browser")
 
     def sendApplicationEvent(self, *args):
         applicationEvent(*args)
