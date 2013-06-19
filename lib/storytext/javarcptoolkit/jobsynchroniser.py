@@ -6,14 +6,14 @@ import logging, os
 import storytext.guishared
 from storytext.javaswttoolkit.simulator import DisplayFilter
 from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
-from threading import Lock
+from threading import Lock, currentThread
 
 class JobListener(JobChangeAdapter):
     # Add things from customwidgetevents here, if desired...
     systemJobNames = os.getenv("STORYTEXT_SYSTEM_JOB_NAMES", "").split(",")
     instance = None
     def __init__(self):
-        self.jobNameToUse = None
+        self.jobNamesToUse = {}
         self.jobCount = 0
         self.jobCountLock = Lock()
         self.logger = logging.getLogger("Eclipse RCP jobs")
@@ -26,21 +26,18 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.acquire()
         self.jobCount -= 1
         self.logger.debug("Completed " + ("system" if e.getJob().isSystem() else "non-system") + " job '" + jobName + "' jobs = " + repr(self.jobCount))    
-        if jobName in self.systemJobNames or not e.getJob().isSystem():
-            self.logger.debug("Now using job name '" + jobName + "'")
-            self.jobNameToUse = jobName
-        
         # We wait for the system to reach a stable state, i.e. no scheduled jobs
         # Would be nice to call Job.getJobManager().isIdle(),
         # but that doesn't count scheduled jobs for some reason
         noScheduledJobs = self.jobCount == 0
-        self.jobCountLock.release()        
-        if noScheduledJobs and self.jobNameToUse: 
+        if noScheduledJobs and self.jobNamesToUse: 
             self.setComplete()
-
+        self.jobCountLock.release()        
+        
     def setComplete(self):
-        DisplayFilter.registerApplicationEvent("completion of " + self.jobNameToUse, category="jobs")
-        self.jobNameToUse = None
+        for currCat, currJobName in self.jobNamesToUse.items():
+            DisplayFilter.registerApplicationEvent("completion of " + currJobName, category=currCat)
+        self.jobNamesToUse = {}
 
     def scheduled(self, e):
         storytext.guishared.catchAll(self.jobScheduled, e)
@@ -49,14 +46,30 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.acquire()
         jobName = e.getJob().getName().lower()
         self.jobCount += 1
-        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount))
-        
+        parentJob = Job.getJobManager().currentJob()
+        parentJobName = parentJob.getName().lower() if parentJob else ""
+        category = "jobs_" + currentThread().getName()
+        postfix = ", parent job " + parentJobName if parentJobName else "" 
+        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + ", thread = " + currentThread().getName() + postfix)
+        if (jobName in self.systemJobNames or not e.getJob().isSystem()):
+            self.logger.debug("Now using job name '" + jobName + "' for category '" + category + "'")
+            self.jobNamesToUse[category] = jobName
+            self.removeJobName(parentJobName)
+
         # As soon as we can, we move to the back of the list, so that jobs scheduled in 'done' methods get noticed
         if not e.getJob().isSystem():
             Job.getJobManager().removeJobChangeListener(self)
             Job.getJobManager().addJobChangeListener(self)
             self.logger.debug("At back of list now")
         self.jobCountLock.release()
+
+            
+    def removeJobName(self, jobName):
+        for currCat, currJobName in self.jobNamesToUse.items():
+            if currJobName == jobName:
+                self.logger.debug("Removing job name '" + jobName + "' for category '" + currCat + "'")
+                del self.jobNamesToUse[currCat]
+                return        
             
     @classmethod
     def enable(cls, *args):
