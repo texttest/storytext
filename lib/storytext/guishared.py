@@ -1739,12 +1739,15 @@ class TextLabelFinder:
                 return parent.__class__.__name__ + " Cell Editor" if useContext else ""
             children = self.getChildren(parent)
             if self.widget in children: # can't assume this, for example window-type objects often have a parent, but are not one of its children
-                if children.index(self.widget) == 0: # If we're the first child of our parent, look for the parent in its context
+                if children.index(self.widget) == 0 and self.numRows(children, parent) <= 1: # If we're the first child of our parent, look for the parent in its context
                     return self.__class__(parent, self.ignoreLabels).find()
                 else:
                     return self.findPrecedingLabel(children, parent)
         
         return ""
+    
+    def numRows(self, *args):
+        return 0
 
 def removeMarkup(text):
     removed = re.sub("<[^>]*>", "", text)

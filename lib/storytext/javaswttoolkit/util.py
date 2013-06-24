@@ -42,6 +42,19 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
             else:
                 currIndex += span
 
+    def numRows(self, children, parent):
+        layout = parent.getLayout()
+        if not isinstance(layout, swt.layout.GridLayout):
+            return 0
+        numColumns = layout.numColumns
+        currIndex = 0
+        rows = -1
+        for child in children:
+            span = min(child.getLayoutData().horizontalSpan, numColumns)
+            rows = int(currIndex / numColumns)
+            currIndex += span
+        return rows + 1
+
 ignoreLabels = []
 def getTextLabel(widget, **kw):
     return TextLabelFinder(widget, ignoreLabels).find(**kw)

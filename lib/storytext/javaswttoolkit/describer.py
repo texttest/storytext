@@ -487,7 +487,7 @@ class Describer(storytext.guishared.Describer):
         
     def getUpdatePrefix(self, widget, oldState, state):
         if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser, swt.widgets.Spinner)):
-            return "\nUpdated " + (util.getTextLabel(widget, useContext=True) or "Text") +  " Field\n"
+            return "\nUpdated " + (util.getTextLabel(widget, useContext=True) or self.getShortWidgetIdentifier(widget) or "Text") +  " Field\n"
         elif isinstance(widget, (swt.widgets.Combo, swt.custom.CCombo)):
             return "\nUpdated " + util.getTextLabel(widget, useContext=True) + " Combo Box\n"
         elif util.getTopControl(widget) or isinstance(widget, swt.widgets.Group):
@@ -502,6 +502,9 @@ class Describer(storytext.guishared.Describer):
             return "\nLabel now empty, previously " + oldState
         else:
             return "\nUpdated "
+
+    def getShortWidgetIdentifier(self, widget):
+        return widget.getData("org.eclipse.swtbot.widget.key")
 
     def getState(self, widget):
         if widget.isDisposed():
