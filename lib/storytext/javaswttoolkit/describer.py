@@ -114,8 +114,11 @@ class Describer(storytext.guishared.Describer):
     def validAndShowing(self, widget):
         return not widget.isDisposed() and util.isVisible(widget) 
     
+    def isDifferentShell(self, widget, shell):
+        return isinstance(widget, swt.widgets.Shell) and widget != shell
+
     def widgetShowing(self, widget, shell):
-        return self.validAndShowing(widget) and not self.inDifferentShell(widget, shell)
+        return self.validAndShowing(widget) and not self.isDifferentShell(widget, shell) and not self.inDifferentShell(widget, shell)
 
     def describeClipboardChanges(self, display):
         clipboard = swt.dnd.Clipboard(display)
