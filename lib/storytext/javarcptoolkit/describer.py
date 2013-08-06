@@ -54,11 +54,3 @@ class Describer(swtdescriber.Describer):
             desc += "\n  " + clientDesc.replace("\n", "\n  ")
         return desc
     
-    def widgetShowing(self, widget, shell):
-        # Don't describe inactive progress dialog
-        return swtdescriber.Describer.widgetShowing(self, widget, shell) and not self.isProgressDialog(widget)
-
-    def isProgressDialog(self, widget):
-        # This is an ugly workaround to determine if the widget is a progress dialog.
-        # 'Progress Information' use to be the standard such dialogs title
-        return isinstance(widget, self.getWindowClasses()) and widget.getText() == "Progress Information"
