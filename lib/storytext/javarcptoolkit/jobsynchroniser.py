@@ -11,6 +11,7 @@ from threading import Lock, currentThread
 class JobListener(JobChangeAdapter):
     # Add things from customwidgetevents here, if desired...
     systemJobNames = os.getenv("STORYTEXT_SYSTEM_JOB_NAMES", "").split(",")
+    timeDelays = {}
     instance = None
     def __init__(self):
         self.jobNamesToUse = {}
@@ -36,7 +37,8 @@ class JobListener(JobChangeAdapter):
         
     def setComplete(self):
         for currCat, currJobName in self.jobNamesToUse.items():
-            DisplayFilter.registerApplicationEvent("completion of " + currJobName, category=currCat)
+            timeDelay = self.timeDelays.get(currJobName, 0.001)
+            DisplayFilter.registerApplicationEvent("completion of " + currJobName, category=currCat, timeDelay=timeDelay)
         self.jobNamesToUse = {}
 
     def scheduled(self, e):
