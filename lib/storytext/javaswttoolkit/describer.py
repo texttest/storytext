@@ -36,6 +36,8 @@ class Describer(storytext.guishared.Describer):
         self.canvasCounter = storytext.guishared.WidgetCounter()
         self.contextMenuCounter = storytext.guishared.WidgetCounter(self.contextMenusEqual)
         self.widgetsAppeared = []
+        self.widgetsMoved = []
+        self.parentsResized = set()
         self.widgetsDescribed = set()
         self.browserStates = {}
         self.clipboardText = None
@@ -48,14 +50,24 @@ class Describer(storytext.guishared.Describer):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
             self.logger.debug("Widget painted " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
-
+        
     def setWidgetShown(self, widget):
         # Menu show events seem a bit spurious, they aren't really shown at this point:
         # ScrollBar shows are not relevant to anything
-        if not isinstance(widget, (swt.widgets.Menu, swt.widgets.ScrollBar)) and widget not in self.widgetsAppeared:
+        if isinstance(widget, swt.widgets.Control) and widget not in self.widgetsAppeared:
             self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
-
+            
+    def setWidgetMoved(self, widget):
+        if isinstance(widget, swt.widgets.Control) and widget not in self.widgetsAppeared and widget.getParent() not in self.parentsResized:
+            self.logger.debug("Widget moved " + self.getRawData(widget))
+            self.widgetsMoved.append(widget)
+        
+    def setWidgetResized(self, widget):
+        if isinstance(widget, swt.widgets.Control):
+            self.parentsResized.add(widget)
+            self.parentsResized.add(widget.getParent())
+                    
     def addFilters(self, display):
         class ShowListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e):
@@ -65,8 +77,19 @@ class Describer(storytext.guishared.Describer):
             def handleEvent(listenerSelf, e):
                 storytext.guishared.catchAll(self.setWidgetPainted, e.widget)
 
+        class MoveListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                storytext.guishared.catchAll(self.setWidgetMoved, e.widget)
+
+        class ResizeListener(swt.widgets.Listener):
+            def handleEvent(listenerSelf, e):
+                storytext.guishared.catchAll(self.setWidgetResized, e.widget)
+
         display.addFilter(swt.SWT.Show, ShowListener())
         display.addFilter(swt.SWT.Paint, PaintListener())
+        display.addFilter(swt.SWT.Move, MoveListener())
+        display.addFilter(swt.SWT.Resize, ResizeListener())
+        display.addFilter(swt.SWT.Dispose, ResizeListener()) # Being disposed is the ultimate resize :)
         
     def writeScreenshot(self, shell):
         display = shell.getDisplay()
@@ -95,15 +118,29 @@ class Describer(storytext.guishared.Describer):
                 for widget in stateChangeWidgets:
                     self.structureLog.info("Widget changed state:")
                     self.describeStructure(widget)
+            self.processMovedWidgets()
             describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets, shell)
             self.describeStateChanges(stateChanges, describedForAppearance)
             self.widgetsAppeared = filter(lambda w: self.validAndShowing(w) and self.inDifferentShell(w, shell), self.widgetsAppeared)
         else:
             self.widgetsAppeared = []
+        self.parentsResized = set()
+        self.widgetsMoved = []
             
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)
+            
+    def processMovedWidgets(self):
+        # We are looking for cases of reordering: at least two widgets in the same parent must have moved for this to happen
+        moved = filter(lambda w: not w.isDisposed() and self.describeClass(w.__class__.__name__), self.widgetsMoved)
+        if len(moved) > 1:
+            self.logger.debug("Handling moved widgets " + repr(map(self.getRawData, moved)))
+            parents = [ w.getParent() for w in moved ]
+            self.logger.debug("Parents " + repr(map(self.getRawData, parents)))
+            for widget in moved:
+                if parents.count(widget.getParent()) > 1:
+                    self.widgetsAppeared.append(widget)
         
     def shouldCheckForUpdates(self, widget, shell):
         return not widget.isDisposed() and widget.getShell() == shell
