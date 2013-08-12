@@ -51,7 +51,7 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-s", "--supported", action="store_true",
                       help="list which PyGTK widgets and signals are currently supported 'out-of-the-box'")
     parser.add_option("-S", "--screenshot", action="store_true",
-                      help="Take screenshots of the GUI after each action. Only works in SWT/Eclipse currently")
+                      help="Take screenshots of the GUI after each action. Only works in SWT/Eclipse currently. Also enabled via the environment variable USECASE_REPLAY_SCREENSHOTS.")
     parser.add_option("-t", "--timeout", metavar="SECONDS", default=60, action="store", type="int",
                       help="amount of time to wait for application events before giving up and trying to proceed.")
     parser.add_option("-T", "--testscriptpluginid",
@@ -100,6 +100,8 @@ def set_up_environment(options):
         os.environ["USECASE_REPLAY_SCRIPT"] = ""
     if options.delay:
         os.environ["USECASE_REPLAY_DELAY"] = options.delay
+    if options.screenshot:
+        os.environ["USECASE_REPLAY_SCREENSHOTS"] = "1"
 
 def poll_file(fileName, eventName, scriptEngine):
     eventName = eventName or fileName + " to be updated"

@@ -314,7 +314,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
                     self.replaceAutoRecordingForUsecase(options.interface, exitHook=False)
 
     def handleAdditionalOptions(self, options):
-        if options.screenshot:
+        if options.screenshot or os.environ.has_key("USECASE_REPLAY_SCREENSHOTS"):
             Describer.writeScreenshots = True
         if options.maxoutputwidth:
             Describer.maxOutputWidth = int(options.maxoutputwidth)
