@@ -40,8 +40,9 @@ class ScriptEngine:
             if self.replayerActive():
                 self.replayer.registerShortcut(shortcut)
 
-    def getShortcuts(self, storyTextHome=None):
-        home = storyTextHome if storyTextHome else self.storytextHome
+    @classmethod
+    def getShortcuts(cls, storyTextHome=None):
+        home = storyTextHome if storyTextHome else cls.storytextHome
         shortcuts = []
         if not os.path.isdir(home):
             return shortcuts
