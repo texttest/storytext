@@ -546,11 +546,15 @@ class TextEvent(StateChangeEvent):
     def getStateText(self, *args):
         return self.widget.getText()
     
+    def textChanged(self, newStateText):
+        return self.stateText is None or self.stateText != newStateText
+    
     def shouldRecord(self, event, *args):
         if not self.isEditable():
             return False
+
         newStateText = self.getStateText()
-        if self.stateText is not None and self.stateText == newStateText:
+        if not self.textChanged(newStateText):
             return False
         
         if newStateText and self.isTyped() and self.physicalEventWidget is not self.widget.widget.widget:
