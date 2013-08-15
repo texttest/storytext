@@ -71,7 +71,19 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
     def getName(self):
         return self.widget.getId() or ""
-
+    
+    def getActionId(self):
+        data = runOnUIThread(self.widget.widget.getData)
+        return data.getAction().getId() if hasattr(data, "getAction") else ""
+    
+    def findPossibleUIMapIdentifiers(self):
+        ids = storytext.guishared.WidgetAdapter.findPossibleUIMapIdentifiers(self)
+        actionId = self.getActionId()
+        if actionId:
+            pos = ids.index("Type=" + self.getType())
+            ids.insert(pos, "Action=" + actionId)
+        return ids
+    
     def getNameForAppEvent(self):
         return self.getName() or self.getType().lower()
 
