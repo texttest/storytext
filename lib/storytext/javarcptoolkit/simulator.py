@@ -194,10 +194,10 @@ class ViewAdapter(swtsimulator.WidgetAdapter):
         return "View"
 
     
-class PartActivateEvent(storytext.guishared.GuiEvent):
+class PartActivateEvent(swtsimulator.SignalEvent):
     allInstances = []
     def __init__(self, *args, **kw):
-        storytext.guishared.GuiEvent.__init__(self, *args, **kw)
+        swtsimulator.SignalEvent.__init__(self, *args, **kw)
         self.allInstances.append(self)
         
     def connectRecord(self, method):
@@ -207,15 +207,38 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
                     storytext.guishared.catchAll(method, part, self)
         page = self.widget.getViewReference().getPage()
         swtsimulator.runOnUIThread(page.addPartListener, RecordListener())
-        
+                
     def generate(self, *args):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
         #self.widget.setFocus()
-        page = self.widget.getViewReference().getPage()
-        view = self.widget.getViewReference().getView(False)
-        swtsimulator.runOnUIThread(page.activate, view)
+        swtsimulator.runOnUIThread(self.clickMatchingTab, *args)
+        #page = self.widget.getViewReference().getPage()
+        #view = self.widget.getViewReference().getView(False)
+        #swtsimulator.runOnUIThread(page.activate, view)
         
+    def getTabFolder(self):
+        for tab in self.widget.getViewReference().getPane().getTabList():
+            if hasattr(tab, "getItems"):
+                return tab
+            
+    def clickMatchingTab(self, argumentString):
+        tabfolder = self.getTabFolder()
+        for item in tabfolder.getItems():
+            if item.getText() == argumentString:
+                self.clickItem(item, tabfolder)
+                        
+    def getCenter(self, item):
+        bounds = item.getBounds()
+        return bounds.x + bounds.width / 2, bounds.y + bounds.height / 2 
+    
+    def clickItem(self, item, tabfolder):
+        x, y = self.getCenter(item)
+        displayLoc = tabfolder.toDisplay(x, y)
+        display = tabfolder.getDisplay()
+        # Move the mouse pointer back so we don't get accidental mouseovers...
+        swtsimulator.EventPoster(display).moveClickAndReturn(displayLoc.x, displayLoc.y)
+    
     def parseArguments(self, argumentString):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
@@ -228,12 +251,12 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
             
 
     def getTitle(self):
-        return self.widget.getViewReference().getTitle()
+        return self.widget.getViewReference().getPartName()
 
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return self.hasMultipleViews() and not swtsimulator.DisplayFilter.instance.hasEvents()
-
+        return self.hasMultipleViews() and swtsimulator.DisplayFilter.instance.hasEventOfType(self.getSignalsToFilter(), self.getTabFolder())
+    
     def hasMultipleViews(self):
         # If there is only one view, don't try to record if it's activated, it's probably just been created...
         return sum((i.isActivatable() for i in self.allInstances)) > 1
@@ -243,16 +266,25 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
 
     def delayLevel(self, part, *args):
         # If there are events for other shells, implies we should delay as we're in a dialog
-        return swtsimulator.DisplayFilter.instance.otherEventCount(part, [])
+        return swtsimulator.DisplayFilter.instance.otherEventCount(part, self.isTriggeringEvent)
+    
+    def isTriggeringEvent(self, event):
+        return event.widget is self.getTabFolder() and event.type in [ SWT.MouseDown, SWT.Selection ]
     
     def widgetDisposed(self):
         control = self.getControl()
         return control is None or swtsimulator.runOnUIThread(control.isDisposed)
+    
+    def widgetVisible(self):
+        return True
+        
+    def widgetSensitive(self):
+        return True
 
     def describeWidget(self):
         control = self.getControl()
         return "of type " + control.__class__.__name__
-        
+    
     def getControl(self):
         return self.widget.getViewReference().getPane().getControl()
     
@@ -277,15 +309,17 @@ class PartActivateEvent(storytext.guishared.GuiEvent):
         return True
         
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        return isinstance(stateChangeEvent, PartActivateEvent)
+        return isinstance(stateChangeEvent, PartActivateEvent) and stateChangeOutput.startswith(self.name)
     
     @classmethod
     def getSignalsToFilter(cls):
-        return []
+        return [ SWT.MouseDown ]
 
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "ActivatePart"
+    
+    
     
 class PartCloseEvent(storytext.guishared.GuiEvent):
     def connectRecord(self, method):
@@ -316,6 +350,11 @@ class PartCloseEvent(storytext.guishared.GuiEvent):
 class RCPCTabSelectEvent(swtsimulator.CTabSelectEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, PartActivateEvent) or swtsimulator.CTabSelectEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
+        
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ SWT.Selection, SWT.MouseDown ] # Actually so PartActivateEvent works properly
+
 
     
 # Removing the last tab in a view folder causes the entire folder to be disposed
