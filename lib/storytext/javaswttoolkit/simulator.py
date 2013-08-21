@@ -569,10 +569,10 @@ class TextEvent(StateChangeEvent):
         if not self.textChanged(newStateText):
             return False
         
+        self.stateText = newStateText
         if newStateText and self.isTyped() and self.physicalEventWidget is not self.widget.widget.widget:
             return False
         
-        self.stateText = newStateText
         return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, event, *args)
         
     def isEditable(self):
