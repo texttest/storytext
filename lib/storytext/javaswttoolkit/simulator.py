@@ -1,7 +1,7 @@
 
 import storytext.guishared, util, logging, os, time, sys
 from storytext.definitions import UseCaseScriptError
-from storytext import applicationEvent, applicationEventDelay
+from storytext import applicationEvent, applicationEventDelay, applicationEventRemove
 from difflib import SequenceMatcher
 from org.eclipse import swt
 import org.eclipse.swtbot.swt.finder as swtbot
@@ -1243,6 +1243,10 @@ class DisplayFilter:
         for _, eventTypes in self.widgetEventTypes:
             eventTypeSet.update(eventTypes)
         return eventTypeSet
+    
+    @classmethod
+    def removeApplicationEvent(cls, *args, **kw):
+        applicationEventRemove(*args, **kw)
     
 # There is no SWTBot class for these things, so we make our own. We aren't actually going to use it anyway...    
 class FakeSWTBotTabFolder(swtbot.widgets.AbstractSWTBot):

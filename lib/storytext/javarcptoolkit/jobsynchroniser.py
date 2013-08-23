@@ -13,9 +13,11 @@ class JobListener(JobChangeAdapter):
     systemJobNames = os.getenv("STORYTEXT_SYSTEM_JOB_NAMES", "").split(",")
     timeDelays = {}
     instance = None
+    appEventPrefix = "completion of "
     def __init__(self):
         self.jobNamesToUse = {}
         self.jobCount = 0
+        self.customUsageMethod = None
         self.jobCountLock = Lock()
         self.logger = logging.getLogger("Eclipse RCP jobs")
         
@@ -31,14 +33,14 @@ class JobListener(JobChangeAdapter):
         # Would be nice to call Job.getJobManager().isIdle(),
         # but that doesn't count scheduled jobs for some reason
         noScheduledJobs = self.jobCount == 0
-        if noScheduledJobs and self.jobNamesToUse: 
+        if noScheduledJobs and self.jobNamesToUse:
             self.setComplete()
         self.jobCountLock.release()        
         
     def setComplete(self):
         for currCat, currJobName in self.jobNamesToUse.items():
             timeDelay = self.timeDelays.get(currJobName, 0.001)
-            DisplayFilter.registerApplicationEvent("completion of " + currJobName, category=currCat, timeDelay=timeDelay)
+            DisplayFilter.registerApplicationEvent(self.appEventPrefix + currJobName, category=currCat, timeDelay=timeDelay)
         self.jobNamesToUse = {}
 
     def scheduled(self, e):
@@ -53,10 +55,13 @@ class JobListener(JobChangeAdapter):
         category = "jobs_" + currentThread().getName()
         postfix = ", parent job " + parentJobName if parentJobName else "" 
         self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + ", thread = " + currentThread().getName() + postfix)
-        if (jobName in self.systemJobNames or not e.getJob().isSystem()):
+        if jobName in self.systemJobNames or self.shouldUseJob(e.getJob()):
             self.logger.debug("Now using job name '" + jobName + "' for category '" + category + "'")
             self.jobNamesToUse[category] = jobName
             self.removeJobName(parentJobName)
+            def matchName(eventName, delayLevel):
+                return eventName == self.appEventPrefix + parentJobName
+            DisplayFilter.removeApplicationEvent(matchName)
 
         # As soon as we can, we move to the back of the list, so that jobs scheduled in 'done' methods get noticed
         if not e.getJob().isSystem():
@@ -65,6 +70,8 @@ class JobListener(JobChangeAdapter):
             self.logger.debug("At back of list now")
         self.jobCountLock.release()
 
+    def shouldUseJob(self, job):
+        return not job.isSystem() or (self.customUsageMethod and self.customUsageMethod(job))
             
     def removeJobName(self, jobName):
         for currCat, currJobName in self.jobNamesToUse.items():
@@ -75,6 +82,6 @@ class JobListener(JobChangeAdapter):
             
     @classmethod
     def enable(cls, *args):
-        cls.instance = cls(*args)
+        JobListener.instance = cls(*args)
         cls.instance.logger.debug("Enabling Job Change Listener")
         Job.getJobManager().addJobChangeListener(cls.instance)

@@ -73,6 +73,10 @@ class ScriptEngine:
         if self.recorderActive():
             self.recorder.applicationEventDelay(name, **kw)
 
+    def applicationEventRemove(self, *args, **kw):
+        if self.recorderActive():
+            self.recorder.unregisterApplicationEvent(*args, **kw)
+
     def run(self, options, args):
         if len(args) == 0:
             return False

@@ -31,3 +31,7 @@ def createShortcutBar(uiMapFiles=[], customEventTypes=[]):
         scriptEngine.addUiMapFiles(uiMapFiles)
         scriptEngine.addCustomEventTypes(customEventTypes)
     return scriptEngine.createShortcutBar()
+
+def applicationEventRemove(*args, **kwargs):
+    if scriptEngine:
+        scriptEngine.applicationEventRemove(*args, **kwargs)
