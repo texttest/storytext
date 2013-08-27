@@ -1114,15 +1114,18 @@ class DateTimeEvent(StateChangeEvent):
 
     def _generate(self, currDate):
         self.widget.setDate(currDate)
-
         
+
 class EventFinishedListener(swt.widgets.Listener):
-    def __init__(self, event):
+    def __init__(self, event, method):
         self.event = event
+        self.method = method
         
     def handleEvent(self, e2):
         if e2 is self.event:
-            storytext.guishared.catchAll(DisplayFilter.instance.handleEventFinished, self.event)
+            storytext.guishared.catchAll(self.method, self.event)
+            if not self.event.widget.isDisposed():
+                self.event.widget.removeListener(self.event.type, self)
 
 
 class DisplayFilter:
@@ -1207,7 +1210,7 @@ class DisplayFilter:
         if self.shouldCheckWidget(e.widget, e.type):
             self.logger.debug("Filter for event " + e.toString())
             self.eventsFromUser.append(e)
-            runOnUIThread(e.widget.addListener, e.type, EventFinishedListener(e))
+            runOnUIThread(e.widget.addListener, e.type, EventFinishedListener(e, self.handleEventFinished))
             # Safe guard against the application changing the text before we can record
             self.cacheItemText(e)
         else:
@@ -1344,7 +1347,6 @@ class EventPoster:
         self.moveMouseAndWait(currPos.x, currPos.y)
 
 
-
 class WidgetMonitor:
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
                                          [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio),
@@ -1448,20 +1450,27 @@ class WidgetMonitor:
     def addMonitorFilter(self, display):
         class MonitorListener(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                storytext.guishared.catchAll(self.widgetShown, e.widget, e.type)
+                storytext.guishared.catchAll(self.widgetShown, e)
 
         monitorListener = MonitorListener()
         runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
         
-    def widgetShown(self, parent, eventType):
-        if self.shouldMonitor(parent):
-            self.monitorNewWidgets(parent, eventType == swt.SWT.Show)
+    def widgetShown(self, e):
+        if self.shouldMonitor(e.widget):
+            if isinstance(e.widget, swt.widgets.Menu):
+                e.widget.addListener(e.type, EventFinishedListener(e, self.monitorWidgetsFromEvent))
+            else:
+                self.monitorNewWidgets(e.widget, e.type == swt.SWT.Show)
             
     def shouldMonitor(self, widget):
         # Don't try to monitor widgets before the shells they appear in!
         return widget not in self.widgetsMonitored and \
             (isinstance(widget, swt.widgets.Shell) or not isinstance(widget, swt.widgets.Control) or widget.getShell() in self.widgetsMonitored)
+            
+    def monitorWidgetsFromEvent(self, e):
+        if not e.widget.isDisposed():
+            self.monitorNewWidgets(e.widget, e.type == swt.SWT.Show)
             
     def monitorNewWidgets(self, parent, findInvisible=True):
         if findInvisible:
