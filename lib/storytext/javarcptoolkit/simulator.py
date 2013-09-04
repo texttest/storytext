@@ -255,7 +255,9 @@ class PartActivateEvent(swtsimulator.SignalEvent):
 
     def shouldRecord(self, part, *args):
         # TODO: Need to check no other events are waiting in DisplayFilter 
-        return self.hasMultipleViews() and swtsimulator.DisplayFilter.instance.hasEventOfType(self.getSignalsToFilter(), self.getTabFolder())
+        return self.hasMultipleViews() and \
+            (not swtsimulator.DisplayFilter.instance.hasEvents() or \
+            swtsimulator.DisplayFilter.instance.hasEventOfType(self.getSignalsToFilter(), self.getTabFolder()))
     
     def hasMultipleViews(self):
         # If there is only one view, don't try to record if it's activated, it's probably just been created...
