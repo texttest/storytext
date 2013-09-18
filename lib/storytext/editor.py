@@ -552,7 +552,7 @@ class UseCaseEditor:
                         self.copyRow(subIter, newShortcutIter)
                     self.treeModel.remove(iter)
             else:
-                sys.stderr.write("ERROR: mismatch in files, expected shortcut for '" + allCommands[iterIx] + "', but found none.")
+                sys.stderr.write("ERROR: mismatch in files, expected shortcut for '" + allCommands[iterIx] + "', but found none.\n")
                 break
 
     def respond(self, dialog, responseId, entry, frame, shortcutView):
@@ -730,7 +730,7 @@ class UseCaseEditor:
         originalValue = model.get_value(iter, 1)
         currentValue = model.get_value(iter, 0)
         args = model.get_value(iter, 2)
-        if len(args) == 1 and (newName.find(" " + args[0] + " ") >= 0 or newName.startswith(args[0] + " ") or newName.endswith(" " + args[0])):
+        if len(args) == 1 and re.search("\\b" + args[0] + "\\b", newName):
             if originalValue == currentValue:
                 model.set_value(iter, 0, currentValue.replace(args[0], "$"))
         else:
