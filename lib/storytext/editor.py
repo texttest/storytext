@@ -180,7 +180,12 @@ class UseCaseEditor:
         return label
 
     def activateEntry(self, entry, dialog, *args):
-        dialog.response(gtk.RESPONSE_ACCEPT)
+        entryPos = self.allEntries.values().index(entry)
+        if entryPos == len(self.allEntries) - 1:
+            dialog.response(gtk.RESPONSE_ACCEPT)
+        else:
+            nextEntry = self.allEntries.values()[entryPos + 1]
+            nextEntry.grab_focus()
 
     def getActionDescription(self, signalName, widgetType):
         try:
@@ -392,10 +397,11 @@ class UseCaseEditor:
             table.attach(widgetDescWidget, 1, 2, rowIndex + 1, rowIndex + 2, xoptions=gtk.FILL, yoptions=gtk.FILL)
             table.attach(gtk.Label(actionDesc), 2, 3, rowIndex + 1, rowIndex + 2, xoptions=gtk.FILL, yoptions=gtk.FILL)
             entry = gtk.Entry()
-            scriptName = "enter usecase name for signal '" + signalName + "' on " + widgetType + " '" + removeMarkup(unescape(possibleWidgetDescs[0])) + "' ="
+            fieldIdentifier = "for signal '" + signalName + "' on " + widgetType + " '" + removeMarkup(unescape(possibleWidgetDescs[0])) + "'"
+            scriptName = "enter usecase name " + fieldIdentifier + " ="
             self.scriptEngine.monitorSignal(scriptName, "changed", entry)
             entry.connect("activate", self.activateEntry, dialog)
-            self.scriptEngine.monitorSignal("finish name entry editing by pressing <enter>", "activate", entry)
+            self.scriptEngine.monitorSignal("press <enter> in field " + fieldIdentifier, "activate", entry)
             self.allEntries[command] = entry
             self.allDescriptionWidgets.append(widgetDescWidget)
             table.attach(entry, 3, 4, rowIndex + 1, rowIndex + 2, yoptions=gtk.FILL)
