@@ -627,6 +627,21 @@ class TextActivateEvent(SignalEvent):
         self.widget.setFocus()
         self.widget.typeText("\n")
 
+class TextContentAssistEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "ContentAssist"
+    
+    @classmethod
+    def getRecordEventType(cls):
+        return swt.SWT.KeyDown
+    
+    def shouldRecord(self, event, *args):
+        return event.type == swt.SWT.KeyDown and event.character == " " and (event.stateMask & swt.SWT.CTRL) != 0
+    
+    def _generate(self, argumentString):
+        self.widget.pressShortcut([ swtbot.keyboard.Keystrokes.CTRL, swtbot.keyboard.Keystrokes.SPACE ])
+
     
 def getPrivateField(obj, fieldName):
     cls = obj.getClass()
@@ -779,12 +794,18 @@ class TableSelectEvent(StateChangeEvent):
         pt = swt.graphics.Point(event.x, event.y)
         table = event.widget
         firstRow = table.getTopIndex()
+        columnCount = table.getColumnCount()
         for rowIndex in range(firstRow, firstRow + table.getItemCount()):
             item = table.getItem(rowIndex)
-            for col in range(table.getColumnCount()):
-                rect = item.getBounds(col)
+            if columnCount:
+                for col in range(columnCount):
+                    rect = item.getBounds(col)
+                    if rect.contains(pt):
+                        return rowIndex, col
+            else:
+                rect = item.getBounds()
                 if rect.contains(pt):
-                    return rowIndex, col
+                    return rowIndex, None
         return None, None
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
@@ -1627,7 +1648,7 @@ eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
                 (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
                 (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
                 (swtbot.widgets.SWTBotSpinner           , [ SpinnerSelectEvent ]),
-                (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent ]),
+                (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent, TextContentAssistEvent ]),
                 (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent, FreeTextEvent ]),
                 (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent, TableDoubleClickEvent ]),
                 (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),

@@ -1327,11 +1327,18 @@ class Describer(object):
         if columnCount == 0:
             return ""
 
-        colWidths = GridFormatter([ headerRow ] + rows, columnCount, allowOverlap=False).findColumnWidths()
-        header = GridFormatter([ headerRow ], columnCount).formatCellsInGrid(colWidths)
-        body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
-        line = "_" * sum(colWidths) + "\n"
-        return self.formatWithSeparators(header, body, line)
+        if headerRow:
+            colWidths = GridFormatter([ headerRow ] + rows, columnCount, allowOverlap=False).findColumnWidths()
+            header = GridFormatter([ headerRow ], columnCount).formatCellsInGrid(colWidths)
+            body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
+            line = "_" * sum(colWidths) + "\n"
+            return self.formatWithSeparators(header, body, line)
+        else:
+            formatter = GridFormatter(rows, columnCount, allowOverlap=False)
+            colWidths = formatter.findColumnWidths()
+            body = formatter.formatCellsInGrid(colWidths)
+            line = "_" * sum(colWidths) + "\n"
+            return line + body + "\n" + line
 
     def formatWithSeparators(self, header, body, line):
         return line + header + "\n" + line + body + "\n" + line

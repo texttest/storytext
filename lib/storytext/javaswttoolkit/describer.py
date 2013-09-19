@@ -636,8 +636,8 @@ class Describer(storytext.guishared.Describer):
         columnCount = len(columns)
         text = self.combineElements([ "Table" ] + self.getPropertyElements(widget)) + " :\n"
         rows = self.getAllTableItemDescriptions(widget, indent=0, 
-                                           selection=widget.getSelection(),
-                                           columnCount=columnCount)
+                                                selection=widget.getSelection(),
+                                                columnCount=columnCount)
         sortColumn = widget.getSortColumn()
         if widget.getSortDirection() == swt.SWT.UP:
             sortDirection = "(->)"
@@ -646,7 +646,7 @@ class Describer(storytext.guishared.Describer):
         else:
             sortDirection = ""
         headerRow = [ c.getText() + sortDirection  if c == sortColumn else c.getText() for c in columns if c.getWidth() > 0] # Don't show hidden columns
-        return text + self.formatTable(headerRow, rows, columnCount)
+        return text + self.formatTable(headerRow, rows, max(1, columnCount))
 
     def getAllTableItemDescriptions(self, widget, indent=0,
                                prefix="", selection=[], columnCount=0, **kw):
@@ -657,6 +657,8 @@ class Describer(storytext.guishared.Describer):
             if columnCount:
                 row = [ self.getItemColumnDescription(item, i, currPrefix, selected) for i in range(columnCount) if widget.getColumn(i).getWidth() > 0]
                 descs.append(row)
+            else:
+                descs.append([ self.getItemDescription(item, currPrefix, selected) ])
         return descs
 
     def getTabFolderDescription(self, widget):
