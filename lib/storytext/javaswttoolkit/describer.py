@@ -9,6 +9,7 @@ from java.io import File, FilenameFilter
 from org.eclipse.jface.resource import ImageDescriptor
 from array import array
 from ordereddict import OrderedDict
+from java.lang import NoSuchMethodException
 
 class Describer(storytext.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
@@ -35,6 +36,7 @@ class Describer(storytext.guishared.Describer):
         storytext.guishared.Describer.__init__(self)
         self.canvasCounter = storytext.guishared.WidgetCounter()
         self.contextMenuCounter = storytext.guishared.WidgetCounter(self.contextMenusEqual)
+        self.customTooltipCounter = storytext.guishared.WidgetCounter(self.tooltipsEqual)
         self.widgetsAppeared = []
         self.widgetsMoved = []
         self.parentsResized = set()
@@ -288,6 +290,11 @@ class Describer(storytext.guishared.Describer):
     def imagesEqual(self, image1, image2):
         return image1.getImageData().data == image2.getImageData().data
 
+    def tooltipsEqual(self, data1, data2):
+        tip1, widget1 = data1
+        tip2, widget2 = data2
+        return tip1 == tip2 and widget1 == widget2
+
     def getImageDescription(self, image):
         # Seems difficult to get any sensible image information out, there is
         # basically no query API for this in SWT
@@ -377,6 +384,16 @@ class Describer(storytext.guishared.Describer):
             return prefix + desc
         else:
             return desc
+        
+    def getCustomTooltip(self, item):
+        for listener in item.getListeners(swt.SWT.MouseHover):
+            tooltip = self.getEnclosingInstance(listener)
+            try:
+                # It's protected: hasattr doesn't work
+                tooltip.getClass().getDeclaredMethod("createToolTipContentArea", [ swt.widgets.Event, swt.widgets.Composite ])
+                return tooltip
+            except NoSuchMethodException:
+                pass
 
     def getControlDecorations(self, item):
         decorations = []
@@ -413,7 +430,7 @@ class Describer(storytext.guishared.Describer):
                 if desc:
                     text += "\n'" + desc + "'"
                 return text
-
+            
     def decorationVisible(self, deco):
         if hasattr(deco, "isVisible"): # added in 3.6
             return deco.isVisible()
@@ -441,6 +458,9 @@ class Describer(storytext.guishared.Describer):
         if selected:
             elements.append("selected")
         elements.append(self.getContextMenuReference(item))
+        customTooltipText = self.getCustomTooltipReference(item)
+        if customTooltipText:
+            elements.append(customTooltipText)
         if hasattr(item, "getItemCount") and hasattr(item, "getExpanded") and item.getItemCount() > 0 and not item.getExpanded():
             elements.append("+")
         return elements
@@ -616,6 +636,12 @@ class Describer(storytext.guishared.Describer):
             return "Context Menu " + self.contextMenuCounter.getId(widget.getMenu())
         else:
             return ""
+        
+    def getCustomTooltipReference(self, item):
+        if "CustomTooltip" not in self.excludeClassNames:
+            tooltip = self.getCustomTooltip(item)
+            if tooltip:
+                return "Custom Tooltip " + self.customTooltipCounter.getId((tooltip, item))
 
     def getTreeState(self, widget):
         columns = widget.getColumns()
@@ -757,8 +783,24 @@ class Describer(storytext.guishared.Describer):
                 if not contextMenu.isDisposed():
                     menuDesc = self.getMenuDescription(contextMenu)
                     text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
-                    self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu) 
+                    self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu)
+        if "CustomTooltip" not in self.excludeClassNames:
+            for (tooltip, widget), tooltipId in self.customTooltipCounter.getWidgetsForDescribe():
+                text += "\n\nCustom Tooltip " + str(tooltipId) + ":\n" + self.getCustomTooltipDescription(tooltip, widget)
         return text
+    
+    def getCustomTooltipDescription(self, tooltip, widget):
+        event = swt.widgets.Event()
+        event.type = swt.SWT.MouseHover
+        event.widget = widget
+        shell = swt.widgets.Shell()
+        method = tooltip.getClass().getDeclaredMethod("createToolTipContentArea", [ swt.widgets.Event, swt.widgets.Composite ])
+        method.setAccessible(True)
+        result = method.invoke(tooltip, [ event, shell ])
+        desc = self.getDescription(result)
+        result.dispose()
+        shell.dispose()
+        return desc
 
     def getHorizontalSpan(self, widget, columns):
         layout = widget.getLayoutData()
