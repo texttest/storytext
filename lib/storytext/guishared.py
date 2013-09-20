@@ -1505,6 +1505,7 @@ class Describer(object):
         markedWidgets = self.widgetsAppeared + stateChangesFullDescribe
         for widget in self.widgetsAppeared:
             if not self.widgetShowing(widget, *args):
+                self.logger.debug("Widget not showing, ignoring: " + self.getRawData(widget))
                 continue
 
             if isinstance(widget, self.getWindowClasses()): 

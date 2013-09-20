@@ -59,6 +59,8 @@ class Describer(storytext.guishared.Describer):
         if isinstance(widget, swt.widgets.Control) and widget not in self.widgetsAppeared:
             self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
+            if widget in self.widgetsMoved:
+                self.widgetsMoved.remove(widget)
             
     def setWidgetMoved(self, widget):
         if isinstance(widget, swt.widgets.Control) and widget not in self.widgetsAppeared and widget.getParent() not in self.parentsResized:
