@@ -11,6 +11,19 @@ from array import array
 from ordereddict import OrderedDict
 from java.lang import NoSuchMethodException
 
+def callPrivateMethod(obj, methodName, argList=None, argTypeList=None):
+    cls = obj.getClass()
+    argTypeList = argTypeList or [ arg.getClass() for arg in argList ]
+    while True:
+        try:
+            declaredMethod = cls.getDeclaredMethod(methodName, argTypeList)
+            declaredMethod.setAccessible(True)
+            return declaredMethod.invoke(obj, argList)
+        except NoSuchMethodException:
+            cls = cls.getSuperclass()
+            if cls is None:
+                raise
+
 class Describer(storytext.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
                    (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
@@ -186,20 +199,21 @@ class Describer(storytext.guishared.Describer):
         return shell.getText()
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
-                               prefix="", selection=[], columnCount=0, **kw):
+                               prefix="", selection=[], columnCount=0, enclosingJfaceTooltip=None, **kw):
         descs = []
         for item in itemBar.getItems():
             currPrefix = prefix + " " * indent * 2
             selected = item in selection or (hasattr(item, "getSelection") and item.getSelection())
             if columnCount:
-                row = [ self.getItemColumnDescription(item, i, currPrefix, selected) for i in range(columnCount) ]
+                row = [ self.getItemColumnDescription(item, i, currPrefix, selected, enclosingJfaceTooltip) for i in range(columnCount) ]
                 descs.append(row)
             else:
-                itemDesc = self.getItemDescription(item, currPrefix, selected)
+                itemDesc = self.getItemDescription(item, currPrefix, selected, enclosingJfaceTooltip)
                 if itemDesc:
                     descs.append(itemDesc)
             if subItemMethod:
-                descs += subItemMethod(item, indent, prefix=prefix, selection=selection, columnCount=columnCount, **kw)
+                descs += subItemMethod(item, indent, prefix=prefix, selection=selection, 
+                                       columnCount=columnCount, enclosingJfaceTooltip=enclosingJfaceTooltip, **kw)
         return descs
 
     def getCascadeMenuDescriptions(self, item, indent, storeStatesForSubMenus=False, describeMenus=None, **kw):
@@ -387,15 +401,14 @@ class Describer(storytext.guishared.Describer):
         else:
             return desc
         
-    def getCustomTooltip(self, item):
+    def hasPrivateMethod(self, obj, methodName):
+        return any((method.getName() == methodName for method in obj.getClass().getDeclaredMethods())) 
+        
+    def getJfaceTooltip(self, item):
         for listener in item.getListeners(swt.SWT.MouseHover):
             tooltip = self.getEnclosingInstance(listener)
-            try:
-                # It's protected: hasattr doesn't work
-                tooltip.getClass().getDeclaredMethod("createToolTipContentArea", [ swt.widgets.Event, swt.widgets.Composite ])
+            if self.hasPrivateMethod(tooltip, "createToolTipContentArea"):
                 return tooltip
-            except NoSuchMethodException:
-                pass
 
     def getControlDecorations(self, item):
         decorations = []
@@ -436,22 +449,38 @@ class Describer(storytext.guishared.Describer):
     def decorationVisible(self, deco):
         if hasattr(deco, "isVisible"): # added in 3.6
             return deco.isVisible()
+        else:
+            # Workaround for reflection bug in Jython 2.5.1
+            # args = (None,) if sys.version_info[:3] <= (2, 5, 1) else ()
+            # Jython 2.5.2 doesn't work anyway so we don't include this fix for now
+            return callPrivateMethod(deco, "shouldShowDecoration")
 
-        # Workaround for reflection bug in Jython 2.5.1
-        args = (None,) if sys.version_info[:3] <= (2, 5, 1) else ()
-        method = deco.getClass().getDeclaredMethod("shouldShowDecoration", *args)
-        method.setAccessible(True)
-        return method.invoke(deco, *args)
+    def isCustomTooltip(self, jfaceTooltip):
+        return not jfaceTooltip.__class__.__module__.startswith("org.eclipse.jface")
 
-    def getPropertyElements(self, item, selected=False):
+    def getToolTipText(self, item, jfaceTooltip):
+        if hasattr(item, "getToolTipText") and item.getToolTipText():
+            return item.getToolTipText()
+        elif jfaceTooltip and not self.isCustomTooltip(jfaceTooltip):
+            event = self.makeToolTipEvent(item)
+            if callPrivateMethod(jfaceTooltip, "shouldCreateToolTip", [ event ]):
+                return callPrivateMethod(jfaceTooltip, "getText", [ event ])
+        
+    def getPropertyElements(self, *args, **kw):
+        return self.getPropertyElementsAndTooltip(*args, **kw)[0]
+        
+    def getPropertyElementsAndTooltip(self, item, selected=False, enclosingJfaceTooltip=None):
         elements = []
         decoText = self.getControlDecorationDescription(item)
         if decoText:
             elements.append(decoText)
         if isinstance(item, swt.widgets.Spinner):
             elements += self.getSpinnerPropertyElements(item)
-        if hasattr(item, "getToolTipText") and item.getToolTipText():
-            elements.append("Tooltip '" + item.getToolTipText() + "'")
+            
+        jfaceTooltip = enclosingJfaceTooltip if isinstance(item, swt.widgets.Item) else self.getJfaceTooltip(item)
+        tooltipText = self.getToolTipText(item, jfaceTooltip)
+        if tooltipText:
+            elements.append("Tooltip '" + tooltipText + "'")
         elements += self.getStyleDescriptions(item)
         if hasattr(item, "getImage") and item.getImage():
             elements.append(self.getImageDescription(item.getImage()))
@@ -460,12 +489,12 @@ class Describer(storytext.guishared.Describer):
         if selected:
             elements.append("selected")
         elements.append(self.getContextMenuReference(item))
-        customTooltipText = self.getCustomTooltipReference(item)
+        customTooltipText = self.getCustomTooltipReference(item, jfaceTooltip)
         if customTooltipText:
             elements.append(customTooltipText)
         if hasattr(item, "getItemCount") and hasattr(item, "getExpanded") and item.getItemCount() > 0 and not item.getExpanded():
             elements.append("+")
-        return elements
+        return elements, jfaceTooltip
 
     def getSpinnerPropertyElements(self, item):
         elements = []
@@ -639,19 +668,21 @@ class Describer(storytext.guishared.Describer):
         else:
             return ""
         
-    def getCustomTooltipReference(self, item):
-        if "CustomTooltip" not in self.excludeClassNames:
-            tooltip = self.getCustomTooltip(item)
-            if tooltip:
-                return "Custom Tooltip " + self.customTooltipCounter.getId((tooltip, item))
+    def getCustomTooltipReference(self, item, jfaceTooltip):
+        if "CustomTooltip" not in self.excludeClassNames and jfaceTooltip and self.isCustomTooltip(jfaceTooltip):
+            itemTooltip = self.hasPrivateMethod(jfaceTooltip, "createViewerToolTipContentArea")
+            isItem = isinstance(item, swt.widgets.Item)
+            if isItem == itemTooltip:
+                return "Custom Tooltip " + self.customTooltipCounter.getId((jfaceTooltip, item))
 
     def getTreeState(self, widget):
         columns = widget.getColumns()
         columnCount = len(columns)
-        text = self.combineElements([ "Tree" ] + self.getPropertyElements(widget)) + " :\n"
+        props, jfaceTooltip = self.getPropertyElementsAndTooltip(widget)
+        text = self.combineElements([ "Tree" ] + props) + " :\n"
         rows = self.getAllItemDescriptions(widget, indent=0, subItemMethod=self.getSubTreeDescriptions,
                                            prefix="-> ", selection=widget.getSelection(),
-                                           columnCount=columnCount)
+                                           columnCount=columnCount, enclosingJfaceTooltip=jfaceTooltip)
         if columnCount > 0:
             rows.insert(0, [ c.getText() for c in columns ])
             text += str(GridFormatter(rows, columnCount))
@@ -662,10 +693,12 @@ class Describer(storytext.guishared.Describer):
     def getTableState(self, widget):
         columns = widget.getColumns()
         columnCount = len(columns)
-        text = self.combineElements([ "Table" ] + self.getPropertyElements(widget)) + " :\n"
+        props, jfaceTooltip = self.getPropertyElementsAndTooltip(widget)
+        text = self.combineElements([ "Table" ] + props) + " :\n"
         rows = self.getAllTableItemDescriptions(widget, indent=0, 
                                                 selection=widget.getSelection(),
-                                                columnCount=columnCount)
+                                                columnCount=columnCount,
+                                                enclosingJfaceTooltip=jfaceTooltip)
         sortColumn = widget.getSortColumn()
         if widget.getSortDirection() == swt.SWT.UP:
             sortDirection = "(->)"
@@ -677,16 +710,17 @@ class Describer(storytext.guishared.Describer):
         return text + self.formatTable(headerRow, rows, max(1, columnCount))
 
     def getAllTableItemDescriptions(self, widget, indent=0,
-                               prefix="", selection=[], columnCount=0, **kw):
+                                    prefix="", selection=[], columnCount=0, enclosingJfaceTooltip=None):
         descs = []
         for item in widget.getItems():
             currPrefix = prefix + " " * indent * 2
             selected = item in selection
             if columnCount:
-                row = [ self.getItemColumnDescription(item, i, currPrefix, selected) for i in range(columnCount) if widget.getColumn(i).getWidth() > 0]
+                row = [ self.getItemColumnDescription(item, i, currPrefix, selected, enclosingJfaceTooltip) 
+                        for i in range(columnCount) if widget.getColumn(i).getWidth() > 0 ]
                 descs.append(row)
             else:
-                descs.append([ self.getItemDescription(item, currPrefix, selected) ])
+                descs.append([ self.getItemDescription(item, currPrefix, selected, enclosingJfaceTooltip) ])
         return descs
 
     def getTabFolderDescription(self, widget):
@@ -791,19 +825,31 @@ class Describer(storytext.guishared.Describer):
                 text += "\n\nCustom Tooltip " + str(tooltipId) + ":\n" + self.getCustomTooltipDescription(tooltip, widget)
         return text
     
-    def getCustomTooltipDescription(self, tooltip, widget):
+    def makeToolTipEvent(self, widgetOrItem):
         event = swt.widgets.Event()
         event.type = swt.SWT.MouseHover
-        event.widget = widget
-        shell = swt.widgets.Shell()
-        method = tooltip.getClass().getDeclaredMethod("createToolTipContentArea", [ swt.widgets.Event, swt.widgets.Composite ])
-        method.setAccessible(True)
-        result = method.invoke(tooltip, [ event, shell ])
-        desc = self.getDescription(result)
-        result.dispose()
-        shell.dispose()
-        return desc
+        if isinstance(widgetOrItem, swt.widgets.Item):
+            event.widget = widgetOrItem.getParent()
+            event.item = widgetOrItem
+            bounds = widgetOrItem.getBounds()
+            event.x = util.getInt(bounds.x) + util.getInt(bounds.width) / 2
+            event.y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
+        else:
+            event.widget = widgetOrItem
+        return event
 
+    def getCustomTooltipDescription(self, tooltip, widget):
+        event = self.makeToolTipEvent(widget)
+        if callPrivateMethod(tooltip, "shouldCreateToolTip", [ event ]):
+            shell = swt.widgets.Shell()
+            result = callPrivateMethod(tooltip, "createToolTipContentArea", [ event, shell ], [ swt.widgets.Event, swt.widgets.Composite ])
+            desc = self.getDescription(result)
+            result.dispose()
+            shell.dispose()
+            return desc
+        else:
+            return ""
+        
     def getHorizontalSpan(self, widget, columns):
         layout = widget.getLayoutData()
         if hasattr(layout, "horizontalSpan"):
