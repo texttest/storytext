@@ -578,13 +578,17 @@ class TextEvent(StateChangeEvent):
     def isEditable(self):
         return not (self.widget.widget.widget.getStyle() & swt.SWT.READ_ONLY) 
     
-    def implies(self, stateChangeOutput, *args):
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        if isinstance(stateChangeEvent, TextEvent) and \
+            stateChangeEvent.widget.widget.widget == self.widget.widget.widget and self.isTyped() != stateChangeEvent.isTyped():
+            return True
+            
         if self.isTyped():
-            currOutput = self.outputForScript(*args)
-            return StateChangeEvent.implies(self, stateChangeOutput, *args) and \
+            currOutput = self.outputForScript(stateChangeEvent, *args)
+            return StateChangeEvent.implies(self, stateChangeOutput, stateChangeEvent, *args) and \
                self.hasGainedOrLostCharacters(currOutput, stateChangeOutput)
         else:
-            return StateChangeEvent.implies(self, stateChangeOutput, *args)
+            return StateChangeEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
             
     @classmethod
     def hasGainedOrLostCharacters(cls, text1, text2):
