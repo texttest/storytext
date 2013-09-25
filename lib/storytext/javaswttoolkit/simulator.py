@@ -3,10 +3,10 @@ import storytext.guishared, util, logging, os, time, sys
 from storytext.definitions import UseCaseScriptError
 from storytext import applicationEvent, applicationEventDelay, applicationEventRemove
 from difflib import SequenceMatcher
-from org.eclipse import swt
+from org.eclipse import swt, jface
 import org.eclipse.swtbot.swt.finder as swtbot
 from org.hamcrest.core import IsAnything
-from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException, NoSuchFieldException
+from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException, Exception
 from java.text import ParseException
 from java.util import ArrayList
 from threading import Lock
@@ -490,10 +490,13 @@ class FreeTextEvent(SignalEvent):
         return text
     
     def generate(self, argumentString):
-        method = self.widget.widget.getClass().getSuperclass().getSuperclass().getDeclaredMethod("keyboard", None)
-        method.setAccessible(True)
-        keyboard = method.invoke(self.widget.widget, None)
-        keyboard.typeText(argumentString + "\n", swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
+        keyboard = util.callPrivateMethod(self.widget.widget, "keyboard")
+        try:
+            keyStroke = jface.bindings.keys.KeyStroke.getInstance(argumentString)
+            key = keyStroke.getNaturalKey()
+            keyboard.pressShortcut(keyStroke.getModifierKeys(), key, chr(key))
+        except Exception:
+            keyboard.typeText(argumentString + "\n", swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
 
 
 class SpinnerSelectEvent(StateChangeEvent):
@@ -625,7 +628,7 @@ class TextActivateEvent(SignalEvent):
     def shouldRecord(self, event, *args):
         return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and self.isTraverseReturn(event) and \
             (not self.widget.isInstanceOf(FakeSWTBotCCombo) or \
-             DisplayFilter.instance.hasEventOfType([ swt.SWT.Traverse ], getPrivateField(self.widget.widget.widget, "text")))
+             DisplayFilter.instance.hasEventOfType([ swt.SWT.Traverse ], util.getPrivateField(self.widget.widget.widget, "text")))
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -646,18 +649,7 @@ class TextContentAssistEvent(SignalEvent):
     def _generate(self, argumentString):
         self.widget.pressShortcut([ swtbot.keyboard.Keystrokes.CTRL, swtbot.keyboard.Keystrokes.SPACE ])
 
-    
-def getPrivateField(obj, fieldName):
-    cls = obj.getClass()
-    while cls is not None:
-        try:
-            declaredField = cls.getDeclaredField(fieldName)
-            declaredField.setAccessible(True)
-            return declaredField.get(obj)
-        except NoSuchFieldException:
-            cls = cls.getSuperclass()
-            
-            
+
 class ComboSelectEvent(StateChangeEvent):
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
@@ -686,7 +678,7 @@ class ComboSelectEvent(StateChangeEvent):
             return False
         self.stateText = newStateText
         return StateChangeEvent.shouldRecord(self, event, *args)
-    
+
 
 class CComboSelectEvent(ComboSelectEvent):
     internalWidgets = []
@@ -695,8 +687,8 @@ class CComboSelectEvent(ComboSelectEvent):
         self.addWidgets()
 
     def addWidgets(self):
-        list_ =  getPrivateField(self.widget.widget.widget, "list")
-        text_ =  getPrivateField(self.widget.widget.widget, "text")
+        list_ = util.getPrivateField(self.widget.widget.widget, "list")
+        text_ = util.getPrivateField(self.widget.widget.widget, "text")
         self.internalWidgets.append(list_)
         self.internalWidgets.append(text_)
 

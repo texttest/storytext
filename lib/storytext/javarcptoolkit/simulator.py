@@ -21,7 +21,8 @@ from org.eclipse.swt import SWT
 from org.eclipse.ui.forms.widgets import ExpandableComposite
 from org.eclipse.ui.forms.events import ExpansionAdapter
 from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
-from java.lang import NullPointerException
+from org.eclipse.jface.bindings.keys import KeyStroke 
+from java.lang import NullPointerException, Integer
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}    
@@ -185,6 +186,55 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
             
     def monitorViewContentsMenus(self, botView):
         pass
+    
+class KeyBindingListener(Listener):
+    def __init__(self):
+        self.bindings = {}
+        self.listening = False
+    
+    def mapKeyBinding(self, keyStroke, method, display, event):
+        if not self.listening:
+            self.listening = True
+            self.addInitialFilter(display)
+        self.bindings[(keyStroke.getModifierKeys(), keyStroke.getNaturalKey())] = method, event
+            
+    def addInitialFilter(self, display):
+        # Have to push to the front of the queue (cheating as we do!) because Eclipse's own listener swallows the event
+        filterTable = util.getPrivateField(display, "filterTable")
+        existingListeners = util.callPrivateMethod(filterTable, "getListeners", [ SWT.KeyDown ], [ Integer.TYPE ])
+        for existingListener in existingListeners:
+            display.removeFilter(SWT.KeyDown, existingListener)
+        display.addFilter(SWT.KeyDown, self)
+        for existingListener in existingListeners:
+            display.addFilter(SWT.KeyDown, existingListener)
+    
+    def handleEvent(self, e): #@NoSelf
+        binding = e.stateMask, e.keyCode
+        if binding in self.bindings:
+            method, event = self.bindings[binding]
+            storytext.guishared.catchAll(method, e, event)
+
+class RCPSelectEvent(swtsimulator.SelectEvent):
+    bindingListener = KeyBindingListener()
+    def connectRecord(self, method):
+        swtsimulator.SelectEvent.connectRecord(self, method)
+        widget = self.widget.widget.widget
+        if hasattr(widget, "getAccelerator"):
+            swtsimulator.runOnUIThread(self.connectRecordKeyBinding, widget, method)
+            
+    def connectRecordKeyBinding(self, widget, method):
+        text = self.widget.getText()
+        # Aim is to handle Eclipse RCP key binding mechanism, not SWT accelerators which work anyway
+        if "\t" in text and widget.getAccelerator() == 0:
+            keyBinding = text.split("\t")[-1].lower()
+            keyStroke = KeyStroke.getInstance(keyBinding)
+            self.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
+            
+    def shouldRecord(self, event, *args):
+        if event.type == SWT.KeyDown:
+            return True
+        else:
+            return swtsimulator.SelectEvent.shouldRecord(self, event, *args)
 
 class ViewAdapter(swtsimulator.WidgetAdapter):
     def findPossibleUIMapIdentifiers(self):
@@ -423,7 +473,8 @@ class ExpandableCompositeEvent(swtsimulator.SelectEvent):
 swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent, PartCloseEvent ]))
 swtsimulator.eventTypes.append((SWTBotExpandableComposite, [ ExpandableCompositeEvent ]))
 
-replacements = [(swtsimulator.CTabCloseEvent, RCPCTabCloseEvent),
+replacements = [(swtsimulator.SelectEvent, RCPSelectEvent),
+                (swtsimulator.CTabCloseEvent, RCPCTabCloseEvent),
                 (swtsimulator.CTabSelectEvent, RCPCTabSelectEvent)]
 
 for swtbotClass, eventClasses in swtsimulator.eventTypes:

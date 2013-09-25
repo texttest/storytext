@@ -3,6 +3,7 @@
 from org.eclipse import swt
 from java.text import SimpleDateFormat
 import storytext.guishared
+from java.lang import NoSuchMethodException, NoSuchFieldException
 
 def getRealUrl(browser):
     url = browser.getUrl()
@@ -101,5 +102,27 @@ def getRootMenu(menuItem):
 
 def getItemText(text):
     return text.replace("&", "").split("\t")[0]
-    
 
+def getPrivateField(obj, fieldName):
+    cls = obj.getClass()
+    while cls is not None:
+        try:
+            declaredField = cls.getDeclaredField(fieldName)
+            declaredField.setAccessible(True)
+            return declaredField.get(obj)
+        except NoSuchFieldException:
+            cls = cls.getSuperclass()
+            
+def callPrivateMethod(obj, methodName, argList=None, argTypeList=None):
+    cls = obj.getClass()
+    argTypeList = argTypeList if argTypeList or not argList else [ arg.getClass() for arg in argList ] 
+    while True:
+        try:
+            declaredMethod = cls.getDeclaredMethod(methodName, argTypeList)
+            declaredMethod.setAccessible(True)
+            return declaredMethod.invoke(obj, argList)
+        except NoSuchMethodException:
+            cls = cls.getSuperclass()
+            if cls is None:
+                raise
+            

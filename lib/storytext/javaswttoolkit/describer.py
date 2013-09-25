@@ -9,20 +9,7 @@ from java.io import File, FilenameFilter
 from org.eclipse.jface.resource import ImageDescriptor
 from array import array
 from ordereddict import OrderedDict
-from java.lang import NoSuchMethodException
 
-def callPrivateMethod(obj, methodName, argList=None, argTypeList=None):
-    cls = obj.getClass()
-    argTypeList = argTypeList or [ arg.getClass() for arg in argList ]
-    while True:
-        try:
-            declaredMethod = cls.getDeclaredMethod(methodName, argTypeList)
-            declaredMethod.setAccessible(True)
-            return declaredMethod.invoke(obj, argList)
-        except NoSuchMethodException:
-            cls = cls.getSuperclass()
-            if cls is None:
-                raise
 
 class Describer(storytext.guishared.Describer):
     styleNames = [ (swt.widgets.CoolItem, []),
@@ -453,7 +440,7 @@ class Describer(storytext.guishared.Describer):
             # Workaround for reflection bug in Jython 2.5.1
             # args = (None,) if sys.version_info[:3] <= (2, 5, 1) else ()
             # Jython 2.5.2 doesn't work anyway so we don't include this fix for now
-            return callPrivateMethod(deco, "shouldShowDecoration")
+            return util.callPrivateMethod(deco, "shouldShowDecoration")
 
     def isCustomTooltip(self, jfaceTooltip):
         return not jfaceTooltip.__class__.__module__.startswith("org.eclipse.jface")
@@ -463,8 +450,8 @@ class Describer(storytext.guishared.Describer):
             return item.getToolTipText()
         elif jfaceTooltip and not self.isCustomTooltip(jfaceTooltip):
             event = self.makeToolTipEvent(item)
-            if callPrivateMethod(jfaceTooltip, "shouldCreateToolTip", [ event ]):
-                return callPrivateMethod(jfaceTooltip, "getText", [ event ])
+            if util.callPrivateMethod(jfaceTooltip, "shouldCreateToolTip", [ event ]):
+                return util.callPrivateMethod(jfaceTooltip, "getText", [ event ])
         
     def getPropertyElements(self, *args, **kw):
         return self.getPropertyElementsAndTooltip(*args, **kw)[0]
@@ -840,9 +827,9 @@ class Describer(storytext.guishared.Describer):
 
     def getCustomTooltipDescription(self, tooltip, widget):
         event = self.makeToolTipEvent(widget)
-        if callPrivateMethod(tooltip, "shouldCreateToolTip", [ event ]):
+        if util.callPrivateMethod(tooltip, "shouldCreateToolTip", [ event ]):
             shell = swt.widgets.Shell()
-            result = callPrivateMethod(tooltip, "createToolTipContentArea", [ event, shell ], [ swt.widgets.Event, swt.widgets.Composite ])
+            result = util.callPrivateMethod(tooltip, "createToolTipContentArea", [ event, shell ], [ swt.widgets.Event, swt.widgets.Composite ])
             desc = self.getDescription(result)
             result.dispose()
             shell.dispose()
