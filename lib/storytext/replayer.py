@@ -54,7 +54,11 @@ class ReplayScript(object):
         self.exitObservers.append(observer)
 
     def getShortcutName(self):
-        return os.path.basename(self.name).split(".")[0].replace("_", " ").replace("#", "_")
+        return self.tryToGetName(self.name)
+
+    @classmethod
+    def tryToGetName(cls, text):
+        return os.path.basename(text).split(".")[0].replace("_", " ").replace("#", "_")
 
     def getShortcutRegexp(self):
         return self.getRegexp(self.getShortcutName())
@@ -75,7 +79,8 @@ class ReplayScript(object):
                 name += part
         return name
 
-    def transformToRegexp(self, text):
+    @classmethod
+    def transformToRegexp(cls, text):
         for char in "^[]{}*?|+()":
             text = text.replace(char, "\\" + char)
         # handle numbered variables
