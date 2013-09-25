@@ -52,7 +52,8 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
             if isinstance(self.widget.widget, swt.widgets.Control):
                 shell = self.widget.widget.getShell()
                 if shell.getParent():
-                    return shell.getText()
+                    id = shell.getData("org.eclipse.swtbot.widget.key")
+                    return id or shell.getText()
             return ""
         return self.getFromUIThread(_getDialogTitle)
 
