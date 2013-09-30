@@ -1619,7 +1619,7 @@ class WidgetMonitor:
         activeShell = finder.activeShell()
         if activeShell is not None:
             return activeShell
-        shells = filter(lambda s: s.getText(), finder.getShells())
+        shells = filter(lambda s: s.getText() and s.isVisible(), finder.getShells())
         if shells:
             return shells[-1]
         
