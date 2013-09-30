@@ -455,8 +455,11 @@ class ViewerSelectEvent(ViewerEvent):
                 return self.makePartialParseFailure(parts, ",".join(notfound), allParts[0] not in notfound)
             else:
                 return parts
-        else:
-            raise UseCaseScriptError, "could not find any objects in viewer matching description '"  + description + "'"
+        elif len(allParts) > 1 and len(notfound) > 0:
+            editPart = self.findEditPart(self.widget.rootEditPart(), description)
+            if editPart:
+                return [ editPart ]
+        raise UseCaseScriptError, "could not find any objects in viewer matching description '"  + description + "'"
         
     def generate(self, parts, partial=False):
         if not partial:
