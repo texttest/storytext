@@ -1473,6 +1473,7 @@ class WidgetMonitor:
         monitorListener = MonitorListener()
         runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
         runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
+        runOnUIThread(display.addFilter, swt.SWT.Selection, monitorListener)
         
     def widgetShown(self, e):
         if self.shouldMonitor(e.widget):
