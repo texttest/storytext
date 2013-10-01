@@ -1403,9 +1403,23 @@ class WidgetMonitor:
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
         self.widgetMonitorLock = Lock()
 
-    def handleReplayFailure(self, errorText, *args):
-        if "MenuItem has already been disposed" in errorText or "no widget found" in errorText:
+    def handleReplayFailure(self, errorText, events):
+        if "Could not find row identified by" in errorText:
+            # Problems with row identification in Table Cells
+            # A common cause is that someone has edited the row identifier and not committed the change
+            # We press Enter and hope for the best...
+            if any((runOnUIThread(self.hasTableWithEditor, e) for e in events)):
+                keyboard = swtbot.keyboard.KeyboardFactory.getSWTKeyboard()
+                keyboard.pressShortcut([ swtbot.keyboard.Keystrokes.CR ])
+        elif "MenuItem has already been disposed" in errorText or "no widget found" in errorText:
             runOnUIThread(self.recheckPopupMenus)
+            
+    def hasTableWithEditor(self, event):
+        widget = event.widget.widget.widget
+        if not widget.isDisposed() and isinstance(widget, swt.widgets.Table) and len(widget.getChildren()) > 0:
+            return any((not child.isDisposed() and child.isVisible() for child in widget.getChildren()))
+        else:
+            return False
 
     def recheckPopupMenus(self):
         for menu in self.allMenus:
