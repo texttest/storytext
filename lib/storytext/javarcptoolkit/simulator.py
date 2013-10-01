@@ -232,7 +232,8 @@ class RCPSelectEvent(swtsimulator.SelectEvent):
             
     def shouldRecord(self, event, *args):
         if event.type == SWT.KeyDown:
-            return True
+            # Accelerators aren't active in dialogs
+            return not self.widgetDisposed() and event.widget.getShell() is self.widget.widget.widget.getParent().getShell()
         else:
             return swtsimulator.SelectEvent.shouldRecord(self, event, *args)
 
