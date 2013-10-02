@@ -187,6 +187,11 @@ class ReplayScript(object):
             self.commands[-1] = assembleWaitCommand(currEvents.items())
         else:
             self.commands.append(command)
+    
+    def rename(self, newName):
+        newPath = os.path.join(os.path.dirname(self.name), newName)
+        os.rename(self.name, newPath)
+        self.name = newPath
         
         
 class ShortcutManager:
@@ -222,6 +227,16 @@ class ShortcutManager:
         argLength1 = sum(map(len, args1))
         argLength2 = sum(map(len, args2))
         return argLength1 < argLength2
+    
+    def remove(self, shortcut):
+        self.shortcuts.remove((shortcut.getShortcutRegexp(), shortcut))
+        os.remove(shortcut.name)
+        
+    def rename(self, oldName, newName):
+        shortcut = self.findShortcut(oldName)[0]
+        self.shortcuts.remove((shortcut.getShortcutRegexp(), shortcut))
+        shortcut.rename(newName)
+        self.add(shortcut)
     
     
 class UseCaseReplayer:

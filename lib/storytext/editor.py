@@ -15,6 +15,11 @@ from definitions import __version__, waitCommandName
 from xml.sax.saxutils import escape, unescape
 import itertools
 
+class EditorScriptEngine(gtktoolkit.ScriptEngine):
+    @classmethod
+    def getShortcuts(cls, storyTextHome=None):
+        return [] # Don't use the application shortcuts for our own replaying...
+
 class UseCaseEditor:
     enterTitle = "Enter Usecase names for auto-recorded actions"
     def __init__(self, fileName, interface, mapFiles):
@@ -24,7 +29,7 @@ class UseCaseEditor:
             self.editTitle = self.fileName.replace(os.getenv("TEXTTEST_HOME") + "/", "")
         self.interface = interface
         self.uiMapFileHandler = UIMapFileHandler(mapFiles)
-        self.scriptEngine = gtktoolkit.ScriptEngine(uiMapFiles=[])
+        self.scriptEngine = EditorScriptEngine(uiMapFiles=[])
         self.initShortcutManager()
         self.allEntries = OrderedDict()
         self.allDescriptionWidgets = []
@@ -33,7 +38,7 @@ class UseCaseEditor:
 
     def initShortcutManager(self):
         self.shortcutManager = ShortcutManager()
-        for shortcut in self.scriptEngine.getShortcuts():
+        for shortcut in gtktoolkit.ScriptEngine.getShortcuts():
             self.shortcutManager.add(shortcut)
 
     def getAllCommands(self): 
@@ -93,7 +98,7 @@ class UseCaseEditor:
             "The following duplicate names were found:\n"
         for duplicate in duplicateNames:
             message += duplicate + "\n"
-        dialog = self.getErrorWarningDialog(parent, message, gtk.MESSAGE_WARNING, "Warning", gtk.BUTTONS_OK_CANCEL)
+        dialog = self.createMessageDialog(parent, message, gtk.MESSAGE_WARNING, "Warning", gtk.BUTTONS_OK_CANCEL)
         dialog.show_all()
         response = dialog.run()
         dialog.hide()
@@ -413,23 +418,29 @@ class UseCaseEditor:
     def createPopupMenu(self, widget):
         menu = gtk.Menu()
         item = gtk.MenuItem("Create shortcut")
+        deleteItem = gtk.MenuItem("Delete shortcut")
         updateUIMapItem = gtk.MenuItem("Update UI map file")
         renameItem = gtk.MenuItem("Rename")
         separator = gtk.SeparatorMenuItem()
         menu.append(item)
+        menu.append(deleteItem)
         menu.append(renameItem)
         menu.append(separator)
         menu.append(updateUIMapItem)
         item.connect("activate", self.createShortcut, widget)
+        deleteItem.connect("activate", self.deleteShortcut, widget)
         renameItem.connect("activate", self.rename, widget)
         updateUIMapItem.connect("activate", self.updateUIMap, widget)
         self.popupSensitivities[item] = self.setCreateShortcutSensitivity
+        self.popupSensitivities[deleteItem] = self.setDeleteShortcutSensitivity
         self.popupSensitivities[renameItem] = self.setRenameSensitivity
         self.popupSensitivities[updateUIMapItem] = self.setUpdateUIMapSensitivity
         self.scriptEngine.monitorSignal("create a new shortcut", "activate", item)
+        self.scriptEngine.monitorSignal("delete shortcut", "activate", deleteItem)
         self.scriptEngine.monitorSignal("rename a usecase name or shortcut", "activate", renameItem)
         self.scriptEngine.monitorSignal("update ui map file", "activate", updateUIMapItem)
         item.show()
+        deleteItem.show()
         renameItem.show()
         separator.show()
         updateUIMapItem.show()
@@ -441,10 +452,10 @@ class UseCaseEditor:
 
     def setCreateShortcutSensitivity(self, item, selection):
         # Check selection has at least 2 elements and is consecutive
-        if selection.count_selected_rows() > 1 and self.isConsecutive(selection):
-            item.set_sensitive(True)
-        else:
-            item.set_sensitive(False)
+        item.set_sensitive(selection.count_selected_rows() > 1 and self.isConsecutive(selection))
+
+    def setDeleteShortcutSensitivity(self, item, selection):
+        item.set_sensitive(selection.count_selected_rows() == 1 and self.shortcutsSelected(selection))
 
     def showPopupMenu(self, treeView, event):
         if event.button == 3:
@@ -520,9 +531,15 @@ class UseCaseEditor:
     def getShortcutFileName(self, shortcutName):
         return shortcutName.lower().replace(" ", "_") + ".shortcut"
 
-    def copyRow(self, iter, shortcutIter):
+    def copyRow(self, iter, parentIter, followIter=None):
         row = list(self.treeModel.get(iter, 0, 1, 2))
-        return self.treeModel.append(shortcutIter, row)
+        if followIter is None:
+            newIter = self.treeModel.append(parentIter, row)
+        else:
+            newIter = self.treeModel.insert_before(parentIter, followIter, row)
+        subIter = self.treeModel.iter_children(iter)
+        if subIter is not None:
+            self.copyRow(subIter, newIter)
 
     def getTopLevelIters(self):
         iters = []
@@ -552,14 +569,45 @@ class UseCaseEditor:
                 shortcutLength = len(shortcut.commands)
                 currentIters = topLevelIters[iterIx:iterIx + shortcutLength]
                 for iter in currentIters:
-                    newShortcutIter = self.copyRow(iter, shortcutIter)
-                    subIter = self.treeModel.iter_children(iter)
-                    if subIter is not None:
-                        self.copyRow(subIter, newShortcutIter)
+                    self.copyRow(iter, shortcutIter)
                     self.treeModel.remove(iter)
             else:
                 sys.stderr.write("ERROR: mismatch in files, expected shortcut for '" + allCommands[iterIx] + "', but found none.\n")
                 break
+            
+    def findShortcutIters(self, shortcut):
+        iters = []
+        def addSelected(model, path, iter, *args):
+            value = model.get_value(iter, 1)
+            args = model.get_value(iter, 2)
+            currShortcut = self.getShortcut(value, args)
+            if currShortcut is shortcut:
+                iters.append(iter)
+        self.treeModel.foreach(addSelected)
+        return iters
+    
+    def removeShortcutFromPreview(self, shortcut):
+        for iter in self.findShortcutIters(shortcut):
+            childIter = self.treeModel.iter_children(iter)
+            parentIter = self.treeModel.iter_parent(iter)
+            nextIter = self.treeModel.iter_next(iter)
+            while childIter is not None:
+                self.copyRow(childIter, parentIter, nextIter)
+                childIter = self.treeModel.iter_next(childIter)
+            self.treeModel.remove(iter)
+        
+    def removeShortcutFromUsecase(self, shortcut):
+        recordScript = RecordScript(self.fileName, [])
+        for iter in self.getTopLevelIters():
+            value = self.treeModel.get_value(iter, 1)
+            args = self.treeModel.get_value(iter, 2)
+            if self.getShortcut(value, args) is shortcut:
+                childIter = self.treeModel.iter_children(iter)
+                while childIter is not None:
+                    recordScript.record(self.treeModel.get_value(childIter, 1))
+                    childIter = self.treeModel.iter_next(childIter)
+            else:
+                recordScript.record(value)
 
     def respond(self, dialog, responseId, entry, frame, shortcutView):
         if responseId == gtk.RESPONSE_ACCEPT:
@@ -585,7 +633,7 @@ class UseCaseEditor:
             else:
                 recordScript.record(value)
 
-    def runShortcutCommands(self, recordScript, shortcut, args ):
+    def runShortcutCommands(self, recordScript, shortcut, args):
         shortcutCopy = ReplayScript(shortcut.name, True)
         while not shortcutCopy.hasTerminated():
             command = shortcutCopy.getCommand(args)
@@ -627,7 +675,7 @@ class UseCaseEditor:
         return len(self.uiMapFileHandler.findSectionsAndOptions(name)) > 0
     
     def isInShortcuts(self, name):
-        return any(shortcut.getShortcutName() == name for shortcut in self.scriptEngine.getShortcuts())
+        return self.shortcutManager.findShortcut(name)[0] is not None
         
     def saveShortcut(self, name, lines):
         storytextDir = os.environ["STORYTEXT_HOME"]
@@ -664,25 +712,21 @@ class UseCaseEditor:
             prevIx = ix
         return True
             
+    def showConfirmationDialog(self, parent, message, *args):
+        self.showErrorWarningDialog(parent, message, gtk.MESSAGE_WARNING, "Confirmation", gtk.BUTTONS_OK_CANCEL, *args)
+            
     def showErrorDialog(self, parent, message):
-        self.showErrorWarningDialog(parent, message, gtk.MESSAGE_ERROR, "Error")
+        self.showErrorWarningDialog(parent, message, gtk.MESSAGE_ERROR, "Error", gtk.BUTTONS_OK)
 
-    def showWarningDialog(self, parent, message):
-        self.showErrorWarningDialog(parent, message, gtk.MESSAGE_WARNING, "Warning")
-
-    def showErrorWarningDialog(self, parent, message, stockIcon, alarmLevel):
-        dialog = self.createMessageDialog(parent, message, stockIcon, alarmLevel)
-        dialog.set_default_response(gtk.RESPONSE_OK)
-        dialog.connect("response", self._cleanDialog)
+    def showErrorWarningDialog(self, parent, message, stockIcon, alarmLevel, buttons, *args):
+        dialog = self.createMessageDialog(parent, message, stockIcon, alarmLevel, buttons)
+        dialog.connect("response", self.respondErrorWarning, *args)
         dialog.show_all()
 
-    def getErrorWarningDialog(self, parent, message, stockIcon, alarmLevel, buttons):
-        dialog = self.createMessageDialog(parent, message, stockIcon, alarmLevel, buttons)
-        dialog.set_default_response(gtk.RESPONSE_OK)
-        return dialog
-
-    def _cleanDialog(self, dialog, *args):
+    def respondErrorWarning(self, dialog, response, *args):
         dialog.hide()
+        if response == gtk.RESPONSE_OK and args:
+            args[0](*args[1:])
 
     def createMessageDialog(self, parent, message, stockIcon, alarmLevel, buttons=gtk.BUTTONS_OK):
         dialogTitle = "StoryText " + alarmLevel
@@ -696,6 +740,7 @@ class UseCaseEditor:
             self.scriptEngine.monitorSignal("cancel message", "clicked", cancelButton)
         dialog.set_title(dialogTitle)        
         dialog.set_markup(message)
+        dialog.set_default_response(gtk.RESPONSE_OK)
         return dialog
     
     def createShortcutPreview(self, commands, arguments, textEntry):
@@ -861,6 +906,19 @@ class UseCaseEditor:
         commands, _ = self.selectionToModel(selection)
         self.createRenameDialog(commands[0], self.shortcutsSelected(selection))
         
+    def deleteShortcut(self, menuItem, view):
+        selection = view.get_selection()
+        command = self.selectionToModel(selection)[0][0]
+        shortcut, args = self.shortcutManager.findShortcut(command)
+        confirmationMessage = "You are about to delete the file '" + os.path.basename(shortcut.name) + "'\nand remove all references to it in the current usecase."
+        self.showConfirmationDialog(menuItem.get_toplevel(), confirmationMessage, self.performShortcutDeletion, shortcut)
+        
+    def performShortcutDeletion(self, shortcut):
+        print "ShortcutRemove", repr(shortcut.getShortcutRegexp().pattern), "renamed to '" + "\\n".join(shortcut.commands) + "'"
+        self.removeShortcutFromUsecase(shortcut)
+        self.removeShortcutFromPreview(shortcut)
+        self.shortcutManager.remove(shortcut)
+            
     def createRenameDialog(self, command, isShortcut=False):
         if isShortcut:
             name = 'shortcut'
@@ -881,8 +939,8 @@ class UseCaseEditor:
         renameButton = dialog.add_button('Rename', gtk.RESPONSE_ACCEPT)
         cancelButton = dialog.add_button('Cancel', gtk.RESPONSE_CANCEL)
         self.scriptEngine.monitorSignal("rename " + name, "changed", nameEntry)
-        self.scriptEngine.monitorSignal("accept update ui map file", "clicked", renameButton)
-        self.scriptEngine.monitorSignal("cancel update ui map file", "clicked", cancelButton)
+        self.scriptEngine.monitorSignal("accept rename", "clicked", renameButton)
+        self.scriptEngine.monitorSignal("cancel rename", "clicked", cancelButton)
         
         dialog.connect("response", self.respondRenameShortcut if isShortcut else self.respondRenameUsecase, nameEntry, cmd)
         dialog.show_all()
@@ -907,22 +965,17 @@ class UseCaseEditor:
         newValue = nameEntry.get_text()
         if responseId == gtk.RESPONSE_ACCEPT:
             if self.checkShortcutName(dialog, newValue) and self.checkShortcutArguments(dialog, oldValue, newValue):
-                oldFileName = self.renameShortcut(oldValue, newValue)
-                oldShortcut, args = self.shortcutManager.findShortcut(oldValue)
-                oldValueRegexp = oldShortcut.transformToRegexp(oldValue)
+                self.shortcutManager.rename(oldValue, self.getShortcutFileName(newValue))
+                oldValueRegexp = ReplayScript.transformToRegexp(oldValue)
                 # Update shortcut name in shortcut files
-                for shortcut in self.scriptEngine.getShortcuts():
-                    if shortcut.name != oldFileName:
+                for _, shortcut in self.shortcutManager.getShortcuts():
+                    if shortcut.getShortcutName() != newValue:
                         self.replaceInFile(shortcut.name, self.replaceShortcutName, oldValueRegexp, newValue)
                 # Update shortcut name in current usecase file
                 self.replaceInFile(self.fileName, self.replaceShortcutName, oldValueRegexp, newValue)
                 print methodName, repr(oldValueRegexp), "renamed to", repr(newValue)
                 self.initShortcutManager()
                 self.updateShortcutNameInPreview(oldValueRegexp, newValue)
-                newShortcut, _ = self.shortcutManager.findShortcut(newValue)
-                # Update the recorder
-                self.scriptEngine.recorder.unregisterShortcut(oldShortcut)
-                self.scriptEngine.recorder.registerShortcut(newShortcut)
                 dialog.hide()
             else:
                 nameEntry.set_text(oldValue)
@@ -943,7 +996,7 @@ class UseCaseEditor:
             self.uiMapFileHandler.updateOptionValue(section, option, newCommand)
         
     def updateUsecaseNameInShorcuts(self, oldCommand, newCommand):
-        for shortcut in self.scriptEngine.getShortcuts():
+        for _, shortcut in self.shortcutManager.getShortcuts():
             self.replaceInFile(shortcut.name, self.makeReplacement, [(oldCommand, newCommand)])
             
     def checkShortcutArguments(self, parentDialog, oldShortcut, newShortcut):
@@ -953,13 +1006,6 @@ class UseCaseEditor:
             return False
         return True
             
-    def renameShortcut(self, oldName, newName):
-        storytextDir = os.environ["STORYTEXT_HOME"]
-        oldFileName = os.path.join(storytextDir, self.getShortcutFileName(oldName))
-        newFileName = os.path.join(storytextDir, self.getShortcutFileName(newName))
-        os.rename(oldFileName, newFileName)
-        return oldFileName, newFileName
-
     def updateNameInPreview(self, oldValue, newValue):
         def updateNode(model, path, iter, *args):
             markup = model.get_value(iter, 0)
