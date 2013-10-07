@@ -438,19 +438,17 @@ class RCPCTabCloseEvent(swtsimulator.CTabCloseEvent):
     
 class SWTBotExpandableComposite(AbstractSWTBotControl):
     def clickOnCenter(self):
-        firstChild = self.widget.getChildren()[0]
-        display = self.widget.getDisplay()
         # click(True) will move the mouse pointer
         # Can't find any other way to do this.
         # We can at least move it back again when we're done to avoid other bad effects
-        currPos = swtsimulator.runOnUIThread(display.getCursorLocation)
+        eventPoster = swtsimulator.EventPoster(self.widget.getDisplay())
+        eventPoster.performAndReturn(self.clickOnFirstChild)
+        
+    def clickOnFirstChild(self):        
+        firstChild = self.widget.getChildren()[0]
         SWTBotExpandableComposite(firstChild).click(True)
-        event = Event()
-        event.type = SWT.MouseMove
-        event.x = currPos.x
-        event.y = currPos.y
-        swtsimulator.runOnUIThread(display.post, event)
-
+        
+        
 class ExpandableCompositeEvent(swtsimulator.SelectEvent):
     def shouldRecord(self, *args):
         # To do this properly, we need to check MouseDown events

@@ -1355,12 +1355,18 @@ class EventPoster:
         while self.display.getCursorLocation().x != x and self.display.getCursorLocation().y != y:
             time.sleep(0.1)
 
-    def moveClickAndReturn(self, x, y, keyModifiers=0):            
-        currPos = runOnUIThread(self.display.getCursorLocation)
+    def moveClickAndReturn(self, x, y, keyModifiers=0):
+        self.performAndReturn(self.moveAndClick, x, y, keyModifiers)
+        
+    def moveAndClick(self, x, y, keyModifiers):
         self.moveMouseAndWait(x, y)
         self.checkAndPostKeyPressed(keyModifiers)
         self.clickMouse()
         self.checkAndPostKeyReleased(keyModifiers)
+        
+    def performAndReturn(self, method, *args):
+        currPos = runOnUIThread(self.display.getCursorLocation)
+        method(*args)
         time.sleep(0.1)
         self.moveMouseAndWait(currPos.x, currPos.y)
 
