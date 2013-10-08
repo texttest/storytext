@@ -823,6 +823,9 @@ class Describer(storytext.guishared.Describer):
             event.y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
         else:
             event.widget = widgetOrItem
+            event.item = None
+            event.x = -1
+            event.y = -1
         return event
 
     def getCustomTooltipDescription(self, tooltip, widget):
