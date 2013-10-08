@@ -732,12 +732,12 @@ class UseCaseEditor:
         dialogTitle = "StoryText " + alarmLevel
         dialog = gtk.MessageDialog(parent, gtk.DIALOG_MODAL, stockIcon, buttons, None)
         # Would like to use dialog.get_widget_for_response(gtk.RESPONSE_OK), introduced in gtk 2.22 instead
-        if buttons == gtk.BUTTONS_OK or buttons == gtk.BUTTONS_OK_CANCEL:
-            okButton = dialog.action_area.get_children()[0]
-            self.scriptEngine.monitorSignal("accept message", "clicked", okButton)
-        if buttons == gtk.BUTTONS_OK_CANCEL:
-            cancelButton = dialog.action_area.get_children()[1]
-            self.scriptEngine.monitorSignal("cancel message", "clicked", cancelButton)
+        for button in dialog.action_area.get_children():
+            response = dialog.get_response_for_widget(button)
+            if response == gtk.RESPONSE_OK:
+                self.scriptEngine.monitorSignal("accept message", "clicked", button)
+            elif response == gtk.RESPONSE_CANCEL:
+                self.scriptEngine.monitorSignal("cancel message", "clicked", button)
         dialog.set_title(dialogTitle)        
         dialog.set_markup(message)
         dialog.set_default_response(gtk.RESPONSE_OK)
