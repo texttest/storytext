@@ -324,7 +324,10 @@ class ScriptEngine(scriptengine.ScriptEngine):
             Describer.imagePaths = options.pathstoimages.split(",")
         if options.exclude_describe:
             for excludeStr in options.exclude_describe.split(","):
-                parts = excludeStr.split("!")
+                # Jython swallows these characters under Windows unfortunately, see http://bugs.jython.org/issue1599
+                # Add an additional syntax there
+                sep = "NOT" if "NOT" in excludeStr else "!"
+                parts = excludeStr.split(sep)
                 Describer.excludeClassNames[parts[0]] = parts[1:]
             
 
