@@ -100,7 +100,8 @@ class RecordScript:
     def _record(self, line):
         if not self.fileForAppend:
             self.fileForAppend = encodingutils.openEncoded(self.scriptName, "w")
-        self.fileForAppend.write(line + "\n")
+        # File is in binary mode, must use correct line ending explicitly, "\n" will be UNIX line endings on all platforms
+        self.fileForAppend.write(line + os.linesep)
         self.fileForAppend.flush()
     
     def registerShortcuts(self):
