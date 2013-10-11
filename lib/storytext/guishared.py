@@ -329,7 +329,10 @@ class ScriptEngine(scriptengine.ScriptEngine):
                 sep = "NOT" if "NOT" in excludeStr else "!"
                 parts = excludeStr.split(sep)
                 Describer.excludeClassNames[parts[0]] = parts[1:]
-            
+        if options.min_field_widths:
+            for subStr in options.min_field_widths.split(","):
+                fieldName, minWidthStr = subStr.split("=")
+                Describer.minFieldWidths[fieldName] = int(minWidthStr)
 
     def run_python_or_java(self, args):
         # Two options here: either a Jython program and hence a .py file, or a Java class
@@ -1073,6 +1076,7 @@ class WidgetCounter:
 # Base class for everything except GTK's describer, which works a bit differently
 class Describer(object):
     maxOutputWidth = 130
+    minFieldWidths = {}
     writeScreenshots = False
     imagePaths = []
     imageDescriptionType = None
@@ -1332,6 +1336,7 @@ class Describer(object):
 
         if headerRow:
             colWidths = GridFormatter([ headerRow ] + rows, columnCount, allowOverlap=False).findColumnWidths()
+            self.adjustForMinFieldWidths(colWidths, headerRow)
             header = GridFormatter([ headerRow ], columnCount).formatCellsInGrid(colWidths)
             body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
             line = "_" * sum(colWidths) + "\n"
@@ -1342,7 +1347,19 @@ class Describer(object):
             body = formatter.formatCellsInGrid(colWidths)
             line = "_" * sum(colWidths) + "\n"
             return line + body + "\n" + line
-
+        
+    def adjustForMinFieldWidths(self, colWidths, headerRow):
+        for i, columnName in enumerate(headerRow):
+            minWidth = self.getMinFieldWidth(columnName)
+            if minWidth is not None and minWidth > colWidths[i]:
+                colWidths[i] = minWidth
+                
+    def getMinFieldWidth(self, columnName):
+        if columnName in self.minFieldWidths:
+            return self.minFieldWidths[columnName]
+        elif "(" in columnName:
+            return self.minFieldWidths.get(columnName.split("(")[0])
+        
     def formatWithSeparators(self, header, body, line):
         return line + header + "\n" + line + body + "\n" + line
 

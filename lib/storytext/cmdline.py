@@ -57,6 +57,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-T", "--testscriptpluginid",
                       help="determines the testscript plugin id for an eclipse RCP application, i.e. 'org.eclipse.swtbot.gef.testscript'")
     parser.add_option("--supported-html", action="store_true", help=optparse.SUPPRESS_HELP)
+    parser.add_option("-w", "--min-field-widths", 
+                      help="Set a minimum width for certain fields. Useful for when table columns have indeterministic width, due to e.g. date formats")
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
     parser.add_option("-X", "--exclude-describe",
