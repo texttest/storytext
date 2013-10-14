@@ -681,8 +681,16 @@ class ComboSelectEvent(StateChangeEvent):
             return False
         self.stateText = newStateText
         return StateChangeEvent.shouldRecord(self, event, *args)
+    
+    def implies(self, stateChangeOutput, stateChangeEvent, *args):
+        currOutput = self.outputForScript(*args)
+        _, currSelection = currOutput.split(self.name, 1)
+        _, oldSelection = stateChangeOutput.split(stateChangeEvent.name, 1)
+        return (self.isImpliedEventType(stateChangeEvent) and currSelection == oldSelection) or StateChangeEvent.implies(self, stateChangeOutput, *args)
 
-
+    def isImpliedEventType(self, event):
+        return isinstance(event, ComboSelectEvent)
+    
 class CComboSelectEvent(ComboSelectEvent):
     internalWidgets = []
     def __init__(self, *args):
@@ -695,14 +703,11 @@ class CComboSelectEvent(ComboSelectEvent):
         self.internalWidgets.append(list_)
         self.internalWidgets.append(text_)
 
-    def implies(self, stateChangeOutput, stateChangeEvent, *args):
-        currOutput = self.outputForScript(*args)
-        _, currSelection = currOutput.split(self.name, 1)
-        _, oldSelection = stateChangeOutput.split(stateChangeEvent.name, 1)
-        return (isinstance(stateChangeEvent, CComboChangeEvent) and currSelection == oldSelection) or StateChangeEvent.implies(self, stateChangeOutput, *args)
-
     def isTriggeringEvent(self, e):
         return e.widget in self.internalWidgets or StateChangeEvent.isTriggeringEvent(self, e)
+    
+    def isImpliedEventType(self, event):
+        return isinstance(event, CComboChangeEvent)
 
 class ComboTextEvent(TextEvent):
     def parseArguments(self, *args):
