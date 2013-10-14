@@ -24,6 +24,8 @@ class PythonResult(swtbot.results.Result):
 def runOnUIThread(method, *args):
     try:
         return swtbot.finders.UIThreadRunnable.syncExec(PythonResult(method, args))
+    except IllegalStateException:
+        raise UseCaseScriptError, "The GUI has already exited"
     except NullPointerException, e:
         # Temporary code to try to find intermittent Windows error
         print "Caught intermittent Windows NullPointerException!"
