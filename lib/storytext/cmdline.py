@@ -101,7 +101,7 @@ def set_up_environment(options):
     elif options.supported or options.supported_html: # don't set up replay when just printing supported info
         os.environ["USECASE_REPLAY_SCRIPT"] = ""
     if options.delay:
-        os.environ["USECASE_REPLAY_DELAY"] = options.delay
+        os.environ["USECASE_REPLAY_DELAY"] = max(os.getenv("USECASE_REPLAY_DELAY"), options.delay)
     if options.screenshot:
         os.environ["USECASE_REPLAY_SCREENSHOTS"] = "1"
 
