@@ -94,7 +94,10 @@ class Describer(storytext.guishared.Describer):
         display.addFilter(swt.SWT.Move, MoveListener())
         display.addFilter(swt.SWT.Resize, ResizeListener())
         display.addFilter(swt.SWT.Dispose, ResizeListener()) # Being disposed is the ultimate resize :)
-        
+
+    def getScreenshotFileName(self, screenshotDir):
+        return os.path.join(screenshotDir, "screenshot" + str(self.screenshotNumber) + ".png")
+
     def writeScreenshot(self, shell):
         display = shell.getDisplay()
         gc = swt.graphics.GC(display);
@@ -108,7 +111,10 @@ class Describer(storytext.guishared.Describer):
         screenshotDir = os.path.join(os.getenv("TEXTTEST_LOG_DIR", os.getcwd()), "screenshots")
         if not os.path.isdir(screenshotDir):
             os.makedirs(screenshotDir)
-        fileName = os.path.join(screenshotDir, "screenshot" + str(self.screenshotNumber) + ".png")
+        fileName = self.getScreenshotFileName(screenshotDir)
+        while os.path.isfile(fileName):
+            self.screenshotNumber += 1
+            fileName = self.getScreenshotFileName(screenshotDir)
         imageLoader.save(fileName, swt.SWT.IMAGE_PNG) 
     
     def describeWithUpdates(self, shellMethod):
