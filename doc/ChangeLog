@@ -677,3 +677,103 @@ Swing bugfixes:
 
 PyGTK bugfixes:
     - Fixed FileChooser crash on PyGTK 2.24, working around https://bugzilla.gnome.org/show_bug.cgi?id=688036
+
+Version 3.10
+------------
+General enhancements:
+    - Shortcuts containing shortcuts recursively are now properly supported
+    - Editor now allows you to choose how you identify a widget
+	Presents a drop-down list instead of just choosing what it thinks is "best"
+    - Editor now supports renaming and deleting of shortcuts
+    - Can navigate the Editor table by pressing Enter, which moves down a row on all rows except the first
+    - Editor now warns you if you enter a duplicate name (but lets you if you insist)
+    - Can set minimum field widths in tables on the command line (-w).
+	Useful when table contents have indeterminstic length, affects the whole table layout
+    - Better error messages now if several different usable widgets match the properties given in the UI map file 
+    - Can now use commas in shortcut names
+    - Now allow trailing spaces in action arguments
+    - If an instruction maps to several widgets in the UI map file, pick a random one
+	Often a Menu item and a toolbar button point at the same thing: the user doesn't really care and doesn't want different names
+    - New syntax e.g. -X Menu!File, meaning ignore all menus except the one called "File".
+	Also -X MenuNOTFile on Windows, (working around Jython bug 1599)
+    - UI map file now supports regular expressions in section names
+	Can only be added in by hand afterwards, editor does not allow it
+
+General bugfixes:
+    - Complete overhaul of unicode (non-ASCII text) handling, should work better across the board now
+    - If delay is provided from both the command line (-d) and TextTest (USECASE_REPLAY_DELAY) use the maximum of them
+    - Editor cleans up properly if shortcuts are added and then Cancel is pressed
+    - Made application event recorder thread-safe
+    - Editor displays widget identifiers with markup characters (e.g. &) properly now
+    - Editor displays lines with the command text in twice correctly now
+    - If instruction is ambiguous between an unusable widget and a usable one, find the usable one instead of failing on the first one
+    - Fixed replayer bug that caused problems when waiting for multiple copies of the same event
+    - Removed functionality that auto-updated UI map file if a widget name/ID was added
+	Caused more trouble than it was worth
+
+SWT/Eclipse RCP enhancements:
+    - UI map inconsistencies fixed
+	Suggested to run the new migrate_uimap.py script from bin directory to ensure compatible with new format
+    - Much support added for dynamically generated menus. Should work better now.
+    - Support combo boxes embedded in toolbars
+    - Support drop-down tool items
+    - Support for content assist events (i.e. pressing control+space to display autocompletions)
+    - Can now generate screenshots with --screenshot on the command line. TextTest 3.26 has a GUI control for this.
+    - Now records keyboard accelerators (as the action they point at, so won't affect replay)
+    - Describer now handles JFace tooltips, both those used per row in Trees and Tables, and custom ones
+	The latter can be disabled with -X CustomTooltip
+    - Describer now shows table column sorting indicator
+    - Describer only describes changes in the currently active window now
+    - Can now use SWTBot IDs to identify dialogs for widget context as well as their title
+    - If Eclipse RCP Action IDs exist, we now use them as one way to identify a widget
+    - Can now have UI map entries for typing and setting text in the same field
+	Recorder will always record typing, but this can be fixed up afterwards if desired
+    - Switching views actually clicks in the new view
+	Programmatic version was too prone to being recorded by mistake when done programmatically
+    - Hooks added to make it easier to configure which Eclipse jobs we listen for
+	environment variable STORYTEXT_SYSTEM_JOB_NAMES read if set, default is all jobs where isSystem() returns False
+    - When describing updates, use a shortened form of the SWTBot ID, if it exists
+    - We now notice if widgets just change places within a structure, and describe this
+    - Job handling enhanced, check for simultaneous jobs started from different threads and assume they are independent
+	Naming is decided at the end, depending on the last relevant event from a particular thread
+    - Browser update events are generated even if the Browser updates to the same contents, can be important
+    - Removed StackedLayout description. It doesn't correspond to anything visible and is just noise for the user, mostly.
+    - Label finding enhanced, will find Labels that are the last child in a parent or sibling Composite
+    - (RCP) If there are multiple usable widgets for an instruction, prefer any widget that is in the active View over those that aren't
+    - (RCP) View toolbars and menus are now identified also with the View ID, for better identification and solving ambiguity
+    - Popup menu contexts refer to widgets they are attached to
+    - Context menu descriptions in GridLayouts will be produced sooner now
+    - Combo objects now listen for Selection rather than Modify events, (as CCombo did before), seems to be more reliable
+	May require UI map updating!
+    - Describer now says which context menu has been updated
+    - Now adds indices to uniquely identify rows in Trees that have the same text
+
+SWT/Eclipse RCP bugfixes:
+    - Error message on classloader clashes instead of crashing. Often caused by Mockito in the product.
+    - Error message replaces stacktrace for additional instructions after the GUI has exited
+    - Fixed bug with Combo box selection amalgamating similar selections
+    - Generate extra Enter keypresses if we can't find a table row and there is an editor active
+    - Don't describe invisible dialogs
+    - Error message selecting TabItem that is already disposed instead of stacktrace
+    - don't monitor widgets if they're shown before the shell they appear in
+    - Error messages when rows in tables or views can't be found: now lists the ones that do exist to aid fixing it
+    - Fixed occasional issue where selecting could be interpreted in recorder as drag and drop if it took too long
+    - Fixed crash describing groups containing formatted layout
+    - Don't assume table indexing is ready if it contains only empty strings
+    - We don't say things have appeared if our description of them is empty any more
+    - Worked around Jython bug 1522 which causes PermGen memory errors occasionally
+    - Handle combinations of literal commas and multiple selection when selecting rows in lists etc
+    - -x option on the command line now works properly for RCP apps
+    - Fixed bug leading to slight indeterminism when expanding ExpandableComposite widgets (RCP)
+
+GEF bugfixes:
+    - Handle literal commas in figure descriptions, comma is used to indicate multiple selection
+    - Drag+drop never recorded on invisible objects any more
+
+Swing bugfixes:
+    - Don't assume Combo Box Editor items are strings any more
+    - Can now add indexes to uniquely identify rows in JTrees that have the same text
+
+WxPython enhancements (thanks to Roger Lindberg):
+    - Support for FileDialog, DirDialog, FileSelector, DirSelector, GetFontFromUser, GetColorFromUser, wxMessageBox added
+    - Fixed bug which meant checkboxes didn't work on Windows
