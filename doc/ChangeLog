@@ -12,7 +12,7 @@ Version 0.2:
 
 Version 1.0:
     - Support added for monitoring external processes started by the system under test, both recording their termination
-	and simulating any updates to files they may have made at the time. 
+	and simulating any updates to files they may have made at the time.
     - Fixed deprecated items in newer versions of PyGTK
     - 'Keyboard mnemonic accelerators' created for the GUI shortcuts produced for PyGTK GUIs
     - Various refactorings
@@ -724,6 +724,8 @@ SWT/Eclipse RCP enhancements:
 	The latter can be disabled with -X CustomTooltip
     - Describer now shows table column sorting indicator
     - Describer only describes changes in the currently active window now
+    - Can now provide categories for application events
+	by setting event.data
     - Can now use SWTBot IDs to identify dialogs for widget context as well as their title
     - If Eclipse RCP Action IDs exist, we now use them as one way to identify a widget
     - Can now have UI map entries for typing and setting text in the same field
