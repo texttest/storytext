@@ -62,7 +62,12 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
     parser.add_option("-x", "--disable_usecase_names", action="store_true", 
                       help="Disable the entering of usecase names when unrecognised actions are recorded. Recommended only for quick-and-dirty experimenting. Will result in recorded scripts that are easy to make but hard to read and hard to maintain.")
     parser.add_option("-X", "--exclude-describe",
-                      help="Exclude the listed widget class names from being described in the describer")
+                      help="""Exclude the listed widget class names from being described in the describer. 
+Refer to online documentation at http://www.texttest.org/index.php?page=ui_testing, under 'Supported Widgets' for your toolkit. 
+Use any value from the lower list, i.e. the one for automatic logging, without the module names.
+An example would be '-X Menu,ToolBar,Browser' for SWT/Eclipse RCP, or '-X MenuBar,Toolbar,TreeView' for PyGTK.
+Also allow syntax like '-X Menu!File', to exclude all menus except those called 'File'. 
+On Windows, '-X MenuNOTFile' is a temporary alternative to this, working around a Jython bug.""")
     parser.add_option("--insert-shortcuts", action="store_true", help="Re-record the replay script to the record script without running anything, inserting shortcuts as required")
     return parser
 
