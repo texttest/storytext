@@ -727,7 +727,7 @@ SWT/Eclipse RCP enhancements:
     - Can now provide categories for application events
 	by setting event.data
     - Can now use SWTBot IDs to identify dialogs for widget context as well as their title
-    - If Eclipse RCP Action IDs exist, we now use them as one way to identify a widget
+    - If JFace Action IDs exist, we now use them as one way to identify a widget
     - Can now have UI map entries for typing and setting text in the same field
 	Recorder will always record typing, but this can be fixed up afterwards if desired
     - Switching views actually clicks in the new view
@@ -777,5 +777,5 @@ Swing bugfixes:
     - Can now add indexes to uniquely identify rows in JTrees that have the same text
 
 WxPython enhancements (thanks to Roger Lindberg):
-    - Support for FileDialog, DirDialog, FileSelector, DirSelector, GetFontFromUser, GetColorFromUser, wxMessageBox added
+    - Support for FileDialog, DirDialog, FileSelector, DirSelector, GetFontFromUser, GetColourFromUser, MessageBox added
     - Fixed bug which meant checkboxes didn't work on Windows
