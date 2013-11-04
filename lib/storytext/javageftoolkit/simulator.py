@@ -430,6 +430,8 @@ class ViewerEvent(storytext.guishared.GuiEvent):
         return "of type " + self.widget.getType()
 
 class ViewerSelectEvent(ViewerEvent):
+    # Allow customwidgetsevents to set this
+    pauseBetweenSelections = 0
     def connectRecord(self, method):
         class SelectionListener(ISelectionChangedListener):
             def selectionChanged(lself, event): #@NoSelf
@@ -467,15 +469,11 @@ class ViewerSelectEvent(ViewerEvent):
         if len(parts) == 1 and not partial:
             self.widget.clickOnCenter(parts[0])
         else:
-            pauseTime = self.getPauseBetweenSelections()
             for i, part in enumerate(parts):
-                if i > 0 and pauseTime:
-                    time.sleep(pauseTime)
+                if i > 0 and self.pauseBetweenSelections:
+                    time.sleep(self.pauseBetweenSelections)
                 self.widget.clickOnCenter(part, swt.SWT.CTRL)
                 
-    def getPauseBetweenSelections(self):
-        return 0 #Don't pause by default, allow customwidgetevents to override this
-
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Select"
@@ -497,12 +495,12 @@ class ViewerSelectEvent(ViewerEvent):
         return True
 
 class DragHolder():
-    draggedPart = None
+    draggedParts = []
     sourceEvent = None
     sourceSwtEvent = None
     @classmethod
     def reset(cls):
-        cls.draggedPart = None
+        cls.draggedParts = []
         cls.sourceEvent = None
         cls.sourceSwtEvent = None
     
@@ -518,7 +516,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
 
     def applyToDragged(self, event, method):
         if len(self.widget.selectedEditParts()) > 0 and self.shouldDrag(event):
-            DragHolder.draggedPart = self.widget.selectedEditParts()[0].part()#self.getGefViewer().findObjectAt(p)
+            DragHolder.draggedParts = [ e.part() for e in self.widget.selectedEditParts() ]#self.getGefViewer().findObjectAt(p)
             DragHolder.sourceEvent = self
             DragHolder.sourceSwtEvent = event
 
@@ -536,7 +534,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
             # No guarantee MouseUp appers on same widget
                 dropX, dropY = instance.getDropPosition(event)
                 if dropX is not None and instance.getControl().isVisible() and instance.isValidDragAndDrop(DragHolder.sourceSwtEvent, event, dropX, dropY):
-                    method(DragHolder.draggedPart, dropX, dropY, instance, DragHolder.sourceEvent)
+                    method(DragHolder.draggedParts, dropX, dropY, instance, DragHolder.sourceEvent)
                     break
             DragHolder.reset()
 
@@ -546,12 +544,12 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def getDropPosition(self, event):
         return event.x, event.y
 
-    def getStateDescription(self, part, *args):
-        partDesc = self.storeObjectDescription(part)
-        targetDesc = self.getTargetDescription(part, *args)
+    def getStateDescription(self, parts, *args):
+        partDesc = ",".join(map(self.storeObjectDescription, parts))
+        targetDesc = self.getTargetDescription(parts, *args)
         return partDesc + " to " + targetDesc
 
-    def getTargetDescription(self, part, x, y, *args):
+    def getTargetDescription(self, parts, x, y, *args):
         return str(x) + ":" + str(y)
 
     @classmethod
@@ -562,21 +560,30 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def getSignalsToFilter(cls):
         return [ swt.SWT.MouseUp ]
     
-    def shouldRecord(self, part, *args):
+    def shouldRecord(self, *args):
         types = self.getSignalsToFilter()
         return DisplayFilter.instance.hasEventOfType(types, self.getControl())
 
-    def generate(self, partAndPos):
-        self.widget.drag(*partAndPos)
+    def generate(self, args, **kw):
+        parts, x, y = args
+        if len(parts) > 1:
+            for part in parts[:-1]:
+                self.widget.clickOnCenter(part, swt.SWT.CTRL)
+                if ViewerSelectEvent.pauseBetweenSelections:
+                    time.sleep(ViewerSelectEvent.pauseBetweenSelections)
+        self.widget.drag(parts[-1], x, y, **kw)
         
     def parseArguments(self, description):
         sourceDesc, dest = description.split(" to ", 1)
-        editPart = self.findEditPart(self.widget.rootEditPart(), sourceDesc)
-        if not editPart:
-            raise UseCaseScriptError, "could not find any objects in viewer matching description '" + sourceDesc + "'"
-        
+        allParts = sourceDesc.split(",")
+        editParts = []
+        for partDesc in allParts:
+            editPart = self.findEditPart(self.widget.rootEditPart(), partDesc)
+            if not editPart:
+                raise UseCaseScriptError, "could not find any objects in viewer matching description '" + sourceDesc + "'"
+            editParts.append(editPart)
         displayLocation = self.parseDestination(dest)
-        return editPart, displayLocation.x, displayLocation.y
+        return editParts, displayLocation.x, displayLocation.y
     
     def parseDestination(self, dest):
         if ":" not in dest:
