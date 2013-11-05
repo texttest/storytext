@@ -1616,7 +1616,7 @@ class TableIndexer(Indexer):
             for colIndex in range(self.widget.getColumnCount()):
                 column = self.getColumn(colIndex)
                 uniqueEntries = len(set(column))
-                if len(column) > 1 and uniqueEntries == len(column):
+                if len(column) > 1 and uniqueEntries == len(column) and max((len(d) for d in column)) < 30:
                     return colIndex, column
                 else:
                     self.logger.debug("Rejecting column " + str(colIndex) + " as primary key : names were " + repr(column))
