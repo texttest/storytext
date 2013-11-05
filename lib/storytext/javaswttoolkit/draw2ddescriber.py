@@ -4,53 +4,15 @@ from storytext import guishared, gridformatter
 from util import getInt
 import org.eclipse.draw2d as draw2d
 from org.eclipse import swt
-from java.awt import Color
 
-class ColorNameFinder:
-    abbrevations = [ ("dark", "+"), ("dull", "#"), ("very", "+"),
-                     ("light", "-"), ("normal", ""), ("bright", "*") ]
-    def __init__(self):
-        self.names = {}
-        # Add java.awt colors  
-        self.addColors(Color, True)
-        # Add swt colors
-        self.addColors(draw2d.ColorConstants)
-    
-    def shortenColorName(self, name):
-        ret = name.lower()
-        for text, repl in self.abbrevations:
-            ret = ret.replace(text, repl)
-        return ret
+def addColors(cls):
+    swtdescriber.colorNameFinder.addColors(cls, 
+                                           modifiers=[ (draw2d.FigureUtilities.darker, "D"), (draw2d.FigureUtilities.lighter, "L")],
+                                           abbreviations=[ ("dark", "+"), ("dull", "#"), ("very", "+"), 
+                                                           ("light", "-"), ("normal", ""), ("bright", "*") ])
 
-    def addColor(self, name, color, addAwtMark=False):
-        if hasattr(color, "getRed"):
-            newName = name + "&" if addAwtMark else name
-            nameToUse = self.shortenColorName(newName)
-            self.names[self.getRGB(color)] = nameToUse
-            if not addAwtMark:
-                rgb = self.getRGB(draw2d.FigureUtilities.darker(color))
-                if rgb not in self.names:
-                    self.names[rgb] = "D" + nameToUse
-                rgb = self.getRGB(draw2d.FigureUtilities.lighter(color))
-                if rgb not in self.names:
-                    self.names[rgb] = "L" + nameToUse
-
-    def addColors(self, cls, addAwtMark=False):
-        for name in sorted(cls.__dict__):
-            if not name.startswith("__"):
-                try:
-                    color = getattr(cls, name)
-                    self.addColor(name, color, addAwtMark)
-                except AttributeError:
-                    pass
-
-    def getRGB(self, color):
-        return color.getRed(), color.getGreen(), color.getBlue()
-
-    def getName(self, color):
-        return self.names.get(self.getRGB(color), "unknown")
-
-colorNameFinder = ColorNameFinder()
+# Add swt colors
+addColors(draw2d.ColorConstants)
 
 
 class Describer(swtdescriber.Describer):
@@ -200,11 +162,11 @@ class FigureCanvasDescriber(guishared.Describer):
             if colorArgs is not None:
                 rectColor = colorArgs[0]
                 if rectColor != color:
-                    colorText = "(" + colorNameFinder.getName(rectColor) + ")"
+                    colorText = "(" + swtdescriber.colorNameFinder.getName(rectColor) + ")"
                 if rect != bounds and colorText:
                     self.addColouredRectangle(calls, colorText, rect, fontSize)
         calls.sort(cmp=self.compareCalls)
-        colorText = colorNameFinder.getName(color) if self.changedColor(color, figure) else ""
+        colorText = swtdescriber.colorNameFinder.getName(color) if self.changedColor(color, figure) else ""
         if len(graphics.getCallArgs("setAlpha")) > 0:
             colorText = "~" + colorText + "~"
         return self.formatFigure(figure, calls, colorText, filledRectangles)

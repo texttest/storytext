@@ -9,6 +9,73 @@ from java.io import File, FilenameFilter
 from org.eclipse.jface.resource import ImageDescriptor
 from array import array
 from ordereddict import OrderedDict
+from java.awt import Color
+        
+class ColorNameFinder:
+    def __init__(self):
+        self.names = {}
+        self.widgetDefaults = set()
+        # Add java.awt colors  
+        self.addColors(Color, postfix="&")
+        
+    def shortenColorName(self, name, abbreviations):
+        ret = name.lower()
+        for text, repl in abbreviations:
+            ret = ret.replace(text, repl)
+        return ret
+
+    def addColor(self, name, color, postfix="", modifiers=[], abbreviations=[]):
+        if hasattr(color, "getRed"):
+            newName = name + postfix
+            nameToUse = self.shortenColorName(newName, abbreviations)
+            self.names[self.getRGB(color)] = nameToUse
+            for modifier, prefix in modifiers:
+                rgb = self.getRGB(self.applyModifier(modifier, color))
+                if rgb not in self.names:
+                    self.names[rgb] = prefix + nameToUse
+            
+    def applyModifier(self, modifier, color):
+        # Handle classloader problems
+        try:
+            return modifier(color)
+        except:
+            colorToUse = swt.graphics.Color(swt.widgets.Display.getDefault(), color.getRed(), color.getGreen(), color.getBlue())
+            return modifier(colorToUse)
+
+    def addColors(self, cls, **kw):
+        for name in sorted(cls.__dict__):
+            if not name.startswith("__"):
+                try:
+                    color = getattr(cls, name)
+                    self.addColor(name, color, **kw)
+                except AttributeError:
+                    pass
+                    
+    def addSWTColors(self, display):
+        for name in sorted(swt.SWT.__dict__):
+            if name.startswith("COLOR_"):
+                colorKey = getattr(swt.SWT, name)
+                color = display.getSystemColor(colorKey)
+                rgb = self.getRGB(color)
+                # Have to do this last because we can only retrieve them in the UI thread
+                # Don't override any custom names we might have
+                if rgb not in self.names:
+                    self.names[rgb] = name[6:].lower()
+                if "WIDGET" in name:
+                    self.widgetDefaults.add(rgb)
+                
+    def getRGB(self, color):
+        return color.getRed(), color.getGreen(), color.getBlue()
+
+    def getName(self, color):
+        return self.names.get(self.getRGB(color), "unknown")
+    
+    def getNameForWidget(self, color):
+        rgb = self.getRGB(color)
+        return self.names.get(rgb, "unknown") if rgb not in self.widgetDefaults else ""
+        
+        
+colorNameFinder = ColorNameFinder()
 
 
 class Describer(storytext.guishared.Describer):
@@ -47,6 +114,7 @@ class Describer(storytext.guishared.Describer):
         self.imageToName = {}
         self.handleImages()
         self.screenshotNumber = 0
+        self.colorsAdded = False
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -121,6 +189,10 @@ class Describer(storytext.guishared.Describer):
         shell = shellMethod()
         if self.writeScreenshots:
             self.writeScreenshot(shell)
+        if not self.colorsAdded:
+            self.colorsAdded = True
+            colorNameFinder.addSWTColors(shell.getDisplay())
+
         if shell in self.windows:
             stateChanges = self.findStateChanges(shell)
             stateChangeWidgets = [ widget for widget, _, _ in stateChanges ]
@@ -289,8 +361,15 @@ class Describer(storytext.guishared.Describer):
                                                              subItemMethod=self.getToolItemControls)
     
     def getCoolBarDescription(self, coolbar):
-        return "Cool Bar:\n" + self.getItemBarDescription(coolbar, indent=1,
-                                                          subItemMethod=self.getCoolItemDescriptions)
+        state = self.getCoolBarState(coolbar)
+        self.widgetsWithState[coolbar] = state
+        desc = "Cool Bar"
+        if state:
+            desc += " (" + state + ") "
+        return desc + ":\n" + self.getItemBarDescription(coolbar, indent=1, subItemMethod=self.getCoolItemDescriptions)
+
+    def getCoolBarState(self, coolbar):
+        return colorNameFinder.getNameForWidget(coolbar.getBackground())
 
     def contextMenusEqual(self, menu1, menu2):
         return [ (item.getText(), item.getEnabled()) for item in menu1.getItems() ] == \
