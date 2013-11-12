@@ -53,27 +53,68 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
         displayLoc = simulator.runOnUIThread(self.display.map, self.widget, None, x, y)
         self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y)
         
-        
-class NatTableSelectEvent(simulator.TableSelectEvent):
+class NatTableEventHelper:
+    def connectRecord(self, method):
+        simulator.runOnUIThread(self.widget.widget.widget.addLayerListener, BasicLayerListener(method, self, self.getEventClass()))
+
     def getIndexer(self):
         return NatTableIndexer.getIndexer(self.widget.widget.widget)
-    
-    def connectRecord(self, method):
-        simulator.runOnUIThread(self.widget.widget.widget.addLayerListener, BasicLayerListener(method, self, nattable.selection.event.CellSelectionEvent))
-        
-    def shouldRecord(self, event, *args):
-        return event.getRowPosition() is not None and event.getColumnPosition() is not None
-        
-    def findCell(self, event):
-        return event.getRowPosition(), event.getColumnPosition()
     
     def isTriggeringEvent(self, e):
         return e.type == swt.SWT.MouseDown and e.widget is self.widget.widget.widget
     
     def _generate(self, cell):
         self.widget.clickOnCenter(*cell)
+    
+        
+class NatTableCellSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
+    def getEventClass(self):
+        return nattable.selection.event.CellSelectionEvent
 
+    def shouldRecord(self, event, *args):
+        return event.getRowPosition() >= 0 and event.getColumnPosition() >= 0
+        
+    def findCell(self, event):
+        return event.getRowPosition(), event.getColumnPosition()
+        
+    
+class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
+    def getEventClass(self):
+        return nattable.selection.event.RowSelectionEvent
+
+    def shouldRecord(self, event, *args):
+        return event.getRowPositionToMoveIntoViewport() > 0
+            
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "RowSelection" ]
+    
+    def getStateText(self, event, *args):
+        rowNum = event.getRowPositionToMoveIntoViewport()
+        return self.getIndexer().rowNames[rowNum]
+        
+
+class NatTableColumnSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
+    def getEventClass(self):
+        return nattable.selection.event.ColumnSelectionEvent
+
+    def shouldRecord(self, event, *args):
+        return len(event.getColumnPositionRanges()) > 0
+            
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "ColumnSelection" ]
+    
+    def getStateText(self, event, *args):
+        # It's a list, but how to trigger this multiple selection. Can't work it out.
+        # Take the first one for now
+        colNum = event.getColumnPositionRanges()[0].start
+        return self.getIndexer().getColumnTextToUse(colNum)
+        
+    def parseArguments(self, argumentString):
+        return 0, self.getIndexer().findColumnIndex(argumentString)
+    
 
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
 
-customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableSelectEvent ]) ]
+customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent ]) ]
