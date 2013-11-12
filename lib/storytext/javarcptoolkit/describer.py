@@ -40,13 +40,7 @@ class Describer(swtdescriber.Describer):
         while entries.hasMoreElements():
             url = entries.nextElement()
             self.storeImageData(url)
-            
-    def getUpdatePrefix(self, widget, *args):
-        if isinstance(widget, ExpandableComposite):
-            return "\nUpdated "
-        else:
-            return swtdescriber.Describer.getUpdatePrefix(self, widget, *args)
-            
+                        
     def getExpandableCompositeState(self, widget):
         return widget.isExpanded()
     

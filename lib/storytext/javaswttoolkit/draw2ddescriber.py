@@ -1,7 +1,7 @@
 
 from storytext.javaswttoolkit import describer as swtdescriber
 from storytext import guishared, gridformatter
-from util import getInt
+import util
 import org.eclipse.draw2d as draw2d
 from org.eclipse import swt
 
@@ -92,7 +92,7 @@ class RecorderGraphics(draw2d.Graphics, object):
         return result
 
 
-class CanvasDescriber(guishared.Describer):
+class CanvasDescriber(util.CanvasDescriber):
     childrenMethodName = "getChildren"
     visibleMethodName = "isVisible"
     statelessWidgets = [ draw2d.RectangleFigure, draw2d.Label, draw2d.PolylineShape ]
@@ -105,10 +105,6 @@ class CanvasDescriber(guishared.Describer):
         # Could just check for FigureCanvas, but sometimes basic Canvases are used with the Figure mechanisms there also
         # (usually when scrolling not desired to disable mouse-wheel usage)
         return hasattr(widget, "getContents")
-    
-    def __init__(self, canvas, *args, **kw):
-        guishared.Describer.__init__(self, *args, **kw)
-        self.canvas = canvas
         
     def getCanvasDescription(self, *args):
         return self.getDescription(self.canvas.getContents())
@@ -123,6 +119,9 @@ class CanvasDescriber(guishared.Describer):
     def paintFigure(self, figure, graphics):
         # So derived classes can reinterpret this if needed, e.g. adding customization to how this is called
         return figure.paintFigure(graphics)
+    
+    def getUpdatePrefix(self, *args):
+        return "\nUpdated Canvas :\n"
     
     def describeCanvasStructure(self, indent):
         self.describeStructure(self.canvas.getContents(), indent,
@@ -174,7 +173,7 @@ class CanvasDescriber(guishared.Describer):
             if rect.contains(x, y) or rect.contains(x, y + fontSize):
                 calls[i] = text + colorText, x, y
                 return
-        calls.append((colorText, getInt(rect.x), getInt(rect.y)))
+        calls.append((colorText, util.getInt(rect.x), util.getInt(rect.y)))
 
     def changedColor(self, color, figure):
         return color != figure.getParent().getBackgroundColor()
@@ -277,7 +276,7 @@ class CanvasDescriber(guishared.Describer):
     def makeCall(self, desc, child):
         loc = child.getLocation()            
         # x and y should be public fields, and are sometimes. In our tests, they are methods, for some unknown reason
-        return desc, getInt(loc.x), getInt(loc.y)
+        return desc, util.getInt(loc.x), util.getInt(loc.y)
             
     def layoutSortsChildren(self, widget):
         return False

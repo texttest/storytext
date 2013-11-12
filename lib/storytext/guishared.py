@@ -202,19 +202,19 @@ class ScriptEngine(scriptengine.ScriptEngine):
         self.uiMap = self.createUIMap(uiMapFiles)
         self.binDir = binDir
         self.addCustomEventTypes(customEventTypes)
-        self.importCustomEventTypes()
+        self.importCustomEventTypes("customwidgetevents")
         scriptengine.ScriptEngine.__init__(self, enableShortcuts, universalLogging=universalLogging, **kw)
 
     def createUIMap(self, uiMapFiles):
         return UIMap(self, uiMapFiles)
 
-    def importCustomEventTypes(self):
+    def importCustomEventTypes(self, modName, extModName=""):
         try:
-            from customwidgetevents import customEventTypes
-            self.addCustomEventTypes(customEventTypes)
+            exec "from " + modName + " import customEventTypes"
+            self.addCustomEventTypes(customEventTypes) #@UndefinedVariable
         except ImportError, e:
             msg = str(e).strip()
-            if msg != "No module named customwidgetevents":
+            if msg != "No module named " + modName and msg != "No module named " + extModName:
                 raise
 
     def addCustomEventTypes(self, customEventTypes):
@@ -1610,13 +1610,16 @@ class TableIndexer(Indexer):
     def getCellValueToUse(self, *args):
         return self.getCellValue(*args) or "<unnamed>"
     
+    def canBePrimaryKeyColumn(self, column, uniqueEntries):
+        return len(column) > 1 and uniqueEntries == len(column) and max((len(d) for d in column)) < 30
+
     def findRowNames(self):
         firstColumnWithData = None
         if self.getRowCount() > 1:
             for colIndex in range(self.widget.getColumnCount()):
                 column = self.getColumn(colIndex)
                 uniqueEntries = len(set(column))
-                if len(column) > 1 and uniqueEntries == len(column) and max((len(d) for d in column)) < 30:
+                if self.canBePrimaryKeyColumn(column, uniqueEntries):
                     return colIndex, column
                 else:
                     self.logger.debug("Rejecting column " + str(colIndex) + " as primary key : names were " + repr(column))

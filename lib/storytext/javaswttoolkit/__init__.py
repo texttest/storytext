@@ -21,12 +21,13 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
         self.testThread.start()
         self.run_python_or_java(args)
         
-    def importCustomEventTypes(self):
+    def importCustomEventTypes(self, *args):
         pass # Otherwise they get loaded too early and hence get the wrong classloader (in RCP)
 
     def importCustomEventTypesFromSimulator(self, eventTypes):
         self.eventTypes = eventTypes
-        storytext.guishared.ScriptEngine.importCustomEventTypes(self) # Our hook to do it for real...
+        storytext.guishared.ScriptEngine.importCustomEventTypes(self, "storytext.javaswttoolkit.nattablesimulator", "nebula")
+        storytext.guishared.ScriptEngine.importCustomEventTypes(self, "customwidgetevents") 
         
     def getDescriptionInfo(self):
         return "SWT", "javaswt", "event types", \

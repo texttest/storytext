@@ -668,9 +668,11 @@ class Describer(storytext.guishared.Describer):
         elif isinstance(widget, (swt.widgets.Label, swt.custom.CLabel)) and len(state) == 0:
             return "\nLabel now empty, previously " + oldState
         elif isinstance(widget, swt.widgets.Canvas) and not isinstance(widget, swt.custom.CLabel):
-            return "\nUpdated Canvas :\n"
-        else:
-            return "\nUpdated "
+            for canvasDescriberClass in self.canvasDescriberClasses:
+                if canvasDescriberClass.canDescribe(widget):
+                    return canvasDescriberClass(widget).getUpdatePrefix(oldState, state)
+        
+        return "\nUpdated "
 
     def getShortWidgetIdentifier(self, widget):
         return widget.getData("org.eclipse.swtbot.widget.key")

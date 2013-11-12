@@ -3,23 +3,25 @@
 
 from storytext import guishared
 from org.eclipse.nebula.widgets import nattable
+import util
 
-class CanvasDescriber(guishared.Describer):
+class CanvasDescriber(util.CanvasDescriber):
     @classmethod
     def canDescribe(cls, widget):
         return isinstance(widget, nattable.NatTable)
-    
-    def __init__(self, table):
-        self.table = table
-        guishared.Describer.__init__(self)
-    
+        
     def getCanvasDescription(self, *args):
         desc = "NatTable :\n"
         rows = []
-        for row in range(self.table.getRowCount()):
+        for row in range(self.canvas.getRowCount()):
             rows.append([])
-            for col in range(self.table.getColumnCount()):
-                data = self.table.getDataValueByPosition(col, row)
+            for col in range(self.canvas.getColumnCount()):
+                data = self.canvas.getDataValueByPosition(col, row)
                 dataStr = str(data) if data else ""
+                displayMode = self.canvas.getDisplayModeByPosition(col, row)
+                if displayMode == nattable.style.DisplayMode.SELECT:
+                    dataStr += " (selected)"
+                elif displayMode == nattable.style.DisplayMode.EDIT:
+                    dataStr += " (editing)"
                 rows[-1].append(dataStr)
-        return desc + self.formatTable(rows[0], rows[1:], max(1, self.table.getColumnCount()))
+        return desc + self.formatTable(rows[0], rows[1:], max(1, self.canvas.getColumnCount()))

@@ -762,7 +762,10 @@ class StoryTextSwtBotTable(swtbot.widgets.SWTBotTable):
 class TableSelectEvent(StateChangeEvent):
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
-        TableIndexer.getIndexer(self.widget.widget.widget)
+        self.getIndexer()
+
+    def getIndexer(self):
+        return TableIndexer.getIndexer(self.widget.widget.widget)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -773,17 +776,14 @@ class TableSelectEvent(StateChangeEvent):
         return [ "CellSelection" ]
     
     def parseArguments(self, argumentString):
-        indexer = TableIndexer.getIndexer(self.widget.widget.widget)
-        row, col = indexer.getViewCellIndices(argumentString)
-        return row, col
+        return self.getIndexer().getViewCellIndices(argumentString)
             
     def _generate(self, cell):
         self.widget.click(*cell)
         
     def getStateText(self, event, *args):
         row, col = self.findCell(event)
-        indexer = TableIndexer.getIndexer(self.widget.widget.widget)
-        return indexer.getCellDescription(row, col)
+        return self.getIndexer().getCellDescription(row, col)
     
     def clickCount(self):
         return 1

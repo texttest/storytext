@@ -63,6 +63,24 @@ def getTextLabel(widget, **kw):
 def getInt(intOrMethod):
     return intOrMethod if isinstance(intOrMethod, int) else intOrMethod()
 
+class CanvasDescriber(storytext.guishared.Describer):
+    def __init__(self, canvas, *args, **kw):
+        storytext.guishared.Describer.__init__(self, *args, **kw)
+        self.canvas = canvas
+        
+    def describeCanvasStructure(self, indent):
+        pass
+    
+    @classmethod
+    def canDescribe(cls, widget):
+        return False
+    
+    def getCanvasDescription(self, *args):
+        pass
+    
+    def getUpdatePrefix(self, *args):
+        return "\nUpdated "
+
 def getDateFormat(dateType):
     if dateType == swt.SWT.TIME:
         # Default format is locale-dependent, no reason to make tests fail in different locales
