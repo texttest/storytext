@@ -13,34 +13,7 @@ def addColors(cls):
 
 # Add swt colors
 addColors(draw2d.ColorConstants)
-
-
-class Describer(swtdescriber.Describer):
-    def describeStructure(self, widget, indent=0, **kw):
-        swtdescriber.Describer.describeStructure(self, widget, indent, **kw)
-        if self.hasFigureCanvasAPI(widget):
-            self.describeStructure(widget.getContents(), indent+1,
-                                   visibleMethodNameOverride="isVisible", layoutMethodNameOverride="getLayoutManager")
-
-    def hasFigureCanvasAPI(self, widget):
-        # Could just check for FigureCanvas, but sometimes basic Canvases are used with the Figure mechanisms there also
-        # (usually when scrolling not desired to disable mouse-wheel usage)
-        return isinstance(widget, swt.widgets.Canvas) and hasattr(widget, "getContents")
-
-    def getCanvasDescription(self, widget):
-        if hasattr(widget, "getContents"): # FigureCanvas and others sharing its API
-            return self.getAndStoreState(widget)
-        else:
-            return swtdescriber.Describer.getCanvasDescription(self, widget)
-
-    def getCanvasState(self, widget):
-        return FigureCanvasDescriber(widget).getDescription(widget.getContents())
             
-    def getUpdatePrefix(self, widget, *args):
-        if self.hasFigureCanvasAPI(widget):
-            return "\nUpdated Canvas :\n"
-        else:
-            return swtdescriber.Describer.getUpdatePrefix(self, widget, *args)
 
 class AttrRecorder:
     def __init__(self, name, recorder):
@@ -119,7 +92,7 @@ class RecorderGraphics(draw2d.Graphics, object):
         return result
 
 
-class FigureCanvasDescriber(guishared.Describer):
+class CanvasDescriber(guishared.Describer):
     childrenMethodName = "getChildren"
     visibleMethodName = "isVisible"
     statelessWidgets = [ draw2d.RectangleFigure, draw2d.Label, draw2d.PolylineShape ]
@@ -127,9 +100,18 @@ class FigureCanvasDescriber(guishared.Describer):
     ignoreWidgets = [ draw2d.Figure ] # Not interested in anything except what we list
     ignoreChildren = ()
     pixelTolerance = 2
+    @classmethod
+    def canDescribe(cls, widget):
+        # Could just check for FigureCanvas, but sometimes basic Canvases are used with the Figure mechanisms there also
+        # (usually when scrolling not desired to disable mouse-wheel usage)
+        return hasattr(widget, "getContents")
+    
     def __init__(self, canvas, *args, **kw):
         guishared.Describer.__init__(self, *args, **kw)
         self.canvas = canvas
+        
+    def getCanvasDescription(self, *args):
+        return self.getDescription(self.canvas.getContents())
         
     def getLabelDescription(self, figure):
         return figure.getText()
@@ -141,6 +123,10 @@ class FigureCanvasDescriber(guishared.Describer):
     def paintFigure(self, figure, graphics):
         # So derived classes can reinterpret this if needed, e.g. adding customization to how this is called
         return figure.paintFigure(graphics)
+    
+    def describeCanvasStructure(self, indent):
+        self.describeStructure(self.canvas.getContents(), indent,
+                               visibleMethodNameOverride="isVisible", layoutMethodNameOverride="getLayoutManager")
 
     def getRectangleFigureDescription(self, figure):
         font = figure.getFont()

@@ -12,21 +12,5 @@ class ScriptEngine(javarcptoolkit.ScriptEngine):
         return "org.eclipse.swtbot.gef.testscript"
 
 class UseCaseReplayer(javarcptoolkit.UseCaseReplayer):
-    def getDescriberClass(self):
-        try:
-            from customwidgetevents import Describer
-        except ImportError, e:
-            if self.shouldReraise(e, "Describer"):
-                raise
-            from storytext.javarcptoolkit.draw2ddescriber import Describer
-        return Describer
-    
-    def getMonitorClass(self):
-        try:
-            from customwidgetevents import WidgetMonitor
-        except ImportError, e:
-            if self.shouldReraise(e, "WidgetMonitor"):
-                raise
-            from simulator import WidgetMonitor
-        return WidgetMonitor
-    
+    def getDescriberPackage(self):
+        return javarcptoolkit.UseCaseReplayer.__module__

@@ -67,8 +67,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
             self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
 
     def getMonitorClass(self):
-        from simulator import WidgetMonitor
-        return WidgetMonitor
+        return self.importClass("WidgetMonitor", [ "customwidgetevents", self.__class__.__module__ + ".simulator" ])
 
     def setUpMonitoring(self):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils
@@ -85,16 +84,36 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         from simulator import runOnUIThread
         # Can't make this a member, otherwise fail with classloader problems for RCP
         # (replayer constructed before Eclipse classloader set)
-        describer = self.getDescriberClass()()
+        describer = self.getDescriber()
         runOnUIThread(describer.addFilters, monitor.getDisplay())
         def describe():
             runOnUIThread(describer.describeWithUpdates, monitor.getActiveShell)
         self.describeAndRun(describe, monitor.handleReplayFailure)
+        
+    def shouldReraise(self, e, clsName, modNames):
+        msg = str(e).strip()
+        allowedMessages = [ "No module named " + modName for modName in modNames ]
+        allowedMessages.append("cannot import name " + clsName)
+        return msg not in allowedMessages
 
-    def getDescriberClass(self):
-        try:
-            from draw2ddescriber import Describer
-            return Describer
-        except ImportError:
-            from describer import Describer
-            return Describer
+    def importClass(self, className, modules, extModName=""):
+        for module in modules:
+            try:
+                exec "from " + module + " import " + className + " as _className"
+                return _className #@UndefinedVariable
+            except ImportError, e:
+                if self.shouldReraise(e, className, [ module, extModName ]):
+                    raise
+            
+    def getDescriberPackage(self):
+        return self.__class__.__module__
+
+    def getDescriber(self):
+        canvasDescriberClasses = [] 
+        for modName, extModName in [ ("customwidgetevents", ""), ("draw2ddescriber", "draw2d"), ("nattabledescriber", "nebula") ]:
+            descClass = self.importClass("CanvasDescriber", [ "customwidgetevents", modName ], extModName)
+            if descClass:
+                canvasDescriberClasses.append(descClass)
+        
+        descClass = self.importClass("Describer", [ "customwidgetevents", self.getDescriberPackage() + ".describer" ])
+        return descClass(canvasDescriberClasses)

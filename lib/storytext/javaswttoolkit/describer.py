@@ -99,7 +99,7 @@ class Describer(storytext.guishared.Describer):
                      swt.widgets.Spinner, swt.widgets.Group, swt.widgets.Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
-    def __init__(self):
+    def __init__(self, canvasDescriberClasses=[]):
         storytext.guishared.Describer.__init__(self)
         self.canvasCounter = storytext.guishared.WidgetCounter()
         self.contextMenuCounter = storytext.guishared.WidgetCounter(self.contextMenusEqual)
@@ -115,6 +115,7 @@ class Describer(storytext.guishared.Describer):
         self.handleImages()
         self.screenshotNumber = 0
         self.colorsAdded = False
+        self.canvasDescriberClasses = canvasDescriberClasses
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -442,6 +443,12 @@ class Describer(storytext.guishared.Describer):
             newImage.dispose()
 
     def getCanvasDescription(self, widget):
+        return self.getAndStoreState(widget)
+    
+    def getCanvasState(self, widget):
+        for canvasDescriberClass in self.canvasDescriberClasses:
+            if canvasDescriberClass.canDescribe(widget):
+                return canvasDescriberClass(widget).getCanvasDescription(self)
         return "Canvas " + self.canvasCounter.getId(widget)
 
     def findStyleList(self, item):
@@ -660,6 +667,8 @@ class Describer(storytext.guishared.Describer):
             return "\nUpdated " + menuName + " Menu" + menuRefNr +":\n"
         elif isinstance(widget, (swt.widgets.Label, swt.custom.CLabel)) and len(state) == 0:
             return "\nLabel now empty, previously " + oldState
+        elif isinstance(widget, swt.widgets.Canvas) and not isinstance(widget, swt.custom.CLabel):
+            return "\nUpdated Canvas :\n"
         else:
             return "\nUpdated "
 
@@ -1002,4 +1011,11 @@ class Describer(storytext.guishared.Describer):
             if len(old) == len(new):
                 return self.getDiffedDescription(widget, old, new)
         return storytext.guishared.Describer.getStateChangeDescription(self, widget, oldState, state)
+    
+    def describeStructure(self, widget, indent=0, **kw):
+        storytext.guishared.Describer.describeStructure(self, widget, indent, **kw)
+        if isinstance(widget, swt.widgets.Canvas):
+            for canvasDescriberClass in self.canvasDescriberClasses:
+                if canvasDescriberClass.canDescribe(widget):
+                    canvasDescriberClass(widget).describeCanvasStructure(indent+1)
 
