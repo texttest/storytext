@@ -14,4 +14,12 @@ class CanvasDescriber(guishared.Describer):
         guishared.Describer.__init__(self)
     
     def getCanvasDescription(self, *args):
-        return "NatTable with " + str(self.table.getRowCount()) + " rows and " + str(self.table.getColumnCount()) + " columns."
+        desc = "NatTable :\n"
+        rows = []
+        for row in range(self.table.getRowCount()):
+            rows.append([])
+            for col in range(self.table.getColumnCount()):
+                data = self.table.getDataValueByPosition(col, row)
+                dataStr = str(data) if data else ""
+                rows[-1].append(dataStr)
+        return desc + self.formatTable(rows[0], rows[1:], max(1, self.table.getColumnCount()))
