@@ -116,5 +116,6 @@ class NatTableColumnSelectEvent(NatTableEventHelper, simulator.TableSelectEvent)
     
 
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
+util.cellParentData.append((nattable.NatTable, "NatTableCell"))
 
 customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent ]) ]

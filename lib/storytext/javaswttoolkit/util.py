@@ -56,6 +56,9 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
             currIndex += span
         return rows + 1
 
+cellParentData = [ (swt.widgets.Table, "TableCell"), 
+                   (swt.widgets.Tree,  "TreeCell") ]
+
 ignoreLabels = []
 def getTextLabel(widget, **kw):
     return TextLabelFinder(widget, ignoreLabels).find(**kw)

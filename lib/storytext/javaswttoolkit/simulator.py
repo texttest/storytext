@@ -139,11 +139,10 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getContextNameFromAncestor(self, parent):
         if isinstance(parent, swt.widgets.Menu):
             return self.getMenuContextNameFromAncestor(parent)
-        elif isinstance(parent, swt.widgets.Table):
-            return "TableCell"
-        elif isinstance(parent, swt.widgets.Tree):
-            return "TreeCell"
         else:
+            for className, contextName in util.cellParentData:
+                if isinstance(parent, className):
+                    return contextName
             return ""
         
 
