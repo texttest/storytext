@@ -204,9 +204,8 @@ class Describer(storytext.guishared.Describer):
             self.processMovedWidgets()
             describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets, shell)
             self.describeStateChanges(stateChanges, describedForAppearance)
-            self.widgetsAppeared = filter(lambda w: self.validAndShowing(w) and self.inDifferentShell(w, shell), self.widgetsAppeared)
-        else:
-            self.widgetsAppeared = []
+            
+        self.widgetsAppeared = filter(lambda w: not w.isDisposed() and self.inDifferentShell(w, shell), self.widgetsAppeared)
         self.parentsResized = set()
         self.widgetsMoved = []
             
