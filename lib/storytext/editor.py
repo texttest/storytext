@@ -1029,11 +1029,6 @@ class UseCaseEditor:
                     model.set_value(iter, 1, newText)
         self.treeModel.foreach(updateNode)
 
-    def disconnectEntries(self):
-        for entry, handler in self.connectedEntries:
-            entry.disconnect(handler)
-        self.connectedEntries = []
-
     def regexpReplace(self, regexp, line, newText):
         return re.sub(regexp, newText, line)
 
