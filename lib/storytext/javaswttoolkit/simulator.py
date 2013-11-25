@@ -1651,9 +1651,18 @@ class WidgetMonitor:
         
     def removeMousePointerIfNeeded(self):
         # If the mouse pointer is inside the window, this might cause accidental mouseovers and indeterminism. Relocate it to 0,0 if so
+        # Recheck this if we resize the window
         display = self.getDisplay()
+        shell = runOnUIThread(self.getActiveShell)
+        self._removeMousePointerIfNeeded(display, shell)
+        class MousePointerListener(swt.widgets.Listener):
+            def handleEvent(lself, e): #@NoSelf
+                self._removeMousePointerIfNeeded(display, shell)
+        runOnUIThread(shell.addListener, swt.SWT.Resize, MousePointerListener())
+        
+    def _removeMousePointerIfNeeded(self, display, shell):
         def pointerInWindow():
-            return self.getActiveShell().getClientArea().contains(display.getCursorLocation())
+            return shell.getClientArea().contains(display.getCursorLocation())
             
         if runOnUIThread(pointerInWindow):
             self.uiMap.logger.debug("Removing mouse pointer from window, to avoid accidental mouseovers")
