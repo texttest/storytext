@@ -546,8 +546,12 @@ class TextEvent(StateChangeEvent):
         self.widget.selectAll()
         
     def isTriggeringEvent(self, e):
+        # Editing sometimes generates two modify events, one "inside" the other
+        # Without this we risk the inner one being rejected because the outer one hasn't run,
+        # and the outer being rejected because the inner one has updated the text already
         # Don't include the Enter presses from TextActivateEvent below...
-        return e.type == swt.SWT.KeyDown and e.character != swt.SWT.CR
+        return (e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget) or \
+               (e.type == swt.SWT.KeyDown and e.character != swt.SWT.CR)
 
     def isTyped(self):
         return "typed" in self.generationModifiers
@@ -620,6 +624,10 @@ class TextActivateEvent(SignalEvent):
     @classmethod
     def getRecordEventType(cls):
         return swt.SWT.Traverse
+    
+    @classmethod
+    def getSignalsToFilter(cls):
+        return [ cls.getRecordEventType(), swt.SWT.DefaultSelection ]
     
     def isTraverseReturn(self, event):
         return event.type == swt.SWT.Traverse and event.detail == swt.SWT.TRAVERSE_RETURN
@@ -719,11 +727,6 @@ class ComboTextEvent(TextEvent):
         selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
         runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
     
-    def isTriggeringEvent(self, e):
-        # Combo editing sometimes generates two modify events, one "inside" the other
-        # Without this we risk the inner one being rejected because the outer one hasn't run,
-        # and the outer being rejected because the inner one has updated the text already
-        return e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget
 
 class CComboChangeEvent(CComboSelectEvent):
     def parseArguments(self, text):
