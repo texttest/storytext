@@ -280,9 +280,21 @@ class ScriptEngine(scriptengine.ScriptEngine):
             cmdArgs = self.getEditorCmdArgs(recordScript, interface)
             env = self.getEditorEnvironment()
             if os.name == "posix":
+                # os.exec* methods don't trigger coverage's exit handlers
+                # So try to do it manually
+                self.tryTerminateCoverage()
                 os.execvpe(cmdArgs[0], cmdArgs, env) #@UndefinedVariable
             else:
                 subprocess.call(cmdArgs, env=env)
+                
+    def tryTerminateCoverage(self):
+        # Assume implementation of using atexit and use a private member - won't work in Python 3, but nor does Jython currently...
+        # Really a shortcoming of coverage that this is needed, see https://bitbucket.org/ned/coveragepy/issue/43
+        import atexit
+        if hasattr(atexit, "_exithandlers"): # not worth dying for...
+            for func, args, kw in atexit._exithandlers:
+                if func.__module__.startswith("coverage."):
+                    func(*args, **kw)
 
     def replaceAutoRecordingForShortcut(self, script):
         if self.uiMap and self.binDir and self.recorder.hasAutoRecordings:

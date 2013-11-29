@@ -65,18 +65,11 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
     def runOnRecordExit(self): # pragma: no cover - cannot test with replayer disabled
         if not self.disable_usecase_names:
             self.uiMap.scriptEngine.replaceAutoRecordingForUsecase("javaswt", exitHook=True)
-        self.tryTerminateCoverage()
+        
+        # Eclipse doesn't return control to the python interpreter
+        # So we terminate coverage manually at this point if we're measuring it
+        self.uiMap.scriptEngine.tryTerminateCoverage()
 
     def enableJobListener(self):
         from jobsynchroniser import JobListener
         JobListener.enable()
-
-    def tryTerminateCoverage(self):
-        # Eclipse doesn't return control to the python interpreter
-        # So we terminate coverage manually at this point if we're measuring it
-        # Assume implementation of using atexit and use a private member - won't work in Python 3, but nor does Jython currently...
-        # Really a shortcoming of coverage that this is needed, see https://bitbucket.org/ned/coveragepy/issue/43
-        import atexit
-        for func, args, kw in atexit._exithandlers:
-            if func.__module__.startswith("coverage."):
-                func(*args, **kw)
