@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import scriptengine, definitions
-import os, sys, logging.config, optparse, time
-from threading import Thread
+from filepolling import poll_file
+import os, sys, logging.config, optparse
     
 def create_option_parser():
     usage = """usage: %prog [options] <program> <program_args> ...
@@ -110,18 +110,6 @@ def set_up_environment(options):
     if options.screenshot:
         os.environ["USECASE_REPLAY_SCREENSHOTS"] = "1"
 
-def poll_file(fileName, eventName, scriptEngine):
-    eventName = eventName or fileName + " to be updated"
-    startState = os.path.exists(fileName)
-    class PollThread(Thread):
-        def run(self):
-            while os.path.exists(fileName) == startState:
-                time.sleep(0.1)
-            scriptEngine.applicationEvent(eventName, category="file poll")
-            
-    thread = PollThread()
-    thread.setDaemon(True)
-    thread.start()
 
 def check_python_version():
     major, minor = sys.version_info[:2]
@@ -141,7 +129,7 @@ def main(install_root):
         import storytext
         storytext.scriptEngine = create_script_engine(options, install_root)
         if options.pollfile:
-            poll_file(options.pollfile, options.pollfile_event_name, storytext.scriptEngine)
+            poll_file(options.pollfile, options.pollfile_event_name, storytext.scriptEngine.applicationEvent)
         if not storytext.scriptEngine.run(options, args):
             parser.print_help()
     except definitions.UseCaseScriptError, e:

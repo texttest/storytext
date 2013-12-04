@@ -796,15 +796,11 @@ class UIMap:
 # Base class for all replayers using a GUI
 class UseCaseReplayer(replayer.UseCaseReplayer):
     def __init__(self, uiMap, universalLogging, recorder, **kw):
-        replayer.UseCaseReplayer.__init__(self, **kw)
+        replayer.UseCaseReplayer.__init__(self, recorder, **kw)
         self.readingEnabled = False
         self.uiMap = uiMap
         self.loggerActive = universalLogging
-        self.recorder = recorder
         self.delay = float(os.getenv("USECASE_REPLAY_DELAY", 0.0))
-        
-    def handleComment(self, comment):
-        self.recorder.storeComment(comment)
         
     def enableReading(self):
         self.readingEnabled = True

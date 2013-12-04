@@ -3,6 +3,7 @@ __version__ = "trunk"
 
 # Hard coded commands
 waitCommandName = "wait for"
+mutualSynchPrefix = "other usecase "
 signalCommandName = "receive signal"
 
 # Exception to throw when scripts go wrong

@@ -2,6 +2,7 @@
 """ Generic recorder classes. GUI-specific stuff is in guishared.py """
 
 import os, sys, signal, time, re
+from filepolling import poll_file
 import encodingutils
 from threading import Thread, Timer, Lock
 from definitions import *
@@ -240,7 +241,7 @@ class ShortcutManager:
     
     
 class UseCaseReplayer:
-    def __init__(self, timeout=60):
+    def __init__(self, recorder, timeout=60):
         self.logger = encodingutils.getEncodedLogger("storytext replay log")
         self.scripts = []
         self.shortcutManager = ShortcutManager()
@@ -253,6 +254,9 @@ class UseCaseReplayer:
         self.eventHappenedMessage = ""
         self.appEventTimer = None
         self.appEventTimeout = timeout
+        # For things like comments, and hand-added mutual synch events, which cannot be recorded
+        # Do not use for other purposes! The recorder should be as independent of the replayer as possible
+        self.recorder = recorder
         if os.name == "posix":
             os.setpgrp() # Makes it easier to kill subprocesses
 
@@ -355,7 +359,7 @@ class UseCaseReplayer:
             self.appEventTimer = None
         self.notifyWaitingCompleted()
 
-    def registerApplicationEvent(self, eventName, timeDelay):
+    def registerApplicationEvent(self, eventName, timeDelay=0.001, **kw):
         origEventName = eventName
         count = 2
         self.appEventLock.acquire()
@@ -421,7 +425,7 @@ class UseCaseReplayer:
             self.eventHappenedMessage = ""
 
     def handleComment(self, comment):
-        pass # Can't do anything here, don't know about the recorder...
+        self.recorder.storeComment(comment)
 
     def runNextCommand(self, **kw):
         if self.timeDelayNextCommand:
@@ -552,10 +556,29 @@ class UseCaseReplayer:
             timer = Timer(subTimerTimeout, self.startTimer, [ timer ])
         self.startTimer(timer)
     
+    def handleMutualSynchWait(self, eventName):
+        fileName = eventName.replace(" ", "_")
+        if os.path.isfile(fileName):
+            os.remove(fileName)
+            self.applicationEventNames.add(eventName)
+            self.logger.debug("Mutual synch completed " + repr(eventName))
+        else:
+            f = open(fileName, "w")
+            try:
+                f.write("Mutual synch file from process " + str(os.getpid()))
+            finally:
+                f.close()
+            self.logger.debug("Mutual synch initiated for " + repr(eventName))
+            poll_file(fileName, eventName, self.registerApplicationEvent)
+        self.recorder.registerApplicationEvent(eventName, category="file poll")
+    
     def processWait(self, applicationEventStr):
         eventsToWaitFor = applicationEventStr.split(", ")
         self.describeAppEventsWaiting(eventsToWaitFor)
         self.appEventLock.acquire()
+        for event in eventsToWaitFor:
+            if event.startswith(mutualSynchPrefix):
+                self.handleMutualSynchWait(event)
         allEventsToWaitFor = self.waitingForEvents + eventsToWaitFor
         # Must make sure this is atomic - don't add events one at a time with +=
         self.waitingForEvents = allEventsToWaitFor
