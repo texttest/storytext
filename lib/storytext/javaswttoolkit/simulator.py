@@ -416,7 +416,8 @@ class CTabCloseEvent(TabEvent):
         return self.widget.widget.widget.addListener(*args)
     
     def _generate(self, tab):
-        swtbot.widgets.SWTBotCTabItem(tab).close()
+        # swtbot.widgets.SWTBotCTabItem(tab).close() unfortunately seems to create additional activate and selection events
+        self.simulate(tab)
 
     def shouldRecord(self, *args):
         return DisplayFilter.instance.hasEventOfType([ swt.SWT.MouseUp ], self.widget.widget.widget)
@@ -431,8 +432,19 @@ class CTabCloseEvent(TabEvent):
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "CloseTab"
+    
+    def simulate(self,tab):
+        X, Y = self.getCloseBoxXY(tab)
+        displayLoc = runOnUIThread(self.widget.widget.widget.toDisplay, X, Y)
+        display = runOnUIThread(tab.getDisplay)
+        EventPoster(display).moveClickAndReturn(displayLoc.x, displayLoc.y)
 
-
+    def getCloseBoxXY(self, tab):
+        rect = util.getPrivateField(tab, "closeRect")
+        X = rect.x + rect.width/2
+        Y = rect.y + rect.height/2
+        return X, Y
+        
 class ShellCloseEvent(SignalEvent):    
     def _generate(self, *args):
         # SWTBotShell.close appears to close things twice, just use the ordinary one for now...
