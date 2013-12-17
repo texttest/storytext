@@ -22,7 +22,7 @@ from org.eclipse.ui.forms.widgets import ExpandableComposite
 from org.eclipse.ui.forms.events import ExpansionAdapter
 from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
 from org.eclipse.jface.bindings.keys import KeyStroke 
-from java.lang import NullPointerException, Integer
+from java.lang import NullPointerException, Integer, IllegalArgumentException
 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}    
@@ -227,8 +227,12 @@ class RCPSelectEvent(swtsimulator.SelectEvent):
         # Aim is to handle Eclipse RCP key binding mechanism, not SWT accelerators which work anyway
         if "\t" in text and widget.getAccelerator() == 0:
             keyBinding = text.split("\t")[-1].lower()
-            keyStroke = KeyStroke.getInstance(keyBinding)
-            self.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
+            try:
+                keyStroke = KeyStroke.getInstance(keyBinding)
+                self.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
+            except IllegalArgumentException:
+                import sys
+                sys.stderr.write("Failed to handle key bindings for widget of type " + widget.__class__.__name__ + " with key binding " + keyBinding + "\n")
             
     def shouldRecord(self, event, *args):
         if event.type == SWT.KeyDown:
