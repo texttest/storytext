@@ -232,7 +232,7 @@ class RCPSelectEvent(swtsimulator.SelectEvent):
                 self.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
             except IllegalArgumentException:
                 import sys
-                sys.stderr.write("Failed to handle key bindings for widget of type " + widget.__class__.__name__ + " with key binding " + keyBinding + "\n")
+                sys.stderr.write("Failed to handle key bindings for widget of type " + widget.__class__.__name__ + " with text " + repr(text) + "\n")
             
     def shouldRecord(self, event, *args):
         if event.type == SWT.KeyDown:
