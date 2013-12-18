@@ -112,7 +112,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
     def getDescriber(self):
         canvasDescriberClasses = [] 
         for modName, extModName in [ ("customwidgetevents", ""), ("draw2ddescriber", "draw2d"), ("nattabledescriber", "nebula") ]:
-            descClass = self.importClass("CanvasDescriber", [ "customwidgetevents", modName ], extModName)
+            descClass = self.importClass("CanvasDescriber", [ modName ], extModName)
             if descClass:
                 canvasDescriberClasses.append(descClass)
         

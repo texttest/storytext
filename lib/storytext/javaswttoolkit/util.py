@@ -147,3 +147,10 @@ def callPrivateMethod(obj, methodName, argList=None, argTypeList=None):
             if cls is None:
                 raise
             
+def isinstance_any_classloader(obj, cls):
+    # Obviously this should check base classes too somehow, but we don't need that right now
+    return obj.__class__.__name__ == cls.__name__
+            
+classLoaderFail = set()
+def isinstance_check_classloader(obj, cls):
+    return isinstance_any_classloader(obj, cls) if cls in classLoaderFail else isinstance(obj, cls) 

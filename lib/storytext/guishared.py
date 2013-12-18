@@ -1339,13 +1339,17 @@ class Describer(object):
         return "\n".join(self.getAllItemDescriptions(*args, **kw))
 
     def formatTable(self, headerRow, rows, columnCount):
+        headerRows = [ headerRow ] if headerRow else []
+        return self.formatTableMultilineHeader(headerRows, rows, columnCount)
+
+    def formatTableMultilineHeader(self, headerRows, rows, columnCount):        
         if columnCount == 0:
             return ""
 
-        if headerRow:
-            colWidths = GridFormatter([ headerRow ] + rows, columnCount, allowOverlap=False).findColumnWidths()
-            self.adjustForMinFieldWidths(colWidths, headerRow)
-            header = GridFormatter([ headerRow ], columnCount).formatCellsInGrid(colWidths)
+        if headerRows:
+            colWidths = GridFormatter(headerRows + rows, columnCount, allowOverlap=False).findColumnWidths()
+            self.adjustForMinFieldWidths(colWidths, headerRows[0])
+            header = GridFormatter(headerRows, columnCount).formatCellsInGrid(colWidths)
             body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
             line = "_" * sum(colWidths) + "\n"
             return self.formatWithSeparators(header, body, line)

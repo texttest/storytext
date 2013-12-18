@@ -871,11 +871,13 @@ class TableIndexer(storytext.guishared.TableIndexer):
         self.cachedRowCount = len(rowNames)
         return column, rowNames
     
+    def rebuildCache(self):
+        self.primaryKeyColumn, self.rowNames = self.findRowNames()
+        self.logger.debug("Rebuilt indexer cache, primary key " + str(self.primaryKeyColumn) + ", row names now " + repr(self.rowNames))
+
     def checkNameCache(self):
         if self.getRowCount() != self.cachedRowCount or all((r.startswith("<unnamed>") for r in self.rowNames)):
-            self.primaryKeyColumn, self.rowNames = self.findRowNames()
-            self.logger.debug("Rebuilt indexer cache, primary key " + str(self.primaryKeyColumn) +
-                              ", row names now " + repr(self.rowNames))
+            self.rebuildCache()
         
     def getCellDescription(self, *args, **kw):
         self.checkNameCache()
@@ -1647,7 +1649,7 @@ class WidgetMonitor:
     @classmethod
     def makeAdapter(cls, widget):
         for widgetClass in cls.swtbotMap.keys():
-            if isinstance(widget, widgetClass):
+            if util.isinstance_check_classloader(widget, widgetClass):
                 swtbotClass = cls.findSwtbotClass(widget, widgetClass)
                 try:
                     return WidgetAdapter.adapt(swtbotClass(widget))
