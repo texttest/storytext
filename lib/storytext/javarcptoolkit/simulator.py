@@ -231,8 +231,7 @@ class RCPSelectEvent(swtsimulator.SelectEvent):
                 keyStroke = KeyStroke.getInstance(keyBinding)
                 self.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
             except IllegalArgumentException:
-                import sys
-                sys.stderr.write("Failed to handle key bindings for widget of type " + widget.__class__.__name__ + " with text " + repr(text) + "\n")
+                pass # Tab characters don't have to imply an accelerator, a menu item label can contain these anyway
             
     def shouldRecord(self, event, *args):
         if event.type == SWT.KeyDown:
