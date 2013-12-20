@@ -214,6 +214,9 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         # so we intercept it and return the right answer for them...
         self.orig_events_pending = gtk.events_pending
         gtk.events_pending = self.events_pending
+        self.orig_idle_add = gobject.idle_add
+        gobject.idle_add = self.idle_add
+        self.allIdleHandlers = []
 
     def addUiMap(self, uiMap):
         self.uiMap = uiMap
@@ -230,6 +233,27 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
             if self.uiMap:
                 self.uiMap.windows = [] # So we regenerate everything next time around
 
+    def idle_add(self, *args, **kw):
+        handler = self.orig_idle_add(*args, **kw)
+        self.allIdleHandlers.append((args, kw, handler))
+        return handler
+
+    def removeAllIdleHandlers(self):
+        idleArgs = []
+        self.logger.debug("Removing idle handlers")
+        while self.allIdleHandlers:
+            args, kw, handler = self.allIdleHandlers.pop()
+            if handler != describer.idleScheduler.idleHandler:
+                self.removeHandler(handler)
+                idleArgs.append((args, kw))
+        
+        return idleArgs
+
+    def readdAllIdleHandlers(self, idleArgs):
+        self.logger.debug("Readding idle handlers")
+        for args, kw in idleArgs:
+            gobject.idle_add(*args, **kw)
+            
     def events_pending(self): # pragma: no cover - cannot test code with replayer disabled
         if not self.isActive():
             self.logger.debug("Removing idle handler for descriptions")
@@ -243,6 +267,12 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
                 self.tryAddDescribeHandler()
         return return_value
 
+    def events_pending_no_idle_handlers(self): 
+        idleArgs = self.removeAllIdleHandlers()
+        return_value = self.orig_events_pending()
+        self.readdAllIdleHandlers(idleArgs)        
+        return return_value
+    
     def removeHandler(self, handler):
         gobject.source_remove(handler)
 
@@ -273,7 +303,7 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         return True # GTK's way of saying the handle should come again
 
     def runMainLoopWithReplay(self):
-        while gtk.events_pending():
+        while self.events_pending_no_idle_handlers():
             gtk.main_iteration()
         if self.delay:
             time.sleep(self.delay)
