@@ -57,11 +57,13 @@ class GtkEvent(GuiEvent):
         return self._outputForScript(*args)
 
     def executePostponedActions(self, *args):
+        ret = bool(self.stopEmissionMethod)
         if self.stopEmissionMethod:
             self.stopEmissionMethod(self.getRecordSignal())
             self.stopEmissionMethod = None
         if self.destroyMethod:
             self.destroyMethod()
+        return ret
 
     def shouldRecord(self, *args):
         return GuiEvent.shouldRecord(self, *args) and self.widget.get_property("visible")
@@ -82,7 +84,7 @@ class GtkEvent(GuiEvent):
         self.checkWidgetStatus()
         args = self.getGenerationArguments(argumentString)
         try:
-            self.changeMethod(*args)
+            return self.changeMethod(*args)
         except TypeError:
             raise UseCaseScriptError, "Cannot generate signal " + repr(self.signalName) + \
                   " for  widget of type " + repr(self.widget.getType())
@@ -94,6 +96,7 @@ class EmissionStopIntercept(MethodIntercept):
         for event in self.events:
             if stdSigName == event.getRecordSignal():
                 event.stopEmissionMethod = self.method
+        return True
 
 class DestroyIntercept(MethodIntercept):
     inResponseHandler = False    

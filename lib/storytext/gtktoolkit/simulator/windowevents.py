@@ -11,9 +11,10 @@ class DeletionEvent(SignalEvent):
         return [ gtk.gdk.Event(gtk.gdk.DELETE) ]
             
     def generate(self, argumentString):
-        SignalEvent.generate(self, argumentString)    
-        self.disableIntercepts(self.widget)
-        self.widget.destroy() # just in case...
+        emissionStopped = SignalEvent.generate(self, argumentString)
+        if not emissionStopped:
+            self.disableIntercepts(self.widget)
+            self.widget.destroy() # just in case...
 
     def shouldRecord(self, *args):
         return True # Even if the window is hidden, we still want to record it being closed...
