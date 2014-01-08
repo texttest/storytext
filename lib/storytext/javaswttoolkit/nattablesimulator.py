@@ -29,6 +29,10 @@ class NatTableIndexer(simulator.TableIndexer):
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
     
+    def getRowName(self, rowIndex):
+        self.checkNameCache()
+        return self.rowNames[rowIndex]
+    
     def getColumnCount(self):
         return self.widget.getColumnCount() - self.colOffset
     
@@ -124,7 +128,7 @@ class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
     
     def getStateText(self, event, *args):
         rowNum = self.widget.widget.widget.getRowIndexByPosition(event.getRowPositionToMoveIntoViewport())
-        return self.getIndexer().rowNames[rowNum]
+        return self.getIndexer().getRowName(rowNum)
     
     def parseArguments(self, description):
         row, _ = simulator.TableSelectEvent.parseArguments(self, description)
