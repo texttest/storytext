@@ -46,6 +46,7 @@ class CanvasDescriber(util.CanvasDescriber):
             labels = self.canvas.getConfigLabelsByPosition(1, row).getLabels()
             if "CORNER" not in labels and "COLUMN_HEADER" not in labels:
                 return row
+        return self.canvas.getRowCount()
         
     def findConverter(self, converters, labels):
         for converterMap in converters:
