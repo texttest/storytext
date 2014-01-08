@@ -141,7 +141,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
             return self.getMenuContextNameFromAncestor(parent)
         else:
             for className, contextName in util.cellParentData:
-                if isinstance(parent, className):
+                if util.isinstance_check_classloader(parent, className):
                     return contextName
             return ""
         
@@ -806,7 +806,11 @@ class TableSelectEvent(StateChangeEvent):
         if event.count != self.clickCount():
             return False
         row, _ = self.findCell(event)
-        return row is not None and StateChangeEvent.shouldRecord(self, event, *args)
+        if row is not None:
+            return StateChangeEvent.shouldRecord(self, event, *args)
+        else:
+            DisplayFilter.instance.logger.debug("Rejected event, could not find matching row in table")
+            return False
     
     def findCell(self, event):
         pt = swt.graphics.Point(event.x, event.y)
@@ -822,7 +826,9 @@ class TableSelectEvent(StateChangeEvent):
                         return rowIndex, col
             else:
                 rect = item.getBounds()
-                if rect.contains(pt):
+                # No columns. For some reason, widths of cells aren't reliable in this case
+                # Use the y information only and ignore event.x and the cell widths
+                if event.y < rect.y + rect.height:
                     return rowIndex, None
         return None, None
     
@@ -1219,6 +1225,11 @@ class DisplayFilter:
                 return True
         return False
     
+    def getEventOfType(self, eventType, widget):
+        for event in self.eventsFromUser:
+            if event.type == eventType and event.widget is widget:
+                return event
+    
     def hasEventOfType(self, eventTypes, widget):
         return any((event.type in eventTypes and event.widget is widget for event in self.eventsFromUser))
         
@@ -1275,7 +1286,7 @@ class DisplayFilter:
         if not util.isVisible(widget):
             return False
         for cls, types in self.widgetEventTypes:
-            if isinstance(widget, cls) and eventType in types and not self.hasComplexAncestors(widget):
+            if util.isinstance_check_classloader(widget, cls) and eventType in types and not self.hasComplexAncestors(widget):
                 return True
         return False
 
@@ -1378,18 +1389,19 @@ class EventPoster:
         while self.display.getCursorLocation().x != x and self.display.getCursorLocation().y != y:
             time.sleep(0.1)
 
-    def moveClickAndReturn(self, x, y, keyModifiers=0):
-        self.performAndReturn(self.moveAndClick, x, y, keyModifiers)
+    def moveClickAndReturn(self, *args, **kw):
+        self.performAndReturn(self.moveAndClick, *args, **kw)
         
-    def moveAndClick(self, x, y, keyModifiers):
+    def moveAndClick(self, x, y, keyModifiers=0, count=1):
         self.moveMouseAndWait(x, y)
         self.checkAndPostKeyPressed(keyModifiers)
-        self.clickMouse()
+        for _ in range(count):
+            self.clickMouse()
         self.checkAndPostKeyReleased(keyModifiers)
         
-    def performAndReturn(self, method, *args):
+    def performAndReturn(self, method, *args, **kw):
         currPos = runOnUIThread(self.display.getCursorLocation)
-        method(*args)
+        method(*args, **kw)
         time.sleep(0.1)
         self.moveMouseAndWait(currPos.x, currPos.y)
 

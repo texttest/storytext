@@ -55,12 +55,12 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
         swtbot.widgets.AbstractSWTBot.__init__(self, *args, **kw)
         self.eventPoster = simulator.EventPoster(self.display)
         
-    def clickOnCenter(self, row, col):
+    def clickOnCenter(self, row, col, clickCount):
         bounds = self.widget.getBoundsByPosition(col, row)
         x = util.getInt(bounds.x) + util.getInt(bounds.width) / 2
         y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
         displayLoc = simulator.runOnUIThread(self.display.map, self.widget, None, x, y)
-        self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y)
+        self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y, count=clickCount)
         
 class NatTableEventHelper:
     def connectRecord(self, method):
@@ -86,20 +86,30 @@ class NatTableEventHelper:
         return e.type == swt.SWT.MouseDown and e.widget is self.widget.widget.widget
     
     def _generate(self, cell):
-        self.widget.clickOnCenter(*cell)
+        row, col = cell
+        self.widget.clickOnCenter(row, col, self.clickCount())
     
-        
-class NatTableCellSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
-    def getEventClass(self):
-        return nattable.selection.event.CellSelectionEvent
-
+class NatTableCellEventHelper(NatTableEventHelper):
     def shouldRecord(self, event, *args):
+        swtEvent = simulator.DisplayFilter.instance.getEventOfType(swt.SWT.MouseDown, self.widget.widget.widget)
+        if not swtEvent or swtEvent.count != self.clickCount():
+            return False
+            
         return event.getRowPosition() >= 0 and event.getColumnPosition() >= 0
         
     def findCell(self, event):
         table = self.widget.widget.widget
         return table.getRowIndexByPosition(event.getRowPosition()), table.getColumnIndexByPosition(event.getColumnPosition())
+    
+    def getEventClass(self):
+        return nattable.selection.event.CellSelectionEvent
+
         
+class NatTableCellSelectEvent(NatTableCellEventHelper, simulator.TableSelectEvent):
+    pass
+    
+class NatTableCellDoubleClickEvent(NatTableCellEventHelper, simulator.TableDoubleClickEvent):
+    pass
     
 class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
     def getEventClass(self):
@@ -146,4 +156,4 @@ util.classLoaderFail.add(nattable.NatTable)
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
 util.cellParentData.append((nattable.NatTable, "NatTableCell"))
 
-customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent ]) ]
+customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableCellDoubleClickEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent ]) ]
