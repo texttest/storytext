@@ -2,6 +2,7 @@
 """ Module for handling Nebula's NatTable, if present """
 
 from storytext.javaswttoolkit import simulator
+from storytext.definitions import UseCaseScriptError
 from org.eclipse.nebula.widgets import nattable
 import org.eclipse.swtbot.swt.finder as swtbot
 from simulator import WidgetMonitor
@@ -37,7 +38,10 @@ class NatTableIndexer(simulator.TableIndexer):
         return self.widget.getColumnCount() - self.colOffset
     
     def findColumnPosition(self, columnName):
-        return self.findColumnIndex(columnName) + self.colOffset
+        colIndex = self.findColumnIndex(columnName)
+        if colIndex is None:
+            raise UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
+        return colIndex + self.colOffset
 
     def getCellValue(self, rowIndex, colIndex):
         rowPos = rowIndex + self.rowOffset
