@@ -145,6 +145,13 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
                     return contextName
             return ""
         
+    def checkMenuVisible(self):
+        menu = self.widget.widget.getParent()
+        return menu.getVisible()
+        
+    def isPreferred(self):
+        return self.isInstanceOf(swtbot.widgets.SWTBotMenu) and runOnUIThread(self.checkMenuVisible)
+        
 
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
         
@@ -221,6 +228,16 @@ class StateChangeEvent(SignalEvent):
 class SelectEvent(SignalEvent):    
     def _generate(self, *args):
         self.widget.click()
+        if self.allowsIdenticalCopies(): # is a menu
+            try:
+                if not self.widgetDisposed():
+                    runOnUIThread(self.hideMenu)
+            except UseCaseScriptError:
+                pass # Means we're finishing, don't care if we can't hide the menu then...
+                
+    def hideMenu(self):
+        menu = self.widget.widget.widget.getParent()
+        menu.setVisible(False)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -1224,12 +1241,7 @@ class DisplayFilter:
                 self.logger.debug("Previous event on shell found: " + repr(e))
                 return True
         return False
-    
-    def getEventOfType(self, eventType, widget):
-        for event in self.eventsFromUser:
-            if event.type == eventType and event.widget is widget:
-                return event
-    
+        
     def hasEventOfType(self, eventTypes, widget):
         return any((event.type in eventTypes and event.widget is widget for event in self.eventsFromUser))
         
@@ -1347,9 +1359,9 @@ class EventPoster:
         event.y = y
         self.display.post(event)
 
-    def clickMouse(self):        
-        runOnUIThread(storytext.guishared.catchAll, self.postMouseDown)
-        runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
+    def clickMouse(self, button):        
+        runOnUIThread(storytext.guishared.catchAll, self.postMouseDown, button)
+        runOnUIThread(storytext.guishared.catchAll, self.postMouseUp, button)
 
     def postMouseDown(self, button=1):
         event = swt.widgets.Event()
@@ -1392,11 +1404,11 @@ class EventPoster:
     def moveClickAndReturn(self, *args, **kw):
         self.performAndReturn(self.moveAndClick, *args, **kw)
         
-    def moveAndClick(self, x, y, keyModifiers=0, count=1):
+    def moveAndClick(self, x, y, keyModifiers=0, count=1, button=1):
         self.moveMouseAndWait(x, y)
         self.checkAndPostKeyPressed(keyModifiers)
         for _ in range(count):
-            self.clickMouse()
+            self.clickMouse(button)
         self.checkAndPostKeyReleased(keyModifiers)
         
     def performAndReturn(self, method, *args, **kw):

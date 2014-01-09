@@ -6,9 +6,8 @@ from storytext.definitions import UseCaseScriptError
 from org.eclipse.nebula.widgets import nattable
 import org.eclipse.swtbot.swt.finder as swtbot
 from simulator import WidgetMonitor
-import storytext.guishared, util
+import util
 from org.eclipse import swt
-import inspect
                 
         
 class NatTableIndexer(simulator.TableIndexer):
@@ -63,55 +62,73 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
         swtbot.widgets.AbstractSWTBot.__init__(self, *args, **kw)
         self.eventPoster = simulator.EventPoster(self.display)
         
-    def clickOnCenter(self, row, col, clickCount):
+    def clickOnCenter(self, row, col, clickCount, button):
         bounds = self.widget.getBoundsByPosition(col, row)
         x = util.getInt(bounds.x) + util.getInt(bounds.width) / 2
         y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
         displayLoc = simulator.runOnUIThread(self.display.map, self.widget, None, x, y)
-        self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y, count=clickCount)
+        self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y, count=clickCount, button=button)
         
-class NatTableEventHelper:
-    def connectRecord(self, method):
-        table = self.widget.widget.widget
-        layerListenerInterface = self.findLayerListenerInterface(table)
-        eventClass = self.getEventClass()
-        class BasicLayerListener(layerListenerInterface):        
-            def handleLayerEvent(lself, e): #@NoSelf
-                if util.isinstance_any_classloader(e, eventClass):
-                    storytext.guishared.catchAll(method, e, self)
-
-        simulator.runOnUIThread(table.addLayerListener, BasicLayerListener())
-
-    def findLayerListenerInterface(self, table):
-        for baseClass in inspect.getmro(table.__class__):
-            if baseClass.__name__ == "ILayerListener":
-                return baseClass
+class InstantMenuDescriber(swt.widgets.Listener):
+    def __init__(self, widget):
+        self.widget = widget
+        
+    def handleEvent(self, e):
+        if isinstance(e.widget, swt.widgets.Menu) and e.widget.getItemCount():
+            self.describeMenu(e.widget)
+            self.removeFilter()
+    
+    def describeMenu(self, menu):
+        from describer import Describer
+        desc = Describer()
+        desc.logger.info("\nShowing Popup Menu:")
+        desc.logger.info(desc.getMenuDescription(menu))
+        
+    def addFilter(self, *args):
+        self.widget.widget.widget.getDisplay().addFilter(swt.SWT.Show, self)
+    
+    def removeFilter(self, *args):
+        self.widget.widget.widget.getDisplay().removeFilter(swt.SWT.Show, self)
+    
+        
+class NatTableEventHelper:        
+    def shouldRecord(self, event, *args):
+        return event.count == self.clickCount() and event.button == self.mouseButton() and self.isCorrectRegion(event)
+    
+    def isCorrectRegion(self, event):
+        labels = self.widget.widget.widget.getRegionLabelsByXY(event.x, event.y).getLabels()
+        return self.getRegionLabel() in labels
 
     def getIndexer(self):
         return NatTableIndexer.getIndexer(self.widget.widget.widget)
     
-    def isTriggeringEvent(self, e):
-        return e.type == swt.SWT.MouseDown and e.widget is self.widget.widget.widget
-    
     def _generate(self, cell):
         row, col = cell
-        self.widget.clickOnCenter(row, col, self.clickCount())
+        button = self.mouseButton()
+        if button == 3:
+            desc = InstantMenuDescriber(self.widget)
+            simulator.runOnUIThread(desc.addFilter)
+        self.widget.clickOnCenter(row, col, self.clickCount(), button)
+        
+    def mouseButton(self):
+        return 1
+    
+    
+class ContextEventHelper:
+    def mouseButton(self):
+        return 3
+        
     
 class NatTableCellEventHelper(NatTableEventHelper):
-    def shouldRecord(self, event, *args):
-        swtEvent = simulator.DisplayFilter.instance.getEventOfType(swt.SWT.MouseDown, self.widget.widget.widget)
-        if not swtEvent or swtEvent.count != self.clickCount():
-            return False
+    def getRegionLabel(self):
+        return "BODY"
             
-        return event.getRowPosition() >= 0 and event.getColumnPosition() >= 0
-        
     def findCell(self, event):
         table = self.widget.widget.widget
-        return table.getRowIndexByPosition(event.getRowPosition()), table.getColumnIndexByPosition(event.getColumnPosition())
+        rowPos = table.getRowPositionByY(event.y)
+        colPos = table.getColumnPositionByX(event.x)
+        return table.getRowIndexByPosition(rowPos), table.getColumnIndexByPosition(colPos)
     
-    def getEventClass(self):
-        return nattable.selection.event.CellSelectionEvent
-
         
 class NatTableCellSelectEvent(NatTableCellEventHelper, simulator.TableSelectEvent):
     pass
@@ -120,18 +137,17 @@ class NatTableCellDoubleClickEvent(NatTableCellEventHelper, simulator.TableDoubl
     pass
     
 class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
-    def getEventClass(self):
-        return nattable.selection.event.RowSelectionEvent
-
-    def shouldRecord(self, event, *args):
-        return event.getRowPositionToMoveIntoViewport() > 0
-            
     @classmethod
     def getAssociatedSignatures(cls, widget):
         return [ "RowSelection" ]
     
+    def getRegionLabel(self):
+        return "ROW_HEADER"
+    
     def getStateText(self, event, *args):
-        rowNum = self.widget.widget.widget.getRowIndexByPosition(event.getRowPositionToMoveIntoViewport())
+        table = self.widget.widget.widget
+        rowPos = table.getRowPositionByY(event.y)
+        rowNum = table.getRowIndexByPosition(rowPos)
         return self.getIndexer().getRowName(rowNum)
     
     def parseArguments(self, description):
@@ -140,28 +156,54 @@ class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
         
 
 class NatTableColumnSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
-    def getEventClass(self):
-        return nattable.selection.event.ColumnSelectionEvent
-
-    def shouldRecord(self, event, *args):
-        return len(event.getColumnPositionRanges()) > 0
-            
     @classmethod
     def getAssociatedSignatures(cls, widget):
         return [ "ColumnSelection" ]
     
+    def getRegionLabel(self):
+        return "COLUMN_HEADER"
+                
     def getStateText(self, event, *args):
-        # It's a list, but how to trigger this multiple selection. Can't work it out.
-        # Take the first one for now
-        colNum = self.widget.widget.widget.getColumnIndexByPosition(event.getColumnPositionRanges()[0].start)
+        table = self.widget.widget.widget
+        colPos = table.getColumnPositionByX(event.x)
+        colNum = table.getColumnIndexByPosition(colPos)
         return self.getIndexer().getColumnTextToUse(colNum)
         
     def parseArguments(self, argumentString):
         return 0, self.getIndexer().findColumnPosition(argumentString)
     
+class NatTableCellContextEvent(ContextEventHelper,NatTableCellSelectEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "CellContextMenu" ]
+
+class NatTableRowContextEvent(ContextEventHelper, NatTableRowSelectEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "RowContextMenu" ]
+    
+class NatTableColumnContextEvent(ContextEventHelper, NatTableColumnSelectEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "ColumnContextMenu" ]
+    
+class NatTableCornerContextEvent(ContextEventHelper, NatTableEventHelper, simulator.TableSelectEvent):
+    @classmethod
+    def getAssociatedSignatures(cls, widget):
+        return [ "CornerContextMenu" ]
+
+    def getRegionLabel(self):
+        return "CORNER"
+    
+    def outputForScript(self, *args):
+        return self.name
+    
+    def parseArguments(self, argumentString):
+        return 0, 0
 
 util.classLoaderFail.add(nattable.NatTable)
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
 util.cellParentData.append((nattable.NatTable, "NatTableCell"))
 
-customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableCellDoubleClickEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent ]) ]
+customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableCellDoubleClickEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent,
+                                              NatTableCellContextEvent, NatTableRowContextEvent, NatTableColumnContextEvent, NatTableCornerContextEvent ]) ]

@@ -63,7 +63,6 @@ class CanvasDescriber(util.CanvasDescriber):
         # With this code, we can't tell the difference between DISPLAY_CONVERTER and FILTER_DISPLAY_CONVERTER. So we send both along
         # and hope for the best
         registryMap = util.getPrivateField(self.canvas.getConfigRegistry(), "configRegistry")
-        #print registryMap
         converters = []
         for obj in registryMap.values():
             normalData = obj.get(nattable.style.DisplayMode.NORMAL)
