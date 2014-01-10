@@ -230,14 +230,15 @@ class SelectEvent(SignalEvent):
         self.widget.click()
         if self.allowsIdenticalCopies(): # is a menu
             try:
-                if not self.widgetDisposed():
-                    runOnUIThread(self.hideMenu)
+                runOnUIThread(self.hideMenu)
             except UseCaseScriptError:
                 pass # Means we're finishing, don't care if we can't hide the menu then...
                 
     def hideMenu(self):
-        menu = self.widget.widget.widget.getParent()
-        menu.setVisible(False)
+        menuItem = self.widget.widget.widget
+        if not menuItem.isDisposed():
+            menu = menuItem.getParent()
+            menu.setVisible(False)
 
     @classmethod
     def getAssociatedSignal(cls, widget):
