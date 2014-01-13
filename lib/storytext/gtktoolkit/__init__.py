@@ -216,8 +216,10 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         gtk.events_pending = self.events_pending
         self.orig_idle_add = gobject.idle_add
         gobject.idle_add = self.idle_add
-        self.allIdleHandlers = []
-
+        self.orig_source_remove = gobject.source_remove
+        gobject.source_remove = self.source_remove
+        self.allIdleHandlers = OrderedDict()
+        
     def addUiMap(self, uiMap):
         self.uiMap = uiMap
         if not self.loggerActive:
@@ -235,24 +237,36 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
 
     def idle_add(self, *args, **kw):
         handler = self.orig_idle_add(*args, **kw)
-        self.allIdleHandlers.append((args, kw, handler))
+        self.allIdleHandlers[handler] = args, kw, handler
         return handler
+    
+    def source_remove(self, origHandler):
+        if origHandler in self.allIdleHandlers:
+            actualHandler = self.allIdleHandlers.get(origHandler)[-1]
+            result = self.orig_source_remove(actualHandler)
+            del self.allIdleHandlers[origHandler]
+            return result
+        else:
+            # Added by timeout_add etc
+            return self.orig_source_remove(origHandler)
 
     def removeAllIdleHandlers(self):
         idleArgs = []
         self.logger.debug("Removing idle handlers")
-        while self.allIdleHandlers:
-            args, kw, handler = self.allIdleHandlers.pop()
+        for origHandler, data in self.allIdleHandlers.items():
+            handler = data[-1]
             if handler != describer.idleScheduler.idleHandler:
                 self.removeHandler(handler)
-                idleArgs.append((args, kw))
+                idleArgs.append(origHandler)
         
         return idleArgs
 
     def readdAllIdleHandlers(self, idleArgs):
         self.logger.debug("Readding idle handlers")
-        for args, kw in idleArgs:
-            gobject.idle_add(*args, **kw)
+        for origHandler in idleArgs:
+            args, kw, _ = self.allIdleHandlers.get(origHandler)
+            newHandler = self.orig_idle_add(*args, **kw)
+            self.allIdleHandlers[origHandler] = args, kw, newHandler
             
     def events_pending(self): # pragma: no cover - cannot test code with replayer disabled
         if not self.isActive():
@@ -274,7 +288,7 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         return return_value
     
     def removeHandler(self, handler):
-        gobject.source_remove(handler)
+        return self.orig_source_remove(handler)
 
     def makeTimeoutReplayHandler(self, method, milliseconds):
         return gobject.timeout_add(milliseconds, method, priority=describer.PRIORITY_STORYTEXT_REPLAY_IDLE)
