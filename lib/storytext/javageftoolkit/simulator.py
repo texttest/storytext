@@ -154,9 +154,13 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         viewerField.setAccessible(True)
         viewerField.set(self, figureCanvas)
 
-    # toX and toY should be in display coordinates
+    # toX and toY should be in display coordinates. Widget coordinates don't work as we may be dragging from one widget to another
     def drag(self, editPart, toX, toY, keyModifiers=0):
-        centreX, centreY = self.getCenter(editPart)
+        widgetCentreX, widgetCentreY = self.getCenter(editPart)
+        displayCentre = swtsimulator.runOnUIThread(self.getFigureCanvas().toDisplayLocation, widgetCentreX, widgetCentreY)
+        centreX = displayCentre.x
+        centreY = displayCentre.y
+        self.logger.debug("Dragging " + repr((centreX, centreY)) + " to " + repr((toX, toY)))
         self.getFigureCanvas().mouseDrag(centreX, centreY, toX, toY, keyModifiers)
  
 
@@ -166,32 +170,33 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
         self.eventPoster = swtsimulator.EventPoster(self.display)
         
     def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
-        self._mouseDrag(fromX, fromY, toX, toY, keyModifiers)
-
-    def _mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
-        fromConverted = swtsimulator.runOnUIThread(self.toDisplayLocation, fromX, fromY)
-        fromX = fromConverted.x
-        fromY = fromConverted.y
+        # These values, and the broad algorithm here, are taken from a draft implementation of DnD for SWTBot
+        # The code is attached to the bug at https://bugs.eclipse.org/bugs/show_bug.cgi?id=285271
+        # When it is integrated into SWTBot we should probably use it directly
+        dragThreshold = 16
+        dragDelay = 0.3
         self.eventPoster.moveMouseAndWait(fromX, fromY)
                
-        counterX, counterY = self.getCounters(fromX, toX, fromY, toY)
         self.eventPoster.checkAndPostKeyPressed(keyModifiers)
-        swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, fromX, toX, fromY, toY, counterX*10, counterY*10)
-        self.moveDragged(fromX, toX, fromY, toY)
+        initialDragTargetX = fromX + dragThreshold
+        initialDragTargetY = fromY
+        swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, initialDragTargetX, initialDragTargetY)
+        time.sleep(dragDelay)
+        self.moveDragged(initialDragTargetX, initialDragTargetY, toX, toY)
         swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.eventPoster.postMouseUp)
         self.eventPoster.checkAndPostKeyReleased(keyModifiers)
 
-    def startDrag(self, fromX, toX, fromY, toY, offsetX, offsetY):
+    def startDrag(self, targetX, targetY):
         self.eventPoster.postMouseDown()
-        self.eventPoster.postMouseMove(fromX + offsetX, fromY + offsetY)
+        self.eventPoster.postMouseMove(targetX, targetY)
        
-    def getCounters(self, x1, x2, y1, y2):
+    def getCounters(self, x1, y1, x2, y2):
         counterX = 1 if x1 < x2 else -1
         counterY = 1 if y1 < y2 else -1
         return counterX, counterY
     
-    def moveDragged(self, fromX, toX, fromY, toY):
-        counterX, counterY = self.getCounters(fromX, toX, fromY, toY)
+    def moveDragged(self, fromX, fromY, toX, toY):
+        counterX, counterY = self.getCounters(fromX, fromY, toX, toY)
         startX = fromX
         startY = fromY
         while startX != toX:
