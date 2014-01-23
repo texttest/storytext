@@ -63,11 +63,6 @@ class JobListener(JobChangeAdapter):
                 return eventName == self.appEventPrefix + parentJobName
             DisplayFilter.removeApplicationEvent(matchName)
 
-        # As soon as we can, we move to the back of the list, so that jobs scheduled in 'done' methods get noticed
-        if not e.getJob().isSystem():
-            Job.getJobManager().removeJobChangeListener(self)
-            Job.getJobManager().addJobChangeListener(self)
-            self.logger.debug("At back of list now")
         self.jobCountLock.release()
 
     def shouldUseJob(self, job):
