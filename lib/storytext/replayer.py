@@ -570,7 +570,7 @@ class UseCaseReplayer:
                 f.close()
             self.logger.debug("Mutual synch initiated for " + repr(eventName))
             poll_file(fileName, eventName, self.registerApplicationEvent)
-        self.recorder.registerApplicationEvent(eventName, category="file poll")
+        self.recorder.registerApplicationEvent(eventName, category="mutual sych")
     
     def processWait(self, applicationEventStr):
         eventsToWaitFor = applicationEventStr.split(", ")

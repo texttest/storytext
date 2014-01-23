@@ -12,6 +12,19 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
+# This function has been copied from stackoverflow. It finds all partitions of a set.
+def partitions(set_):
+    if not set_:
+        yield []
+        return
+    for i in xrange(2**len(set_)/2):
+        parts = [set(), set()]
+        for item in set_:
+            parts[i&1].add(item)
+            i >>= 1
+        for b in partitions(parts[1]):
+            yield [parts[0]]+b
+
 # Take care not to record empty files...
 class RecordScript:
     def __init__(self, scriptName, shortcuts):
@@ -66,12 +79,13 @@ class RecordScript:
     def splitLine(line):
         eventPairs = set()
         parsedEvents = replayer.parseWaitCommand(line)
+        for part in partitions(parsedEvents):
+            if len(part) == 2:
+                pair = frozenset([ replayer.assembleWaitCommand(part[0]), replayer.assembleWaitCommand(part[1])])
+                eventPairs.add(pair)
+
         for i, (baseEvent, count) in enumerate(parsedEvents):
             otherEvents = parsedEvents[:i] + parsedEvents[i+1:]
-            if len(otherEvents):
-                basicPair = frozenset([ replayer.assembleWaitCommand(parsedEvents[i:i+1]),
-                              replayer.assembleWaitCommand(otherEvents) ])
-                eventPairs.add(basicPair)
             if count > 1:
                 for j in range(1, count):
                     currEvent = [ (baseEvent, j) ]
