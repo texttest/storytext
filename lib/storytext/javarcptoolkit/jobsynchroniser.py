@@ -27,7 +27,8 @@ class JobListener(JobChangeAdapter):
     def jobDone(self, e):
         jobName = e.getJob().getName().lower()
         self.jobCountLock.acquire()
-        self.jobCount -= 1
+        if self.jobCount > 0:
+            self.jobCount -= 1
         self.logger.debug("Completed " + ("system" if e.getJob().isSystem() else "non-system") + " job '" + jobName + "' jobs = " + repr(self.jobCount))    
         # We wait for the system to reach a stable state, i.e. no scheduled jobs
         # Would be nice to call Job.getJobManager().isIdle(),
@@ -48,14 +49,18 @@ class JobListener(JobChangeAdapter):
         
     def jobScheduled(self, e):
         self.jobCountLock.acquire()
-        jobName = e.getJob().getName().lower()
-        self.jobCount += 1
         parentJob = Job.getJobManager().currentJob()
+        self.registerScheduled(e.getJob(), parentJob, currentThread().getName())
+        self.jobCountLock.release()
+
+    def registerScheduled(self, job, parentJob, threadName):
+        jobName = job.getName().lower()
+        self.jobCount += 1
         parentJobName = parentJob.getName().lower() if parentJob else ""
-        category = "jobs_" + currentThread().getName()
+        category = "jobs_" + threadName
         postfix = ", parent job " + parentJobName if parentJobName else "" 
-        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + ", thread = " + currentThread().getName() + postfix)
-        if jobName in self.systemJobNames or self.shouldUseJob(e.getJob()):
+        self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + ", thread = " + threadName + postfix)
+        if jobName in self.systemJobNames or self.shouldUseJob(job):
             self.logger.debug("Now using job name '" + jobName + "' for category '" + category + "'")
             self.jobNamesToUse[category] = jobName
             self.removeJobName(parentJobName)
@@ -63,14 +68,10 @@ class JobListener(JobChangeAdapter):
                 return eventName == self.appEventPrefix + parentJobName
             DisplayFilter.removeApplicationEvent(matchName)
 
-        # As soon as we can, we move to the back of the list
-        # The progress listener ends up after us in the queue otherwise, meaning we don't notice its changes were caused by the job
-        # Our jobCount is used for this purpose
-        if not e.getJob().isSystem():
-            Job.getJobManager().removeJobChangeListener(self)
-            Job.getJobManager().addJobChangeListener(self)
-            self.logger.debug("At back of list now")
-        self.jobCountLock.release()
+#        from storytext.javaswttoolkit.util import getPrivateField
+#        listeners = list(getPrivateField(getPrivateField(Job.getJobManager(), "jobListeners"), "global").getListeners())
+#        print "Listeners now", listeners
+
 
     def shouldUseJob(self, job):
         return not job.isSystem() or (self.customUsageMethod and self.customUsageMethod(job))
@@ -81,9 +82,19 @@ class JobListener(JobChangeAdapter):
                 self.logger.debug("Removing job name '" + jobName + "' for category '" + currCat + "'")
                 del self.jobNamesToUse[currCat]
                 return        
+
+    def enableListener(self):
+        self.jobCountLock.acquire()
+        self.logger.debug("Enabling Job Change Listener in thread " + currentThread().getName())
+        Job.getJobManager().addJobChangeListener(self)
+        startupJob = Job.getJobManager().currentJob()
+        self.registerScheduled(startupJob, parentJob=None, threadName="MainThread")
+        for job in Job.getJobManager().find(None):
+            if job is not startupJob:
+                self.registerScheduled(job, startupJob, threadName=job.getName())
+        self.jobCountLock.release()    
             
     @classmethod
     def enable(cls, *args):
         JobListener.instance = cls(*args)
-        cls.instance.logger.debug("Enabling Job Change Listener")
-        Job.getJobManager().addJobChangeListener(cls.instance)
+        cls.instance.enableListener()

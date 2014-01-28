@@ -41,11 +41,8 @@ public class Application implements IApplication, ITestHarness {
 		fTestableObject.setTestHarness(this);
 		if (app instanceof IApplication) {
 			fApplication = (IApplication) app;
-			Runnable setupRunnable = getRunnable("getTestSetupRunnable");
-			if (setupRunnable != null) 
-				setupRunnable.run();
 			Object ret = fApplication.start(context);
-			Runnable exitRunnable = getRunnable("getTestExitRunnable");
+			Runnable exitRunnable = Application.getRunnable("getTestExitRunnable");
 			if (exitRunnable != null) 
 				exitRunnable.run();
 			return ret;
@@ -107,7 +104,7 @@ public class Application implements IApplication, ITestHarness {
 		return defaultValue;
 	}
 	
-	private Runnable getRunnable(String methodName) throws ClassNotFoundException, IllegalArgumentException, SecurityException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
+	static Runnable getRunnable(String methodName) throws ClassNotFoundException, IllegalArgumentException, SecurityException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
 		Class storeClass = ClassLoader.getSystemClassLoader().loadClass("org.eclipse.swtbot.testscript.TestRunnableStore");
 		return (Runnable)storeClass.getMethod(methodName).invoke(null);
 	}
@@ -119,7 +116,7 @@ public class Application implements IApplication, ITestHarness {
 	public void runTests() {
 		fTestableObject.testingStarting();
 		try {
-			Runnable testRunnable = getRunnable("getTestRunnable");
+			Runnable testRunnable = Application.getRunnable("getTestRunnable");
 			if (testRunnable != null)
 				testRunnable.run();
 		} catch (Exception e) {

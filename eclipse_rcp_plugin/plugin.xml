@@ -11,5 +11,11 @@
          </run>
       </application>
    </extension>
+   <extension
+         point="org.eclipse.ui.startup">
+      <startup
+            class="org.eclipse.swtbot.testscript.StartupHook">
+      </startup>
+   </extension>
 
 </plugin>
