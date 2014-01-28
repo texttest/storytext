@@ -68,11 +68,6 @@ class JobListener(JobChangeAdapter):
                 return eventName == self.appEventPrefix + parentJobName
             DisplayFilter.removeApplicationEvent(matchName)
 
-#        from storytext.javaswttoolkit.util import getPrivateField
-#        listeners = list(getPrivateField(getPrivateField(Job.getJobManager(), "jobListeners"), "global").getListeners())
-#        print "Listeners now", listeners
-
-
     def shouldUseJob(self, job):
         return not job.isSystem() or (self.customUsageMethod and self.customUsageMethod(job))
             
