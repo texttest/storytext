@@ -2,11 +2,12 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Testscript
 Bundle-SymbolicName: org.eclipse.swtbot.testscript; singleton:=true
-Bundle-Version: 1.0.3.qualifier
+Bundle-Version: 1.0.4.qualifier
 Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.ui,
  org.eclipse.ui.forms,
  org.eclipse.swtbot.eclipse.finder;bundle-version="2.0.2",
- org.hamcrest
+ org.hamcrest,
+ org.eclipse.nebula.widgets.nattable.core;resolution:=optional
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Bundle-ClassPath: .

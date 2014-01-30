@@ -41,6 +41,9 @@ public class Application implements IApplication, ITestHarness {
 		fTestableObject.setTestHarness(this);
 		if (app instanceof IApplication) {
 			fApplication = (IApplication) app;
+			Runnable setupRunnable = Application.getRunnable("getTestSetupRunnable");
+			if (setupRunnable != null) 
+				setupRunnable.run();
 			Object ret = fApplication.start(context);
 			Runnable exitRunnable = Application.getRunnable("getTestExitRunnable");
 			if (exitRunnable != null) 

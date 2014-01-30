@@ -7,6 +7,7 @@ import storytext.guishared
 from storytext.javaswttoolkit.simulator import DisplayFilter
 from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
 from threading import Lock, currentThread
+from copy import copy
 
 class JobListener(JobChangeAdapter):
     # Add things from customwidgetevents here, if desired...
@@ -17,16 +18,16 @@ class JobListener(JobChangeAdapter):
     def __init__(self):
         self.jobNamesToUse = {}
         self.jobCount = 0
+        self.eventsSeenOtherListener = set()
         self.customUsageMethod = None
         self.jobCountLock = Lock()
         self.logger = logging.getLogger("Eclipse RCP jobs")
         
     def done(self, e):
-        storytext.guishared.catchAll(self.jobDone, e)
+        storytext.guishared.catchAll(self.lockAndCheck, e, self.__class__.jobDone)
         
     def jobDone(self, e):
         jobName = e.getJob().getName().lower()
-        self.jobCountLock.acquire()
         if self.jobCount > 0:
             self.jobCount -= 1
         self.logger.debug("Completed " + ("system" if e.getJob().isSystem() else "non-system") + " job '" + jobName + "' jobs = " + repr(self.jobCount))    
@@ -36,7 +37,6 @@ class JobListener(JobChangeAdapter):
         noScheduledJobs = self.jobCount == 0
         if noScheduledJobs and self.jobNamesToUse:
             self.setComplete()
-        self.jobCountLock.release()        
         
     def setComplete(self):
         for currCat, currJobName in self.jobNamesToUse.items():
@@ -45,18 +45,28 @@ class JobListener(JobChangeAdapter):
         self.jobNamesToUse = {}
 
     def scheduled(self, e):
-        storytext.guishared.catchAll(self.jobScheduled, e)
+        storytext.guishared.catchAll(self.lockAndCheck, e, self.__class__.registerScheduled)
         
-    def jobScheduled(self, e):
+    def lockAndCheck(self, e, func):
         self.jobCountLock.acquire()
-        parentJob = Job.getJobManager().currentJob()
-        self.registerScheduled(e.getJob(), parentJob, currentThread().getName())
+        if e not in self.eventsSeenOtherListener:
+            if self is self.instance:
+                func(self, e)
+            else:
+                self.logger.debug("This event received during transfer, using other listener")
+                self.instance.eventsSeenOtherListener.add(e)
+                func(self.instance, e)
+        else:
+            self.logger.debug("Event previously handled during transfer, discarding")
         self.jobCountLock.release()
 
-    def registerScheduled(self, job, parentJob, threadName):
+    def registerScheduled(self, event):
+        job = event.getJob()
+        parentJob = Job.getJobManager().currentJob()
         jobName = job.getName().lower()
         self.jobCount += 1
         parentJobName = parentJob.getName().lower() if parentJob else ""
+        threadName = currentThread().getName()
         category = "jobs_" + threadName
         postfix = ", parent job " + parentJobName if parentJobName else "" 
         self.logger.debug("Scheduled job '" + jobName + "' jobs = " + repr(self.jobCount) + ", thread = " + threadName + postfix)
@@ -67,7 +77,7 @@ class JobListener(JobChangeAdapter):
             def matchName(eventName, delayLevel):
                 return eventName == self.appEventPrefix + parentJobName
             DisplayFilter.removeApplicationEvent(matchName)
-
+            
     def shouldUseJob(self, job):
         return not job.isSystem() or (self.customUsageMethod and self.customUsageMethod(job))
             
@@ -79,17 +89,23 @@ class JobListener(JobChangeAdapter):
                 return        
 
     def enableListener(self):
-        self.jobCountLock.acquire()
         self.logger.debug("Enabling Job Change Listener in thread " + currentThread().getName())
         Job.getJobManager().addJobChangeListener(self)
-        startupJob = Job.getJobManager().currentJob()
-        self.registerScheduled(startupJob, parentJob=None, threadName="MainThread")
-        for job in Job.getJobManager().find(None):
-            if job is not startupJob:
-                self.registerScheduled(job, startupJob, threadName=job.getName())
+        
+    def transferListener(self):
+        self.jobCountLock.acquire()
+        # We need to be after all the application's code reacting to the job, so we truly respond when it's finished
+        self.logger.debug("Transferring Job Change Listener in thread " + currentThread().getName())
+        newListener = copy(self)
+        JobListener.instance = newListener
+        Job.getJobManager().addJobChangeListener(newListener)
+        Job.getJobManager().removeJobChangeListener(self)
         self.jobCountLock.release()    
             
     @classmethod
     def enable(cls, *args):
-        JobListener.instance = cls(*args)
-        cls.instance.enableListener()
+        if cls.instance:
+            cls.instance.transferListener()
+        else:
+            JobListener.instance = cls(*args)
+            cls.instance.enableListener()

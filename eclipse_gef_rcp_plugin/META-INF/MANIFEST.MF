@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Gef Testscript
 Bundle-SymbolicName: org.eclipse.swtbot.gef.testscript; singleton:=true
-Bundle-Version: 1.0.3.qualifier
+Bundle-Version: 1.0.4.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Require-Bundle: org.eclipse.ui,
  org.eclipse.ui.ide,
@@ -10,4 +10,5 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ui.forms,
  org.eclipse.gef,
  org.eclipse.swtbot.eclipse.gef.finder,
- org.hamcrest
+ org.hamcrest,
+ org.eclipse.nebula.widgets.nattable.core;resolution:=optional
