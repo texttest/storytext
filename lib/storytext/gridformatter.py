@@ -89,3 +89,35 @@ class GridFormatter:
                     currPos += colWidths[colNum]
                 lines.append(lineText.rstrip(" ")) # don't leave trailing spaces
         return "\n".join(lines)
+    
+class GridFormatterWithHeader:
+    def __init__(self, headerRows, rows, columnCount, minWidths={}):
+        self.headerRows = headerRows
+        self.rows = rows
+        self.columnCount = columnCount
+        self.minFieldWidths = minWidths
+
+    def __str__(self):
+        colWidths = GridFormatter(self.headerRows + self.rows, self.columnCount, allowOverlap=False).findColumnWidths()
+        self.adjustForMinFieldWidths(colWidths)
+        header = GridFormatter(self.headerRows, self.columnCount).formatCellsInGrid(colWidths)
+        body = GridFormatter(self.rows, self.columnCount).formatCellsInGrid(colWidths)
+        line = "_" * sum(colWidths) + "\n"
+        return self.formatWithSeparators(header, body, line)
+
+    def adjustForMinFieldWidths(self, colWidths):
+        for i, columnName in enumerate(self.headerRows[0]):
+            minWidth = self.getMinFieldWidth(columnName)
+            if minWidth is not None and minWidth > colWidths[i]:
+                colWidths[i] = minWidth
+                
+    def getMinFieldWidth(self, columnName):
+        if columnName in self.minFieldWidths:
+            return self.minFieldWidths[columnName]
+        elif "(" in columnName:
+            return self.minFieldWidths.get(columnName.split("(")[0])
+        
+    @staticmethod
+    def formatWithSeparators(header, body, line):
+        return line + header + "\n" + line + body + "\n" + line
+

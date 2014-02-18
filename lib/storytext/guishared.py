@@ -4,7 +4,7 @@ stuff also applicable even without this """
 
 import scriptengine, replayer, definitions, encodingutils
 import os, sys, logging, subprocess, time, re
-from gridformatter import GridFormatter
+from gridformatter import GridFormatter, GridFormatterWithHeader
 from itertools import izip
 from random import choice
 
@@ -1347,12 +1347,8 @@ class Describer(object):
             return ""
 
         if headerRows:
-            colWidths = GridFormatter(headerRows + rows, columnCount, allowOverlap=False).findColumnWidths()
-            self.adjustForMinFieldWidths(colWidths, headerRows[0])
-            header = GridFormatter(headerRows, columnCount).formatCellsInGrid(colWidths)
-            body = GridFormatter(rows, columnCount).formatCellsInGrid(colWidths)
-            line = "_" * sum(colWidths) + "\n"
-            return self.formatWithSeparators(header, body, line)
+            formatter = GridFormatterWithHeader(headerRows, rows, columnCount, self.minFieldWidths)
+            return str(formatter)
         else:
             formatter = GridFormatter(rows, columnCount, allowOverlap=False)
             colWidths = formatter.findColumnWidths()
@@ -1360,21 +1356,6 @@ class Describer(object):
             line = "_" * sum(colWidths) + "\n"
             return line + body + "\n" + line
         
-    def adjustForMinFieldWidths(self, colWidths, headerRow):
-        for i, columnName in enumerate(headerRow):
-            minWidth = self.getMinFieldWidth(columnName)
-            if minWidth is not None and minWidth > colWidths[i]:
-                colWidths[i] = minWidth
-                
-    def getMinFieldWidth(self, columnName):
-        if columnName in self.minFieldWidths:
-            return self.minFieldWidths[columnName]
-        elif "(" in columnName:
-            return self.minFieldWidths.get(columnName.split("(")[0])
-        
-    def formatWithSeparators(self, header, body, line):
-        return line + header + "\n" + line + body + "\n" + line
-
     def shouldDescribeChildren(self, widget):
         return hasattr(widget, self.childrenMethodName) and not isinstance(widget, self.ignoreChildren) and self.describeClass(widget.__class__.__name__)
 

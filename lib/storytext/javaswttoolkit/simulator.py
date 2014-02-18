@@ -1340,10 +1340,8 @@ class BrowserUpdateMonitor(swt.browser.ProgressListener):
         storytext.guishared.catchAll(self.onCompleted, e)
         
     def onCompleted(self, e):
-        self.sendApplicationEvent(self.widget.getNameForAppEvent() + " to finish loading", "browser")
+        DisplayFilter.registerApplicationEvent(self.widget.getNameForAppEvent() + " to finish loading", "browser")
 
-    def sendApplicationEvent(self, *args):
-        applicationEvent(*args)
 
 class EventPoster:
     def __init__(self, display):

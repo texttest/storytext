@@ -648,7 +648,7 @@ class Describer(storytext.guishared.Describer):
             return url
         # Ignore non-breaking spaces, they are invisible anyway
         # Webkit returns them in invalid format without the semicolons... handle that too.
-        text = widget.getText().replace(u"\xa0", " ").replace("&nbsp;", " ").replace("&nbsp", " ")
+        text = widget.getText().replace(u"\xa0", " ")
         return BrowserHtmlParser().parse(text)
         
     def getUpdatePrefix(self, widget, oldState, state):
