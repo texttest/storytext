@@ -157,9 +157,9 @@ class ReplayScript(object):
                 break
         return comments
 
-    def getCommands(self, args):
+    def getCommands(self, args, matching=[]):
         commands = self.extractAllComments()
-        command = self.getCommand(args)
+        command = self.getCommand(args, matching)
         if command is None:
             return commands
         
@@ -299,11 +299,15 @@ class UseCaseReplayer:
 
     def runScript(self, script, arguments, enableReading):
         if self.shortcutManager.shortcuts:
-            scriptCommand = script.getCommand(arguments, matching=self.shortcutManager.getRegexps())
-            if scriptCommand:
-                newScript, args = self.shortcutManager.findShortcut(scriptCommand)
+            scriptCommands = script.getCommands(arguments, matching=self.shortcutManager.getRegexps())
+            if scriptCommands:
+                while ReplayScript.isComment(scriptCommands[0]):
+                    self.handleComment(scriptCommands[0])
+                    scriptCommands.pop(0)
+
+                newScript, args = self.shortcutManager.findShortcut(scriptCommands[0])
                 self.logger.debug("Found initial shortcut '" + newScript.getShortcutName() + "' with args " + repr(args))
-                if self.addScript(newScript, args, enableReading):
+                if self.addShortcutWithWaits(newScript, args, scriptCommands, enableReading):
                     return
             
         if enableReading and self.processInitialWait(script):
@@ -427,6 +431,16 @@ class UseCaseReplayer:
     def handleComment(self, comment):
         self.recorder.storeComment(comment)
 
+    def addShortcutWithWaits(self, script, arguments, commands, enableReading=False):
+        self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
+        if commands[-1].startswith(waitCommandName):
+            self.logger.debug("Adding wait command '" + commands[-1] + "' to the end of a copy of the shortcut file")
+            scriptCopy = copy(script)
+            scriptCopy.addWaitCommand(commands[-1])
+            return self.addScript(scriptCopy, arguments, enableReading)
+        else:
+            return self.addScript(script, arguments, enableReading)
+        
     def runNextCommand(self, **kw):
         if self.timeDelayNextCommand:
             self.logger.debug("Sleeping for " + repr(self.timeDelayNextCommand) + " seconds...")
@@ -443,17 +457,7 @@ class UseCaseReplayer:
             
             script, arguments = self.shortcutManager.findShortcut(command)
             if script:
-                if self.isNonRecursive(script):
-                    self.logger.debug("Found shortcut '" + script.getShortcutName() + "' adding to list of script")
-                    if commands[-1].startswith(waitCommandName):
-                        self.logger.debug("Adding wait command '" + commands[-1] + "' to the end of a copy of the shortcut file")
-                        scriptCopy = copy(script)
-                        scriptCopy.addWaitCommand(commands[-1])
-                        self.addScript(scriptCopy, arguments)
-                    else:
-                        self.addScript(script, arguments)
-                else:
-                    self.writeRecursiveError(script, arguments)
+                self.addShortcutWithWaits(script, arguments, commands)
                 return self.runNextCommand(**kw)
             else:
                 #  Add a delimiter to show that we've replayed something else
