@@ -8,12 +8,9 @@ import org.eclipse.swtbot.eclipse.gef.finder as gefbot
 from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
 from org.eclipse.jface.viewers import ISelectionChangedListener
 from org.eclipse.ui.internal import EditorReference
-# Force classloading in the test thread where it works...
-from org.eclipse.draw2d.geometry import Insets #@UnusedWildImport
-from org.eclipse.draw2d import * #@UnusedWildImport
-from org.eclipse.gef import *
+from org.eclipse.draw2d.geometry import Insets
 import storytext.guishared
-from org.eclipse import swt
+from org.eclipse import swt, gef, draw2d
 import time, logging
 
 class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
@@ -233,7 +230,7 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
 
 class DisplayFilter(rcpsimulator.DisplayFilter):
     def shouldCheckWidget(self, widget, eventType):
-        if isinstance(widget, FigureCanvas):
+        if isinstance(widget, draw2d.FigureCanvas):
             return True
         else:
             return rcpsimulator.DisplayFilter.shouldCheckWidget(self, widget, eventType)
@@ -242,7 +239,7 @@ class DisplayFilter(rcpsimulator.DisplayFilter):
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
-        self.swtbotMap[GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
+        self.swtbotMap[gef.GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
         self.logger = logging.getLogger("storytext record")
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
         StoryTextSWTBotGefViewer.widgetMonitor = self

@@ -2,6 +2,8 @@
 import storytext.guishared, util, types, logging, sys, os
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
+# Some unused imports to make sure classloader loads necessary classes
+from org.eclipse.swt.layout import GridLayout, FillLayout, FormLayout, RowLayout  #@UnusedImport
 from org.eclipse import swt
 from browserhtmlparser import BrowserHtmlParser
 from java.util import Date
@@ -35,7 +37,6 @@ class ColorNameFinder:
                     self.names[rgb] = prefix + nameToUse
             
     def applyModifier(self, modifier, color):
-        # Handle classloader problems
         try:
             return modifier(color)
         except:

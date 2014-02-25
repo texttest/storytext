@@ -134,7 +134,7 @@ def getPrivateField(obj, fieldName):
         except NoSuchFieldException:
             cls = cls.getSuperclass()
             
-def callPrivateMethod(obj, methodName, argList=None, argTypeList=None):
+def callPrivateMethod(obj, methodName, argList=[], argTypeList=[]):
     cls = obj.getClass()
     argTypeList = argTypeList if argTypeList or not argList else [ arg.getClass() for arg in argList ] 
     while True:

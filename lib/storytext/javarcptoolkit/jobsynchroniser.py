@@ -22,7 +22,7 @@ class JobListener(JobChangeAdapter):
         self.customUsageMethod = None
         self.jobCountLock = Lock()
         self.logger = logging.getLogger("Eclipse RCP jobs")
-        
+
     def done(self, e):
         storytext.guishared.catchAll(self.lockAndCheck, e, self.__class__.jobDone)
         
@@ -101,7 +101,7 @@ class JobListener(JobChangeAdapter):
         Job.getJobManager().addJobChangeListener(newListener)
         Job.getJobManager().removeJobChangeListener(self)
         self.jobCountLock.release()    
-            
+
     @classmethod
     def enable(cls, *args):
         if cls.instance:

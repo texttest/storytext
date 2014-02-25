@@ -7,16 +7,8 @@ import storytext.guishared
 from storytext.definitions import UseCaseScriptError
 import org.eclipse.swtbot.eclipse.finder as swtbot
 from org.eclipse.ui import PlatformUI, IPartListener, IPropertyListener, IWorkbenchPartConstants
-
-# If classes get mentioned for the first time in the event dispatch thread, they will get the wrong classloader
-# So we load everything we'll ever need here, once, where we know what the classloader is
-from org.eclipse.swt.widgets import * #@UnusedWildImport
-from org.eclipse.swt.custom import * #@UnusedWildImport
-from org.eclipse.swt.dnd import * #@UnusedWildImport
-from org.eclipse.swt.layout import * #@UnusedWildImport
-from org.eclipse.swtbot.swt.finder.finders import * #@UnusedWildImport
+from org.eclipse import swt
 from org.eclipse.ui.dialogs import FilteredTree
-from org.eclipse.swt.widgets import Event
 from org.eclipse.swt import SWT
 from org.eclipse.ui.forms.widgets import ExpandableComposite
 from org.eclipse.ui.forms.events import ExpansionAdapter
@@ -29,7 +21,7 @@ class WidgetAdapter(swtsimulator.WidgetAdapter):
     swtsimulator.WidgetAdapter.secondaryIdentifiers.append("View")
     def getViewWidget(self):
         widget = self.widget.widget
-        if isinstance(widget, MenuItem):
+        if isinstance(widget, swt.widgets.MenuItem):
             return swtsimulator.runOnUIThread(util.getRootMenu, widget)
         else:
             return widget
@@ -89,7 +81,7 @@ class DisplayFilter(swtsimulator.DisplayFilter):
         # This field changes its contents the whole time depending on which window is in focus
         # causing trouble for the recorder.
         # It's part of the Eclipse platform so testing it is usually not interesting.
-        return isinstance(widget, Text) and widget.getParent() is not None and \
+        return isinstance(widget, swt.widgets.Text) and widget.getParent() is not None and \
             isinstance(widget.getParent().getParent(), FilteredTree)
 
 
@@ -171,7 +163,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.monitorViewContentsMenus(botView)
         
     def sendShowEvent(self, menu):
-        menu.notifyListeners(SWT.Show, Event())
+        menu.notifyListeners(SWT.Show, swt.widgets.Event())
         
     def monitorViewMenus(self, botView):
         ref = botView.getViewReference()
@@ -187,7 +179,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     def monitorViewContentsMenus(self, botView):
         pass
     
-class KeyBindingListener(Listener):
+class KeyBindingListener(swt.widgets.Listener):
     def __init__(self):
         self.bindings = {}
         self.listening = False
@@ -420,9 +412,9 @@ class RCPCTabCloseEvent(swtsimulator.CTabCloseEvent):
     disposeFilter = None
     def connectRecord(self, method):
         swtsimulator.CTabCloseEvent.connectRecord(self, method)
-        class DisposeFilter(Listener):
+        class DisposeFilter(swt.widgets.Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                if isinstance(e.widget, CTabItem):
+                if isinstance(e.widget, swt.custom.CTabItem):
                     self.disposedTabs[e.widget] = e.widget.getText()
                     
         if not self.disposeFilter:

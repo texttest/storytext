@@ -2,6 +2,9 @@
 from storytext.javaswttoolkit import describer as swtdescriber
 from storytext import guishared, gridformatter
 import util
+# Some unused imports to make sure classloader loads necessary classes
+from org.eclipse.draw2d import FigureCanvas #@UnusedImport
+from org.eclipse.draw2d.geometry import Rectangle #@UnusedImport
 import org.eclipse.draw2d as draw2d
 from org.eclipse import swt
 

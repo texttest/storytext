@@ -264,9 +264,9 @@ class RadioSelectEvent(SelectEvent):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
 
     def getSelectedButton(self):
-        method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", None)
+        method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", [])
         method.setAccessible(True)
-        return method.invoke(self.widget.widget, None)
+        return method.invoke(self.widget.widget, [])
         
     def _generate(self, *args):
         if self.widget.isInstanceOf(swtbot.widgets.SWTBotRadio):
