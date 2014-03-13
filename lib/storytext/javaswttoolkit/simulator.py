@@ -183,6 +183,12 @@ class SignalEvent(storytext.guishared.GuiEvent):
     def addListeners(self, *args):
         # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
         return self.widget.widget.widget.addListener(*args)
+    
+    def addFilter(self, *args):
+        self.widget.widget.widget.getDisplay().addFilter(*args)
+    
+    def removeFilter(self, *args):
+        self.widget.widget.widget.getDisplay().removeFilter(*args)
 
     def generate(self, *args):
         try:
@@ -361,13 +367,7 @@ class DropDownSelectionEvent(SelectEvent):
                 self.addFilter(swt.SWT.Selection, RecordFilter())
                 
         SelectEvent.connectRecord(self, arrowClicked)
-        
-    def addFilter(self, *args):
-        self.widget.widget.widget.getDisplay().addFilter(*args)
-    
-    def removeFilter(self, *args):
-        self.widget.widget.widget.getDisplay().removeFilter(*args)
-        
+
     def shouldRecord(self, *args):
         return True # Never going to get these programmatically, don't bother...
     
@@ -428,11 +428,7 @@ class CTabCloseEvent(TabEvent):
     @classmethod
     def getRecordEventType(cls):
         return getattr(swt.SWT, cls.getAssociatedSignal(None))
-        
-    def addListeners(self, *args):
-        # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
-        return self.widget.widget.widget.addListener(*args)
-    
+
     def _generate(self, tab):
         # swtbot.widgets.SWTBotCTabItem(tab).close() unfortunately seems to create additional activate and selection events
         self.simulate(tab)
@@ -548,9 +544,14 @@ class SpinnerSelectEvent(StateChangeEvent):
     def _generate(self, argument):
         self.widget.setSelection(argument)
 
+class PhysicalEventListener(swt.widgets.Listener):
+    def handleEvent(listenerSelf, e): #@NoSelf
+        TextEvent.physicalEventWidget = e.widget
+
     
 class TextEvent(StateChangeEvent):
     physicalEventWidget = None
+    physicalEventListener = None
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
         self.stateText = self.getStateText()
@@ -561,13 +562,10 @@ class TextEvent(StateChangeEvent):
     
     def connectRecord(self, method):
         StateChangeEvent.connectRecord(self, method)
-        if self.isTyped():
-            class PhysicalEventListener(swt.widgets.Listener):
-                def handleEvent(listenerSelf, e): #@NoSelf
-                    TextEvent.physicalEventWidget = e.widget
-
-            runOnUIThread(self.addListeners, swt.SWT.KeyDown, PhysicalEventListener())
-            runOnUIThread(self.addListeners, swt.SWT.MouseDown, PhysicalEventListener())
+        if self.isTyped() and not TextEvent.physicalEventListener:
+            TextEvent.physicalEventListener = PhysicalEventListener()
+            runOnUIThread(self.addFilter, swt.SWT.KeyDown, TextEvent.physicalEventListener)
+            runOnUIThread(self.addFilter, swt.SWT.MouseDown, TextEvent.physicalEventListener)
         
     def parseArguments(self, text):
         return text
