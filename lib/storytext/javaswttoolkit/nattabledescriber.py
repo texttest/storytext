@@ -11,7 +11,7 @@ class CanvasDescriber(util.CanvasDescriber):
     def canDescribe(cls, widget):
         return isinstance(widget, nattable.NatTable)
             
-    def addRowData(self, rowPos, rowToAddTo, converters, prevRowSpans):
+    def addRowData(self, rowPos, rowToAddTo, prevRowSpans):
         prevColSpans = set()
         for col in range(self.canvas.getColumnCount()):
             dataStr = ""
@@ -20,7 +20,7 @@ class CanvasDescriber(util.CanvasDescriber):
                 cell = self.canvas.getCellByPosition(col, rowPos)
                 if not self.cellIsLaterSpan(cell, rowPos, col, prevRowSpans, prevColSpans):
                     labels = cell.getConfigLabels().getLabels()
-                    converter = self.findConverter(converters, labels)
+                    converter = self.findConverter(labels)
                     dataStr = converter.canonicalToDisplayValue(data)
                 
                     displayMode = self.canvas.getDisplayModeByPosition(col, rowPos)
@@ -50,42 +50,22 @@ class CanvasDescriber(util.CanvasDescriber):
                 return row
         return self.canvas.getRowCount()
         
-    def findConverter(self, converters, labels):
-        for converterMap in converters:
-            for label in labels:
-                converter = converterMap.get(label)
-                if converter:
-                    return converter
-        return converters[0].get(None)
-    
-    def getAllConverters(self):
-        # The correct code is commented out here. Like much else, this fails due to classloader clashes
-        # return self.canvas.getConfigRegistry().getConfigAttribute(nattable.config.CellConfigAttributes.DISPLAY_CONVERTER,  
-        #                nattable.style.DisplayMode.NORMAL, [])
-        # With this code, we can't tell the difference between DISPLAY_CONVERTER and FILTER_DISPLAY_CONVERTER. So we send both along
-        # and hope for the best
-        registryMap = util.getPrivateField(self.canvas.getConfigRegistry(), "configRegistry")
-        converters = []
-        for obj in registryMap.values():
-            normalData = obj.get(nattable.style.DisplayMode.NORMAL)
-            storedObject = normalData.get(None)
-            if hasattr(storedObject, "canonicalToDisplayValue"):
-                converters.append(normalData)
-        return converters
-        
+    def findConverter(self, labels):
+        return self.canvas.getConfigRegistry().getConfigAttribute(nattable.config.CellConfigAttributes.DISPLAY_CONVERTER,  
+                                                                  nattable.style.DisplayMode.NORMAL, labels)
+            
     def getCanvasDescription(self, *args):
         desc = "Table :\n"
         dataRows = []
         headerRows = []
-        converters = self.getAllConverters()
         dataStartPos = self.findDataStartPosition()
         rowSpans = set()
         for rowPos in range(0, dataStartPos):
             headerRows.append([])
-            self.addRowData(rowPos, headerRows[-1], converters, rowSpans)
+            self.addRowData(rowPos, headerRows[-1], rowSpans)
         for rowPos in range(dataStartPos, self.canvas.getRowCount()):
             dataRows.append([])
-            self.addRowData(rowPos, dataRows[-1], converters, rowSpans)
+            self.addRowData(rowPos, dataRows[-1], rowSpans)
                 
         return desc + self.formatTableMultilineHeader(headerRows, dataRows, max(1, self.canvas.getColumnCount()))
 

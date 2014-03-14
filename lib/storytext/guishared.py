@@ -1754,13 +1754,16 @@ class TextLabelFinder:
     def getContextParentClasses(self):
         return ()
     
+    def getOutputClassName(self, parent):
+        return parent.__class__.__name__
+
     def find(self, useContext=False):
         """ Text widgets often are preceeded by a label, use this as their text, if it exists """
         parent = self.widget.getParent()
         # Tables etc, should not look for labels outside them
         if parent:
             if isinstance(parent, self.getContextParentClasses()):
-                return parent.__class__.__name__ + " Cell Editor" if useContext else ""
+                return self.getOutputClassName(parent) + " Cell Editor" if useContext else ""
             children = self.getChildren(parent)
             if self.widget in children: # can't assume this, for example window-type objects often have a parent, but are not one of its children
                 if children.index(self.widget) == 0 and self.numRows(children, parent) <= 1: # If we're the first child of our parent, look for the parent in its context

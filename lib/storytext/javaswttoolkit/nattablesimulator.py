@@ -228,14 +228,14 @@ class WidgetMonitor(simulator.WidgetMonitor):
     def handleReplayFailure(self, errorText, events):
         if "Could not find row identified by" in errorText:
             for event in events:
-                viewportLayer = event.getViewportLayer()
-                if viewportLayer:
-                    event.widget.widget.scrollToY(viewportLayer, 200)
+                if hasattr(event, "getViewportLayer"):
+                    viewportLayer = event.getViewportLayer()
+                    if viewportLayer:
+                        event.widget.widget.scrollToY(viewportLayer, 200)
         simulator.WidgetMonitor.handleReplayFailure(self, errorText, events)
 
-util.classLoaderFail.add(nattable.NatTable)
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
-util.cellParentData.append((nattable.NatTable, "NatTableCell"))
+util.cellParentData[nattable.NatTable] = "NatTableCell", "Table"
 
 customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableCellDoubleClickEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent,
                                               NatTableCellContextEvent, NatTableRowContextEvent, NatTableColumnContextEvent, NatTableCornerContextEvent ]) ]

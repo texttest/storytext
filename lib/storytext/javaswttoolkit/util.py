@@ -5,6 +5,10 @@ from java.text import SimpleDateFormat
 import storytext.guishared
 from java.lang import NoSuchMethodException, NoSuchFieldException
 
+cellParentData = { swt.widgets.Table : ("TableCell", "Table"), 
+                   swt.widgets.Tree  : ("TreeCell", "Tree") }
+ignoreLabels = []
+
 def getRealUrl(browser):
     url = browser.getUrl()
     return url if url != "about:blank" else ""
@@ -15,7 +19,12 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
     
     def getContextParentClasses(self):
         # Don't look for labels outside these if they are parent classes
-        return swt.widgets.Tree, swt.widgets.Table
+        return tuple(cellParentData.keys())
+    
+    def getOutputClassName(self, widget):
+        for cls, data in cellParentData.items():
+            if isinstance(widget, cls):
+                return data[1]
     
     def getChildren(self, widget):
         return widget.getChildren() if hasattr(widget, "getChildren") else []
@@ -56,10 +65,6 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
             currIndex += span
         return rows + 1
 
-cellParentData = [ (swt.widgets.Table, "TableCell"), 
-                   (swt.widgets.Tree,  "TreeCell") ]
-
-ignoreLabels = []
 def getTextLabel(widget, **kw):
     return TextLabelFinder(widget, ignoreLabels).find(**kw)
 
@@ -146,11 +151,4 @@ def callPrivateMethod(obj, methodName, argList=[], argTypeList=[]):
             cls = cls.getSuperclass()
             if cls is None:
                 raise
-            
-def isinstance_any_classloader(obj, cls):
-    # Obviously this should check base classes too somehow, but we don't need that right now
-    return obj.__class__.__name__ == cls.__name__
-            
-classLoaderFail = set()
-def isinstance_check_classloader(obj, cls):
-    return isinstance_any_classloader(obj, cls) if cls in classLoaderFail else isinstance(obj, cls) 
+                        

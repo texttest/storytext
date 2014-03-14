@@ -140,9 +140,9 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         if isinstance(parent, swt.widgets.Menu):
             return self.getMenuContextNameFromAncestor(parent)
         else:
-            for className, contextName in util.cellParentData:
-                if util.isinstance_check_classloader(parent, className):
-                    return contextName
+            for className, data in util.cellParentData.items():
+                if isinstance(parent, className):
+                    return data[0]
             return ""
         
     def checkMenuVisible(self):
@@ -1297,7 +1297,7 @@ class DisplayFilter:
         if not util.isVisible(widget):
             return False
         for cls, types in self.widgetEventTypes:
-            if util.isinstance_check_classloader(widget, cls) and eventType in types and not self.hasComplexAncestors(widget):
+            if isinstance(widget, cls) and eventType in types and not self.hasComplexAncestors(widget):
                 return True
         return False
 
@@ -1670,7 +1670,7 @@ class WidgetMonitor:
     @classmethod
     def makeAdapter(cls, widget):
         for widgetClass in cls.swtbotMap.keys():
-            if util.isinstance_check_classloader(widget, widgetClass):
+            if isinstance(widget, widgetClass):
                 swtbotClass = cls.findSwtbotClass(widget, widgetClass)
                 try:
                     return WidgetAdapter.adapt(swtbotClass(widget))
