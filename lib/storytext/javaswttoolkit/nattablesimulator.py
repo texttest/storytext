@@ -4,12 +4,13 @@
 from storytext.javaswttoolkit import simulator
 from storytext.definitions import UseCaseScriptError
 from org.eclipse.nebula.widgets import nattable
+from org.eclipse.nebula.widgets.nattable.grid.layer import GridLayer
+from org.eclipse.nebula.widgets.nattable.viewport import ViewportLayer
 import org.eclipse.swtbot.swt.finder as swtbot
 from simulator import WidgetMonitor
 import util
 from org.eclipse import swt
-                
-        
+
 class NatTableIndexer(simulator.TableIndexer):
     def __init__(self, table):
         self.setOffsets(table)
@@ -18,13 +19,17 @@ class NatTableIndexer(simulator.TableIndexer):
 
     def setOffsets(self, table):
         lastRow = table.getRowCount() - 1
-        self.rowOffset = lastRow - table.getRowIndexByPosition(lastRow)
+        self.rowOffset = lastRow - simulator.runOnUIThread(table.getRowIndexByPosition,lastRow)
         lastColumn = table.getColumnCount() - 1
         self.colOffset = lastColumn - table.getColumnIndexByPosition(lastColumn)
         
     def rebuildCache(self):
         self.setOffsets(self.widget)
         simulator.TableIndexer.rebuildCache(self)
+
+
+    def checkNameCache(self):
+        self.rebuildCache()
     
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
@@ -63,12 +68,16 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
         self.eventPoster = simulator.EventPoster(self.display)
         
     def clickOnCenter(self, row, col, clickCount, button):
-        bounds = self.widget.getBoundsByPosition(col, row)
+        bounds = simulator.runOnUIThread(self.widget.getBoundsByPosition, col, row)
         x = util.getInt(bounds.x) + util.getInt(bounds.width) / 2
         y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
         displayLoc = simulator.runOnUIThread(self.display.map, self.widget, None, x, y)
         self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y, count=clickCount, button=button)
-        
+
+    def scrollToY(self, layer, offset):
+        yCoord = layer.getOrigin().getY()
+        simulator.runOnUIThread(layer.setOriginY, yCoord + offset)
+
 class InstantMenuDescriber(swt.widgets.Listener):
     def __init__(self, widget):
         self.widget = widget
@@ -113,7 +122,21 @@ class NatTableEventHelper:
     def mouseButton(self):
         return 1
     
+    def getViewportLayer(self):
+        topLayer = self.widget.widget.widget.getLayer()
+        if isinstance(topLayer, nattable.grid.layer.GridLayer):
+            return self.findViewport(topLayer.getBodyLayer())
+        else:
+            return self.findViewport(topLayer)
     
+    def findViewport(self, layer):
+        if layer is None:
+            return
+        elif isinstance(layer, nattable.viewport.ViewportLayer):
+            return layer
+        else:
+            return self.findViewport(layer.getUnderlyingLayerByPosition(0,0))
+        
 class ContextEventHelper:
     def mouseButton(self):
         return 3
@@ -200,6 +223,15 @@ class NatTableCornerContextEvent(ContextEventHelper, NatTableEventHelper, simula
     
     def parseArguments(self, argumentString):
         return 0, 0
+
+class WidgetMonitor(simulator.WidgetMonitor):
+    def handleReplayFailure(self, errorText, events):
+        if "Could not find row identified by" in errorText:
+            for event in events:
+                viewportLayer = event.getViewportLayer()
+                if viewportLayer:
+                    event.widget.widget.scrollToY(viewportLayer, 200)
+        simulator.WidgetMonitor.handleReplayFailure(self, errorText, events)
 
 util.classLoaderFail.add(nattable.NatTable)
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])

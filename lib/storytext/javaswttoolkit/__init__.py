@@ -68,7 +68,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
             self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
 
     def getMonitorClass(self):
-        return self.importClass("WidgetMonitor", [ "customwidgetevents", self.__class__.__module__ + ".simulator" ])
+        return self.importClass("WidgetMonitor", [ "customwidgetevents", "storytext.javaswttoolkit.nattablesimulator", self.__class__.__module__ + ".simulator" ], "nebula")
 
     def setUpMonitoring(self):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils

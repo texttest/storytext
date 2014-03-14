@@ -1,13 +1,15 @@
 
 """ Module for handling Nebula's NatTable, if present """
 
+from org.eclipse.nebula.widgets.nattable.config import CellConfigAttributes
+from org.eclipse.nebula.widgets.nattable.style import DisplayMode
 from org.eclipse.nebula.widgets import nattable
 import util
 
 class CanvasDescriber(util.CanvasDescriber):
     @classmethod
     def canDescribe(cls, widget):
-        return util.isinstance_any_classloader(widget, nattable.NatTable)
+        return isinstance(widget, nattable.NatTable)
             
     def addRowData(self, rowPos, rowToAddTo, converters, prevRowSpans):
         prevColSpans = set()
@@ -86,3 +88,4 @@ class CanvasDescriber(util.CanvasDescriber):
             self.addRowData(rowPos, dataRows[-1], converters, rowSpans)
                 
         return desc + self.formatTableMultilineHeader(headerRows, dataRows, max(1, self.canvas.getColumnCount()))
+
