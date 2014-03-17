@@ -73,7 +73,14 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
     def scrollToY(self, layer, offset):
         yCoord = layer.getOrigin().getY()
         simulator.runOnUIThread(layer.setOriginY, yCoord + offset)
-
+        
+    def checkRowInViewport(self, row):
+        clientAreaHeight = simulator.runOnUIThread(self.widget.getClientArea).height
+        bounds = simulator.runOnUIThread(self.widget.getBoundsByPosition, 0, row)
+        y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
+        if y > clientAreaHeight:
+            raise UseCaseScriptError, "Could not select row, it is outside the viewport"
+        
 class InstantMenuDescriber(swt.widgets.Listener):
     def __init__(self, widget):
         self.widget = widget
@@ -139,6 +146,11 @@ class NatTableEventHelper:
         else:
             return self.findViewport(layer.getUnderlyingLayerByPosition(0,0))
         
+    def parseArguments(self, description):
+        row, col = simulator.TableSelectEvent.parseArguments(self, description)
+        self.widget.checkRowInViewport(row)
+        return row, col
+        
 class ContextEventHelper:
     def mouseButton(self):
         return 3
@@ -160,7 +172,7 @@ class NatTableCellSelectEvent(NatTableCellEventHelper, simulator.TableSelectEven
     
 class NatTableCellDoubleClickEvent(NatTableCellEventHelper, simulator.TableDoubleClickEvent):
     pass
-    
+
 class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
     @classmethod
     def getAssociatedSignatures(cls, widget):
@@ -176,7 +188,7 @@ class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
         return self.getIndexer().getRowName(rowNum)
     
     def parseArguments(self, description):
-        row, _ = simulator.TableSelectEvent.parseArguments(self, description)
+        row, _ = NatTableEventHelper.parseArguments(self, description)
         return row, 0 
         
 
@@ -228,7 +240,7 @@ class NatTableCornerContextEvent(ContextEventHelper, NatTableEventHelper, simula
 
 class WidgetMonitor(simulator.WidgetMonitor):
     def handleReplayFailure(self, errorText, events):
-        if "Could not find row identified by" in errorText:
+        if "Could not find row identified by" in errorText or "outside the viewport" in errorText:
             for event in events:
                 if hasattr(event, "scrollDown"):
                     event.scrollDown()
