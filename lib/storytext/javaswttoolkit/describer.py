@@ -243,8 +243,11 @@ class Describer(storytext.guishared.Describer):
         if self.clipboardText is None:
             # Initially. For some reason it doesn't let us set empty strings here
             # clearContents seemed the way to go, but seems not to work on Windows
-            self.clipboardText = "dummy text for StoryText tests"
-            clipboard.setContents([ self.clipboardText ], [ textTransfer ])
+            text = "dummy text for StoryText tests"
+            clipboard.setContents([ text ], [ textTransfer ])
+            # Don't assume it works, sometimes we can't access the clipboard
+            newText = clipboard.getContents(textTransfer) or ""
+            self.clipboardText = newText
         else:
             newText = clipboard.getContents(textTransfer) or ""
             if newText != self.clipboardText:
