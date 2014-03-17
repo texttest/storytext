@@ -19,17 +19,13 @@ class NatTableIndexer(simulator.TableIndexer):
 
     def setOffsets(self, table):
         lastRow = table.getRowCount() - 1
-        self.rowOffset = lastRow - simulator.runOnUIThread(table.getRowIndexByPosition,lastRow)
+        self.rowOffset = lastRow - table.getRowIndexByPosition(lastRow)
         lastColumn = table.getColumnCount() - 1
         self.colOffset = lastColumn - table.getColumnIndexByPosition(lastColumn)
         
     def rebuildCache(self):
-        self.setOffsets(self.widget)
+        simulator.runOnUIThread(self.setOffsets, self.widget)
         simulator.TableIndexer.rebuildCache(self)
-
-
-    def checkNameCache(self):
-        self.rebuildCache()
     
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
@@ -121,6 +117,12 @@ class NatTableEventHelper:
         
     def mouseButton(self):
         return 1
+
+    def scrollDown(self):    
+        viewportLayer = self.getViewportLayer()
+        if viewportLayer:
+            self.widget.scrollToY(viewportLayer, 200)
+            self.getIndexer().rebuildCache()
     
     def getViewportLayer(self):
         topLayer = self.widget.widget.widget.getLayer()
@@ -228,10 +230,8 @@ class WidgetMonitor(simulator.WidgetMonitor):
     def handleReplayFailure(self, errorText, events):
         if "Could not find row identified by" in errorText:
             for event in events:
-                if hasattr(event, "getViewportLayer"):
-                    viewportLayer = event.getViewportLayer()
-                    if viewportLayer:
-                        event.widget.widget.scrollToY(viewportLayer, 200)
+                if hasattr(event, "scrollDown"):
+                    event.scrollDown()
         simulator.WidgetMonitor.handleReplayFailure(self, errorText, events)
 
 WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
