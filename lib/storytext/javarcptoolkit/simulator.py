@@ -258,10 +258,15 @@ class PartActivateEvent(swtsimulator.SignalEvent):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
         #self.widget.setFocus()
-        swtsimulator.runOnUIThread(self.clickMatchingTab, *args)
-        #page = self.widget.getViewReference().getPage()
-        #view = self.widget.getViewReference().getView(False)
-        #swtsimulator.runOnUIThread(page.activate, view)
+        if self.actuallyClick():
+            swtsimulator.runOnUIThread(self.clickMatchingTab, *args)
+        else:
+            page = self.widget.getViewReference().getPage()
+            view = self.widget.getViewReference().getView(False)
+            swtsimulator.runOnUIThread(page.activate, view)
+        
+    def actuallyClick(self):
+        return "clicked" in self.generationModifiers
         
     def getTabFolder(self):
         for tab in self.widget.getViewReference().getPane().getTabList():
@@ -294,17 +299,19 @@ class PartActivateEvent(swtsimulator.SignalEvent):
         else:
             raise UseCaseScriptError, "Could not find View named '" + argumentString + "' to activate.\n" + \
                 "Views are named " + repr([ str(i.getTitleArgument()) for i in self.allInstances ])
-            
 
     def getTitle(self):
         return self.widget.getViewReference().getPartName()
 
     def shouldRecord(self, part, *args):
-        # TODO: Need to check no other events are waiting in DisplayFilter 
-        return self.hasMultipleViews() and \
-            (not swtsimulator.DisplayFilter.instance.hasEvents() or \
-            swtsimulator.DisplayFilter.instance.hasEventOfType(self.getSignalsToFilter(), self.getTabFolder()))
-    
+        if not self.hasMultipleViews():
+            return False
+        
+        if self.actuallyClick():
+            return swtsimulator.DisplayFilter.instance.hasEventOfType(self.getSignalsToFilter(), self.getTabFolder())
+        else:
+            return not swtsimulator.DisplayFilter.instance.hasEvents()
+        
     def hasMultipleViews(self):
         # If there is only one view, don't try to record if it's activated, it's probably just been created...
         return sum((i.isActivatable() for i in self.allInstances)) > 1
