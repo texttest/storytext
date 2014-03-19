@@ -20,7 +20,7 @@ class BrowserHtmlParser(HTMLParser):
     def parse(self, text):
         try:
             self.feed(text)
-        except HTMLParseError:
+        except:
             sys.stderr.write("Failed to parse browser text:\n")
             sys.stderr.write(getExceptionString())
             sys.stderr.write("Original text follows:\n")
@@ -70,18 +70,23 @@ class BrowserHtmlParser(HTMLParser):
 class TableParser:
     def __init__(self):
         self.headerRow = []
+        self.currentRow = None
+        self.currentRowIsHeader = True
         self.grid = []
         self.activeElements = {}
-        
+
+    def isCell(self, name):
+        return name in ["td", "th"]
+
     def startElement(self, name, attrs):
         self.activeElements[name] = attrs
         if name == "tr":
-            self.grid.append([]) # Assume it's in the grid
-        else:
-            row = self.getRow(name)
-            if row is not None:
-                row.append("")
-            
+            self.currentRow = []
+        elif self.isCell(name):
+            self.currentRow.append("")
+            if name == "td":
+                self.currentRowIsHeader = False
+
     def getRow(self, name):
         if name == "td":
             return self.grid[-1]
@@ -96,16 +101,18 @@ class TableParser:
             
     def endElement(self, name):
         if name in self.activeElements:  # Don't fail on duplicated end tags
-            row = self.getRow(name)
-            if row is not None:
+            if self.currentRow is not None and self.isCell(name):
                 colspan = get_attr_value(self.activeElements[name], "colspan")
                 if colspan:
                     for _ in range(int(colspan) - 1):
-                        row.append("")
+                        self.currentRow.append("")
             del self.activeElements[name]
             if name == "tr":
-                if len(self.grid[-1]) == 0:
-                    self.grid.pop() # Ignore empty rows
+                if self.currentRowIsHeader:
+                    self.headerRow = self.currentRow
+                else:
+                    self.grid.append(self.currentRow)
+                self.currentRow = None
         
     def getText(self):
         if len(self.grid) == 0:
@@ -123,9 +130,8 @@ class TableParser:
             self.addText(content.rstrip("\t\r\n"))
             
     def addText(self, text):
-        activeRow = self.getActiveRow()
-        if activeRow is not None:
-            activeRow[-1] += text
+        if self.currentRow is not None:
+            self.currentRow[-1] += text
             
     def entityRef(self, name):
         if name == "nbsp":
