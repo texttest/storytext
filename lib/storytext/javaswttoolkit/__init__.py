@@ -73,9 +73,14 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
     def setUpMonitoring(self):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils
         SWTUtils.waitForDisplayToAppear()
+        # Load all necessary classes. Not necessary for pure SWT which doesn't have Eclipse classloaders
+        self.initEclipsePackagesWithDisplay()
         monitor = self.getMonitorClass()(self.uiMap)
         if monitor.setUp():
             return monitor
+        
+    def initEclipsePackagesWithDisplay(self):
+        pass
     
     def runReplay(self):
         monitor = self.setUpMonitoring()

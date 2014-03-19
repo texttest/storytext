@@ -1638,8 +1638,7 @@ class WidgetMonitor:
             return widgets
         except TypeError:
             sys.stderr.write("ERROR: classloader clash when trying to use SWTBot.\n" +
-                             "Possible causes: has Mockito been exported with the product (suggest to make dependency optional if so)?\n"
-                             "Are you using Jython 2.5.2 instead of Jython 2.5.1?\n")
+                             "Possible causes: has Mockito been exported with the product (suggest to make dependency optional if so)?\n")
             swtbot.widgets.SWTBotShell(shell).close()
             return []
 

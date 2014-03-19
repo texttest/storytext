@@ -23,6 +23,16 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock = Lock()
         self.logger = logging.getLogger("Eclipse RCP jobs")
 
+    def makeCopy(self):
+        cp = JobListener()
+        cp.jobNamesToUse = self.jobNamesToUse
+        cp.jobCount = self.jobCount
+        cp.eventsSeenOtherListener = self.eventsSeenOtherListener
+        cp.customUsageMethod = self.customUsageMethod
+        cp.jobCountLock = self.jobCountLock
+        cp.logger = self.logger
+        return cp
+
     def done(self, e):
         storytext.guishared.catchAll(self.lockAndCheck, e, self.__class__.jobDone)
         
@@ -96,7 +106,7 @@ class JobListener(JobChangeAdapter):
         self.jobCountLock.acquire()
         # We need to be after all the application's code reacting to the job, so we truly respond when it's finished
         self.logger.debug("Transferring Job Change Listener in thread " + currentThread().getName())
-        newListener = copy(self)
+        newListener = self.makeCopy()
         JobListener.instance = newListener
         Job.getJobManager().addJobChangeListener(newListener)
         Job.getJobManager().removeJobChangeListener(self)

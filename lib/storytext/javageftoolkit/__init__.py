@@ -15,12 +15,8 @@ class UseCaseReplayer(javarcptoolkit.UseCaseReplayer):
     def getDescriberPackage(self):
         return javarcptoolkit.UseCaseReplayer.__module__
     
-    def getTestRunnerClass(self):
-        return TestRunner
-
-class TestRunner(javarcptoolkit.TestRunner):
     def initEclipsePackages(self):
-        javarcptoolkit.TestRunner.initEclipsePackages(self)
+        javarcptoolkit.UseCaseReplayer.initEclipsePackages(self)
         from org.eclipse.swtbot.eclipse.gef.finder import SWTGefBot
         from org.eclipse.swtbot.eclipse.gef.finder.widgets import SWTBotGefViewer
         from org.eclipse.draw2d import FigureCanvas

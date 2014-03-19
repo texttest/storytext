@@ -2,7 +2,6 @@
 import storytext.guishared, util, types, logging, sys, os
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
-# Some unused imports to make sure classloader loads necessary classes
 from org.eclipse.swt.layout import GridLayout, FillLayout, FormLayout, RowLayout  #@UnusedImport
 from org.eclipse import swt
 from browserhtmlparser import BrowserHtmlParser
