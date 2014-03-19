@@ -496,6 +496,7 @@ class UseCaseEditor:
     def createShortcutFromLines(self, lines, arguments):
         dialog = gtk.Dialog("New Shortcut", flags=gtk.DIALOG_MODAL)
         dialog.set_name("New Shortcut Window")
+        dialog.set_has_separator(False)
         label = gtk.Label("New name for shortcut:")
         entry = gtk.Entry()
         entry.set_name("New Name")
@@ -739,7 +740,7 @@ class UseCaseEditor:
                 self.scriptEngine.monitorSignal("accept message", "clicked", button)
             elif response == gtk.RESPONSE_CANCEL:
                 self.scriptEngine.monitorSignal("cancel message", "clicked", button)
-        dialog.set_title(dialogTitle)        
+        dialog.set_title(dialogTitle)
         dialog.set_markup(message)
         dialog.set_default_response(gtk.RESPONSE_OK)
         return dialog
@@ -811,6 +812,7 @@ class UseCaseEditor:
         cmd = self.uiMapFileHandler.get(widgetDescription, signal)
         dialog = gtk.Dialog('Update UI map for ' + "'" + cmd + "'", flags=gtk.DIALOG_MODAL)
         dialog.vbox.set_spacing(10)
+        dialog.set_has_separator(False)
         label = gtk.Label("Widget description")
         widgetDescEntry = gtk.Entry()
         widgetDescEntry.set_text(widgetDescription)
@@ -930,6 +932,8 @@ class UseCaseEditor:
             name = "usecase"
         dialog = gtk.Dialog('Rename ' + name, flags=gtk.DIALOG_MODAL)
         dialog.vbox.set_spacing(10)
+        dialog.set_has_separator(False)
+        
         label = gtk.Label(name.title())
         nameEntry = gtk.Entry()
         nameEntry.set_text(cmd)
