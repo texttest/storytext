@@ -252,6 +252,8 @@ class Describer(storytext.guishared.Describer):
             newText = clipboard.getContents(textTransfer) or ""
             if newText != self.clipboardText:
                 self.logger.info("Copied following to clipboard :\n" + newText)
+                if not newText.strip():
+                    self.logger.info("New text was " + repr(newText) + " original was " + repr(self.clipboardText))
                 self.clipboardText = newText
         clipboard.dispose()
         
