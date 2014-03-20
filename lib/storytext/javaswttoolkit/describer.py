@@ -242,17 +242,16 @@ class Describer(storytext.guishared.Describer):
         if self.clipboardText is None:
             # Initially. For some reason it doesn't let us set empty strings here
             # clearContents seemed the way to go, but seems not to work on Windows
-            text = "dummy text for StoryText tests"
-            clipboard.setContents([ text ], [ textTransfer ])
-            # Don't assume it works, sometimes we can't access the clipboard
-            newText = clipboard.getContents(textTransfer) or ""
-            self.clipboardText = newText
+            self.clipboardText = "dummy text for StoryText tests"
+            clipboard.setContents([ self.clipboardText ], [ textTransfer ])
         else:
             newText = clipboard.getContents(textTransfer) or ""
             if newText != self.clipboardText:
-                self.logger.info("Copied following to clipboard :\n" + newText)
-                if not newText.strip():
-                    self.logger.info("New text was " + repr(newText) + " original was " + repr(self.clipboardText))
+                # In theory an application could write empty text to the clipboard
+                # In practice, this isn't very useful, and a far more common cause is that the clipboard couldn't be accessed for some reason
+                # In which case it's best not to spam the log
+                if newText.strip():
+                    self.logger.info("Copied following to clipboard :\n" + newText)
                 self.clipboardText = newText
         clipboard.dispose()
         
