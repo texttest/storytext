@@ -544,9 +544,13 @@ class UseCaseRecorder:
         for arg in args:
             if isinstance(arg, UserEvent):
                 return arg
-            
-    def registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
+         
+    def registerApplicationEvent(self, *args, **kw):
         self.applicationEventLock.acquire()
+        self._registerApplicationEvent(*args, **kw)
+        self.applicationEventLock.release()
+       
+    def _registerApplicationEvent(self, eventName, category, supercedeCategories=[], delayLevel=0):
         category = category or "storytext_DEFAULT"
         delayLevel = max(delayLevel, self.getMaximumStoredDelay())
         appEventKey = category, delayLevel
@@ -570,29 +574,32 @@ class UseCaseRecorder:
             for supercedeCategory in supercedeCategories + [ "storytext_DEFAULT" ]:
                 self.logger.debug("Adding supercede info : " + category + " will be superceded by " + supercedeCategory)
                 self.supercededAppEventCategories.setdefault(supercedeCategory, set()).add(category)
-        self.applicationEventLock.release()
 
     def applicationEventRename(self, oldName, newName, oldCategory, newCategory):
+        self.applicationEventLock.acquire()
         for appEventKey, oldEventName in self.applicationEvents.items():
             categoryName, delayLevel = appEventKey
             if oldCategory in categoryName:
                 del self.applicationEvents[appEventKey]
                 newEventName = oldEventName.replace(oldName, newName)
-                self.registerApplicationEvent(newEventName, newCategory, delayLevel=delayLevel)
+                self._registerApplicationEvent(newEventName, newCategory, delayLevel=delayLevel)
         
         for supercedeCategory, categories in self.supercededAppEventCategories.items():
             if oldCategory in categories:
                 categories.remove(oldCategory)
                 categories.add(newCategory)
                 self.logger.debug("Swapping for " + repr(supercedeCategory) + ": " + repr(oldCategory) + " -> " + repr(newCategory))
+        self.applicationEventLock.release()
 
     def applicationEventDelay(self, name, fromLevel=0, increase=True):
+        self.applicationEventLock.acquire()
         for appEventKey, eventName in self.applicationEvents.items():
             categoryName, oldDelayLevel = appEventKey
             if eventName == name and oldDelayLevel == fromLevel:
                 del self.applicationEvents[appEventKey]
                 newDelayLevel = oldDelayLevel + 1 if increase else oldDelayLevel - 1
-                self.registerApplicationEvent(name, categoryName, delayLevel=newDelayLevel)
+                self._registerApplicationEvent(name, categoryName, delayLevel=newDelayLevel)
+        self.applicationEventLock.release()
                 
     def makeMultiple(self, text, count):
         if count == 1:
@@ -632,6 +639,7 @@ class UseCaseRecorder:
             script.unregisterShortcut(replayScript)
             
     def unregisterApplicationEvent(self, matchFunction):
+        self.applicationEventLock.acquire()
         for appEventKey, eventName in self.applicationEvents.items():
             categoryName, delayLevel = appEventKey
             if matchFunction(eventName, delayLevel):
@@ -641,6 +649,8 @@ class UseCaseRecorder:
                     del self.applicationEvents[appEventKey]
                 else:
                     self.reduceApplicationEventCount(basicName, categoryName, delayLevel, count - 1)
+                self.applicationEventLock.release()
                 return True
+        self.applicationEventLock.release()
         return False
     
