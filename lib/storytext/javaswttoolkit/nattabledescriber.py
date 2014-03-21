@@ -16,18 +16,23 @@ class CanvasDescriber(util.CanvasDescriber):
         for col in range(self.canvas.getColumnCount()):
             dataStr = ""
             data = self.canvas.getDataValueByPosition(col, rowPos)
-            if data:
+            if data is not None:
                 cell = self.canvas.getCellByPosition(col, rowPos)
                 if not self.cellIsLaterSpan(cell, rowPos, col, prevRowSpans, prevColSpans):
                     labels = cell.getConfigLabels().getLabels()
                     converter = self.findConverter(labels)
-                    dataStr = converter.canonicalToDisplayValue(data)
-                
-                    displayMode = self.canvas.getDisplayModeByPosition(col, rowPos)
-                    if displayMode == nattable.style.DisplayMode.SELECT:
-                        dataStr += " (selected)"
-                    elif displayMode == nattable.style.DisplayMode.EDIT:
-                        dataStr += " (editing)"
+                    displayData = converter.canonicalToDisplayValue(data)
+                    if "checkbox" in labels:
+                        dataStr = "Check box"
+                        if displayData:
+                            dataStr += " (selected)"
+                    else:
+                        dataStr = str(displayData)
+                        displayMode = self.canvas.getDisplayModeByPosition(col, rowPos)
+                        if displayMode == nattable.style.DisplayMode.SELECT:
+                            dataStr += " (selected)"
+                        elif displayMode == nattable.style.DisplayMode.EDIT:
+                            dataStr += " (editing)"
             rowToAddTo.append(dataStr)
             
     def cellIsLaterSpan(self, cell, row, col, prevRowSpans, prevColSpans):
