@@ -1416,6 +1416,7 @@ class EventPoster:
 
 
 class WidgetMonitor:
+    startupError = None
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
                                          [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio),
                                            (swt.SWT.CHECK, swtbot.widgets.SWTBotCheckBox) ]),
@@ -1632,16 +1633,20 @@ class WidgetMonitor:
         shell = runOnUIThread(self.getActiveShell)
         try:
             widgets = self.bot.widgets(matcher, shell)
-            self.addToolbarEmbeddedWidgets(widgets, matcher)
-            menus = self.bot.getFinder().findMenus(matcher)
-            widgets.addAll(menus)
-            return widgets
         except TypeError:
-            sys.stderr.write("ERROR: classloader clash when trying to use SWTBot.\n" +
-                             "Possible causes: has Mockito been exported with the product (suggest to make dependency optional if so)?\n")
+            # Use member variable to allow other code to set this if things don't seem correctly set up
+            self.startupError = "ERROR: classloader clash when trying to use SWTBot.\n" + \
+                                "Possible causes: has Mockito been exported with the product (suggest to make dependency optional if so)?"
+        if self.startupError:
+            sys.stderr.write(self.startupError + "\n")
             swtbot.widgets.SWTBotShell(shell).close()
             return []
-
+        
+        self.addToolbarEmbeddedWidgets(widgets, matcher)
+        menus = self.bot.getFinder().findMenus(matcher)
+        widgets.addAll(menus)
+        return widgets
+        
     def getPopupMenus(self, widgets):
         menus = []
         for widget in widgets:
