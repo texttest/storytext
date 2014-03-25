@@ -1645,7 +1645,7 @@ class TableIndexer(Indexer):
 
     def parseDescription(self, description):
         if " for " in description:
-            columnName, rowName = description.split(" for ")
+            columnName, rowName = description.split(" for ", 1)
             colIndex = self.findColumnIndex(columnName)
             if colIndex is None:
                 raise definitions.UseCaseScriptError, "Could not find column labelled '" + columnName + "' in table."
