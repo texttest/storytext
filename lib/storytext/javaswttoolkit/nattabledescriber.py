@@ -1,15 +1,18 @@
 
 """ Module for handling Nebula's NatTable, if present """
 
+#Java-style imports. See NatTableSimulator comment for why
+from org.eclipse.nebula.widgets.nattable import NatTable
 from org.eclipse.nebula.widgets.nattable.config import CellConfigAttributes
 from org.eclipse.nebula.widgets.nattable.style import DisplayMode
-from org.eclipse.nebula.widgets import nattable
+from org.eclipse.nebula.widgets.nattable.painter.cell import CheckBoxPainter
+
 import util
 
 class CanvasDescriber(util.CanvasDescriber):
     @classmethod
     def canDescribe(cls, widget):
-        return isinstance(widget, nattable.NatTable)
+        return isinstance(widget, NatTable)
             
     def addRowData(self, rowPos, rowToAddTo, prevRowSpans):
         prevColSpans = set()
@@ -21,17 +24,16 @@ class CanvasDescriber(util.CanvasDescriber):
                 if not self.cellIsLaterSpan(cell, rowPos, col, prevRowSpans, prevColSpans):
                     labels = cell.getConfigLabels().getLabels()
                     converter = self.findConverter(labels)
+                    painter = self.findPainter(labels)
                     displayData = converter.canonicalToDisplayValue(data)
-                    if "checkbox" in labels:
-                        dataStr = "Check box"
-                        if displayData:
-                            dataStr += " (selected)"
+                    if isinstance(painter, CheckBoxPainter):
+                        dataStr = "[x]" if data else "[ ]"
                     else:
                         dataStr = str(displayData)
                         displayMode = self.canvas.getDisplayModeByPosition(col, rowPos)
-                        if displayMode == nattable.style.DisplayMode.SELECT:
+                        if displayMode == DisplayMode.SELECT:
                             dataStr += " (selected)"
-                        elif displayMode == nattable.style.DisplayMode.EDIT:
+                        elif displayMode == DisplayMode.EDIT:
                             dataStr += " (editing)"
             rowToAddTo.append(dataStr)
             
@@ -56,8 +58,10 @@ class CanvasDescriber(util.CanvasDescriber):
         return self.canvas.getRowCount()
         
     def findConverter(self, labels):
-        return self.canvas.getConfigRegistry().getConfigAttribute(nattable.config.CellConfigAttributes.DISPLAY_CONVERTER,  
-                                                                  nattable.style.DisplayMode.NORMAL, labels)
+        return self.canvas.getConfigRegistry().getConfigAttribute(CellConfigAttributes.DISPLAY_CONVERTER, DisplayMode.NORMAL, labels)
+    
+    def findPainter(self, labels):
+        return self.canvas.getConfigRegistry().getConfigAttribute(CellConfigAttributes.CELL_PAINTER, DisplayMode.NORMAL, labels)
             
     def getCanvasDescription(self, *args):
         desc = "Table :\n"

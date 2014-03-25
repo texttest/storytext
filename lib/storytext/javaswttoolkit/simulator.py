@@ -34,6 +34,7 @@ def runOnUIThread(method, *args):
 
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
     popupMenuContexts = {}
+    contextFinders = []
     def getChildWidgets(self):
         return [] # don't use this...
         
@@ -96,11 +97,12 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         except:
             return ""
     
-    def getContextAncestor(self):
-        return runOnUIThread(self.widget.widget.getParent)
-
     def getContextName(self):
-        parent = self.getContextAncestor()
+        parent = runOnUIThread(self.widget.widget.getParent)
+        for contextFinder in self.contextFinders:
+            name = contextFinder(self.widget.widget, parent)
+            if name is not None:
+                return name
         return self.getContextNameFromAncestor(parent)
     
     def getMenuContextNameFromAncestor(self, parent):
@@ -140,10 +142,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         if isinstance(parent, swt.widgets.Menu):
             return self.getMenuContextNameFromAncestor(parent)
         else:
-            for className, data in util.cellParentData.items():
-                if isinstance(parent, className):
-                    return data[0]
-            return ""
+            return util.getContextNameForWidget(parent)
         
     def checkMenuVisible(self):
         menu = self.widget.widget.getParent()

@@ -3,9 +3,17 @@
 
 from storytext.javaswttoolkit import simulator
 from storytext.definitions import UseCaseScriptError
-from org.eclipse.nebula.widgets import nattable
+# Not really consistent with how we do things elsewhere
+# NatTable doesn't seem to work the same way unfortunately, it doesn't initialise the whole package when you import one class
+# We go with Java-style here
+from org.eclipse.nebula.widgets.nattable import NatTable
 from org.eclipse.nebula.widgets.nattable.grid.layer import GridLayer
+from org.eclipse.nebula.widgets.nattable.layer.cell import ILayerCell
 from org.eclipse.nebula.widgets.nattable.viewport import ViewportLayer
+from org.eclipse.nebula.widgets.nattable.config import IConfigRegistry, CellConfigAttributes
+from org.eclipse.nebula.widgets.nattable.style import CellStyleUtil, DisplayMode
+from org.eclipse.nebula.widgets.nattable.painter.cell import CheckBoxPainter
+
 import org.eclipse.swtbot.swt.finder as swtbot
 from simulator import WidgetMonitor
 import util
@@ -63,13 +71,39 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
         swtbot.widgets.AbstractSWTBot.__init__(self, *args, **kw)
         self.eventPoster = simulator.EventPoster(self.display)
         
-    def clickOnCenter(self, row, col, clickCount, button):
-        bounds = simulator.runOnUIThread(self.widget.getBoundsByPosition, col, row)
-        x = util.getInt(bounds.x) + util.getInt(bounds.width) / 2
-        y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
-        displayLoc = simulator.runOnUIThread(self.display.map, self.widget, None, x, y)
+    def clickOnCell(self, row, col, clickCount, button):
+        bounds = self.widget.getBoundsByPosition(col, row)
+        painter = self.getCellPainter(row, col)
+        if isinstance(painter, CheckBoxPainter):
+            x, y = self.getCheckBoxCoordinates(row, col, painter, bounds)
+        else:
+            x, y = self.getCenterCoordinates(bounds)
+
+        displayLoc = self.display.map(self.widget, None, x, y)
         self.eventPoster.moveClickAndReturn(displayLoc.x, displayLoc.y, count=clickCount, button=button)
 
+    def getCellPainter(self, row, col):
+        cell = self.widget.getCellByPosition(col, row)
+        labels = cell.getConfigLabels().getLabels()
+        return self.widget.getConfigRegistry().getConfigAttribute(CellConfigAttributes.CELL_PAINTER, DisplayMode.NORMAL, labels)
+        
+    def getCheckBoxCoordinates(self, row, col, painter, bounds):
+        cell = self.widget.getCellByPosition(col, row)
+        configRegistry = self.widget.getConfigRegistry()
+        image = util.callPrivateMethod(painter, "getImage", [ cell, configRegistry ], [ ILayerCell, IConfigRegistry ])
+        imageBounds = image.getBounds()
+        imageWidth = util.getInt(imageBounds.width)
+        imageHeight = util.getInt(imageBounds.height)
+        cellStyle = CellStyleUtil.getCellStyle(cell, configRegistry)
+        x = bounds.x + CellStyleUtil.getHorizontalAlignmentPadding(cellStyle, bounds, imageWidth) + imageWidth / 2
+        y = bounds.y + CellStyleUtil.getVerticalAlignmentPadding(cellStyle, bounds, imageHeight) + imageHeight / 2
+        return x, y
+           
+    def getCenterCoordinates(self, bounds):
+        x = util.getInt(bounds.x) + util.getInt(bounds.width) / 2
+        y = util.getInt(bounds.y) + util.getInt(bounds.height) / 2
+        return x, y
+        
     def scrollToY(self, layer, offset):
         yCoord = layer.getOrigin().getY()
         simulator.runOnUIThread(layer.setOriginY, yCoord + offset)
@@ -120,7 +154,7 @@ class NatTableEventHelper:
         if button == 3:
             desc = InstantMenuDescriber(self.widget)
             simulator.runOnUIThread(desc.addFilter)
-        self.widget.clickOnCenter(row, col, self.clickCount(), button)
+        simulator.runOnUIThread(self.widget.clickOnCell, row, col, self.clickCount(), button)
         
     def mouseButton(self):
         return 1
@@ -133,7 +167,7 @@ class NatTableEventHelper:
     
     def getViewportLayer(self):
         topLayer = self.widget.widget.widget.getLayer()
-        if isinstance(topLayer, nattable.grid.layer.GridLayer):
+        if isinstance(topLayer, GridLayer):
             return self.findViewport(topLayer.getBodyLayer())
         else:
             return self.findViewport(topLayer)
@@ -141,7 +175,7 @@ class NatTableEventHelper:
     def findViewport(self, layer):
         if layer is None:
             return
-        elif isinstance(layer, nattable.viewport.ViewportLayer):
+        elif isinstance(layer, ViewportLayer):
             return layer
         else:
             return self.findViewport(layer.getUnderlyingLayerByPosition(0,0))
@@ -245,9 +279,18 @@ class WidgetMonitor(simulator.WidgetMonitor):
                 if hasattr(event, "scrollDown"):
                     event.scrollDown()
         simulator.WidgetMonitor.handleReplayFailure(self, errorText, events)
+ 
+def getContextNameForNatCombo(widget, *args):
+    if isinstance(widget, swt.widgets.Table):
+        for listener in widget.getListeners(swt.SWT.Selection):
+            if hasattr(listener, "getEventListener"):
+                eventListener = listener.getEventListener()
+                if "NatCombo" in eventListener.__class__.__name__:
+                    return "NatCombo"
 
-WidgetMonitor.swtbotMap[nattable.NatTable] = (FakeSWTBotNatTable, [])
-util.cellParentData[nattable.NatTable] = "NatTableCell", "Table"
+simulator.WidgetAdapter.contextFinders.append(getContextNameForNatCombo)
+WidgetMonitor.swtbotMap[NatTable] = (FakeSWTBotNatTable, [])
+util.cellParentData[NatTable] = "NatTableCell", "Table"
 
 customEventTypes = [ (FakeSWTBotNatTable,   [ NatTableCellSelectEvent, NatTableCellDoubleClickEvent, NatTableRowSelectEvent, NatTableColumnSelectEvent,
                                               NatTableCellContextEvent, NatTableRowContextEvent, NatTableColumnContextEvent, NatTableCornerContextEvent ]) ]

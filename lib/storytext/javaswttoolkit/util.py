@@ -9,6 +9,12 @@ cellParentData = { swt.widgets.Table : ("TableCell", "Table"),
                    swt.widgets.Tree  : ("TreeCell", "Tree") }
 ignoreLabels = []
 
+def getContextNameForWidget(widget):
+    for className, data in cellParentData.items():
+        if isinstance(widget, className):
+            return data[0]
+    return ""
+
 def getRealUrl(browser):
     url = browser.getUrl()
     return url if url != "about:blank" else ""
