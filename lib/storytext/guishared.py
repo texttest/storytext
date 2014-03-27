@@ -1591,7 +1591,10 @@ class TableIndexer(Indexer):
         else:
             currRowNames = self.getColumn(self.primaryKeyColumn)
             if set(currRowNames) != set([ "<unnamed>" ]):
-                self.rowNames = currRowNames
+                if len(set(currRowNames)) != len(currRowNames):
+                    self.rowNames = self.addIndexes(currRowNames)
+                else:
+                    self.rowNames = currRowNames 
                 self.logger.debug("Model changed, row names now " + repr(self.rowNames))
 
     def getColumn(self, col):
@@ -1603,23 +1606,37 @@ class TableIndexer(Indexer):
     def getCellValueToUse(self, *args):
         return self.getCellValue(*args) or "<unnamed>"
     
-    def canBePrimaryKeyColumn(self, column, uniqueEntries):
-        return len(column) > 1 and uniqueEntries == len(column) and max((len(d) for d in column)) < 30
-
     def findRowNames(self):
         firstColumnWithData = None
+        firstUniqueColumn = None
+        # Try to find a unique column with names less than 30 characters
+        # Failing that, the first unique column with names less than 100 characters (more than 100 is just too hard to read)
+        # Failing that, the first column with data, adding indices if needed
         if self.getRowCount() > 1:
             for colIndex in range(self.widget.getColumnCount()):
                 column = self.getColumn(colIndex)
                 uniqueEntries = len(set(column))
-                if self.canBePrimaryKeyColumn(column, uniqueEntries):
+                allUnique = uniqueEntries == len(column)
+                # We don't want to use very long-winded descriptions as keys if we can help it
+                maxLength = max((len(d) for d in column))
+                if uniqueEntries > 1 and allUnique and maxLength < 30:
                     return colIndex, column
                 else:
                     self.logger.debug("Rejecting column " + str(colIndex) + " as primary key : names were " + repr(column))
-                    if firstColumnWithData is None and uniqueEntries > 1:
-                        firstColumnWithData = colIndex
-        # No unique columns to use as row names. Use the first column and add numbers
-        return None, self.addIndexes(self.getColumn(firstColumnWithData or 0))
+                    if uniqueEntries > 1 and firstUniqueColumn is None:
+                        if allUnique and maxLength < 100:
+                            firstUniqueColumn = colIndex
+                        elif firstColumnWithData is None:
+                            firstColumnWithData = colIndex
+        if firstUniqueColumn is not None:
+            self.logger.debug("Using column " + str(firstUniqueColumn) + " as primary key after all: names were long but unique")
+            return firstUniqueColumn, self.getColumn(firstUniqueColumn)
+        else:
+            # No unique columns to use as row names. Use the first column and add numbers
+            # Recalculate it next time around
+            provisionalPrimaryKey = firstColumnWithData or 0
+            self.logger.debug("Using column " + str(provisionalPrimaryKey) + " as provisional primary key : it was the first column with data")
+            return None, self.addIndexes(self.getColumn(provisionalPrimaryKey))
         
     def getIndexedValue(self, index, value, mapping):
         indices = mapping.get(value)

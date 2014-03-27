@@ -24,16 +24,19 @@ class NatTableIndexer(simulator.TableIndexer):
         self.setOffsets(table)
         simulator.TableIndexer.__init__(self, table)
         self.logger.debug("NatTable indexer with row offset " + str(self.rowOffset) + " and column offset " + str(self.colOffset))
-
+        if self.colOffset == 0:
+            # Probably no data yet if we have no offset at the start, best to keep an open mind...
+            self.primaryKeyColumn = None
+        
     def setOffsets(self, table):
         lastRow = table.getRowCount() - 1
         self.rowOffset = lastRow - table.getRowIndexByPosition(lastRow)
         lastColumn = table.getColumnCount() - 1
         self.colOffset = lastColumn - table.getColumnIndexByPosition(lastColumn)
         
-    def rebuildCache(self):
+    def updateTableInfo(self):
         simulator.runOnUIThread(self.setOffsets, self.widget)
-        simulator.TableIndexer.rebuildCache(self)
+        simulator.TableIndexer.updateTableInfo(self)
     
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
@@ -163,7 +166,7 @@ class NatTableEventHelper:
         viewportLayer = self.getViewportLayer()
         if viewportLayer:
             self.widget.scrollToY(viewportLayer, 200)
-            self.getIndexer().rebuildCache()
+            self.getIndexer().updateTableInfo()
     
     def getViewportLayer(self):
         topLayer = self.widget.widget.widget.getLayer()

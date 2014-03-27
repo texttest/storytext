@@ -870,11 +870,7 @@ class TableDoubleClickEvent(TableSelectEvent):
         return isinstance(stateChangeEvent, TableSelectEvent) or SelectEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
     
     
-class TableIndexer(storytext.guishared.TableIndexer):
-    def __init__(self, table):
-        self.cachedRowCount = 0
-        storytext.guishared.TableIndexer.__init__(self, table)
-        
+class TableIndexer(storytext.guishared.TableIndexer):    
     def getRowCount(self):
         return runOnUIThread(self.widget.getItemCount)
 
@@ -887,25 +883,37 @@ class TableIndexer(storytext.guishared.TableIndexer):
     def findColumnIndex(self, columnName):
         return runOnUIThread(storytext.guishared.TableIndexer.findColumnIndex, self, columnName)
     
+    def updateTableInfo(self):
+        runOnUIThread(storytext.guishared.TableIndexer.updateTableInfo, self)
+        
     def findRowNames(self):
-        column, rowNames = runOnUIThread(storytext.guishared.TableIndexer.findRowNames, self)
-        self.cachedRowCount = len(rowNames)
-        return column, rowNames
+        return runOnUIThread(storytext.guishared.TableIndexer.findRowNames, self)
     
-    def rebuildCache(self):
-        self.primaryKeyColumn, self.rowNames = self.findRowNames()
-        self.logger.debug("Rebuilt indexer cache, primary key " + str(self.primaryKeyColumn) + ", row names now " + repr(self.rowNames))
+    def cacheCorrect(self):
+        return self.getRowCount() == len(self.rowNames) and not all((r.startswith("<unnamed>") for r in self.rowNames))
 
     def checkNameCache(self):
-        if self.getRowCount() != self.cachedRowCount or all((r.startswith("<unnamed>") for r in self.rowNames)):
-            self.rebuildCache()
+        if not self.cacheCorrect():
+            self.updateTableInfo()
+
+    def rowNameCorrect(self, row):
+        return self.primaryKeyColumn is None or self.rowNames[row] == runOnUIThread(self.getCellValueToUse, row, self.primaryKeyColumn)
         
-    def getCellDescription(self, *args, **kw):
-        self.checkNameCache()
-        return storytext.guishared.TableIndexer.getCellDescription(self, *args, **kw)
+    def getCellDescription(self, row, col, **kw):
+        if not self.cacheCorrect() or not self.rowNameCorrect(row):
+            self.updateTableInfo()
+        return storytext.guishared.TableIndexer.getCellDescription(self, row, col, **kw)
 
     def getViewCellIndices(self, *args, **kw):
         self.checkNameCache()
+        try:
+            row, col = storytext.guishared.TableIndexer.getViewCellIndices(self, *args, **kw)
+            if self.rowNameCorrect(row):
+                return row, col
+        except UseCaseScriptError: # If we failed to find it, update the info and try again
+            pass
+        
+        self.updateTableInfo()
         return storytext.guishared.TableIndexer.getViewCellIndices(self, *args, **kw)
     
     
