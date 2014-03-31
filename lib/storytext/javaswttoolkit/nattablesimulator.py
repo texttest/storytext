@@ -21,6 +21,8 @@ from org.eclipse import swt
 
 class NatTableIndexer(simulator.TableIndexer):
     def __init__(self, table):
+        self.rowOffset = 0
+        self.colOffset = 0
         self.setOffsets(table)
         simulator.TableIndexer.__init__(self, table)
         self.logger.debug("NatTable indexer with row offset " + str(self.rowOffset) + " and column offset " + str(self.colOffset))
@@ -30,20 +32,25 @@ class NatTableIndexer(simulator.TableIndexer):
         
     def setOffsets(self, table):
         lastRow = table.getRowCount() - 1
-        self.rowOffset = lastRow - table.getRowIndexByPosition(lastRow)
+        newRowOffset = lastRow - table.getRowIndexByPosition(lastRow)
+        if newRowOffset >= 0: # Otherwise we've scrolled, and then we have no idea any more. Assume it doesn't change
+            self.rowOffset = newRowOffset
         lastColumn = table.getColumnCount() - 1
-        self.colOffset = lastColumn - table.getColumnIndexByPosition(lastColumn)
+        newColOffset = lastColumn - table.getColumnIndexByPosition(lastColumn)
+        if newColOffset >= 0:
+            self.colOffset = newColOffset
         
     def updateTableInfo(self):
         simulator.runOnUIThread(self.setOffsets, self.widget)
+        self.logger.debug("Updated NatTable indexer with row offset " + str(self.rowOffset) + " and column offset " + str(self.colOffset))
         simulator.TableIndexer.updateTableInfo(self)
     
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
     
-    def getRowName(self, rowIndex):
+    def getRowName(self, rowPos):
         self.checkNameCache()
-        return self.rowNames[rowIndex]
+        return self.rowNames[rowPos - self.rowOffset]
     
     def getColumnCount(self):
         return self.widget.getColumnCount() - self.colOffset
@@ -58,15 +65,25 @@ class NatTableIndexer(simulator.TableIndexer):
         rowPos = rowIndex + self.rowOffset
         colPos = colIndex + self.colOffset
         data = self.widget.getDataValueByPosition(colPos, rowPos)
-        return str(data) if data else ""
+        if isinstance(data, (str, unicode)):
+            return data
+        elif data is not None:
+            return str(data).lower()
+        else:
+            return ""
+    
+    def getColumnTextByPosition(self, colPos):
+        return self.widget.getDataValueByPosition(colPos, 0)
     
     def getColumnText(self, colIndex):
-        colPos = colIndex + self.colOffset
-        return self.widget.getDataValueByPosition(colPos, 0)
+        return self.getColumnTextByPosition(colIndex + self.colOffset)
     
     def getViewCellIndices(self, description):
         row, col = simulator.TableIndexer.getViewCellIndices(self, description)
         return row + self.rowOffset, col + self.colOffset
+    
+    def getCellDescription(self, row, col, **kw):
+        return simulator.TableIndexer.getCellDescription(self, row - self.rowOffset, col - self.colOffset, **kw)
     
 
 class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
@@ -201,7 +218,7 @@ class NatTableCellEventHelper(NatTableEventHelper):
         table = self.widget.widget.widget
         rowPos = table.getRowPositionByY(event.y)
         colPos = table.getColumnPositionByX(event.x)
-        return table.getRowIndexByPosition(rowPos), table.getColumnIndexByPosition(colPos)
+        return rowPos, colPos
     
         
 class NatTableCellSelectEvent(NatTableCellEventHelper, simulator.TableSelectEvent):
@@ -221,8 +238,7 @@ class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
     def getStateText(self, event, *args):
         table = self.widget.widget.widget
         rowPos = table.getRowPositionByY(event.y)
-        rowNum = table.getRowIndexByPosition(rowPos)
-        return self.getIndexer().getRowName(rowNum)
+        return self.getIndexer().getRowName(rowPos)
     
     def parseArguments(self, description):
         row, _ = NatTableEventHelper.parseArguments(self, description)
@@ -240,8 +256,7 @@ class NatTableColumnSelectEvent(NatTableEventHelper, simulator.TableSelectEvent)
     def getStateText(self, event, *args):
         table = self.widget.widget.widget
         colPos = table.getColumnPositionByX(event.x)
-        colNum = table.getColumnIndexByPosition(colPos)
-        return self.getIndexer().getColumnTextToUse(colNum)
+        return self.getIndexer().getColumnTextByPosition(colPos)
         
     def parseArguments(self, argumentString):
         return 0, self.getIndexer().findColumnPosition(argumentString)

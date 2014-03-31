@@ -1597,6 +1597,9 @@ class TableIndexer(Indexer):
                     self.rowNames = currRowNames 
                 self.logger.debug("Model changed, row names now " + repr(self.rowNames))
 
+    def getColumnCount(self):
+        return self.widget.getColumnCount()
+
     def getColumn(self, col):
         return [ self.getCellValueToUse(row, col) for row in range(self.getRowCount()) ]
     
@@ -1613,7 +1616,7 @@ class TableIndexer(Indexer):
         # Failing that, the first unique column with names less than 100 characters (more than 100 is just too hard to read)
         # Failing that, the first column with data, adding indices if needed
         if self.getRowCount() > 1:
-            for colIndex in range(self.widget.getColumnCount()):
+            for colIndex in range(self.getColumnCount()):
                 column = self.getColumn(colIndex)
                 uniqueEntries = len(set(column))
                 allUnique = uniqueEntries == len(column)
@@ -1656,7 +1659,7 @@ class TableIndexer(Indexer):
         return [ self.getIndexedValue(i, v, mapping) for i, v in enumerate(values) ]
 
     def findColumnIndex(self, columnName):
-        for col in range(self.widget.getColumnCount()):
+        for col in range(self.getColumnCount()):
             if self.getColumnTextToUse(col) == columnName:
                 return col
 
@@ -1681,7 +1684,7 @@ class TableIndexer(Indexer):
             raise definitions.UseCaseScriptError, "Could not find row identified by '" + rowName + "' in table.\nRow names are " + repr(self.rowNames)
                     
     def useColumnTextInDescription(self, **kw):
-        return self.widget.getColumnCount() > 1
+        return self.getColumnCount() > 1
 
     def getCellDescription(self, row, col, **kw):
         rowName = self.rowNames[row]
