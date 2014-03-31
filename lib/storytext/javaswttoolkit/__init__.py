@@ -68,14 +68,17 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
             self.uiMap.scriptEngine.setTestThreadAction(self.setUpMonitoring)
 
     def getMonitorClass(self):
-        return self.importClass("WidgetMonitor", [ "customwidgetevents", "storytext.javaswttoolkit.nattablesimulator", self.__class__.__module__ + ".simulator" ], "nebula")
+        return self.importClass("WidgetMonitor", [ "customwidgetevents", self.__class__.__module__ + ".simulator" ])
 
     def setUpMonitoring(self):
         from org.eclipse.swtbot.swt.finder.utils import SWTUtils
         SWTUtils.waitForDisplayToAppear()
         # Load all necessary classes. Not necessary for pure SWT which doesn't have Eclipse classloaders
         self.initEclipsePackagesWithDisplay()
+        failureHandler = self.importClass("FailureHandler", ["storytext.javaswttoolkit.nattablesimulator"], "nebula")
         monitor = self.getMonitorClass()(self.uiMap)
+        if failureHandler:
+            monitor.failureHandlers.add(failureHandler())
         if monitor.setUp():
             return monitor
         

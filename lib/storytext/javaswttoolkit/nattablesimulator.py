@@ -275,13 +275,12 @@ class NatTableCornerContextEvent(ContextEventHelper, NatTableEventHelper, simula
     def parseArguments(self, argumentString):
         return 0, 0
 
-class WidgetMonitor(simulator.WidgetMonitor):
+class FailureHandler():
     def handleReplayFailure(self, errorText, events):
         if "Could not find row identified by" in errorText or "outside the viewport" in errorText:
             for event in events:
                 if hasattr(event, "scrollDown"):
                     event.scrollDown()
-        simulator.WidgetMonitor.handleReplayFailure(self, errorText, events)
  
 def getContextNameForNatCombo(widget, *args):
     if isinstance(widget, swt.widgets.Table):

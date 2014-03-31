@@ -1460,8 +1460,11 @@ class WidgetMonitor:
         self.uiMap.scriptEngine.importCustomEventTypesFromSimulator(eventTypes)
         self.displayFilter = self.getDisplayFilterClass()(self.getWidgetEventTypes())
         self.widgetMonitorLock = Lock()
+        self.failureHandlers = set()
 
     def handleReplayFailure(self, errorText, events):
+        for handler in self.failureHandlers:
+            handler.handleReplayFailure(errorText, events)
         if "Could not find row identified by" in errorText:
             # Problems with row identification in Table Cells
             # A common cause is that someone has edited the row identifier and not committed the change
