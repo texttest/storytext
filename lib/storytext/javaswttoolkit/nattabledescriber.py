@@ -21,7 +21,7 @@ class CanvasDescriber(util.CanvasDescriber):
             data = self.canvas.getDataValueByPosition(col, rowPos)
             if data is not None:
                 cell = self.canvas.getCellByPosition(col, rowPos)
-                if not self.cellIsLaterSpan(cell, rowPos, col, prevRowSpans, prevColSpans):
+                if self.cellVisible(cell) and not self.cellIsLaterSpan(cell, rowPos, col, prevRowSpans, prevColSpans):
                     labels = cell.getConfigLabels().getLabels()
                     converter = self.findConverter(labels)
                     painter = self.findPainter(labels)
@@ -36,6 +36,10 @@ class CanvasDescriber(util.CanvasDescriber):
                         elif displayMode == DisplayMode.EDIT:
                             dataStr += " (editing)"
             rowToAddTo.append(dataStr)
+            
+    def cellVisible(self, cell):
+        bounds = cell.getBounds()
+        return util.getInt(bounds.width) > 0 and util.getInt(bounds.height) > 0
             
     def cellIsLaterSpan(self, cell, row, col, prevRowSpans, prevColSpans):
         rowSpan = cell.getRowSpan()
