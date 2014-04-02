@@ -34,6 +34,8 @@ For fuller documentation refer to the online docs at http://www.texttest.org"""
                       help="Only useful with -f. Use as name for generated application event instead of 'wait for FILENAME to be updated'")
     parser.add_option("-I", "--imagedescription",
                       help="determines how images are described by the auto-generated output, should be 'name' or 'number'")
+    parser.add_option("-k", "--primary-key-columns",  
+                      help="Names of columns to use as primary keys when indexing tables. Useful when the built in algorithm for this gets the wrong answer for some reason.")
     parser.add_option("-l", "--loglevel", default="INFO", 
                       help="produce logging at level LEVEL, should be 'info', 'debug', 'config' or 'off'. 'info' will point the auto-generated GUI log at standard output. 'debug' will produce a large amount of StoryText debug information on standard output. 'off' will disable the auto-generated log. 'config' will enabled the auto-generated log but not set any global log level: it is a way to tell StoryText that your application will configure its logging via its own log configuration files.", metavar="LEVEL")
     parser.add_option("-L", "--logconfigfile",

@@ -345,6 +345,8 @@ class ScriptEngine(scriptengine.ScriptEngine):
             for subStr in options.min_field_widths.split(","):
                 fieldName, minWidthStr = subStr.split("=")
                 Describer.minFieldWidths[fieldName] = int(minWidthStr)
+        if options.primary_key_columns:
+            TableIndexer.primaryKeyColumnTexts += options.primary_key_columns.split(",")
 
     def run_python_or_java(self, args):
         # Two options here: either a Jython program and hence a .py file, or a Java class
@@ -1578,6 +1580,7 @@ class Indexer:
 
     
 class TableIndexer(Indexer):
+    primaryKeyColumnTexts = []
     def __init__(self, widget):
         Indexer.__init__(self, widget)
         self.primaryKeyColumn, self.rowNames = self.findRowNames()
@@ -1589,19 +1592,21 @@ class TableIndexer(Indexer):
             self.logger.debug("Rebuilding indexer, primary key " + str(self.primaryKeyColumn) +
                               ", row names now " + repr(self.rowNames))
         else:
-            currRowNames = self.getColumn(self.primaryKeyColumn)
-            if set(currRowNames) != set([ "<unnamed>" ]):
-                if len(set(currRowNames)) != len(currRowNames):
-                    self.rowNames = self.addIndexes(currRowNames)
-                else:
-                    self.rowNames = currRowNames 
-                self.logger.debug("Model changed, row names now " + repr(self.rowNames))
+            self.rowNames = self.getColumnWithIndices(self.primaryKeyColumn)
+            self.logger.debug("Model changed, row names now " + repr(self.rowNames))
 
     def getColumnCount(self):
         return self.widget.getColumnCount()
 
     def getColumn(self, col):
         return [ self.getCellValueToUse(row, col) for row in range(self.getRowCount()) ]
+    
+    def getColumnWithIndices(self, col):
+        currRowNames = self.getColumn(col)
+        if len(set(currRowNames)) != len(currRowNames):
+            return self.addIndexes(currRowNames)
+        else:
+            return currRowNames 
     
     def getColumnTextToUse(self, *args):
         return self.getColumnText(*args) or "<untitled>"
@@ -1610,6 +1615,16 @@ class TableIndexer(Indexer):
         return self.getCellValue(*args) or "<unnamed>"
     
     def findRowNames(self):
+        if self.primaryKeyColumnTexts:
+            columnTexts = map(self.getColumnText, range(self.getColumnCount()))
+            for primaryText in self.primaryKeyColumnTexts:
+                if primaryText in columnTexts:
+                    col = columnTexts.index(primaryText)
+                    return col, self.getColumnWithIndices(col)
+                
+        return self.calculateRowNames()
+                    
+    def calculateRowNames(self):
         firstColumnWithData = None
         firstUniqueColumn = None
         # Try to find a unique column with names less than 30 characters
