@@ -1421,7 +1421,6 @@ class EventPoster:
         time.sleep(0.1)
         self.moveMouseAndWait(currPos.x, currPos.y)
 
-
 class WidgetMonitor:
     startupError = None
     swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
@@ -1462,9 +1461,12 @@ class WidgetMonitor:
         self.widgetMonitorLock = Lock()
         self.failureHandlers = set()
 
+    # This method should not be overridden by subclasses
     def handleReplayFailure(self, errorText, events):
         for handler in self.failureHandlers:
-            handler.handleReplayFailure(errorText, events)
+            done = handler.handleReplayFailure(errorText, events)
+            if done:
+                return
         if "Could not find row identified by" in errorText:
             # Problems with row identification in Table Cells
             # A common cause is that someone has edited the row identifier and not committed the change
@@ -1474,7 +1476,7 @@ class WidgetMonitor:
                 keyboard.pressShortcut([ swtbot.keyboard.Keystrokes.CR ])
         elif "MenuItem has already been disposed" in errorText or "no widget found" in errorText:
             runOnUIThread(self.recheckPopupMenus)
-            
+
     def hasTableWithEditor(self, event):
         widget = event.widget.widget.widget
         if not widget.isDisposed() and isinstance(widget, swt.widgets.Table) and len(widget.getChildren()) > 0:
