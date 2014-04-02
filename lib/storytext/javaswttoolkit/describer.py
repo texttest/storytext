@@ -247,11 +247,7 @@ class Describer(storytext.guishared.Describer):
         else:
             newText = clipboard.getContents(textTransfer) or ""
             if newText != self.clipboardText:
-                # In theory an application could write empty text to the clipboard
-                # In practice, this isn't very useful, and a far more common cause is that the clipboard couldn't be accessed for some reason
-                # In which case it's best not to spam the log
-                if newText.strip():
-                    self.logger.info("Copied following to clipboard :\n" + newText)
+                self.logger.info("Copied following to clipboard :\n" + newText)
                 self.clipboardText = newText
         clipboard.dispose()
         
