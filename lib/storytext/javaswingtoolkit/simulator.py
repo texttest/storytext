@@ -1,4 +1,4 @@
-import storytext.guishared, logging, util, sys
+import storytext.guishared, logging, util, sys, os
 from storytext import applicationEvent, applicationEventDelay
 from storytext.definitions import UseCaseScriptError
 from java.awt import AWTEvent, Toolkit
@@ -51,7 +51,7 @@ def checkWidget(widget):
     if isinstance(widget, swing.JMenuItem):
         return widget.getParent().getInvoker()
     return widget
-        
+
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getChildWidgets(self):
         if isinstance(self.widget, swing.JMenu):
@@ -162,8 +162,19 @@ class KeyPressForTestingEvent(storytext.guishared.GuiEvent):
 
 class FrameCloseEvent(SignalEvent):
     def _generate(self, *args):
+        if os.getenv("SWINGLIBRARY_WINDOW_CLOSE"):
+            self.closeDialogOrWindow()
+        else:
+            self.simulateCloseWindow()
+
+    #This just works on java 6. See https://github.com/robotframework/SwingLibrary/issues/41
+    def closeDialogOrWindow(self):
         keywordName = "closeDialog" if isinstance(self.widget.widget, swing.JDialog) else "closeWindow"
         runKeyword(keywordName, self.widget.getTitle())
+    
+    # Workaround to make it work on java 7
+    def simulateCloseWindow(self):
+        self.widget.widget.dispatchEvent(WindowEvent(self.widget.widget, WindowEvent.WINDOW_CLOSING))
 
     def connectRecord(self, method):               
         class EventListener(AWTEventListener):
