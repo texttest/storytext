@@ -1,23 +1,28 @@
-
+import time, logging
+import storytext.guishared
 
 from storytext.javarcptoolkit import simulator as rcpsimulator
 from storytext.javaswttoolkit import simulator as swtsimulator
 from storytext.javaswttoolkit.util import getInt
 from storytext.definitions import UseCaseScriptError
-import org.eclipse.swtbot.eclipse.gef.finder as gefbot
-from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
-from org.eclipse.jface.viewers import ISelectionChangedListener
-from org.eclipse.ui.internal import EditorReference
-from org.eclipse.draw2d.geometry import Insets
-import storytext.guishared
-from org.eclipse import swt, gef, draw2d
-import time, logging
 
-class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
+from org.eclipse.draw2d import FigureCanvas
+from org.eclipse.draw2d.geometry import Insets
+from org.eclipse.gef import GraphicalViewer
+from org.eclipse.jface.viewers import ISelectionChangedListener
+from org.eclipse.swt import SWT
+from org.eclipse.swt.events import DragDetectListener, MouseAdapter
+from org.eclipse.ui.internal import EditorReference
+
+from org.eclipse.swtbot.eclipse.gef.finder import SWTGefBot
+from org.eclipse.swtbot.eclipse.gef.finder.widgets import SWTBotGefFigureCanvas, SWTBotGefEditPart, SWTBotGefViewer
+from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
+
+class StoryTextSWTBotGefViewer(SWTBotGefViewer):
     widgetMonitor = None
     def __init__(self, botOrGefViewer):
-        gefViewer = self._getViewer(botOrGefViewer) if isinstance(botOrGefViewer, gefbot.widgets.SWTBotGefViewer) else botOrGefViewer
-        gefbot.widgets.SWTBotGefViewer.__init__(self, gefViewer)
+        gefViewer = self._getViewer(botOrGefViewer) if isinstance(botOrGefViewer, SWTBotGefViewer) else botOrGefViewer
+        SWTBotGefViewer.__init__(self, gefViewer)
         self.logger = logging.getLogger("Centre finding")
 
     def findOverlap(self, overlaps, centre):
@@ -129,7 +134,7 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
 
     def getBoundsInternal(self, editPart):
         # getAbsoluteBounds method has private access modifier
-        declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [gefbot.widgets.SWTBotGefEditPart])
+        declaredMethod = self.getClass().getSuperclass().getDeclaredMethod("getAbsoluteBounds", [SWTBotGefEditPart])
         declaredMethod.setAccessible(True)
         return declaredMethod.invoke(self, [editPart])
         
@@ -138,7 +143,7 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
     
     @staticmethod
     def _getViewer(obj):
-        viewerField = gefbot.widgets.SWTBotGefViewer.getDeclaredField("graphicalViewer")
+        viewerField = SWTBotGefViewer.getDeclaredField("graphicalViewer")
         viewerField.setAccessible(True)
         return viewerField.get(obj)
     
@@ -161,9 +166,9 @@ class StoryTextSWTBotGefViewer(gefbot.widgets.SWTBotGefViewer):
         self.getFigureCanvas().mouseDrag(centreX, centreY, toX, toY, keyModifiers)
  
 
-class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
+class StoryTextSWTBotGefFigureCanvas(SWTBotGefFigureCanvas):
     def __init__(self, *args, **kw):
-        gefbot.widgets.SWTBotGefFigureCanvas.__init__(self, *args, **kw)
+        SWTBotGefFigureCanvas.__init__(self, *args, **kw)
         self.eventPoster = swtsimulator.EventPoster(self.display)
         
     def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
@@ -230,7 +235,7 @@ class StoryTextSWTBotGefFigureCanvas(gefbot.widgets.SWTBotGefFigureCanvas):
 
 class DisplayFilter(rcpsimulator.DisplayFilter):
     def shouldCheckWidget(self, widget, eventType):
-        if isinstance(widget, draw2d.FigureCanvas):
+        if isinstance(widget, FigureCanvas):
             return True
         else:
             return rcpsimulator.DisplayFilter.shouldCheckWidget(self, widget, eventType)
@@ -239,13 +244,13 @@ class DisplayFilter(rcpsimulator.DisplayFilter):
 class WidgetMonitor(rcpsimulator.WidgetMonitor):
     def __init__(self, *args, **kw):
         self.allPartRefs = set()
-        self.swtbotMap[gef.GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
+        self.swtbotMap[GraphicalViewer] = (StoryTextSWTBotGefViewer, [])
         self.logger = logging.getLogger("storytext record")
         rcpsimulator.WidgetMonitor.__init__(self, *args, **kw)
         StoryTextSWTBotGefViewer.widgetMonitor = self
 
     def createSwtBot(self):
-        return gefbot.SWTGefBot()
+        return SWTGefBot()
 
     def monitorAllWidgets(self, widgets):
         rcpsimulator.WidgetMonitor.monitorAllWidgets(self, widgets)
@@ -474,7 +479,7 @@ class ViewerSelectEvent(ViewerEvent):
             for i, part in enumerate(parts):
                 if i > 0 and self.pauseBetweenSelections:
                     time.sleep(self.pauseBetweenSelections)
-                self.widget.clickOnCenter(part, swt.SWT.CTRL)
+                self.widget.clickOnCenter(part, SWT.CTRL)
                 
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -482,7 +487,7 @@ class ViewerSelectEvent(ViewerEvent):
     
     @classmethod
     def getSignalsToFilter(cls):
-        return [ swt.SWT.MouseDown, swt.SWT.MouseUp ]
+        return [ SWT.MouseDown, SWT.MouseUp ]
 
     def shouldRecord(self, parts, *args):
         types = self.getSignalsToFilter()
@@ -509,7 +514,7 @@ class DragHolder():
 class ViewerDragAndDropEvent(ViewerEvent):
     allInstances = {}
     def connectRecord(self, method):
-        class DDListener(swt.events.DragDetectListener):
+        class DDListener(DragDetectListener):
             def dragDetected(lself, event):#@NoSelf
                 storytext.guishared.catchAll(self.applyToDragged, event, method)
 
@@ -523,7 +528,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
             DragHolder.sourceSwtEvent = event
 
     def addDropListener(self, method):
-        class MListener(swt.events.MouseAdapter):
+        class MListener(MouseAdapter):
             def mouseUp(lself, event):#@NoSelf
                 storytext.guishared.catchAll(self.handleDrop, event, method)
 
@@ -560,7 +565,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
     
     @classmethod
     def getSignalsToFilter(cls):
-        return [ swt.SWT.MouseUp ]
+        return [ SWT.MouseUp ]
     
     def shouldRecord(self, *args):
         types = self.getSignalsToFilter()
@@ -570,7 +575,7 @@ class ViewerDragAndDropEvent(ViewerEvent):
         parts, x, y = args
         if len(parts) > 1:
             for part in parts[:-1]:
-                self.widget.clickOnCenter(part, swt.SWT.CTRL)
+                self.widget.clickOnCenter(part, SWT.CTRL)
                 if ViewerSelectEvent.pauseBetweenSelections:
                     time.sleep(ViewerSelectEvent.pauseBetweenSelections)
         self.widget.drag(parts[-1], x, y, **kw)

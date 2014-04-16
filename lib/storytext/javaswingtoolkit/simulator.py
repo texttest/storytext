@@ -1,12 +1,17 @@
 import storytext.guishared, logging, util, sys, os
 from storytext import applicationEvent, applicationEventDelay
 from storytext.definitions import UseCaseScriptError
+
 from java.awt import AWTEvent, Toolkit
 from java.awt.event import AWTEventListener, KeyListener, MouseAdapter, MouseEvent, KeyEvent, \
      WindowEvent, ActionListener, ItemListener, ItemEvent
 from java.lang import System, RuntimeException
 from java.io import PrintStream, OutputStream
-from javax import swing
+
+from javax.swing import DefaultCellEditor, JButton, JCheckBox, JComboBox, JComponent, JDialog, \
+    JFrame, JInternalFrame, JMenu, JMenuItem, JSpinner, JTextField, JToggleButton, SwingUtilities
+from javax.swing.event import ChangeListener, DocumentListener, TableModelEvent, TableModelListener
+from javax.swing.text import JTextComponent
 
 try:
     from org.robotframework.abbot.tester import Robot
@@ -15,8 +20,6 @@ except ImportError:
                      "Please download it and add it to your CLASSPATH as described at :\n" +
                      "http://www.texttest.org/index.php?page=ui_testing&n=storytext_and_swing\n")
     sys.exit(1)
-    
-from org.robotframework.org.netbeans import jemmy
 
 # Importing writes uninteresting stuff to stdout
 out_orig = System.out
@@ -26,6 +29,7 @@ class NullOutputStream(OutputStream):
 
 System.setOut(PrintStream(NullOutputStream()))
 import SwingLibrary
+from org.robotframework.org.netbeans.jemmy.operators import ComponentOperator, JMenuItemOperator, JTableOperator
 swinglib = SwingLibrary()
 System.setOut(out_orig)
 
@@ -41,20 +45,20 @@ def runKeyword(keywordName, *args):
 
 def selectWindow(widget):
     w = checkWidget(widget)
-    window = swing.SwingUtilities.getWindowAncestor(w)
-    if isinstance(window, swing.JFrame):
+    window = SwingUtilities.getWindowAncestor(w)
+    if isinstance(window, JFrame):
         runKeyword("selectWindow", window.getTitle())
-    elif isinstance(window, swing.JDialog):
+    elif isinstance(window, JDialog):
         runKeyword("selectDialog", window.getTitle())
 
 def checkWidget(widget):
-    if isinstance(widget, swing.JMenuItem):
+    if isinstance(widget, JMenuItem):
         return widget.getParent().getInvoker()
     return widget
 
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
     def getChildWidgets(self):
-        if isinstance(self.widget, swing.JMenu):
+        if isinstance(self.widget, JMenu):
             return self.widget.getPopupMenu().getSubElements()
         elif hasattr(self.widget, "getComponents"): # All Swing widgets have this, but AWT one don't
             return self.widget.getComponents()
@@ -75,7 +79,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         return name == "frame0" or name.startswith("OptionPane") or len(name) == 0 or "FileChooser." in name
     
     def getLabel(self):
-        if isinstance(self.widget, (swing.text.JTextComponent, swing.JComboBox, swing.JSpinner)):
+        if isinstance(self.widget, (JTextComponent, JComboBox, JSpinner)):
             return util.getTextLabel(self.widget)
 
         if hasattr(self.widget, "getLabel") and not self.getContextName():
@@ -90,13 +94,13 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
             return ""
         
     def getContextName(self):
-        if swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget):
+        if SwingUtilities.getAncestorOfClass(JInternalFrame, self.widget):
             return "Internal Frame"
-        elif swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget): #@UndefinedVariable
+        elif SwingUtilities.getAncestorOfClass(JInternalFrame.JDesktopIcon, self.widget): #@UndefinedVariable
             return "Internal Frame Icon"
         
     def getDialogTitle(self):
-        window = swing.SwingUtilities.getWindowAncestor(self.widget)
+        window = SwingUtilities.getWindowAncestor(self.widget)
         return window.getTitle() if window and hasattr(window, "getTitle") and window.getOwner() else ""
 
     def runKeyword(self, keywordName, *args):
@@ -169,7 +173,7 @@ class FrameCloseEvent(SignalEvent):
 
     #This just works on java 6. See https://github.com/robotframework/SwingLibrary/issues/41
     def closeDialogOrWindow(self):
-        keywordName = "closeDialog" if isinstance(self.widget.widget, swing.JDialog) else "closeWindow"
+        keywordName = "closeDialog" if isinstance(self.widget.widget, JDialog) else "closeWindow"
         runKeyword(keywordName, self.widget.getTitle())
     
     # Workaround to make it work on java 7
@@ -190,7 +194,7 @@ class FrameCloseEvent(SignalEvent):
             if event.getID() == WindowEvent.WINDOW_CLOSING:
                 method(event, self)
             elif event.getID() == WindowEvent.WINDOW_CLOSED:
-                if isinstance(self.widget.widget, swing.JFrame):
+                if isinstance(self.widget.widget, JFrame):
                     storytext.guishared.catchAll(PhysicalEventManager.stopListening)
                     
     @classmethod
@@ -231,12 +235,12 @@ class DoubleClickEvent(SignalEvent):
 class PopupActivateEvent(ClickEvent):
     def _generate(self, *args):
         System.setOut(PrintStream(NullOutputStream()))
-        operator = jemmy.operators.ComponentOperator(self.widget.widget)
+        operator = ComponentOperator(self.widget.widget)
         System.setOut(out_orig)
         operator.clickForPopup()
     
     def connectRecord(self, method):               
-        if isinstance(self.widget.widget, swing.JComponent) and self.widget.getComponentPopupMenu():
+        if isinstance(self.widget.widget, JComponent) and self.widget.getComponentPopupMenu():
             class EventListener(AWTEventListener):
                 def eventDispatched(listenerSelf, event): #@NoSelf
                     storytext.guishared.catchAll(self.handleEvent, event, method)
@@ -282,11 +286,11 @@ class ButtonClickEvent(SignalEvent):
         util.runOnEventDispatchThread(self.widget.widget.addActionListener, RecordListener())
 
     def getButtonIdentifier(self):
-        intFrame = swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame, self.widget.widget)
+        intFrame = SwingUtilities.getAncestorOfClass(JInternalFrame, self.widget.widget)
         if intFrame:
             return intFrame.getTitle()
 
-        icon = swing.SwingUtilities.getAncestorOfClass(swing.JInternalFrame.JDesktopIcon, self.widget.widget) #@UndefinedVariable
+        icon = SwingUtilities.getAncestorOfClass(JInternalFrame.JDesktopIcon, self.widget.widget) #@UndefinedVariable
         if icon:
             return self.widget.widget.getLabel()
 
@@ -299,7 +303,7 @@ class ButtonClickEvent(SignalEvent):
             return text
 
     def tryApplicationEvent(self, event, method):
-        if isinstance(event.getSource(), swing.JButton) and event.getActionCommand() is not None and \
+        if isinstance(event.getSource(), JButton) and event.getActionCommand() is not None and \
                event.getActionCommand().startswith("ApplicationEvent"):
             appEventName = event.getActionCommand().replace("ApplicationEvent", "").lstrip()
             applicationEvent(appEventName, delayLevel=PhysicalEventManager.getAppEventDelayLevel())
@@ -333,7 +337,7 @@ class SpinnerEvent(StateChangeEvent):
         return "Edited"
 
     def connectRecord(self, method):
-        class RecordListener(swing.event.ChangeListener):
+        class RecordListener(ChangeListener):
             def stateChanged(lself, e): #@NoSelf
                 storytext.guishared.catchAll(method, e, self)
 
@@ -355,7 +359,7 @@ class SpinnerEvent(StateChangeEvent):
 
 class TextEditEvent(StateChangeEvent):
     def connectRecord(self, method):
-        class TextDocumentListener(swing.event.DocumentListener):
+        class TextDocumentListener(DocumentListener):
             def insertUpdate(lself, event): #@NoSelf
                 storytext.guishared.catchAll(method, event, self)
                 
@@ -427,12 +431,12 @@ class MenuSelectEvent(SignalEvent):
     
     def selectFromPopupMenu(self):
         System.setOut(PrintStream(NullOutputStream()))
-        operator = jemmy.operators.JMenuItemOperator(self.widget.widget)
+        operator = JMenuItemOperator(self.widget.widget)
         operator.push()
         System.setOut(out_orig)
                 
     def shouldRecord(self, event, *args):
-        return not isinstance(event.getSource(), swing.JMenu) and SignalEvent.shouldRecord(self, event, *args)
+        return not isinstance(event.getSource(), JMenu) and SignalEvent.shouldRecord(self, event, *args)
     
     def widgetVisible(self):
         return True
@@ -470,7 +474,7 @@ class TabPopupActivateEvent(PopupActivateEvent):
     def _generate(self, index):
         System.setOut(PrintStream(NullOutputStream()))
         rect = self.widget.getBoundsAt(index)
-        operator = jemmy.operators.ComponentOperator(self.widget.widget)
+        operator = ComponentOperator(self.widget.widget)
         System.setOut(out_orig)
         operator.clickForPopup(rect.x + rect.width/2, rect.y + rect.height/2)
      
@@ -517,7 +521,7 @@ class ComboBoxEvent(StateChangeEvent):
             def itemStateChanged(listenerSelf, event): #@NoSelf
                 storytext.guishared.catchAll(self.tryRecordSelection, event, method)
         
-        class TextDocumentListener(swing.event.DocumentListener):
+        class TextDocumentListener(DocumentListener):
             def insertUpdate(lself, event): #@NoSelf
                 storytext.guishared.catchAll(method, None, event, self)
                 
@@ -611,7 +615,7 @@ class CellPopupMenuActivateEvent(PopupActivateEvent):
     def _generate(self, argument):
         row, column = argument
         System.setOut(PrintStream(NullOutputStream()))
-        operator = jemmy.operators.JTableOperator(self.widget.widget)
+        operator = JTableOperator(self.widget.widget)
         System.setOut(out_orig)
         operator.callPopupOnCell(row, column)
 
@@ -716,27 +720,27 @@ class CellEditEvent(SignalEvent):
             combobox.setSelectedItem(newValue)
 
     def isTextComponent(self, cellEditor):
-        return self.isCellEditorComponent(cellEditor, swing.text.JTextComponent)
+        return self.isCellEditorComponent(cellEditor, JTextComponent)
 
     def isCheckBox(self, cellEditor):
-        return self.isCellEditorComponent(cellEditor, swing.JCheckBox)
+        return self.isCellEditorComponent(cellEditor, JCheckBox)
 
     def isComboBox(self, cellEditor):
-        return self.isCellEditorComponent(cellEditor, swing.JComboBox)
+        return self.isCellEditorComponent(cellEditor, JComboBox)
     
     def isCellEditorComponent(self, cellEditor, component):
-        if isinstance(cellEditor, swing.DefaultCellEditor):
+        if isinstance(cellEditor, DefaultCellEditor):
             return isinstance(cellEditor.getComponent(), component)
     
     def connectRecord(self, method):
-        class TableListener(swing.event.TableModelListener):
+        class TableListener(TableModelListener):
             def tableChanged(listenerSelf, event): #@NoSelf
                 storytext.guishared.catchAll(self.tryRecordUpdate, event, method)
                     
         util.runOnEventDispatchThread(self.widget.widget.getModel().addTableModelListener, TableListener())
 
     def tryRecordUpdate(self, event, method):
-        if event.getType() == swing.event.TableModelEvent.UPDATE:
+        if event.getType() == TableModelEvent.UPDATE:
             row = self.widget.getEditingRow()
             column = self.widget.getEditingColumn()
             if row >= 0 and column >= 0:
@@ -759,11 +763,11 @@ class CellEditEvent(SignalEvent):
             return self.widget.getValueAt(row, col)
     
     def getValueFromComponent(self, component):
-        if isinstance(component, swing.JComboBox):
+        if isinstance(component, JComboBox):
             return component.getSelectedItem()
-        elif isinstance(component, swing.JTextField):
+        elif isinstance(component, JTextField):
             return component.getText()
-        elif isinstance(component, swing.JToggleButton):
+        elif isinstance(component, JToggleButton):
             return component.isSelected()
         else:
             cellEditor = self.widget.getCellEditor()
@@ -798,7 +802,7 @@ class TableIndexer(storytext.guishared.TableIndexer):
         self.observeUpdates()
 
     def observeUpdates(self):
-        class TableListener(swing.event.TableModelListener):
+        class TableListener(TableModelListener):
             def tableChanged(listenerSelf, event): #@NoSelf
                 storytext.guishared.catchAll(self.updateTableInfo)
                 
@@ -835,7 +839,7 @@ class TableIndexer(storytext.guishared.TableIndexer):
 
 class PhysicalEventManager:
     eventContexts = []
-    ignoredWidgets = swing.text.JTextComponent, swing.JMenu, swing.JFrame
+    ignoredWidgets = JTextComponent, JMenu, JFrame
     relevantKeystrokes = []
     logger = None
     eventListener = None

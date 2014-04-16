@@ -2,20 +2,21 @@
 from storytext.javaswttoolkit import describer as swtdescriber
 from storytext import guishared, gridformatter
 import util
-# Some unused imports to make sure classloader loads necessary classes
-from org.eclipse.draw2d import FigureCanvas #@UnusedImport
-from org.eclipse.draw2d.geometry import Rectangle #@UnusedImport
-import org.eclipse.draw2d as draw2d
-from org.eclipse import swt
+
+from org.eclipse.draw2d import ColorConstants, Figure, FigureUtilities, Graphics, Label, PolylineShape, RectangleFigure
+from org.eclipse.draw2d.geometry import Rectangle
+
+from org.eclipse.swt import SWT
+from org.eclipse.swt.graphics import GC
 
 def addColors(cls):
     swtdescriber.colorNameFinder.addColors(cls, 
-                                           modifiers=[ (draw2d.FigureUtilities.darker, "D"), (draw2d.FigureUtilities.lighter, "L")],
+                                           modifiers=[ (FigureUtilities.darker, "D"), (FigureUtilities.lighter, "L")],
                                            abbreviations=[ ("dark", "+"), ("dull", "#"), ("very", "+"), 
                                                            ("light", "-"), ("normal", ""), ("bright", "*") ])
 
 # Add swt colors
-addColors(draw2d.ColorConstants)
+addColors(ColorConstants)
             
 
 class AttrRecorder:
@@ -27,7 +28,7 @@ class AttrRecorder:
         self.recorder.registerCall(self.name, args)
 
         
-class RecorderGraphics(draw2d.Graphics, object):
+class RecorderGraphics(Graphics, object):
     def __init__(self, canvas, font, methodNames):
         self.calls = []
         self.currFont = font
@@ -59,7 +60,7 @@ class RecorderGraphics(draw2d.Graphics, object):
         return 0 # throws NotImplemented by default
     
     def getAntialias(self, *args):
-        return swt.SWT.DEFAULT # throws NotImplemented by default
+        return SWT.DEFAULT # throws NotImplemented by default
     
     def setAntialias(self, *args):
         pass # throws NotImplemented by default
@@ -68,7 +69,7 @@ class RecorderGraphics(draw2d.Graphics, object):
         return self.currFont
     
     def getFontMetrics(self):
-        gc = swt.graphics.GC(self.parentCanvas)
+        gc = GC(self.parentCanvas)
         metrics = gc.getFontMetrics()
         gc.dispose()
         return metrics
@@ -98,9 +99,9 @@ class RecorderGraphics(draw2d.Graphics, object):
 class CanvasDescriber(util.CanvasDescriber):
     childrenMethodName = "getChildren"
     visibleMethodName = "isVisible"
-    statelessWidgets = [ draw2d.RectangleFigure, draw2d.Label, draw2d.PolylineShape ]
+    statelessWidgets = [ RectangleFigure, Label, PolylineShape ]
     stateWidgets = []
-    ignoreWidgets = [ draw2d.Figure ] # Not interested in anything except what we list
+    ignoreWidgets = [ Figure ] # Not interested in anything except what we list
     ignoreChildren = ()
     pixelTolerance = 2
     @classmethod
@@ -144,7 +145,7 @@ class CanvasDescriber(util.CanvasDescriber):
             if rectArgs is None: # Colour was set, but no rectangles were made...
                 continue
             
-            rect = draw2d.geometry.Rectangle(*rectArgs)
+            rect = Rectangle(*rectArgs)
             filledRectangles.append(rect)
             colorText = ""
             if colorArgs is not None:
@@ -219,7 +220,7 @@ class CanvasDescriber(util.CanvasDescriber):
         return gridformatter.GridFormatter(grid, numColumns)
 
     def usesGrid(self, figure):
-        return isinstance(figure, draw2d.RectangleFigure)
+        return isinstance(figure, RectangleFigure)
 
     def makeTextGrid(self, calls):
         grid = []

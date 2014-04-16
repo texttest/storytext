@@ -4,10 +4,11 @@
 
 import logging, os
 import storytext.guishared
-from storytext.javaswttoolkit.simulator import DisplayFilter
-from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
 from threading import Lock, currentThread
 from copy import copy
+from storytext.javaswttoolkit.simulator import DisplayFilter
+
+from org.eclipse.core.runtime.jobs import Job, JobChangeAdapter
 
 class JobListener(JobChangeAdapter):
     # Add things from customwidgetevents here, if desired...

@@ -1,19 +1,28 @@
 import storytext.guishared, logging, util, os, inspect
-import java.awt as awt
-from javax import swing
 from itertools import izip
 
+from java.awt import BorderLayout, FlowLayout, GridBagConstraints, GridBagLayout, GridLayout
+from javax.swing import JButton, JCheckBox, JComboBox, JDialog, JFileChooser, JFrame, JInternalFrame, \
+    JLabel, JLayeredPane, JList, JMenu, JMenuBar, JMenuItem, JOptionPane, JPanel, JPasswordField, JPopupMenu, \
+    JProgressBar, JRadioButton, JRootPane, JScrollBar, JScrollPane, JSeparator, JSpinner, JSplitPane, \
+    JTabbedPane, JTable, JTree, JToggleButton, JToolBar, JViewport, \
+    Box, BoxLayout, CellRendererPane, Popup, SwingConstants
+from javax.swing.plaf.basic import BasicInternalFrameTitlePane, BasicOptionPaneUI, BasicSplitPaneDivider
+from javax.swing.table import JTableHeader, TableCellRenderer
+from javax.swing.text import JTextComponent
+
+
 class Describer(storytext.guishared.Describer):
-    ignoreWidgets = [ swing.JSplitPane, swing.CellRendererPane, swing.Box.Filler, swing.JRootPane, swing.JLayeredPane,
-                      swing.JPanel, swing.JOptionPane, swing.JViewport, swing.table.JTableHeader, swing.JScrollPane, swing.JFileChooser,
-                      swing.JScrollBar, swing.plaf.basic.BasicInternalFrameTitlePane, swing.JInternalFrame.JDesktopIcon ]
-    ignoreChildren = (swing.JScrollBar, swing.JMenu, swing.JPopupMenu, swing.JMenuBar, swing.JSpinner, swing.JComboBox,
-                      swing.JInternalFrame, swing.plaf.basic.BasicInternalFrameTitlePane)
-    statelessWidgets = [ swing.plaf.basic.BasicSplitPaneDivider, swing.JInternalFrame, swing.JSeparator ]
-    stateWidgets = [ swing.JButton, swing.JFrame, swing.JMenuBar, swing.JMenu, swing.JMenuItem, swing.JToolBar,
-                    swing.JRadioButton, swing.JCheckBox, swing.JToggleButton, swing.JTabbedPane, swing.JDialog, swing.JLabel,
-                    swing.JList, swing.JTree, swing.JTable, swing.text.JTextComponent, swing.JPopupMenu,
-                     swing.JProgressBar, swing.JSpinner, swing.JComboBox ]
+    ignoreWidgets = [ JSplitPane, CellRendererPane, Box.Filler, JRootPane, JLayeredPane,
+                      JPanel, JOptionPane, JViewport, JTableHeader, JScrollPane, JFileChooser,
+                      JScrollBar, BasicInternalFrameTitlePane, JInternalFrame.JDesktopIcon ]
+    ignoreChildren = (JScrollBar, JMenu, JPopupMenu, JMenuBar, JSpinner, JComboBox,
+                      JInternalFrame, BasicInternalFrameTitlePane)
+    statelessWidgets = [ BasicSplitPaneDivider, JInternalFrame, JSeparator ]
+    stateWidgets = [ JButton, JFrame, JMenuBar, JMenu, JMenuItem, JToolBar,
+                    JRadioButton, JCheckBox, JToggleButton, JTabbedPane, JDialog, JLabel,
+                    JList, JTree, JTable, JTextComponent, JPopupMenu,
+                     JProgressBar, JSpinner, JComboBox ]
     childrenMethodName = "getComponents"
     visibleMethodName = "isVisible"
     def __init__(self):
@@ -50,21 +59,21 @@ class Describer(storytext.guishared.Describer):
             return self.getDescription(widget)
    
     def setWidgetShown(self, widget):
-        if not isinstance(widget, (swing.Popup, swing.JScrollBar, swing.table.TableCellRenderer)) and \
+        if not isinstance(widget, (Popup, JScrollBar, TableCellRenderer)) and \
                widget not in self.widgetsAppeared:
             self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
 
     def getJSeparatorDescription(self, separator):
         basic = "-" * 15
-        if separator.getOrientation() == swing.SwingConstants.VERTICAL:
+        if separator.getOrientation() == SwingConstants.VERTICAL:
             return basic + " (vertical)"
         else:
             return basic
 
     def getPropertyElements(self, item, selected=False):
         elements = []
-        if isinstance(item, swing.JSeparator):
+        if isinstance(item, JSeparator):
             elements.append("---")
         if hasattr(item, "getToolTipText") and item.getToolTipText():
             elements.append("Tooltip '" + item.getToolTipText() + "'")
@@ -82,8 +91,8 @@ class Describer(storytext.guishared.Describer):
         return elements
 
     def layoutSortsChildren(self, widget):
-        return not isinstance(widget, (swing.JScrollPane, swing.JLayeredPane, swing.JSplitPane)) and \
-               not isinstance(widget.getLayout(), awt.BorderLayout)
+        return not isinstance(widget, (JScrollPane, JLayeredPane, JSplitPane)) and \
+               not isinstance(widget.getLayout(), BorderLayout)
 
     def getVerticalDividePositions(self, visibleChildren):
         return [] # for now
@@ -93,26 +102,26 @@ class Describer(storytext.guishared.Describer):
         # So we hack around the access priveleges. If you know a better way, please improve this!
         field = layout.getClass().getDeclaredField("axis")
         field.setAccessible(True) 
-        return field.get(layout) in [ swing.BoxLayout.X_AXIS, swing.BoxLayout.LINE_AXIS ]
+        return field.get(layout) in [ BoxLayout.X_AXIS, BoxLayout.LINE_AXIS ]
 
     def getLayoutColumns(self, widget, childCount, sortedChildren):
-        if isinstance(widget, swing.JScrollPane) and widget.getRowHeader() is not None:
+        if isinstance(widget, JScrollPane) and widget.getRowHeader() is not None:
             return 2
         layout = widget.getLayout()
-        if isinstance(layout, (awt.FlowLayout, swing.plaf.basic.BasicOptionPaneUI.ButtonAreaLayout)) or \
-               isinstance(widget, swing.JToolBar):
+        if isinstance(layout, (FlowLayout, BasicOptionPaneUI.ButtonAreaLayout)) or \
+               isinstance(widget, JToolBar):
             return childCount
-        elif isinstance(layout, swing.BoxLayout):
+        elif isinstance(layout, BoxLayout):
             return childCount if self.isHorizontalBox(layout) else 1
-        elif isinstance(layout, awt.BorderLayout):
-            positions = [ [ awt.BorderLayout.WEST, awt.BorderLayout.LINE_START ],
-                          [ awt.BorderLayout.CENTER ],
-                          [ awt.BorderLayout.EAST, awt.BorderLayout.LINE_END ] ]
+        elif isinstance(layout, BorderLayout):
+            positions = [ [ BorderLayout.WEST, BorderLayout.LINE_START ],
+                          [ BorderLayout.CENTER ],
+                          [ BorderLayout.EAST, BorderLayout.LINE_END ] ]
             return sum((self.hasBorderLayoutComponent(col, layout, sortedChildren) for col in positions))
-        elif isinstance(layout, awt.GridLayout):
+        elif isinstance(layout, GridLayout):
             # getColumns may return 0 if it was built that way, in which case it means a horizontal row
             return layout.getColumns() or childCount
-        elif isinstance(layout, awt.GridBagLayout):
+        elif isinstance(layout, GridBagLayout):
             return max(self.getRowWidths(layout, sortedChildren))
         return 1
 
@@ -121,7 +130,7 @@ class Describer(storytext.guishared.Describer):
         for child in sortedChildren:
             constraints = layout.getConstraints(child)
             widths[-1] += 1
-            if constraints.gridwidth == awt.GridBagConstraints.REMAINDER: # end of line
+            if constraints.gridwidth == GridBagConstraints.REMAINDER: # end of line
                 widths.append(0)
             
         return widths
@@ -130,20 +139,20 @@ class Describer(storytext.guishared.Describer):
         return any((layout.getLayoutComponent(pos) in sortedChildren for pos in col))
 
     def getHorizontalSpan(self, widget, columnCount):
-        if isinstance(widget.getParent(), swing.JScrollPane) and widget is widget.getParent().getColumnHeader():
+        if isinstance(widget.getParent(), JScrollPane) and widget is widget.getParent().getColumnHeader():
             return 2
         else:
             layout = widget.getParent().getLayout()
-            if isinstance(layout, awt.BorderLayout):
+            if isinstance(layout, BorderLayout):
                 constraints = layout.getConstraints(widget)
-                fullWidth = constraints in [ awt.BorderLayout.NORTH, awt.BorderLayout.SOUTH,
-                                             awt.BorderLayout.PAGE_START, awt.BorderLayout.PAGE_END ]
+                fullWidth = constraints in [ BorderLayout.NORTH, BorderLayout.SOUTH,
+                                             BorderLayout.PAGE_START, BorderLayout.PAGE_END ]
                 return columnCount if fullWidth else 1
         return 1
 
     def tryMakeGrid(self, widget, sortedChildren, childDescriptions):
         layout = widget.getLayout()
-        if isinstance(layout, awt.GridBagLayout):
+        if isinstance(layout, GridBagLayout):
             # Only for grid bags that explicitly identify the location of every child in the grid
             grid, columns = self.tryMakeGridBagGrid(widget, sortedChildren, childDescriptions)
             if grid:
@@ -157,7 +166,7 @@ class Describer(storytext.guishared.Describer):
             constraints = layout.getConstraints(child)
             x = constraints.gridx
             y = constraints.gridy
-            if x == awt.GridBagConstraints.RELATIVE or y == awt.GridBagConstraints.RELATIVE:
+            if x == GridBagConstraints.RELATIVE or y == GridBagConstraints.RELATIVE:
                 return None, 0
             while len(grid) <= y:
                 grid.append([ "" ])
@@ -168,7 +177,7 @@ class Describer(storytext.guishared.Describer):
 
     def getHorizontalSpans(self, children, columnCount):
         layout = children[0].getParent().getLayout()
-        if isinstance(layout, awt.GridBagLayout):
+        if isinstance(layout, GridBagLayout):
             # If we get this far, it's the kind of GridBagLayout that does everything relative to everything else
             return self.getGridBagSpans(layout, children, columnCount)
         else:
@@ -181,11 +190,11 @@ class Describer(storytext.guishared.Describer):
         rowSpan = 0
         for child in children:
             constraints = layout.getConstraints(child)
-            if constraints.gridwidth == awt.GridBagConstraints.REMAINDER:
+            if constraints.gridwidth == GridBagConstraints.REMAINDER:
                 span = columnCount - rowSpan
                 currentRow += 1
                 rowSpan = 0
-            elif constraints.gridwidth == awt.GridBagConstraints.RELATIVE:
+            elif constraints.gridwidth == GridBagConstraints.RELATIVE:
                 span = 1 + columnCount - rowWidths[currentRow]
                 rowSpan += span
             else:
@@ -199,14 +208,14 @@ class Describer(storytext.guishared.Describer):
         ix = widgetIndex - 1
         while ix > 0:
             constr = layout.getConstraints(children[ix])
-            if constr.gridwidth == awt.GridBagConstraints.REMAINDER: # end of line
+            if constr.gridwidth == GridBagConstraints.REMAINDER: # end of line
                 break
             else:
                 ix -= 1
         return widgetIndex - ix
         
     def getWindowClasses(self):
-        return swing.JFrame, swing.JDialog
+        return JFrame, JDialog
     
     def getWindowString(self):
         return "Window"
@@ -231,7 +240,7 @@ class Describer(storytext.guishared.Describer):
         return "Menu Bar:\n" + self.getJMenuDescription(menubar)
 
     def isNormalToolbar(self, toolbar):
-        return all((isinstance(item, (swing.JButton, swing.JSeparator)) for item in toolbar.getComponents()))
+        return all((isinstance(item, (JButton, JSeparator)) for item in toolbar.getComponents()))
             
     def getJToolBarDescription(self, toolbar, indent=1):
         if self.isNormalToolbar(toolbar):
@@ -242,7 +251,7 @@ class Describer(storytext.guishared.Describer):
     def getBasicSplitPaneDividerDescription(self, divider):
         # Note: orientation of the divider is the opposite of the orientation of the split pane...
         orientation = "Vertical"
-        if divider.getParent().getOrientation() == swing.JSplitPane.VERTICAL_SPLIT:
+        if divider.getParent().getOrientation() == JSplitPane.VERTICAL_SPLIT:
             orientation = "Horizontal"
         return "-" * 15 + " " + orientation + " divider " + "-" * 15
     
@@ -290,7 +299,7 @@ class Describer(storytext.guishared.Describer):
             return []
 
     def describeChildrenOnStateChange(self, widget):
-        if not isinstance(widget, swing.JTabbedPane):
+        if not isinstance(widget, JTabbedPane):
             return True
         
         descendants = self.getVisibleDescendants(widget.getSelectedComponent())
@@ -378,7 +387,7 @@ class Describer(storytext.guishared.Describer):
     
     def describeStateChangeGroups(self, widgets, stateChanges):
         for widget in widgets:
-            if isinstance(widget, swing.JList) and self.isTableRowHeader(widget):
+            if isinstance(widget, JList) and self.isTableRowHeader(widget):
                 scrollPane = widget.getParent().getParent()
                 table = scrollPane.getViewport().getView()
                 if table in widgets:
@@ -411,25 +420,25 @@ class Describer(storytext.guishared.Describer):
     def isTableRowHeader(self, widget):
         # viewport, then scroll pane...
         scrollPane = widget.getParent().getParent()
-        return isinstance(scrollPane, swing.JScrollPane) and scrollPane.getRowHeader() is not None and \
-               scrollPane.getRowHeader().getView() is widget and isinstance(scrollPane.getViewport().getView(), swing.JTable)
+        return isinstance(scrollPane, JScrollPane) and scrollPane.getRowHeader() is not None and \
+               scrollPane.getRowHeader().getView() is widget and isinstance(scrollPane.getViewport().getView(), JTable)
 
     def isTableScrollPane(self, scrollPane):
-        return isinstance(scrollPane, swing.JScrollPane) and scrollPane.getRowHeader() is not None and \
-               isinstance(scrollPane.getRowHeader().getView(), swing.JList) and \
-               isinstance(scrollPane.getViewport().getView(), swing.JTable)
+        return isinstance(scrollPane, JScrollPane) and scrollPane.getRowHeader() is not None and \
+               isinstance(scrollPane.getRowHeader().getView(), JList) and \
+               isinstance(scrollPane.getViewport().getView(), JTable)
 
     def getMaxDescriptionWidth(self, widget):
         return None if self.isTableScrollPane(widget) or self.usesGrid(widget) else \
             storytext.guishared.Describer.getMaxDescriptionWidth(self, widget)
 
     def usesGrid(self, widget):
-        return isinstance(widget.getLayout(), (awt.GridLayout, awt.GridBagLayout))
+        return isinstance(widget.getLayout(), (GridLayout, GridBagLayout))
 
     def getTextComponentText(self, widget):
         text = widget.getText()
         # Don't use getEchoChar for passwords, the character used depends on the theme
-        return "*" * len(text) if isinstance(widget, swing.JPasswordField) else text
+        return "*" * len(text) if isinstance(widget, JPasswordField) else text
     
     def getJTextComponentState(self, widget):
         return storytext.guishared.removeMarkup(self.getTextComponentText(widget)), self.getPropertyElements(widget)
@@ -519,11 +528,11 @@ class Describer(storytext.guishared.Describer):
         return "\nUpdated " + self.getFieldPrefix(widget)
 
     def getFieldPrefix(self, widget):
-        if isinstance(widget, swing.text.JTextComponent):
+        if isinstance(widget, JTextComponent):
             return (util.getTextLabel(widget) or "Text") +  " Field\n"
-        elif isinstance(widget, swing.JSpinner):
+        elif isinstance(widget, JSpinner):
             return (util.getTextLabel(widget) or "") +  " Spinner\n"
-        elif isinstance(widget, swing.JComboBox):
+        elif isinstance(widget, JComboBox):
             return (util.getTextLabel(widget) or "") +  " ComboBox\n"
         else:
             return ""
@@ -531,7 +540,7 @@ class Describer(storytext.guishared.Describer):
     def shouldDescribeChildren(self, widget):
         # Composites with StackLayout use the topControl rather than the children
         return storytext.guishared.Describer.shouldDescribeChildren(self, widget) and \
-               (not isinstance(widget, swing.JToolBar) or not self.isNormalToolbar(widget))
+               (not isinstance(widget, JToolBar) or not self.isNormalToolbar(widget))
 
     def getAllItemDescriptions(self, itemBar, indent=0, subItemMethod=None,
                                prefix="", selection=[]):
@@ -547,7 +556,7 @@ class Describer(storytext.guishared.Describer):
 
     def getCascadeMenuDescriptions(self, item, indent, **kw):
         cascadeMenu = None
-        if isinstance(item, swing.JMenu):
+        if isinstance(item, JMenu):
             cascadeMenu = item.getPopupMenu()
         if cascadeMenu:
             descs = self.getAllItemDescriptions(cascadeMenu, indent+1, subItemMethod=self.getCascadeMenuDescriptions, **kw)

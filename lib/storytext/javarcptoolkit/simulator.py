@@ -5,23 +5,28 @@ from storytext.javaswttoolkit import simulator as swtsimulator
 from storytext.javaswttoolkit import util
 import storytext.guishared
 from storytext.definitions import UseCaseScriptError
-import org.eclipse.swtbot.eclipse.finder as swtbot
-from org.eclipse.ui import PlatformUI, IPartListener, IPropertyListener, IWorkbenchPartConstants
-from org.eclipse import swt
-from org.eclipse.ui.dialogs import FilteredTree
-from org.eclipse.swt import SWT
-from org.eclipse.ui.forms.widgets import ExpandableComposite
-from org.eclipse.ui.forms.events import ExpansionAdapter
-from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
-from org.eclipse.jface.bindings.keys import KeyStroke 
+
 from java.lang import NullPointerException, Integer, IllegalArgumentException
 
+from org.eclipse.jface.bindings.keys import KeyStroke 
+from org.eclipse.swt import SWT
+from org.eclipse.swt.custom import CTabItem
+from org.eclipse.swt.widgets import Event, Listener, MenuItem, Text
+from org.eclipse.ui import PlatformUI, IPartListener, IPropertyListener, IWorkbenchPartConstants
+from org.eclipse.ui.dialogs import FilteredTree
+from org.eclipse.ui.forms.widgets import ExpandableComposite
+from org.eclipse.ui.forms.events import ExpansionAdapter
+
+from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBotControl
+from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
+from org.eclipse.swtbot.eclipse.finder.widgets import SWTBotView
+ 
 class WidgetAdapter(swtsimulator.WidgetAdapter):
     widgetViewIds = {}    
     swtsimulator.WidgetAdapter.secondaryIdentifiers.append("View")
     def getViewWidget(self):
         widget = self.widget.widget
-        if isinstance(widget, swt.widgets.MenuItem):
+        if isinstance(widget, MenuItem):
             return swtsimulator.runOnUIThread(util.getRootMenu, widget)
         else:
             return widget
@@ -81,7 +86,7 @@ class DisplayFilter(swtsimulator.DisplayFilter):
         # This field changes its contents the whole time depending on which window is in focus
         # causing trouble for the recorder.
         # It's part of the Eclipse platform so testing it is usually not interesting.
-        return isinstance(widget, swt.widgets.Text) and widget.getParent() is not None and \
+        return isinstance(widget, Text) and widget.getParent() is not None and \
             isinstance(widget.getParent().getParent(), FilteredTree)
 
 
@@ -92,7 +97,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
             
     def createSwtBot(self):
-        return swtbot.SWTWorkbenchBot()
+        return SWTWorkbenchBot()
     
     def getDisplayFilterClass(self):
         return DisplayFilter
@@ -163,7 +168,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.monitorViewContentsMenus(botView)
         
     def sendShowEvent(self, menu):
-        menu.notifyListeners(SWT.Show, swt.widgets.Event())
+        menu.notifyListeners(SWT.Show, Event())
         
     def monitorViewMenus(self, botView):
         ref = botView.getViewReference()
@@ -179,7 +184,7 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     def monitorViewContentsMenus(self, botView):
         pass
     
-class KeyBindingListener(swt.widgets.Listener):
+class KeyBindingListener(Listener):
     def __init__(self):
         self.bindings = {}
         self.listening = False
@@ -419,9 +424,9 @@ class RCPCTabCloseEvent(swtsimulator.CTabCloseEvent):
     disposeFilter = None
     def connectRecord(self, method):
         swtsimulator.CTabCloseEvent.connectRecord(self, method)
-        class DisposeFilter(swt.widgets.Listener):
+        class DisposeFilter(Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                if isinstance(e.widget, swt.custom.CTabItem):
+                if isinstance(e.widget, CTabItem):
                     self.disposedTabs[e.widget] = e.widget.getText()
                     
         if not self.disposeFilter:
@@ -471,7 +476,7 @@ class ExpandableCompositeEvent(swtsimulator.SelectEvent):
 
         swtsimulator.runOnUIThread(self.widget.widget.widget.addExpansionListener, RecordListener())
             
-swtsimulator.eventTypes.append((swtbot.widgets.SWTBotView, [ PartActivateEvent, PartCloseEvent ]))
+swtsimulator.eventTypes.append((SWTBotView, [ PartActivateEvent, PartCloseEvent ]))
 swtsimulator.eventTypes.append((SWTBotExpandableComposite, [ ExpandableCompositeEvent ]))
 
 replacements = [(swtsimulator.SelectEvent, RCPSelectEvent),

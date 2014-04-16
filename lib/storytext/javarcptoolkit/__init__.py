@@ -10,12 +10,12 @@ class ScriptEngine(javaswttoolkit.ScriptEngine):
         return UseCaseReplayer(self.uiMap, universalLogging, self.recorder, **kw)
 
     def runSystemUnderTest(self, args):
-        import org.eclipse.equinox.launcher as launcher
+        from org.eclipse.equinox.launcher import Main
         cmdArgs = [ "-application", self.testscriptPlugin + ".application",
                     "-testApplication" ] + args
         log = logging.getLogger("gui log")
         log.debug("Starting application with args : " + " ".join(cmdArgs))
-        launcher.Main.main(cmdArgs)
+        Main.main(cmdArgs)
         
 
     def getDefaultTestscriptPluginName(self):
@@ -61,25 +61,9 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
             sys.stderr.write("ERROR: Could not find SWTBot testscript plugin. Please install it as described at :\n" +
                              "http://www.texttest.org/index.php?page=ui_testing&n=storytext_and_swt\n")
             sys.exit(1)
-    
-    def initEclipsePackages(self):
-        # Importing one class per package loads all classes in the package 
-        from org.eclipse.swt.widgets import Widget
-        from org.eclipse.swt.layout import GridLayout
-        from org.eclipse.swt.custom import CLabel
-        from org.eclipse.swt.browser import Browser
-        from org.eclipse.swt.events import ExpandEvent
-        from org.eclipse.swt.graphics import Drawable
-        from org.eclipse.jface.bindings.keys import KeyStroke
-        from org.eclipse.swtbot.swt.finder import SWTBot
-        from org.eclipse.swtbot.swt.finder.widgets import SWTBotButton
-        from org.eclipse.swtbot.swt.finder.results import Result
-        from org.eclipse.swtbot.swt.finder.finders import UIThreadRunnable
-        from org.eclipse.swtbot.swt.finder.keyboard import Keyboard
-        from org.eclipse.swtbot.eclipse.finder import SWTWorkbenchBot
-        from org.eclipse.swtbot.eclipse.finder.widgets import SWTBotView
         
     def initEclipsePackagesWithDisplay(self):
+        # Just necessary for documentation mechanism to work( Getting a weird gtk error otherwise)
         from org.eclipse.swt.dnd import Clipboard, TextTransfer
     
     def runOnRecordExit(self): # pragma: no cover - cannot test with replayer disabled
@@ -91,6 +75,5 @@ class UseCaseReplayer(javaswttoolkit.UseCaseReplayer):
         self.uiMap.scriptEngine.tryTerminateCoverage()
 
     def enableJobListener(self):
-        self.initEclipsePackages()
         from jobsynchroniser import JobListener
         JobListener.enable()

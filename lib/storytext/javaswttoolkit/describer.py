@@ -2,22 +2,34 @@
 import storytext.guishared, util, types, logging, sys, os
 from storytext.definitions import UseCaseScriptError
 from storytext.gridformatter import GridFormatter
-from org.eclipse.swt.layout import GridLayout, FillLayout, FormLayout, RowLayout  #@UnusedImport
-from org.eclipse import swt
+
+
 from browserhtmlparser import BrowserHtmlParser
 from java.util import Date
 from java.io import File, FilenameFilter
-from org.eclipse.jface.resource import ImageDescriptor
+
 from array import array
 from ordereddict import OrderedDict
-from java.awt import Color
+
+from org.eclipse.jface.resource import ImageDescriptor
+
+from org.eclipse.swt import SWT
+from org.eclipse.swt.browser import Browser
+from org.eclipse.swt.custom import CCombo, CLabel, CTabFolder, StackLayout
+#from org.eclipse.swt.dnd import Clipboard, TextTransfer
+from org.eclipse.swt.graphics import Color, GC, Image, ImageLoader
+from org.eclipse.swt.layout import GridLayout, FillLayout, FormLayout, RowLayout
+from org.eclipse.swt.widgets import Button, Canvas, Combo, Composite, Control, CoolBar, CoolItem, DateTime, \
+    Dialog, Display, Event, ExpandBar, Group, Item, Label, Link, List, Listener, Menu, MenuItem, Sash, Shell, \
+    Spinner, TabFolder, Table, Text, ToolBar, Tree
         
 class ColorNameFinder:
     def __init__(self):
         self.names = {}
         self.widgetDefaults = set()
         # Add java.awt colors  
-        self.addColors(Color, postfix="&")
+        from java.awt import Color as awtColor
+        self.addColors(awtColor, postfix="&")
         
     def shortenColorName(self, name, abbreviations):
         ret = name.lower()
@@ -39,7 +51,7 @@ class ColorNameFinder:
         try:
             return modifier(color)
         except:
-            colorToUse = swt.graphics.Color(swt.widgets.Display.getDefault(), color.getRed(), color.getGreen(), color.getBlue())
+            colorToUse = Color(Display.getDefault(), color.getRed(), color.getGreen(), color.getBlue())
             return modifier(colorToUse)
 
     def addColors(self, cls, **kw):
@@ -52,9 +64,9 @@ class ColorNameFinder:
                     pass
                     
     def addSWTColors(self, display):
-        for name in sorted(swt.SWT.__dict__):
+        for name in sorted(SWT.__dict__):
             if name.startswith("COLOR_"):
-                colorKey = getattr(swt.SWT, name)
+                colorKey = getattr(SWT, name)
                 color = display.getSystemColor(colorKey)
                 rgb = self.getRGB(color)
                 # Have to do this last because we can only retrieve them in the UI thread
@@ -79,24 +91,24 @@ colorNameFinder = ColorNameFinder()
 
 
 class Describer(storytext.guishared.Describer):
-    styleNames = [ (swt.widgets.CoolItem, []),
-                   (swt.widgets.Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
-                   (swt.widgets.Button  , [ "CHECK", "RADIO", "TOGGLE", "ARROW", "UP", "DOWN" ]),
-                   (swt.widgets.DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
-                   (swt.widgets.Combo   , [ "READ_ONLY", "SIMPLE" ]),
-                   (swt.custom.CCombo   , [ "READ_ONLY", "FLAT", "BORDER" ]), 
-                   (swt.widgets.Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
+    styleNames = [ (CoolItem, []),
+                   (Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
+                   (Button  , [ "CHECK", "RADIO", "TOGGLE", "ARROW", "UP", "DOWN" ]),
+                   (DateTime, [ "DATE", "TIME", "CALENDAR", "SHORT" ]),
+                   (Combo   , [ "READ_ONLY", "SIMPLE" ]),
+                   (CCombo   , [ "READ_ONLY", "FLAT", "BORDER" ]), 
+                   (Text    , [ "PASSWORD", "SEARCH", "READ_ONLY" ]) ]
     ignoreWidgets = [ types.NoneType ]
     # DateTime children are an implementation detail
     # Coolbars, Toolbars and Expandbars describe their children directly : they have two parallel children structures
-    ignoreChildren = (swt.widgets.CoolBar, swt.widgets.ExpandBar, swt.widgets.ToolBar, swt.widgets.DateTime, swt.widgets.Group)
-    statelessWidgets = [ swt.widgets.Sash ]
-    stateWidgets = [ swt.widgets.Shell, swt.widgets.Button, swt.widgets.Menu, swt.widgets.Link,
-                     swt.widgets.CoolBar, swt.widgets.ToolBar, swt.widgets.Label, swt.custom.CLabel,
-                     swt.widgets.Combo, swt.widgets.ExpandBar, swt.widgets.Text, swt.widgets.List,
-                     swt.widgets.Tree, swt.widgets.DateTime, swt.widgets.TabFolder, swt.widgets.Table, 
-                     swt.custom.CTabFolder, swt.widgets.Canvas, swt.browser.Browser, swt.custom.CCombo,
-                     swt.widgets.Spinner, swt.widgets.Group, swt.widgets.Composite ]
+    ignoreChildren = (CoolBar, ExpandBar, ToolBar, DateTime, Group)
+    statelessWidgets = [ Sash ]
+    stateWidgets = [ Shell, Button, Menu, Link,
+                     CoolBar, ToolBar, Label, CLabel,
+                     Combo, ExpandBar, Text, List,
+                     Tree, DateTime, TabFolder, Table, 
+                     CTabFolder, Canvas, Browser, CCombo,
+                     Spinner, Group, Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
     def __init__(self, canvasDescriberClasses=[]):
@@ -125,56 +137,56 @@ class Describer(storytext.guishared.Describer):
     def setWidgetShown(self, widget):
         # Menu show events seem a bit spurious, they aren't really shown at this point:
         # ScrollBar shows are not relevant to anything
-        if isinstance(widget, swt.widgets.Control) and widget not in self.widgetsAppeared:
+        if isinstance(widget, Control) and widget not in self.widgetsAppeared:
             self.logger.debug("Widget shown " + self.getRawData(widget))
             self.widgetsAppeared.append(widget)
             if widget in self.widgetsMoved:
                 self.widgetsMoved.remove(widget)
             
     def setWidgetMoved(self, widget):
-        if isinstance(widget, swt.widgets.Control) and widget not in self.widgetsAppeared and widget.getParent() not in self.parentsResized:
+        if isinstance(widget, Control) and widget not in self.widgetsAppeared and widget.getParent() not in self.parentsResized:
             self.logger.debug("Widget moved " + self.getRawData(widget))
             self.widgetsMoved.append(widget)
         
     def setWidgetResized(self, widget):
-        if isinstance(widget, swt.widgets.Control):
+        if isinstance(widget, Control):
             self.parentsResized.add(widget)
             self.parentsResized.add(widget.getParent())
                     
     def addFilters(self, display):
-        class ShowListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+        class ShowListener(Listener):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(self.setWidgetShown, e.widget)
 
-        class PaintListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+        class PaintListener(Listener):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(self.setWidgetPainted, e.widget)
 
-        class MoveListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+        class MoveListener(Listener):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(self.setWidgetMoved, e.widget)
 
-        class ResizeListener(swt.widgets.Listener):
-            def handleEvent(listenerSelf, e):
+        class ResizeListener(Listener):
+            def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(self.setWidgetResized, e.widget)
 
-        display.addFilter(swt.SWT.Show, ShowListener())
-        display.addFilter(swt.SWT.Paint, PaintListener())
-        display.addFilter(swt.SWT.Move, MoveListener())
-        display.addFilter(swt.SWT.Resize, ResizeListener())
-        display.addFilter(swt.SWT.Dispose, ResizeListener()) # Being disposed is the ultimate resize :)
+        display.addFilter(SWT.Show, ShowListener())
+        display.addFilter(SWT.Paint, PaintListener())
+        display.addFilter(SWT.Move, MoveListener())
+        display.addFilter(SWT.Resize, ResizeListener())
+        display.addFilter(SWT.Dispose, ResizeListener()) # Being disposed is the ultimate resize :)
 
     def getScreenshotFileName(self, screenshotDir):
         return os.path.join(screenshotDir, "screenshot" + str(self.screenshotNumber) + ".png")
 
     def writeScreenshot(self, shell):
         display = shell.getDisplay()
-        gc = swt.graphics.GC(display);
-        image = swt.graphics.Image(display, shell.getBounds())
+        gc = GC(display);
+        image = Image(display, shell.getBounds())
         gc.copyArea(image, shell.getBounds().x, shell.getBounds().y)
         gc.dispose()
         
-        imageLoader = swt.graphics.ImageLoader()
+        imageLoader = ImageLoader()
         imageLoader.data = [ image.getImageData() ]
         self.screenshotNumber += 1
         screenshotDir = os.path.join(os.getenv("TEXTTEST_LOG_DIR", os.getcwd()), "screenshots")
@@ -184,7 +196,7 @@ class Describer(storytext.guishared.Describer):
         while os.path.isfile(fileName):
             self.screenshotNumber += 1
             fileName = self.getScreenshotFileName(screenshotDir)
-        imageLoader.save(fileName, swt.SWT.IMAGE_PNG) 
+        imageLoader.save(fileName, SWT.IMAGE_PNG) 
     
     def describeWithUpdates(self, shellMethod):
         shell = shellMethod()
@@ -228,7 +240,7 @@ class Describer(storytext.guishared.Describer):
         return not widget.isDisposed() and widget.getShell() == shell
     
     def inDifferentShell(self, widget, shell):
-        return not isinstance(widget, swt.widgets.Shell) and widget.getShell() != shell
+        return not isinstance(widget, Shell) and widget.getShell() != shell
     
     def validAndShowing(self, widget):
         return not widget.isDisposed() and util.isVisible(widget) 
@@ -237,8 +249,9 @@ class Describer(storytext.guishared.Describer):
         return self.validAndShowing(widget) and not self.inDifferentShell(widget, shell)
 
     def describeClipboardChanges(self, display):
-        clipboard = swt.dnd.Clipboard(display)
-        textTransfer = swt.dnd.TextTransfer.getInstance()
+        from org.eclipse.swt.dnd import Clipboard, TextTransfer
+        clipboard = Clipboard(display)
+        textTransfer = TextTransfer.getInstance()
         if self.clipboardText is None:
             # Initially. For some reason it doesn't let us set empty strings here
             # clearContents seemed the way to go, but seems not to work on Windows
@@ -252,10 +265,10 @@ class Describer(storytext.guishared.Describer):
         clipboard.dispose()
         
     def getWindowClasses(self):
-        return swt.widgets.Shell, swt.widgets.Dialog
+        return Shell, Dialog
 
     def getTextEntryClass(self):
-        return swt.widgets.Text
+        return Text
 
     def getWindowString(self):
         return "Shell"
@@ -461,7 +474,7 @@ class Describer(storytext.guishared.Describer):
         style = item.getStyle()
         descs = []
         for tryStyle in styleList:
-            if style & getattr(swt.SWT, tryStyle) != 0:
+            if style & getattr(SWT, tryStyle) != 0:
                 descs.append(tryStyle.lower().replace("_", " ").replace("separator", "---"))
         return descs
 
@@ -483,7 +496,7 @@ class Describer(storytext.guishared.Describer):
         return any((method.getName() == methodName for method in obj.getClass().getDeclaredMethods())) 
         
     def getJfaceTooltip(self, item):
-        for listener in item.getListeners(swt.SWT.MouseHover):
+        for listener in item.getListeners(SWT.MouseHover):
             tooltip = self.getEnclosingInstance(listener)
             if self.hasPrivateMethod(tooltip, "createToolTipContentArea"):
                 return tooltip
@@ -498,7 +511,7 @@ class Describer(storytext.guishared.Describer):
 
     def getControlDecorationListeners(self, item):
         listeners = []
-        for typedListener in item.getListeners(swt.SWT.FocusIn):
+        for typedListener in item.getListeners(SWT.FocusIn):
             if hasattr(typedListener, "getEventListener"):
                 focusListener = typedListener.getEventListener()
                 if "ControlDecoration" in focusListener.__class__.__name__:
@@ -552,10 +565,10 @@ class Describer(storytext.guishared.Describer):
         decoText = self.getControlDecorationDescription(item)
         if decoText:
             elements.append(decoText)
-        if isinstance(item, swt.widgets.Spinner):
+        if isinstance(item, Spinner):
             elements += self.getSpinnerPropertyElements(item)
             
-        jfaceTooltip = enclosingJfaceTooltip if isinstance(item, swt.widgets.Item) else self.getJfaceTooltip(item)
+        jfaceTooltip = enclosingJfaceTooltip if isinstance(item, Item) else self.getJfaceTooltip(item)
         tooltipText = self.getToolTipText(item, jfaceTooltip)
         if tooltipText:
             elements.append("Tooltip '" + tooltipText + "'")
@@ -589,8 +602,8 @@ class Describer(storytext.guishared.Describer):
         return elements
 
     def getLabelState(self, label):
-        if label.getStyle() & swt.SWT.SEPARATOR:
-            if label.getStyle() & swt.SWT.VERTICAL:
+        if label.getStyle() & SWT.SEPARATOR:
+            if label.getStyle() & SWT.VERTICAL:
                 return "-" * 5 + "vertical" + "-" * 5
             else:
                 return "-" * 10
@@ -600,7 +613,7 @@ class Describer(storytext.guishared.Describer):
         for fontData in label.getFont().getFontData():
             fontStyle = fontData.getStyle()
             for fontAttr in [ "BOLD", "ITALIC" ]:
-                if fontStyle & getattr(swt.SWT, fontAttr):
+                if fontStyle & getattr(SWT, fontAttr):
                     elements.append(fontAttr.lower())
         if label.getImage():
             elements.append(self.getImageDescription(label.getImage()))
@@ -627,7 +640,7 @@ class Describer(storytext.guishared.Describer):
 
     def getSashDescription(self, widget):
         orientation = "Horizontal"
-        if widget.getStyle() & swt.SWT.VERTICAL:
+        if widget.getStyle() & SWT.VERTICAL:
             orientation = "Vertical"
         return "-" * 15 + " " + orientation + " sash " + "-" * 15
 
@@ -652,21 +665,21 @@ class Describer(storytext.guishared.Describer):
         return BrowserHtmlParser().parse(text)
         
     def getUpdatePrefix(self, widget, oldState, state):
-        if isinstance(widget, (self.getTextEntryClass(), swt.browser.Browser, swt.widgets.Spinner)):
+        if isinstance(widget, (self.getTextEntryClass(), Browser, Spinner)):
             return "\nUpdated " + (util.getTextLabel(widget, useContext=True) or self.getShortWidgetIdentifier(widget) or "Text") +  " Field\n"
-        elif isinstance(widget, (swt.widgets.Combo, swt.custom.CCombo)):
+        elif isinstance(widget, (Combo, CCombo)):
             return "\nUpdated " + util.getTextLabel(widget, useContext=True) + " Combo Box\n"
-        elif util.getTopControl(widget) or isinstance(widget, swt.widgets.Group):
+        elif util.getTopControl(widget) or isinstance(widget, Group):
             return "\n"
-        elif isinstance(widget, swt.widgets.Menu):
+        elif isinstance(widget, Menu):
             parentItem = widget.getParentItem()
             menuRefNr = self.contextMenuCounter.getWidgetNumber(widget)
             menuRefNr = " " + str(menuRefNr) if menuRefNr > 0 else ""
             menuName = parentItem.getText() if parentItem else "Context"
             return "\nUpdated " + menuName + " Menu" + menuRefNr +":\n"
-        elif isinstance(widget, (swt.widgets.Label, swt.custom.CLabel)) and len(state) == 0:
+        elif isinstance(widget, (Label, CLabel)) and len(state) == 0:
             return "\nLabel now empty, previously " + oldState
-        elif isinstance(widget, swt.widgets.Canvas) and not isinstance(widget, swt.custom.CLabel):
+        elif isinstance(widget, Canvas) and not isinstance(widget, CLabel):
             for canvasDescriberClass in self.canvasDescriberClasses:
                 if canvasDescriberClass.canDescribe(widget):
                     return canvasDescriberClass(widget).getUpdatePrefix(oldState, state)
@@ -720,15 +733,15 @@ class Describer(storytext.guishared.Describer):
         return self.getTextState(widget)
 
     def getDateString(self, widget):
-        if widget.getStyle() & swt.SWT.TIME:
+        if widget.getStyle() & SWT.TIME:
             widgetDate = Date()
             widgetDate.setHours(widget.getHours())
             widgetDate.setMinutes(widget.getMinutes())
             widgetDate.setSeconds(widget.getSeconds())
-            return util.getDateFormat(swt.SWT.TIME).format(widgetDate)
+            return util.getDateFormat(SWT.TIME).format(widgetDate)
         else:
             widgetDate = Date(widget.getYear() - 1900, widget.getMonth(), widget.getDay())
-            return util.getDateFormat(swt.SWT.DATE).format(widgetDate)
+            return util.getDateFormat(SWT.DATE).format(widgetDate)
 
     def getDateTimeState(self, widget):
         elements = [ "DateTime" ] + self.getPropertyElements(widget) + [ "showing " + self.getDateString(widget) ]
@@ -745,7 +758,7 @@ class Describer(storytext.guishared.Describer):
         return text
 
     def getContextMenuReference(self, widget):
-        if "Menu" not in self.excludeClassNames and not isinstance(widget, swt.widgets.MenuItem) and hasattr(widget, "getMenu") and widget.getMenu():
+        if "Menu" not in self.excludeClassNames and not isinstance(widget, MenuItem) and hasattr(widget, "getMenu") and widget.getMenu():
             return "Context Menu " + self.contextMenuCounter.getId(widget.getMenu())
         else:
             return ""
@@ -753,7 +766,7 @@ class Describer(storytext.guishared.Describer):
     def getCustomTooltipReference(self, item, jfaceTooltip):
         if "CustomTooltip" not in self.excludeClassNames and jfaceTooltip and self.isCustomTooltip(jfaceTooltip):
             itemTooltip = self.hasPrivateMethod(jfaceTooltip, "createViewerToolTipContentArea")
-            isItem = isinstance(item, swt.widgets.Item)
+            isItem = isinstance(item, Item)
             if isItem == itemTooltip:
                 return "Custom Tooltip " + self.customTooltipCounter.getId((jfaceTooltip, item))
 
@@ -782,9 +795,9 @@ class Describer(storytext.guishared.Describer):
                                                 columnCount=columnCount,
                                                 enclosingJfaceTooltip=jfaceTooltip)
         sortColumn = widget.getSortColumn()
-        if widget.getSortDirection() == swt.SWT.UP:
+        if widget.getSortDirection() == SWT.UP:
             sortDirection = "(->)"
-        elif widget.getSortDirection() == swt.SWT.DOWN:
+        elif widget.getSortDirection() == SWT.DOWN:
             sortDirection = "(<-)"
         else:
             sortDirection = ""
@@ -846,19 +859,19 @@ class Describer(storytext.guishared.Describer):
     def getVerticalDividePositions(self, children):
         positions = []
         for child in children:
-            if isinstance(child, swt.widgets.Sash) and child.getStyle() & swt.SWT.VERTICAL:
+            if isinstance(child, Sash) and child.getStyle() & SWT.VERTICAL:
                 positions.append(child.getLocation().x)
         return sorted(positions)
 
     def layoutSortsChildren(self, widget):
         layout = widget.getLayout()
-        return layout is not None and isinstance(layout, (swt.layout.GridLayout, swt.layout.FillLayout,
-                                                          swt.layout.RowLayout, swt.custom.StackLayout))
+        return layout is not None and isinstance(layout, (GridLayout, FillLayout,
+                                                          RowLayout, StackLayout))
     
     def _getDescription(self, widget):
         self.widgetsDescribed.add(widget)
         desc = storytext.guishared.Describer._getDescription(self, widget)
-        if desc and isinstance(widget, (swt.widgets.ExpandBar, swt.widgets.Tree, swt.widgets.List, swt.widgets.Table)):
+        if desc and isinstance(widget, (ExpandBar, Tree, List, Table)):
             desc = unicode(desc) + self.formatContextMenuDescriptions()
         return desc
     
@@ -908,9 +921,9 @@ class Describer(storytext.guishared.Describer):
         return text
     
     def makeToolTipEvent(self, widgetOrItem):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseHover
-        if isinstance(widgetOrItem, swt.widgets.Item):
+        event = Event()
+        event.type = SWT.MouseHover
+        if isinstance(widgetOrItem, Item):
             event.widget = widgetOrItem.getParent()
             event.item = widgetOrItem
             bounds = widgetOrItem.getBounds()
@@ -926,8 +939,8 @@ class Describer(storytext.guishared.Describer):
     def getCustomTooltipDescription(self, tooltip, widget):
         event = self.makeToolTipEvent(widget)
         if util.callPrivateMethod(tooltip, "shouldCreateToolTip", [ event ]):
-            shell = swt.widgets.Shell()
-            result = util.callPrivateMethod(tooltip, "createToolTipContentArea", [ event, shell ], [ swt.widgets.Event, swt.widgets.Composite ])
+            shell = Shell()
+            result = util.callPrivateMethod(tooltip, "createToolTipContentArea", [ event, shell ], [ Event, Composite ])
             desc = self.getDescription(result)
             result.dispose()
             shell.dispose()
@@ -943,16 +956,16 @@ class Describer(storytext.guishared.Describer):
             return 1
 
     def usesGrid(self, widget):
-        return isinstance(widget.getLayout(), swt.layout.GridLayout)
+        return isinstance(widget.getLayout(), GridLayout)
 
     def getLayoutColumns(self, widget, childCount, sortedChildren):
         layout = widget.getLayout()
         if hasattr(layout, "numColumns"):
             return layout.numColumns
         elif hasattr(layout, "type"):
-            if layout.type == swt.SWT.HORIZONTAL:
+            if layout.type == SWT.HORIZONTAL:
                 return childCount
-        elif isinstance(layout, swt.layout.FormLayout):
+        elif isinstance(layout, FormLayout):
             currColumns, maxColumns = 1, 1
             for child in sortedChildren:
                 layoutData = child.getLayoutData()
@@ -1000,13 +1013,13 @@ class Describer(storytext.guishared.Describer):
 
     def checkWindow(self, window):
         # Don't describe tooltips
-        return (window.getStyle() & swt.SWT.TOOL) == 0
+        return (window.getStyle() & SWT.TOOL) == 0
 
     def splitState(self, state):
         return state if isinstance(state, list) else state.split("\n")
 
     def getStateChangeDescription(self, widget, oldState, state):
-        if isinstance(widget, (swt.widgets.Menu, swt.widgets.ToolBar)):
+        if isinstance(widget, (Menu, ToolBar)):
             old = self.splitState(oldState)
             new = self.splitState(state)
             if len(old) == len(new):
@@ -1015,7 +1028,7 @@ class Describer(storytext.guishared.Describer):
     
     def describeStructure(self, widget, indent=0, **kw):
         storytext.guishared.Describer.describeStructure(self, widget, indent, **kw)
-        if isinstance(widget, swt.widgets.Canvas):
+        if isinstance(widget, Canvas):
             for canvasDescriberClass in self.canvasDescriberClasses:
                 if canvasDescriberClass.canDescribe(widget):
                     canvasDescriberClass(widget).describeCanvasStructure(indent+1)

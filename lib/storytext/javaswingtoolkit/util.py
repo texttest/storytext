@@ -1,20 +1,24 @@
-from java.lang import Runnable, IndexOutOfBoundsException
-from javax import swing
 import storytext.guishared
+
+from java.lang import Runnable, IndexOutOfBoundsException
+from javax.swing import DefaultListCellRenderer,  JCheckBox, JComboBox, JLabel, JList, JMenu, \
+    JMenuBar, JPopupMenu, JRadioButton, JScrollBar, JSpinner, JTable, JTree, SwingUtilities
+from javax.swing.plaf.basic import BasicComboBoxRenderer
+from javax.swing.tree import DefaultTreeCellRenderer
 
 def runOnEventDispatchThread(method, *args):
     class EDTRunnable(Runnable):
         def run(self):
             method(*args)
     
-    if swing.SwingUtilities.isEventDispatchThread():
+    if SwingUtilities.isEventDispatchThread():
         method(*args)
     else:
-        swing.SwingUtilities.invokeAndWait(EDTRunnable())
+        SwingUtilities.invokeAndWait(EDTRunnable())
         
 class TextLabelFinder(storytext.guishared.TextLabelFinder):
     def getLabelClass(self):
-        return swing.JLabel
+        return JLabel
 
     def getChildren(self, widget):
         return widget.getComponents()
@@ -26,9 +30,9 @@ def getTextLabel(widget):
 def getMenuPathString(widget):
     result = [ widget.getText() ]    
     parent = widget.getParent()
-    while isinstance(parent, swing.JMenu) or isinstance(parent, swing.JPopupMenu):
+    while isinstance(parent, JMenu) or isinstance(parent, JPopupMenu):
         invoker=  parent.getInvoker()
-        if isinstance(invoker, swing.JMenu):
+        if isinstance(invoker, JMenu):
             result.append(invoker.getText())
             parent = invoker.getParent()
         else:
@@ -37,7 +41,7 @@ def getMenuPathString(widget):
     return "|".join(reversed(result)) 
 
 class ComponentTextFinder:
-    classesHandled = [ swing.JCheckBox, swing.JTree, swing.JTable, swing.JList, swing.JComboBox, swing.JRadioButton ]
+    classesHandled = [ JCheckBox, JTree, JTable, JList, JComboBox, JRadioButton ]
     def __init__(self, widget, describe):
         self.widget = widget
         self.describe = describe
@@ -86,7 +90,7 @@ class ComponentTextFinder:
         value = self.widget.getModel().getElementAt(index) or ""
         renderer = self.widget.getRenderer()
         # Don't check isinstance, any subclasses might be doing all sorts of stuff
-        if renderer.__class__ is swing.plaf.basic.BasicComboBoxRenderer.UIResource:
+        if renderer.__class__ is BasicComboBoxRenderer.UIResource:
             return value
         # Don't support custom renderer at the moment
         return value
@@ -95,7 +99,7 @@ class ComponentTextFinder:
         value = self.widget.getModel().getElementAt(index) or ""
         renderer = self.widget.getCellRenderer()
         # Don't check isinstance, any subclasses might be doing all sorts of stuff
-        if renderer.__class__ is swing.DefaultListCellRenderer:
+        if renderer.__class__ is DefaultListCellRenderer:
             return value
 
         isSelected = self.widget.isSelectedIndex(index)
@@ -103,7 +107,7 @@ class ComponentTextFinder:
         return self.getComponentText(component, index)
 
     def getJTreeTextFromRenderer(self, renderer, rowObj, row):
-        if renderer.__class__ is swing.tree.DefaultTreeCellRenderer:
+        if renderer.__class__ is DefaultTreeCellRenderer:
             return str(rowObj)
         
         selected = self.widget.isRowSelected(row)
@@ -149,23 +153,23 @@ class ComponentTextFinder:
 
 # Designed to filter out buttons etc which are details of other widgets, such as calendars, scrollbars, tables etc
 def hasComplexAncestors(widget):
-    if any((swing.SwingUtilities.getAncestorOfClass(widgetClass, widget) is not None
-            for widgetClass in [ swing.JTable, swing.JScrollBar, swing.JComboBox, swing.JSpinner ])):
+    if any((SwingUtilities.getAncestorOfClass(widgetClass, widget) is not None
+            for widgetClass in [ JTable, JScrollBar, JComboBox, JSpinner ])):
         return True
     
     # If we're in a popup menu that's attached to something with complex ancestors, that's clearly even more complex :)
-    popup = swing.SwingUtilities.getAncestorOfClass(swing.JPopupMenu, widget)
-    if popup and isinstance(popup.getInvoker(), swing.JComboBox):
+    popup = SwingUtilities.getAncestorOfClass(JPopupMenu, widget)
+    if popup and isinstance(popup.getInvoker(), JComboBox):
         return True
     return popup is not None and hasComplexAncestors(popup.getInvoker())
 
 def belongsMenubar(menuItem):
     parent = menuItem.getParent() if menuItem else None
     while parent is not None:
-        if isinstance(parent, swing.JMenuBar):
+        if isinstance(parent, JMenuBar):
             return True
         if hasattr(parent, "getInvoker") and parent.getInvoker() is not None:
-            if isinstance(parent.getInvoker(), swing.JMenu):
+            if isinstance(parent.getInvoker(), JMenu):
                 parent = parent.getInvoker().getParent()
             else:
                 parent = parent.getInvoker()
@@ -175,4 +179,4 @@ def belongsMenubar(menuItem):
 
 
 def hasPopupMenu(widget):
-    return any((isinstance(item, (swing.JPopupMenu)) for item in widget.getComponents()))
+    return any((isinstance(item, (JPopupMenu)) for item in widget.getComponents()))

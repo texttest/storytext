@@ -3,17 +3,37 @@ import storytext.guishared, util, logging, os, time, sys
 from storytext.definitions import UseCaseScriptError
 from storytext import applicationEvent, applicationEventDelay, applicationEventRemove
 from difflib import SequenceMatcher
-from org.eclipse import swt, jface
-import org.eclipse.swtbot.swt.finder as swtbot
-from org.hamcrest.core import IsAnything
+
 from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException, Exception
 from java.text import ParseException
 from java.util import ArrayList
 from threading import Lock
 
+from org.eclipse.jface.bindings.keys import KeyStroke
+from org.eclipse.swt import SWT
+from org.eclipse.swt.browser import Browser, ProgressListener
+from org.eclipse.swt.custom import  CCombo, CTabFolder, CTabFolder2Adapter
+from org.eclipse.swt.graphics import Point
+from org.eclipse.swt.widgets import Button, Combo, Control, DateTime, Event, ExpandBar, Link, List, Listener, Menu, MenuItem, \
+    Shell, Spinner, Table, TableColumn, TabFolder, Text, ToolItem, Tree
+
+from org.hamcrest.core import IsAnything
+
+from org.eclipse.swtbot.swt.finder import SWTBot
+from org.eclipse.swtbot.swt.finder.exceptions import WidgetNotFoundException
+from org.eclipse.swtbot.swt.finder.finders import UIThreadRunnable, ContextMenuFinder
+from org.eclipse.swtbot.swt.finder.keyboard import Keystrokes, KeyboardFactory
+from org.eclipse.swtbot.swt.finder.results import Result, VoidResult
+from org.eclipse.swtbot.swt.finder.utils import SWTBotPreferences
+from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBot, SWTBotButton, SWTBotBrowser, SWTBotCCombo, SWTBotCheckBox, \
+    SWTBotCombo, SWTBotCTabItem, SWTBotDateTime, SWTBotExpandBar, SWTBotExpandItem, SWTBotLink, SWTBotList, SWTBotMenu, \
+    SWTBotRadio, SWTBotShell, SWTBotSpinner, SWTBotTabItem, SWTBotTable, SWTBotTableColumn, SWTBotText, SWTBotToolbarDropDownButton, \
+    SWTBotToolbarPushButton,  SWTBotToolbarRadioButton,SWTBotToolbarSeparatorButton, SWTBotToolbarToggleButton, SWTBotTree, \
+    SWTBotTreeItem
+
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
 
-class PythonResult(swtbot.results.Result):
+class PythonResult(Result):
     def __init__(self, method, args):
         self.method = method
         self.args = args
@@ -23,7 +43,7 @@ class PythonResult(swtbot.results.Result):
 
 def runOnUIThread(method, *args):
     try:
-        return swtbot.finders.UIThreadRunnable.syncExec(PythonResult(method, args))
+        return UIThreadRunnable.syncExec(PythonResult(method, args))
     except IllegalStateException:
         raise UseCaseScriptError, "The GUI has already exited"
     except NullPointerException, e:
@@ -42,7 +62,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         return ""
         
     def getLabel(self):
-        if isinstance(self.widget, (swtbot.widgets.SWTBotText, swtbot.widgets.SWTBotCombo, swtbot.widgets.SWTBotSpinner, FakeSWTBotCCombo)) or \
+        if isinstance(self.widget, (SWTBotText, SWTBotCombo, SWTBotSpinner, FakeSWTBotCCombo)) or \
                not hasattr(self.widget.widget, "getText"):
             return self.getFromUIThread(util.getTextLabel, self.widget.widget)
         try:
@@ -52,7 +72,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
 
     def getDialogTitle(self):
         def _getDialogTitle():
-            if isinstance(self.widget.widget, swt.widgets.Control):
+            if isinstance(self.widget.widget, Control):
                 shell = self.widget.widget.getShell()
                 if shell.getParent():
                     id = shell.getData("org.eclipse.swtbot.widget.key")
@@ -139,7 +159,7 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
                     return fromChild
     
     def getContextNameFromAncestor(self, parent):
-        if isinstance(parent, swt.widgets.Menu):
+        if isinstance(parent, Menu):
             return self.getMenuContextNameFromAncestor(parent)
         else:
             return util.getContextNameForWidget(parent)
@@ -149,12 +169,12 @@ class WidgetAdapter(storytext.guishared.WidgetAdapter):
         return menu.getVisible()
         
     def isPreferred(self):
-        return self.isInstanceOf(swtbot.widgets.SWTBotMenu) and runOnUIThread(self.checkMenuVisible)
+        return self.isInstanceOf(SWTBotMenu) and runOnUIThread(self.checkMenuVisible)
         
 
 storytext.guishared.WidgetAdapter.adapterClass = WidgetAdapter    
         
-class BasicRecordListener(swt.widgets.Listener):
+class BasicRecordListener(Listener):
     def __init__(self, method, event):
         self.method = method
         self.event = event
@@ -177,7 +197,7 @@ class SignalEvent(storytext.guishared.GuiEvent):
         
     @classmethod
     def getRecordEventType(cls):
-        return getattr(swt.SWT, cls.getAssociatedSignal(None))
+        return getattr(SWT, cls.getAssociatedSignal(None))
         
     def addListeners(self, *args):
         # Three indirections: WidgetAdapter -> SWTBotMenu -> MenuItem
@@ -250,7 +270,7 @@ class SelectEvent(SignalEvent):
         return "Selection"
     
     def allowsIdenticalCopies(self):
-        return self.widget.isInstanceOf(swtbot.widgets.SWTBotMenu)
+        return self.widget.isInstanceOf(SWTBotMenu)
 
 
 class LinkSelectEvent(SelectEvent):
@@ -269,12 +289,12 @@ class RadioSelectEvent(SelectEvent):
         return SignalEvent.shouldRecord(self, event, *args) and event.widget.getSelection()
 
     def getSelectedButton(self):
-        method = swtbot.widgets.SWTBotRadio.getDeclaredMethod("otherSelectedButton", [])
+        method = SWTBotRadio.getDeclaredMethod("otherSelectedButton", [])
         method.setAccessible(True)
         return method.invoke(self.widget.widget, [])
         
     def _generate(self, *args):
-        if self.widget.isInstanceOf(swtbot.widgets.SWTBotRadio):
+        if self.widget.isInstanceOf(SWTBotRadio):
             # Workaround for bug in SWTBot which doesn't handle Eclipse radio buttons properly
             # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=344484 for details
             selectedButton = self.getSelectedButton()
@@ -282,37 +302,37 @@ class RadioSelectEvent(SelectEvent):
         SelectEvent._generate(self)
         
 # just so we can distinguish later on...
-class SWTBotRadioMenu(swtbot.widgets.SWTBotMenu):
+class SWTBotRadioMenu(SWTBotMenu):
     def click(self):
         # This case also isn't handled correctly by SWTBot!
         # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=397649    
         selectedMenuItem = runOnUIThread(self.getSelectedMenuItem)
         if selectedMenuItem:
-            swtbot.widgets.SWTBotMenu(selectedMenuItem).click() # Should have same effect, i.e. disable it
-        swtbot.widgets.SWTBotMenu.click(self)
+            SWTBotMenu(selectedMenuItem).click() # Should have same effect, i.e. disable it
+        SWTBotMenu.click(self)
 
     def getSelectedMenuItem(self):
         menu = self.widget.getParent()
         for item in menu.getItems():
-            if item.getStyle() & swt.SWT.RADIO and item.getSelection():
+            if item.getStyle() & SWT.RADIO and item.getSelection():
                 return item
             
 class DropDownButtonEvent(SelectEvent):
     def shouldRecord(self, event, *args):
-        return SignalEvent.shouldRecord(self, event, *args) and event.detail & swt.SWT.ARROW == 0
+        return SignalEvent.shouldRecord(self, event, *args) and event.detail & SWT.ARROW == 0
     
-class DropDownGenerateFilter(swt.widgets.Listener):
+class DropDownGenerateFilter(Listener):
     def __init__(self, argumentString):
         self.done = False
         self.argumentString = argumentString
                 
     def handleEvent(self, e):
-        if isinstance(e.widget, swt.widgets.Menu) and not self.done:
+        if isinstance(e.widget, Menu) and not self.done:
             if e.widget.getItemCount():
                 self.describeMenu(e.widget)
             for item in e.widget.getItems():
                 if util.getItemText(item.getText()) == self.argumentString:
-                    swtbot.widgets.SWTBotMenu(item).click()
+                    SWTBotMenu(item).click()
                     self.done = True
                     
     def describeMenu(self, menu):
@@ -329,14 +349,14 @@ class DropDownSelectionEvent(SelectEvent):
     
     @classmethod
     def getRecordEventType(cls):
-        return swt.SWT.Selection
+        return SWT.Selection
     
     def parseArguments(self, argumentString):
         return argumentString
     
     def _generate(self, argumentString):
         genFilter = DropDownGenerateFilter(argumentString)
-        runOnUIThread(self.addFilter, swt.SWT.Show, genFilter)
+        runOnUIThread(self.addFilter, SWT.Show, genFilter)
         try:
             item = self.widget.menuItem(argumentString)
             if not genFilter.done:
@@ -344,26 +364,26 @@ class DropDownSelectionEvent(SelectEvent):
             # We caused the menu to be visible
             # Need to hide it again to avoid unwanted effects
             runOnUIThread(self.hideRootMenu, item)
-        except swtbot.exceptions.WidgetNotFoundException:
+        except WidgetNotFoundException:
             # thrown if there are no items
             if not genFilter.done:
                 print "Got menu with no items"
-        runOnUIThread(self.removeFilter, swt.SWT.Show, genFilter)
+        runOnUIThread(self.removeFilter, SWT.Show, genFilter)
             
     def connectRecord(self, method):
-        class RecordFilter(swt.widgets.Listener):
+        class RecordFilter(Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
-                if isinstance(e.widget, swt.widgets.MenuItem):
+                if isinstance(e.widget, MenuItem):
                     storytext.guishared.catchAll(method, e, self)
-                    for listener in e.widget.getListeners(swt.SWT.Selection):
+                    for listener in e.widget.getListeners(SWT.Selection):
                         if isinstance(listener, BasicRecordListener):
-                            e.widget.removeListener(swt.SWT.Selection, listener)
+                            e.widget.removeListener(SWT.Selection, listener)
                             break
-                    self.removeFilter(swt.SWT.Selection, listenerSelf)
+                    self.removeFilter(SWT.Selection, listenerSelf)
         def arrowClicked(event, *args):
             # The MenuItem object is very transient, must use Filter to find it
-            if event.detail & swt.SWT.ARROW != 0:
-                self.addFilter(swt.SWT.Selection, RecordFilter())
+            if event.detail & SWT.ARROW != 0:
+                self.addFilter(SWT.Selection, RecordFilter())
                 
         SelectEvent.connectRecord(self, arrowClicked)
 
@@ -400,13 +420,13 @@ class TabEvent(SelectEvent):
 
     
 class TabSelectEvent(TabEvent):
-    swtbotItemClass = swtbot.widgets.SWTBotTabItem
+    swtbotItemClass = SWTBotTabItem
     def _generate(self, tab):
         self.swtbotItemClass(tab).activate()
             
 
 class CTabSelectEvent(TabSelectEvent):
-    swtbotItemClass = swtbot.widgets.SWTBotCTabItem
+    swtbotItemClass = SWTBotCTabItem
     def isStateChange(self):
         return True
 
@@ -418,7 +438,7 @@ class CTabSelectEvent(TabSelectEvent):
 
 class CTabCloseEvent(TabEvent):
     def connectRecord(self, method):
-        class RecordListener(swt.custom.CTabFolder2Adapter):
+        class RecordListener(CTabFolder2Adapter):
             def close(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(method, e, self)
 
@@ -426,21 +446,21 @@ class CTabCloseEvent(TabEvent):
         
     @classmethod
     def getRecordEventType(cls):
-        return getattr(swt.SWT, cls.getAssociatedSignal(None))
+        return getattr(SWT, cls.getAssociatedSignal(None))
 
     def _generate(self, tab):
-        # swtbot.widgets.SWTBotCTabItem(tab).close() unfortunately seems to create additional activate and selection events
+        # SWTBotCTabItem(tab).close() unfortunately seems to create additional activate and selection events
         self.simulate(tab)
 
     def shouldRecord(self, *args):
-        return DisplayFilter.instance.hasEventOfType([ swt.SWT.MouseUp ], self.widget.widget.widget)
+        return DisplayFilter.instance.hasEventOfType([ SWT.MouseUp ], self.widget.widget.widget)
 
     def isTriggeringEvent(self, e):
-        return e.type == swt.SWT.MouseUp
+        return e.type == SWT.MouseUp
 
     @classmethod
     def getSignalsToFilter(cls):
-        return [ swt.SWT.MouseUp, swt.SWT.Dispose ]
+        return [ SWT.MouseUp, SWT.Dispose ]
 
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -461,11 +481,11 @@ class CTabCloseEvent(TabEvent):
 class ShellCloseEvent(SignalEvent):    
     def _generate(self, *args):
         # SWTBotShell.close appears to close things twice, just use the ordinary one for now...
-        class CloseRunnable(swtbot.results.VoidResult):
+        class CloseRunnable(VoidResult):
             def run(resultSelf): #@NoSelf
                 self.widget.widget.widget.close()
                 
-        swtbot.finders.UIThreadRunnable.asyncExec(CloseRunnable())
+        UIThreadRunnable.asyncExec(CloseRunnable())
         
     @classmethod
     def getAssociatedSignal(cls, widget):
@@ -519,11 +539,11 @@ class FreeTextEvent(SignalEvent):
     def generate(self, argumentString):
         keyboard = util.callPrivateMethod(self.widget.widget, "keyboard")
         try:
-            keyStroke = jface.bindings.keys.KeyStroke.getInstance(argumentString)
+            keyStroke = KeyStroke.getInstance(argumentString)
             key = keyStroke.getNaturalKey()
             keyboard.pressShortcut(keyStroke.getModifierKeys(), key, chr(key))
         except Exception:
-            keyboard.typeText(argumentString + "\n", swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
+            keyboard.typeText(argumentString + "\n", SWTBotPreferences.TYPE_INTERVAL)
 
 
 class SpinnerSelectEvent(StateChangeEvent):
@@ -543,7 +563,7 @@ class SpinnerSelectEvent(StateChangeEvent):
     def _generate(self, argument):
         self.widget.setSelection(argument)
 
-class PhysicalEventListener(swt.widgets.Listener):
+class PhysicalEventListener(Listener):
     def handleEvent(listenerSelf, e): #@NoSelf
         TextEvent.physicalEventWidget = e.widget
 
@@ -563,8 +583,8 @@ class TextEvent(StateChangeEvent):
         StateChangeEvent.connectRecord(self, method)
         if self.isTyped() and not TextEvent.physicalEventListener:
             TextEvent.physicalEventListener = PhysicalEventListener()
-            runOnUIThread(self.addFilter, swt.SWT.KeyDown, TextEvent.physicalEventListener)
-            runOnUIThread(self.addFilter, swt.SWT.MouseDown, TextEvent.physicalEventListener)
+            runOnUIThread(self.addFilter, SWT.KeyDown, TextEvent.physicalEventListener)
+            runOnUIThread(self.addFilter, SWT.MouseDown, TextEvent.physicalEventListener)
         
     def parseArguments(self, text):
         return text
@@ -577,8 +597,8 @@ class TextEvent(StateChangeEvent):
         # Without this we risk the inner one being rejected because the outer one hasn't run,
         # and the outer being rejected because the inner one has updated the text already
         # Don't include the Enter presses from TextActivateEvent below...
-        return (e.type == swt.SWT.Modify and e.widget is self.widget.widget.widget) or \
-               (e.type == swt.SWT.KeyDown and e.character != swt.SWT.CR)
+        return (e.type == SWT.Modify and e.widget is self.widget.widget.widget) or \
+               (e.type == SWT.KeyDown and e.character != SWT.CR)
 
     def isTyped(self):
         return "typed" in self.generationModifiers
@@ -612,7 +632,7 @@ class TextEvent(StateChangeEvent):
         return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, event, *args)
         
     def isEditable(self):
-        return not (self.widget.widget.widget.getStyle() & swt.SWT.READ_ONLY) 
+        return not (self.widget.widget.widget.getStyle() & SWT.READ_ONLY) 
     
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         if isinstance(stateChangeEvent, TextEvent) and \
@@ -650,14 +670,14 @@ class TextActivateEvent(SignalEvent):
     
     @classmethod
     def getRecordEventType(cls):
-        return swt.SWT.Traverse
+        return SWT.Traverse
     
     @classmethod
     def getSignalsToFilter(cls):
-        return [ cls.getRecordEventType(), swt.SWT.DefaultSelection ]
+        return [ cls.getRecordEventType(), SWT.DefaultSelection ]
     
     def isTraverseReturn(self, event):
-        return event.type == swt.SWT.Traverse and event.detail == swt.SWT.TRAVERSE_RETURN
+        return event.type == SWT.Traverse and event.detail == SWT.TRAVERSE_RETURN
 
     def isTriggeringEvent(self, event):
         return event.widget in CComboChangeEvent.internalWidgets and self.isTraverseReturn(event)
@@ -665,7 +685,7 @@ class TextActivateEvent(SignalEvent):
     def shouldRecord(self, event, *args):
         return not self.widget.widget.widget in CComboChangeEvent.internalWidgets and self.isTraverseReturn(event) and \
             (not self.widget.isInstanceOf(FakeSWTBotCCombo) or \
-             DisplayFilter.instance.hasEventOfType([ swt.SWT.Traverse ], util.getPrivateField(self.widget.widget.widget, "text")))
+             DisplayFilter.instance.hasEventOfType([ SWT.Traverse ], util.getPrivateField(self.widget.widget.widget, "text")))
     
     def _generate(self, argumentString):
         self.widget.setFocus()
@@ -678,13 +698,13 @@ class TextContentAssistEvent(SignalEvent):
     
     @classmethod
     def getRecordEventType(cls):
-        return swt.SWT.KeyDown
+        return SWT.KeyDown
     
     def shouldRecord(self, event, *args):
-        return event.type == swt.SWT.KeyDown and event.character == " " and (event.stateMask & swt.SWT.CTRL) != 0
+        return event.type == SWT.KeyDown and event.character == " " and (event.stateMask & SWT.CTRL) != 0
     
     def _generate(self, argumentString):
-        self.widget.pressShortcut([ swtbot.keyboard.Keystrokes.CTRL, swtbot.keyboard.Keystrokes.SPACE ])
+        self.widget.pressShortcut([ Keystrokes.CTRL, Keystrokes.SPACE ])
 
 
 class ComboSelectEvent(StateChangeEvent):
@@ -751,13 +771,13 @@ class ComboTextEvent(TextEvent):
     
     def selectAll(self):
         # Strangely, there is no selectAll method...
-        selectionPoint = swt.graphics.Point(0, len(self.widget.getText()))
+        selectionPoint = Point(0, len(self.widget.getText()))
         runOnUIThread(self.widget.widget.widget.setSelection, selectionPoint)
     
 
 class CComboChangeEvent(CComboSelectEvent):
     def parseArguments(self, text):
-        if runOnUIThread(self.widget.widget.widget.getStyle) & swt.SWT.READ_ONLY:
+        if runOnUIThread(self.widget.widget.widget.getStyle) & SWT.READ_ONLY:
             raise UseCaseScriptError, "Cannot edit text in this Combo Box as it is readonly"
         return text
     
@@ -779,7 +799,7 @@ class CComboChangeEvent(CComboSelectEvent):
         return self.widget.getText()
     
 
-class StoryTextSwtBotTable(swtbot.widgets.SWTBotTable):    
+class StoryTextSwtBotTable(SWTBotTable):    
     def select(self, indices):
         # When clicking in a cell, SWTBot likes to select the entire row first, generating mouse events and all
         # This can cause trouble, e.g. the cells can translate it into clicking the first column
@@ -828,7 +848,7 @@ class TableSelectEvent(StateChangeEvent):
             return False
     
     def findCell(self, event):
-        pt = swt.graphics.Point(event.x, event.y)
+        pt = Point(event.x, event.y)
         table = event.widget
         firstRow = table.getTopIndex()
         columnCount = table.getColumnCount()
@@ -938,10 +958,10 @@ class TableColumnHeaderEvent(SignalEvent):
 
     def addListeners(self, *args):
         self.addColumnListeners(*args)            
-        class PaintListener(swt.widgets.Listener):
+        class PaintListener(Listener):
             def handleEvent(lself, e): #@NoSelf
                 storytext.guishared.catchAll(self.addColumnListeners, *args)
-        self.widget.widget.widget.addListener(swt.SWT.Paint, PaintListener())
+        self.widget.widget.widget.addListener(SWT.Paint, PaintListener())
         
     def outputForScript(self, event, *args):
         return " ".join([ self.name, event.widget.getText() ])
@@ -949,7 +969,7 @@ class TableColumnHeaderEvent(SignalEvent):
     def parseArguments(self, argumentString):
         try:
             return self.widget.header(argumentString)
-        except swtbot.exceptions.WidgetNotFoundException:
+        except WidgetNotFoundException:
             raise UseCaseScriptError, "Could not find column labelled '" + argumentString + "' in table."
         
     def _generate(self, column):
@@ -1007,9 +1027,9 @@ class TreeEvent(SignalEvent):
             return self.name
         
     def getItemClass(self):
-        if isinstance(self.widget.widget.widget, swt.widgets.ExpandBar):
-            return swtbot.widgets.SWTBotExpandItem
-        return swtbot.widgets.SWTBotTreeItem
+        if isinstance(self.widget.widget.widget, ExpandBar):
+            return SWTBotExpandItem
+        return SWTBotTreeItem
 
 
 class ExpandEvent(TreeEvent):
@@ -1071,7 +1091,7 @@ class TreeClickEvent(TreeEvent):
         # Record if there is no item, or if we've pressed control (deselecting) or
         # if whatever we selected is still in the selection.
         return TreeEvent.shouldRecord(self, event, *args) and \
-            (event.item is None or event.stateMask == swt.SWT.CTRL or event.item in event.widget.getSelection())
+            (event.item is None or event.stateMask == SWT.CTRL or event.item in event.widget.getSelection())
 
     def _generate(self, items):
         if items:
@@ -1085,14 +1105,14 @@ class TreeClickEvent(TreeEvent):
         runOnUIThread(self.widget.widget.widget.setSelection, [ item.widget for item in items ])
         items[0].click()
         for item in items[1:]:
-            self.postControlEvent(swt.SWT.KeyDown)
+            self.postControlEvent(SWT.KeyDown)
             item.click()
-            self.postControlEvent(swt.SWT.KeyUp)
+            self.postControlEvent(SWT.KeyUp)
                         
     def postControlEvent(self, eventType):
-        event = swt.widgets.Event()
+        event = Event()
         event.type = eventType
-        event.keyCode = swt.SWT.CTRL
+        event.keyCode = SWT.CTRL
         event.character = '\0'
         runOnUIThread(self.widget.display.post, event)
         
@@ -1164,10 +1184,10 @@ class DateTimeEvent(StateChangeEvent):
         self.dateFormat = self.getDateFormat()
 
     def getDateFormat(self):
-        if runOnUIThread(self.widget.widget.widget.getStyle) & swt.SWT.TIME:
-            return util.getDateFormat(swt.SWT.TIME)
+        if runOnUIThread(self.widget.widget.widget.getStyle) & SWT.TIME:
+            return util.getDateFormat(SWT.TIME)
         else:
-            return util.getDateFormat(swt.SWT.DATE)
+            return util.getDateFormat(SWT.DATE)
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Selection"
@@ -1186,7 +1206,7 @@ class DateTimeEvent(StateChangeEvent):
         self.widget.setDate(currDate)
         
 
-class EventFinishedListener(swt.widgets.Listener):
+class EventFinishedListener(Listener):
     def __init__(self, event, method):
         self.event = event
         self.method = method
@@ -1252,7 +1272,7 @@ class DisplayFilter:
         return any((event.type in eventTypes and event.widget is widget for event in self.eventsFromUser))
         
     def addFilters(self, display):
-        class DisplayListener(swt.widgets.Listener):
+        class DisplayListener(Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(self.handleFilterEvent, e)
 
@@ -1273,7 +1293,7 @@ class DisplayFilter:
     def cacheItemText(self, e):
         if e.item and not e.item.isDisposed():
             self.itemTextCache[e.item] = e.item.getText()
-        elif hasattr(e.widget, "getSelectionIndex") and hasattr(e.widget, "getText") and e.type == swt.SWT.Selection:
+        elif hasattr(e.widget, "getSelectionIndex") and hasattr(e.widget, "getText") and e.type == SWT.Selection:
             self.itemTextCache[e.widget] = e.widget.getText()
             
     def handleFilterEvent(self, e):
@@ -1287,7 +1307,7 @@ class DisplayFilter:
             self.logger.debug("Filter ignored event " + e.toString())
 
     def addApplicationEventFilter(self, display):
-        class ApplicationEventListener(swt.widgets.Listener):
+        class ApplicationEventListener(Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 if e.text:
                     storytext.guishared.catchAll(self.registerApplicationEvent, e.text, e.data or "system")
@@ -1309,7 +1329,7 @@ class DisplayFilter:
         return False
 
     def hasComplexAncestors(self, widget):
-        return isinstance(widget.getParent(), swt.widgets.DateTime)
+        return isinstance(widget.getParent(), DateTime)
 
     def getAllEventTypes(self):
         eventTypeSet = set()
@@ -1322,19 +1342,19 @@ class DisplayFilter:
         applicationEventRemove(*args, **kw)
     
 # There is no SWTBot class for these things, so we make our own. We aren't actually going to use it anyway...    
-class FakeSWTBotTabFolder(swtbot.widgets.AbstractSWTBot):
+class FakeSWTBotTabFolder(AbstractSWTBot):
     pass
 
-class FakeSWTBotCTabFolder(swtbot.widgets.AbstractSWTBot):
+class FakeSWTBotCTabFolder(AbstractSWTBot):
     pass
 
 # There is no way to type text in SWTBotCCombo, so make our own.
-class FakeSWTBotCCombo(swtbot.widgets.SWTBotCCombo):
+class FakeSWTBotCCombo(SWTBotCCombo):
     def typeText(self, text):
         self.setFocus()
-        self.keyboard().typeText(text, swtbot.utils.SWTBotPreferences.TYPE_INTERVAL)
+        self.keyboard().typeText(text, SWTBotPreferences.TYPE_INTERVAL)
 
-class BrowserUpdateMonitor(swt.browser.ProgressListener):
+class BrowserUpdateMonitor(ProgressListener):
     def __init__(self, widget):
         self.widget = widget
     
@@ -1357,8 +1377,8 @@ class EventPoster:
         runOnUIThread(storytext.guishared.catchAll, self.waitForCursor, x, y)
        
     def postMouseMove(self, x ,y):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseMove
+        event = Event()
+        event.type = SWT.MouseMove
         event.x = x
         event.y = y
         self.display.post(event)
@@ -1368,35 +1388,35 @@ class EventPoster:
         runOnUIThread(storytext.guishared.catchAll, self.postMouseUp, button)
 
     def postMouseDown(self, button=1):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseDown
+        event = Event()
+        event.type = SWT.MouseDown
         event.button = button
         self.display.post(event)
 
     def postMouseUp(self, button=1):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.MouseUp
+        event = Event()
+        event.type = SWT.MouseUp
         event.button = button
         self.display.post(event)
         
     def checkAndPostKeyPressed(self, keyModifiers):
-        if keyModifiers & swt.SWT.CTRL != 0:
-            runOnUIThread(storytext.guishared.catchAll, self.postKeyPressed, swt.SWT.CTRL, '\0')
+        if keyModifiers & SWT.CTRL != 0:
+            runOnUIThread(storytext.guishared.catchAll, self.postKeyPressed, SWT.CTRL, '\0')
             
     def checkAndPostKeyReleased(self, keyModifiers):
-        if keyModifiers & swt.SWT.CTRL != 0:
-            runOnUIThread(storytext.guishared.catchAll, self.postKeyReleased, swt.SWT.CTRL, '\0')
+        if keyModifiers & SWT.CTRL != 0:
+            runOnUIThread(storytext.guishared.catchAll, self.postKeyReleased, SWT.CTRL, '\0')
             
     def postKeyPressed(self, code, character):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.KeyDown
+        event = Event()
+        event.type = SWT.KeyDown
         event.keyCode = code
         event.character = character
         self.display.post(event)
         
     def postKeyReleased(self, code, character):
-        event = swt.widgets.Event()
-        event.type = swt.SWT.KeyUp
+        event = Event()
+        event.type = SWT.KeyUp
         event.keyCode = code
         event.character = character
         self.display.post(event)
@@ -1423,31 +1443,31 @@ class EventPoster:
 
 class WidgetMonitor:
     startupError = None
-    swtbotMap = { swt.widgets.Button   : (swtbot.widgets.SWTBotButton,
-                                         [ (swt.SWT.RADIO, swtbot.widgets.SWTBotRadio),
-                                           (swt.SWT.CHECK, swtbot.widgets.SWTBotCheckBox) ]),
-                  swt.widgets.MenuItem : (swtbot.widgets.SWTBotMenu, 
-                                          [ (swt.SWT.RADIO, SWTBotRadioMenu) ]),
-                  swt.widgets.Shell    : (swtbot.widgets.SWTBotShell, []),
-                  swt.widgets.ToolItem : ( swtbot.widgets.SWTBotToolbarPushButton,
-                                         [ (swt.SWT.DROP_DOWN, swtbot.widgets.SWTBotToolbarDropDownButton),
-                                           (swt.SWT.RADIO    , swtbot.widgets.SWTBotToolbarRadioButton),
-                                           (swt.SWT.SEPARATOR, swtbot.widgets.SWTBotToolbarSeparatorButton),
-                                           (swt.SWT.TOGGLE   , swtbot.widgets.SWTBotToolbarToggleButton) ]),
-                  swt.widgets.Spinner  : (swtbot.widgets.SWTBotSpinner, []),
-                  swt.widgets.Text     : (swtbot.widgets.SWTBotText, []),
-                  swt.widgets.Link     : (swtbot.widgets.SWTBotLink, []),
-                  swt.widgets.List     : (swtbot.widgets.SWTBotList, []),
-                  swt.widgets.Combo    : (swtbot.widgets.SWTBotCombo, []),
-                  swt.custom.CCombo    : (FakeSWTBotCCombo, []),
-                  swt.widgets.Table    : (StoryTextSwtBotTable, []),
-                  swt.widgets.TableColumn : (swtbot.widgets.SWTBotTableColumn, []),
-                  swt.widgets.Tree     : (swtbot.widgets.SWTBotTree, []),
-                  swt.widgets.ExpandBar: (swtbot.widgets.SWTBotExpandBar, []),
-                  swt.widgets.DateTime : (swtbot.widgets.SWTBotDateTime, []),
-                  swt.widgets.TabFolder: (FakeSWTBotTabFolder, []),
-                  swt.custom.CTabFolder: (FakeSWTBotCTabFolder, []),
-                  swt.browser.Browser  : (swtbot.widgets.SWTBotBrowser, [])
+    swtbotMap = { Button        : (SWTBotButton,
+                                    [ (SWT.RADIO, SWTBotRadio),
+                                     (SWT.CHECK, SWTBotCheckBox) ]),
+                  MenuItem      : (SWTBotMenu, 
+                                    [ (SWT.RADIO, SWTBotRadioMenu) ]),
+                  Shell         : (SWTBotShell, []),
+                  ToolItem      : ( SWTBotToolbarPushButton,
+                                    [ (SWT.DROP_DOWN, SWTBotToolbarDropDownButton),
+                                      (SWT.RADIO    , SWTBotToolbarRadioButton),
+                                      (SWT.SEPARATOR, SWTBotToolbarSeparatorButton),
+                                      (SWT.TOGGLE   , SWTBotToolbarToggleButton) ]),
+                  Spinner       : (SWTBotSpinner, []),
+                  Text          : (SWTBotText, []),
+                  Link          : (SWTBotLink, []),
+                  List          : (SWTBotList, []),
+                  Combo         : (SWTBotCombo, []),
+                  CCombo        : (FakeSWTBotCCombo, []),
+                  Table         : (StoryTextSwtBotTable, []),
+                  TableColumn   : (SWTBotTableColumn, []),
+                  Tree          : (SWTBotTree, []),
+                  ExpandBar     : (SWTBotExpandBar, []),
+                  DateTime      : (SWTBotDateTime, []),
+                  TabFolder     : (FakeSWTBotTabFolder, []),
+                  CTabFolder    : (FakeSWTBotCTabFolder, []),
+                  Browser       : (SWTBotBrowser, [])
                   }
     def __init__(self, uiMap):
         self.bot = self.createSwtBot()
@@ -1472,14 +1492,14 @@ class WidgetMonitor:
             # A common cause is that someone has edited the row identifier and not committed the change
             # We press Enter and hope for the best...
             if any((runOnUIThread(self.hasTableWithEditor, e) for e in events)):
-                keyboard = swtbot.keyboard.KeyboardFactory.getSWTKeyboard()
-                keyboard.pressShortcut([ swtbot.keyboard.Keystrokes.CR ])
+                keyboard = KeyboardFactory.getSWTKeyboard()
+                keyboard.pressShortcut([ Keystrokes.CR ])
         elif "MenuItem has already been disposed" in errorText or "no widget found" in errorText:
             runOnUIThread(self.recheckPopupMenus)
 
     def hasTableWithEditor(self, event):
         widget = event.widget.widget.widget
-        if not widget.isDisposed() and isinstance(widget, swt.widgets.Table) and len(widget.getChildren()) > 0:
+        if not widget.isDisposed() and isinstance(widget, Table) and len(widget.getChildren()) > 0:
             return any((not child.isDisposed() and child.isVisible() for child in widget.getChildren()))
         else:
             return False
@@ -1494,7 +1514,7 @@ class WidgetMonitor:
         return DisplayFilter
 
     def createSwtBot(self):
-        return swtbot.SWTBot()
+        return SWTBot()
         
     def getWidgetEventTypes(self):
         return self.getWidgetEventInfo(lambda eventClass: eventClass.getSignalsToFilter())
@@ -1543,30 +1563,30 @@ class WidgetMonitor:
         self.displayFilter.addFilters(display)
 
     def addMonitorFilter(self, display):
-        class MonitorListener(swt.widgets.Listener):
+        class MonitorListener(Listener):
             def handleEvent(listenerSelf, e): #@NoSelf
                 storytext.guishared.catchAll(self.widgetShown, e)
 
         monitorListener = MonitorListener()
-        runOnUIThread(display.addFilter, swt.SWT.Show, monitorListener)
-        runOnUIThread(display.addFilter, swt.SWT.Paint, monitorListener)
-        runOnUIThread(display.addFilter, swt.SWT.Selection, monitorListener)
+        runOnUIThread(display.addFilter, SWT.Show, monitorListener)
+        runOnUIThread(display.addFilter, SWT.Paint, monitorListener)
+        runOnUIThread(display.addFilter, SWT.Selection, monitorListener)
         
     def widgetShown(self, e):
         if self.shouldMonitor(e.widget):
-            if isinstance(e.widget, swt.widgets.Menu):
+            if isinstance(e.widget, Menu):
                 e.widget.addListener(e.type, EventFinishedListener(e, self.monitorWidgetsFromEvent))
             else:
-                self.monitorNewWidgets(e.widget, e.type == swt.SWT.Show)
+                self.monitorNewWidgets(e.widget, e.type == SWT.Show)
             
     def shouldMonitor(self, widget):
         # Don't try to monitor widgets before the shells they appear in!
         return widget not in self.widgetsMonitored and \
-            (isinstance(widget, swt.widgets.Shell) or not isinstance(widget, swt.widgets.Control) or widget.getShell() in self.widgetsMonitored)
+            (isinstance(widget, Shell) or not isinstance(widget, Control) or widget.getShell() in self.widgetsMonitored)
             
     def monitorWidgetsFromEvent(self, e):
         if not e.widget.isDisposed():
-            self.monitorNewWidgets(e.widget, e.type == swt.SWT.Show)
+            self.monitorNewWidgets(e.widget, e.type == SWT.Show)
             
     def monitorNewWidgets(self, parent, findInvisible=True):
         if findInvisible:
@@ -1578,14 +1598,14 @@ class WidgetMonitor:
 
         self.uiMap.logger.debug("Showing/painting widget of type " +
                                 parent.__class__.__name__ + " " + str(id(parent)) + ", monitoring found widgets")
-        if isinstance(parent, swt.widgets.Menu):
+        if isinstance(parent, Menu):
             self.allMenus.add(parent)
         self.monitorAllWidgets(widgets)
         self.uiMap.logger.debug("Done Monitoring all widgets after showing/painting " + 
                                 parent.__class__.__name__ + " " + str(id(parent)) + ".")
         
     def findDescendants(self, widget):
-        if isinstance(widget, swt.widgets.Menu):
+        if isinstance(widget, Menu):
             return ArrayList(self.getMenuItems(widget))
         else:
             matcher = IsAnything()
@@ -1620,7 +1640,7 @@ class WidgetMonitor:
 
     def monitorAsynchronousUpdates(self, widget):
         # Browsers load their stuff in the background, must wait for them to finish
-        if widget.isInstanceOf(swtbot.widgets.SWTBotBrowser):
+        if widget.isInstanceOf(SWTBotBrowser):
             monitor = self.getBrowserUpdateMonitorClass()(widget)
             runOnUIThread(widget.widget.widget.addProgressListener, monitor)
             
@@ -1633,7 +1653,7 @@ class WidgetMonitor:
         # We work around and find them ourselves
         extraControls = []
         for widget in widgets:
-            if isinstance(widget, swt.widgets.ToolItem):
+            if isinstance(widget, ToolItem):
                 control = runOnUIThread(widget.getControl)
                 if control is not None:
                     extraControls.append(control)
@@ -1651,7 +1671,7 @@ class WidgetMonitor:
                                 "Possible causes: has Mockito been exported with the product (suggest to make dependency optional if so)?"
         if self.startupError:
             sys.stderr.write(self.startupError + "\n")
-            swtbot.widgets.SWTBotShell(shell).close()
+            SWTBotShell(shell).close()
             return []
         
         self.addToolbarEmbeddedWidgets(widgets, matcher)
@@ -1662,8 +1682,8 @@ class WidgetMonitor:
     def getPopupMenus(self, widgets):
         menus = []
         for widget in widgets:
-            if isinstance(widget, swt.widgets.Control):
-                menuFinder = swtbot.finders.ContextMenuFinder(widget)
+            if isinstance(widget, Control):
+                menuFinder = ContextMenuFinder(widget)
                 menus += filter(lambda m: m not in self.widgetsMonitored, menuFinder.findMenus(IsAnything()))
         return menus
 
@@ -1709,10 +1729,10 @@ class WidgetMonitor:
         display = self.getDisplay()
         shell = runOnUIThread(self.getActiveShell)
         self._removeMousePointerIfNeeded(display, shell)
-        class MousePointerListener(swt.widgets.Listener):
+        class MousePointerListener(Listener):
             def handleEvent(lself, e): #@NoSelf
                 self._removeMousePointerIfNeeded(display, shell)
-        runOnUIThread(shell.addListener, swt.SWT.Resize, MousePointerListener())
+        runOnUIThread(shell.addListener, SWT.Resize, MousePointerListener())
         
     def _removeMousePointerIfNeeded(self, display, shell):
         def pointerInWindow():
@@ -1726,26 +1746,25 @@ class WidgetMonitor:
 
 
         
-eventTypes =  [ (swtbot.widgets.SWTBotButton            , [ SelectEvent ]),
-                (SWTBotRadioMenu                        , [ RadioSelectEvent ]),
-                (swtbot.widgets.SWTBotMenu              , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotToolbarPushButton , [ SelectEvent ]),
-                (swtbot.widgets.SWTBotToolbarDropDownButton , [ DropDownButtonEvent, DropDownSelectionEvent ]),
-                (swtbot.widgets.SWTBotToolbarRadioButton, [ RadioSelectEvent ]),
-                (swtbot.widgets.SWTBotLink              , [ LinkSelectEvent ]),
-                (swtbot.widgets.SWTBotRadio             , [ RadioSelectEvent ]),
-                (swtbot.widgets.SWTBotSpinner           , [ SpinnerSelectEvent ]),
-                (swtbot.widgets.SWTBotText              , [ TextEvent, TextActivateEvent, TextContentAssistEvent ]),
-                (swtbot.widgets.SWTBotShell             , [ ShellCloseEvent, ResizeEvent, FreeTextEvent ]),
-                (StoryTextSwtBotTable                   , [ TableColumnHeaderEvent, TableSelectEvent, TableDoubleClickEvent ]),
-                (swtbot.widgets.SWTBotTableColumn       , [ TableColumnHeaderEvent ]),
-                (swtbot.widgets.SWTBotTree              , [ ExpandEvent, CollapseEvent,
-                                                            TreeClickEvent, TreeDoubleClickEvent ]),
-                (swtbot.widgets.SWTBotExpandBar         , [ ExpandEvent, CollapseEvent ]),
-                (swtbot.widgets.SWTBotList              , [ ListClickEvent ]),
-                (swtbot.widgets.SWTBotCombo             , [ ComboSelectEvent,  ComboTextEvent, TextActivateEvent ]),
-                (FakeSWTBotCCombo                       , [ CComboSelectEvent, CComboChangeEvent, TextActivateEvent ]),
-                (FakeSWTBotTabFolder                    , [ TabSelectEvent ]),
-                (FakeSWTBotCTabFolder                   , [ CTabSelectEvent, CTabCloseEvent ]),
-                (swtbot.widgets.SWTBotDateTime          , [ DateTimeEvent ]),
-                (swtbot.widgets.SWTBotCheckBox          , [ SelectEvent ]) ]
+eventTypes =  [ (SWTBotButton                   , [ SelectEvent ]),
+                (SWTBotRadioMenu                , [ RadioSelectEvent ]),
+                (SWTBotMenu                     , [ SelectEvent ]),
+                (SWTBotToolbarPushButton        , [ SelectEvent ]),
+                (SWTBotToolbarDropDownButton    , [ DropDownButtonEvent, DropDownSelectionEvent ]),
+                (SWTBotToolbarRadioButton       , [ RadioSelectEvent ]),
+                (SWTBotLink                     , [ LinkSelectEvent ]),
+                (SWTBotRadio                    , [ RadioSelectEvent ]),
+                (SWTBotSpinner                  , [ SpinnerSelectEvent ]),
+                (SWTBotText                     , [ TextEvent, TextActivateEvent, TextContentAssistEvent ]),
+                (SWTBotShell                    , [ ShellCloseEvent, ResizeEvent, FreeTextEvent ]),
+                (StoryTextSwtBotTable           , [ TableColumnHeaderEvent, TableSelectEvent, TableDoubleClickEvent ]),
+                (SWTBotTableColumn              , [ TableColumnHeaderEvent ]),
+                (SWTBotTree                     , [ ExpandEvent, CollapseEvent, TreeClickEvent, TreeDoubleClickEvent ]),
+                (SWTBotExpandBar                , [ ExpandEvent, CollapseEvent ]),
+                (SWTBotList                     , [ ListClickEvent ]),
+                (SWTBotCombo                    , [ ComboSelectEvent,  ComboTextEvent, TextActivateEvent ]),
+                (FakeSWTBotCCombo               , [ CComboSelectEvent, CComboChangeEvent, TextActivateEvent ]),
+                (FakeSWTBotTabFolder            , [ TabSelectEvent ]),
+                (FakeSWTBotCTabFolder           , [ CTabSelectEvent, CTabCloseEvent ]),
+                (SWTBotDateTime                 , [ DateTimeEvent ]),
+                (SWTBotCheckBox                 , [ SelectEvent ]) ]

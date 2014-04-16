@@ -1,36 +1,43 @@
 import storytext.guishared, time, os, threading, sys
-from javax import swing
+import simulator, describer, util
+
 from java.awt import Frame, AWTEvent, Toolkit
 from java.awt.event import AWTEventListener, ComponentEvent, ContainerEvent
 from java.lang import Thread, Runtime
-import simulator, describer, util
+
+from javax.swing import JButton, JComboBox, JComponent, JDialog, JFrame, JList, JMenuItem, JPopupMenu, JSpinner, \
+    JTabbedPane, JTable, JTextField, JToggleButton
+from javax.swing.plaf.basic import BasicInternalFrameTitlePane
+from javax.swing.table import JTableHeader
+from javax.swing.text import JTextComponent
+
 
 class ScriptEngine(storytext.guishared.ScriptEngine):
     eventTypes = [
-        (swing.JFrame       , [ simulator.FrameCloseEvent, simulator.KeyPressForTestingEvent ]),
-        (swing.JButton      , [ simulator.ButtonClickEvent ]),
-        (swing.JToggleButton, [ simulator.ClickEvent ]),
-        (swing.JMenuItem    , [ simulator.MenuSelectEvent ]),
-        (swing.JTabbedPane  , [ simulator.TabSelectEvent, simulator.TabPopupActivateEvent]),
-        (swing.JDialog      , [ simulator.FrameCloseEvent ]),
-        (swing.JList        , [ simulator.ListSelectEvent ]),
-        (swing.JTable       , [ simulator.TableSelectEvent, simulator.TableHeaderEvent,
+        (JFrame       , [ simulator.FrameCloseEvent, simulator.KeyPressForTestingEvent ]),
+        (JButton      , [ simulator.ButtonClickEvent ]),
+        (JToggleButton, [ simulator.ClickEvent ]),
+        (JMenuItem    , [ simulator.MenuSelectEvent ]),
+        (JTabbedPane  , [ simulator.TabSelectEvent, simulator.TabPopupActivateEvent]),
+        (JDialog      , [ simulator.FrameCloseEvent ]),
+        (JList        , [ simulator.ListSelectEvent ]),
+        (JTable       , [ simulator.TableSelectEvent, simulator.TableHeaderEvent,
                                 simulator.CellDoubleClickEvent, simulator.CellEditEvent,
                                 simulator.CellPopupMenuActivateEvent ]),
-        (swing.text.JTextComponent  , [ simulator.TextEditEvent ]),
-        (swing.JTextField   , [ simulator.TextEditEvent, simulator.TextActivateEvent, simulator.PopupActivateEvent ]),
-        (swing.JSpinner     , [ simulator.SpinnerEvent ]),
-        (swing.plaf.basic.BasicInternalFrameTitlePane, [ simulator.InternalFrameDoubleClickEvent ]),
-        (swing.JComponent   , [ simulator.PopupActivateEvent ]),
-        (swing.JPopupMenu   , []), # Don't monitor PopupActivateEvent here, seems to cause trouble
-        (swing.JComboBox    , [ simulator.ComboBoxEvent ])
+        (JTextComponent  , [ simulator.TextEditEvent ]),
+        (JTextField   , [ simulator.TextEditEvent, simulator.TextActivateEvent, simulator.PopupActivateEvent ]),
+        (JSpinner     , [ simulator.SpinnerEvent ]),
+        (BasicInternalFrameTitlePane, [ simulator.InternalFrameDoubleClickEvent ]),
+        (JComponent   , [ simulator.PopupActivateEvent ]),
+        (JPopupMenu   , []), # Don't monitor PopupActivateEvent here, seems to cause trouble
+        (JComboBox    , [ simulator.ComboBoxEvent ])
         ]
     def run(self, options, args):
         if options.supported or options.supported_html:
             return storytext.guishared.ScriptEngine.run(self, options, args)
 
         class ShutdownHook(Thread):
-            def run(tself):
+            def run(tself):#@NoSelf
                 self.cleanup(options.interface)
                 
         if not options.disable_usecase_names:
@@ -54,7 +61,7 @@ class ScriptEngine(storytext.guishared.ScriptEngine):
     
     def checkType(self, widget):
         # Headers are connected to the table to use any identification that is there
-        recordWidgetTypes = [ cls for cls, signals in self.eventTypes ] + [ swing.table.JTableHeader ]
+        recordWidgetTypes = [ cls for cls, signals in self.eventTypes ] + [ JTableHeader ]
         return any((isinstance(widget, cls) for cls in recordWidgetTypes))
 
     def getDescriptionInfo(self):
@@ -86,7 +93,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
 
     def listenForComponents(self):
         class NewComponentListener(AWTEventListener):
-            def eventDispatched(listenerSelf, event):
+            def eventDispatched(listenerSelf, event):#@NoSelf
                 # Primarily to make coverage work, it doesn't get enabled in threads made by Java
                 if hasattr(threading, "_trace_hook") and threading._trace_hook:
                     sys.settrace(threading._trace_hook)
@@ -100,11 +107,11 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         util.runOnEventDispatchThread(Toolkit.getDefaultToolkit().addAWTEventListener, NewComponentListener(), eventMask)
 
     def handleNewComponent(self, widget):
-        inWindow = isinstance(widget, swing.JComponent) and widget.getTopLevelAncestor() is not None and \
+        inWindow = isinstance(widget, JComponent) and widget.getTopLevelAncestor() is not None and \
                    widget.getTopLevelAncestor() in self.uiMap.windows
-        isWindow = isinstance(widget, (swing.JFrame, swing.JDialog))
+        isWindow = isinstance(widget, (JFrame, JDialog))
         appEventButton = hasattr(widget, "getText") and unicode(widget.getText()).startswith("ApplicationEvent")
-        popupMenu = isinstance(widget, swing.JPopupMenu) and not util.belongsMenubar(widget.getInvoker())
+        popupMenu = isinstance(widget, JPopupMenu) and not util.belongsMenubar(widget.getInvoker())
         if self.uiMap and (self.isActive() or self.recorder.isActive()):
             if isWindow:
                 self.uiMap.monitorAndStoreWindow(widget)
@@ -113,7 +120,7 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
                 self.logger.debug("New widget of type " + widget.__class__.__name__ + " appeared: monitoring")
                 self.uiMap.monitor(storytext.guishared.WidgetAdapter.adapt(widget))
                 self.setAppeared(widget)
-            elif isinstance(widget, swing.JPopupMenu):
+            elif isinstance(widget, JPopupMenu):
                 self.setAppeared(widget.getParent())
         if self.loggerActive and (isWindow or inWindow or popupMenu):
             self.describer.setWidgetShown(widget)

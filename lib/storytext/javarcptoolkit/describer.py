@@ -1,8 +1,9 @@
+import os
 from storytext.javaswttoolkit import describer as swtdescriber
+from pprint import pprint
+
 from org.eclipse.core.internal.runtime import InternalPlatform
 from org.eclipse.ui.forms.widgets import ExpandableComposite
-import os
-from pprint import pprint
 
 class Describer(swtdescriber.Describer):
     swtdescriber.Describer.stateWidgets = [ ExpandableComposite ] + swtdescriber.Describer.stateWidgets

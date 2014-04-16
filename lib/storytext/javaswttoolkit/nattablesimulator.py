@@ -3,9 +3,9 @@
 
 from storytext.javaswttoolkit import simulator
 from storytext.definitions import UseCaseScriptError
-# Not really consistent with how we do things elsewhere
-# NatTable doesn't seem to work the same way unfortunately, it doesn't initialise the whole package when you import one class
-# We go with Java-style here
+from simulator import WidgetMonitor
+import util
+
 from org.eclipse.nebula.widgets.nattable import NatTable
 from org.eclipse.nebula.widgets.nattable.grid.layer import GridLayer
 from org.eclipse.nebula.widgets.nattable.layer.cell import ILayerCell
@@ -14,10 +14,10 @@ from org.eclipse.nebula.widgets.nattable.config import IConfigRegistry, CellConf
 from org.eclipse.nebula.widgets.nattable.style import CellStyleUtil, DisplayMode
 from org.eclipse.nebula.widgets.nattable.painter.cell import CheckBoxPainter
 
-import org.eclipse.swtbot.swt.finder as swtbot
-from simulator import WidgetMonitor
-import util
-from org.eclipse import swt
+from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBot
+
+from org.eclipse.swt import SWT
+from org.eclipse.swt.widgets import Listener, Menu, Table
 
 class NatTableIndexer(simulator.TableIndexer):
     def __init__(self, table):
@@ -86,9 +86,9 @@ class NatTableIndexer(simulator.TableIndexer):
         return simulator.TableIndexer.getCellDescription(self, row - self.rowOffset, col - self.colOffset, **kw)
     
 
-class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
+class FakeSWTBotNatTable(AbstractSWTBot):
     def __init__(self, *args, **kw):
-        swtbot.widgets.AbstractSWTBot.__init__(self, *args, **kw)
+        AbstractSWTBot.__init__(self, *args, **kw)
         self.eventPoster = simulator.EventPoster(self.display)
         
     def clickOnCell(self, row, col, clickCount, button):
@@ -135,12 +135,12 @@ class FakeSWTBotNatTable(swtbot.widgets.AbstractSWTBot):
         if y > clientAreaHeight:
             raise UseCaseScriptError, "Could not select row, it is outside the viewport"
         
-class InstantMenuDescriber(swt.widgets.Listener):
+class InstantMenuDescriber(Listener):
     def __init__(self, widget):
         self.widget = widget
         
     def handleEvent(self, e):
-        if isinstance(e.widget, swt.widgets.Menu) and e.widget.getItemCount():
+        if isinstance(e.widget, Menu) and e.widget.getItemCount():
             self.describeMenu(e.widget)
             self.removeFilter()
     
@@ -151,10 +151,10 @@ class InstantMenuDescriber(swt.widgets.Listener):
         desc.logger.info(desc.getMenuDescription(menu))
         
     def addFilter(self, *args):
-        self.widget.widget.widget.getDisplay().addFilter(swt.SWT.Show, self)
+        self.widget.widget.widget.getDisplay().addFilter(SWT.Show, self)
     
     def removeFilter(self, *args):
-        self.widget.widget.widget.getDisplay().removeFilter(swt.SWT.Show, self)
+        self.widget.widget.widget.getDisplay().removeFilter(SWT.Show, self)
     
         
 class NatTableEventHelper:        
@@ -298,8 +298,8 @@ class FailureHandler():
                     event.scrollDown()
  
 def getContextNameForNatCombo(widget, *args):
-    if isinstance(widget, swt.widgets.Table):
-        for listener in widget.getListeners(swt.SWT.Selection):
+    if isinstance(widget, Table):
+        for listener in widget.getListeners(SWT.Selection):
             if hasattr(listener, "getEventListener"):
                 eventListener = listener.getEventListener()
                 if "NatCombo" in eventListener.__class__.__name__:

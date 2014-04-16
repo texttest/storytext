@@ -1,12 +1,17 @@
 
 """ SWT utilities """
-from org.eclipse import swt
-from java.text import SimpleDateFormat
 import storytext.guishared
-from java.lang import NoSuchMethodException, NoSuchFieldException
 
-cellParentData = { swt.widgets.Table : ("TableCell", "Table"), 
-                   swt.widgets.Tree  : ("TreeCell", "Tree") }
+from java.lang import NoSuchMethodException, NoSuchFieldException
+from java.text import SimpleDateFormat
+
+from org.eclipse.swt import SWT
+from org.eclipse.swt.custom import CLabel, StackLayout
+from org.eclipse.swt.layout import GridLayout
+from org.eclipse.swt.widgets import Label, Table, Tree
+
+cellParentData = { Table : ("TableCell", "Table"), 
+                   Tree  : ("TreeCell", "Tree") }
 ignoreLabels = []
 
 def getContextNameForWidget(widget):
@@ -21,7 +26,7 @@ def getRealUrl(browser):
 
 class TextLabelFinder(storytext.guishared.TextLabelFinder):
     def getLabelClass(self):
-        return swt.widgets.Label, swt.custom.CLabel
+        return Label, CLabel
     
     def getContextParentClasses(self):
         # Don't look for labels outside these if they are parent classes
@@ -37,10 +42,10 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
     
     def getEarliestRelevantIndex(self, widgetPos, children, parent):
         layout = parent.getLayout()
-        if isinstance(layout, swt.custom.StackLayout):
+        if isinstance(layout, StackLayout):
             return widgetPos # No text is relevant: stack layout will hide it
         
-        if not isinstance(layout, swt.layout.GridLayout):
+        if not isinstance(layout, GridLayout):
             return 0
         
         numColumns = layout.numColumns
@@ -60,7 +65,7 @@ class TextLabelFinder(storytext.guishared.TextLabelFinder):
 
     def numRows(self, children, parent):
         layout = parent.getLayout()
-        if not isinstance(layout, swt.layout.GridLayout):
+        if not isinstance(layout, GridLayout):
             return 0
         numColumns = layout.numColumns
         currIndex = 0
@@ -96,11 +101,11 @@ class CanvasDescriber(storytext.guishared.Describer):
         return "\nUpdated "
 
 def getDateFormat(dateType):
-    if dateType == swt.SWT.TIME:
+    if dateType == SWT.TIME:
         # Default format is locale-dependent, no reason to make tests fail in different locales
         return SimpleDateFormat("kk:mm:ss")
     else:
-        # Seems to be default format for swt.SWT.DATE, should be locale-independent
+        # Seems to be default format for SWT.DATE, should be locale-independent
         return SimpleDateFormat("M/d/yyyy") 
 
 # For some reason StackLayout does not affect visible properties, so things that are hidden get marked as visible

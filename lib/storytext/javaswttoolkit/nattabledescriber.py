@@ -1,13 +1,12 @@
 
 """ Module for handling Nebula's NatTable, if present """
 
-#Java-style imports. See NatTableSimulator comment for why
+import util
+
 from org.eclipse.nebula.widgets.nattable import NatTable
 from org.eclipse.nebula.widgets.nattable.config import CellConfigAttributes
 from org.eclipse.nebula.widgets.nattable.style import DisplayMode
 from org.eclipse.nebula.widgets.nattable.painter.cell import CheckBoxPainter
-
-import util
 
 class CanvasDescriber(util.CanvasDescriber):
     @classmethod
