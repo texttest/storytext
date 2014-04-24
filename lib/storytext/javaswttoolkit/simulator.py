@@ -4,7 +4,7 @@ from storytext.definitions import UseCaseScriptError
 from storytext import applicationEvent, applicationEventDelay, applicationEventRemove
 from difflib import SequenceMatcher
 
-from java.lang import IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException, Exception
+from java.lang import Boolean, IllegalStateException, IndexOutOfBoundsException, RuntimeException, NullPointerException, Exception
 from java.text import ParseException
 from java.util import ArrayList
 from threading import Lock
@@ -14,7 +14,7 @@ from org.eclipse.swt import SWT
 from org.eclipse.swt.browser import Browser, ProgressListener
 from org.eclipse.swt.custom import  CCombo, CTabFolder, CTabFolder2Adapter
 from org.eclipse.swt.graphics import Point
-from org.eclipse.swt.widgets import Button, Combo, Control, DateTime, Event, ExpandBar, Link, List, Listener, Menu, MenuItem, \
+from org.eclipse.swt.widgets import Button, Combo, Control, DateTime, Event, ExpandBar, Label, Link, List, Listener, Menu, MenuItem, \
     Shell, Spinner, Table, TableColumn, TabFolder, Text, ToolItem, Tree
 
 from org.hamcrest.core import IsAnything
@@ -25,8 +25,8 @@ from org.eclipse.swtbot.swt.finder.finders import UIThreadRunnable, ContextMenuF
 from org.eclipse.swtbot.swt.finder.keyboard import Keystrokes, KeyboardFactory
 from org.eclipse.swtbot.swt.finder.results import Result, VoidResult
 from org.eclipse.swtbot.swt.finder.utils import SWTBotPreferences
-from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBot, SWTBotButton, SWTBotBrowser, SWTBotCCombo, SWTBotCheckBox, \
-    SWTBotCombo, SWTBotCTabItem, SWTBotDateTime, SWTBotExpandBar, SWTBotExpandItem, SWTBotLink, SWTBotList, SWTBotMenu, \
+from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBot, AbstractSWTBotControl, SWTBotButton, SWTBotBrowser, SWTBotCCombo, SWTBotCheckBox, \
+    SWTBotCombo, SWTBotCTabItem, SWTBotDateTime, SWTBotExpandBar, SWTBotExpandItem, SWTBotLabel, SWTBotLink, SWTBotList, SWTBotMenu, \
     SWTBotRadio, SWTBotShell, SWTBotSpinner, SWTBotTabItem, SWTBotTable, SWTBotTableColumn, SWTBotText, SWTBotToolbarDropDownButton, \
     SWTBotToolbarPushButton,  SWTBotToolbarRadioButton,SWTBotToolbarSeparatorButton, SWTBotToolbarToggleButton, SWTBotTree, \
     SWTBotTreeItem
@@ -1205,6 +1205,25 @@ class DateTimeEvent(StateChangeEvent):
     def _generate(self, currDate):
         self.widget.setDate(currDate)
         
+        
+class IconClickEvent(SignalEvent):
+    @classmethod
+    def getAssociatedSignal(cls, widget):
+        return "ClickIcon"
+    
+    def shouldRecord(self, event, *args):
+        label = event.widget
+        return label.getImage() is not None and not label.getText() and SignalEvent.shouldRecord(self, event, *args)
+
+    @classmethod
+    def getRecordEventType(cls):
+        return SWT.MouseUp
+    
+    def _generate(self, argumentString):
+        method = AbstractSWTBotControl.getDeclaredMethod("click", [ Boolean.TYPE ])
+        method.setAccessible(True)
+        return method.invoke(self.widget.widget, [ True ])
+
 
 class EventFinishedListener(Listener):
     def __init__(self, event, method):
@@ -1456,6 +1475,7 @@ class WidgetMonitor:
                                       (SWT.TOGGLE   , SWTBotToolbarToggleButton) ]),
                   Spinner       : (SWTBotSpinner, []),
                   Text          : (SWTBotText, []),
+                  Label         : (SWTBotLabel, []),
                   Link          : (SWTBotLink, []),
                   List          : (SWTBotList, []),
                   Combo         : (SWTBotCombo, []),
@@ -1752,6 +1772,7 @@ eventTypes =  [ (SWTBotButton                   , [ SelectEvent ]),
                 (SWTBotToolbarPushButton        , [ SelectEvent ]),
                 (SWTBotToolbarDropDownButton    , [ DropDownButtonEvent, DropDownSelectionEvent ]),
                 (SWTBotToolbarRadioButton       , [ RadioSelectEvent ]),
+                (SWTBotLabel                    , [ IconClickEvent ]),
                 (SWTBotLink                     , [ LinkSelectEvent ]),
                 (SWTBotRadio                    , [ RadioSelectEvent ]),
                 (SWTBotSpinner                  , [ SpinnerSelectEvent ]),
