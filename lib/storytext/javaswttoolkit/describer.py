@@ -511,7 +511,7 @@ class Describer(storytext.guishared.Describer):
 
     def getControlDecorationListeners(self, item):
         listeners = []
-        for typedListener in item.getListeners(SWT.FocusIn):
+        for typedListener in item.getListeners(SWT.Dispose):
             if hasattr(typedListener, "getEventListener"):
                 focusListener = typedListener.getEventListener()
                 if "ControlDecoration" in focusListener.__class__.__name__:
@@ -541,9 +541,6 @@ class Describer(storytext.guishared.Describer):
         if hasattr(deco, "isVisible"): # added in 3.6
             return deco.isVisible()
         else:
-            # Workaround for reflection bug in Jython 2.5.1
-            # args = (None,) if sys.version_info[:3] <= (2, 5, 1) else ()
-            # Jython 2.5.2 doesn't work anyway so we don't include this fix for now
             return util.callPrivateMethod(deco, "shouldShowDecoration")
 
     def isCustomTooltip(self, jfaceTooltip):
