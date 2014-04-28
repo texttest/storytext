@@ -526,6 +526,7 @@ class Describer(storytext.guishared.Describer):
                 return field.get(listener)
        
     def getControlDecorationDescription(self, item):
+        texts = []
         for deco in self.getControlDecorations(item):
             if deco:
                 image = deco.getImage()
@@ -535,7 +536,8 @@ class Describer(storytext.guishared.Describer):
                 desc = deco.getDescriptionText()
                 if desc:
                     text += "\n'" + desc + "'"
-                return text
+                texts.append(text)
+        return "\n".join(texts)
             
     def decorationVisible(self, deco):
         if hasattr(deco, "isVisible"): # added in 3.6
