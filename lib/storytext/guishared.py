@@ -832,8 +832,10 @@ class IdleHandlerUseCaseReplayer(UseCaseReplayer):
     def tryAddDescribeHandler(self):
         if self.idleHandler is None and self.isMonitoring():
             self.idleHandler = self.makeDescribeHandler(self.handleNewWindows)
+            return True
         else:
             self.idleHandler = None
+            return False
 
     def enableReading(self):
         self.readingEnabled = True
@@ -878,8 +880,8 @@ class IdleHandlerUseCaseReplayer(UseCaseReplayer):
             self.readingEnabled = self.runNextCommand()[0]
             if not self.readingEnabled:
                 self.idleHandler = None
-                self.tryAddDescribeHandler()
-                if not self.idleHandler and self.uiMap: # pragma: no cover - cannot test with replayer disabled
+                handlerActive = self.tryAddDescribeHandler()
+                if not handlerActive and self.uiMap: # pragma: no cover - cannot test with replayer disabled
                     # End of shortcut: reset for next time
                     self.logger.debug("Shortcut terminated: Resetting UI map ready for next shortcut")
                     self.uiMap.windows = [] 

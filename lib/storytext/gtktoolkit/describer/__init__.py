@@ -411,7 +411,7 @@ class Describer:
         folders = fileChooser.list_shortcut_folders()
         if len(folders):
             text += "\nShortcut folders (" + repr(len(folders)) + ") :"
-            for folder in folders:
+            for folder in sorted(folders): # Added in the background, order will be indeterminstic
                 text += "\n- " + folder.replace("\\", "/")
         return text    
     
@@ -643,6 +643,9 @@ class IdleScheduler:
         if not widget.get_property("visible"):
             return False
 
+        if isinstance(widget, gtk.FileChooser) and widget.get_filename() is None:
+            return False
+
         parent = widget.get_parent()
         if not parent:
             return True
@@ -666,7 +669,7 @@ class IdleScheduler:
         if window not in self.visibleWindows:
             self.visibleWindows.append(window)
             describe(window)
-        
+
     def describeUpdates(self):
         if len(self.enabledWidgets) or len(self.disabledWidgets):
             Describer.logger.info("")

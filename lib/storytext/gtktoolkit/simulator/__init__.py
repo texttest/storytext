@@ -1,15 +1,18 @@
 
 """ Main entry point for simulator functionality """
 
-import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, storytext.guishared
-import types, inspect
+import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, gobject, storytext.guishared
+import types, inspect, os
+from threading import Thread
 from storytext.gtktoolkit.widgetadapter import WidgetAdapter
+from storytext import applicationEvent
 from .. import treeviewextract
 import xml.dom.minidom
 
 performInterceptions = miscevents.performInterceptions
 origDialog = gtk.Dialog
-origFileChooserDialog = gtk.FileChooserDialog    
+origFileChooserDialog = gtk.FileChooserDialog
+origFileChooserWidget = gtk.FileChooserWidget
 origBuilder = gtk.Builder
 
 class DialogHelper:
@@ -71,16 +74,53 @@ class DialogHelper:
         self.response_received = response
         
 
+class FileChooserHelper:
+    def __init__(self, action):
+        dataMethod = self.getDataMethod(action)
+        self.checkHandler = None
+        self.addCheckThread(dataMethod, None, True)
+        
+    def addCheckThread(self, *args):
+        if self.checkHandler is None:
+            self.checkHandler = gobject.idle_add(self.runCheck, *args)
+        
+    def getDataMethod(self, action):
+        return self.get_current_folder if action == gtk.FILE_CHOOSER_ACTION_SAVE else self.get_filename
+    
+    def currentFolderChanged(self, widget, dataInfo):
+        dataMethod, data = dataInfo
+        self.addCheckThread(dataMethod, data, False)
+        
+    def loadingFromEmpty(self):
+        return self.get_property("action") == gtk.FILE_CHOOSER_ACTION_OPEN and self.get_current_folder() and len(os.listdir(self.get_current_folder())) == 0
+        
+    def runCheck(self, dataMethod, origData, initial):
+        data = dataMethod()  
+        if (data is None or data == origData) and not self.loadingFromEmpty():
+            return True
+        if initial:
+            self.connect("current-folder-changed", self.currentFolderChanged, (dataMethod, data))
+        applicationEvent("file chooser to read file system", "filechooser")
+        self.checkHandler = None
+        return False
+
+
 class Dialog(DialogHelper, origDialog):
     def __init__(self, *args, **kw):
         origDialog.__init__(self, *args, **kw)
         self.initialise()
     
 
-class FileChooserDialog(DialogHelper, origFileChooserDialog):
-    def __init__(self, *args, **kw):
-        origFileChooserDialog.__init__(self, *args, **kw)
+class FileChooserDialog(DialogHelper, FileChooserHelper, origFileChooserDialog):
+    def __init__(self, title=None, parent=None, action=gtk.FILE_CHOOSER_ACTION_OPEN, buttons=None, backend=None):
+        origFileChooserDialog.__init__(self, title, parent, action, buttons, backend)
+        FileChooserHelper.__init__(self, action)
         self.initialise()
+        
+class FileChooserWidget(FileChooserHelper, origFileChooserWidget):
+    def __init__(self, action=gtk.FILE_CHOOSER_ACTION_OPEN, backend=None):
+        origFileChooserWidget.__init__(self, action, backend)
+        FileChooserHelper.__init__(self, action)
 
 class Builder(origBuilder):
     def __init__(self, *args, **kw):
@@ -132,6 +172,7 @@ class UIMap(storytext.guishared.UIMap):
         gtk.Dialog = Dialog
         DialogHelper.uiMap = self
         gtk.FileChooserDialog = FileChooserDialog
+        gtk.FileChooserWidget = FileChooserWidget
     
     def monitorChildren(self, widget, *args, **kw):
         if widget.getName() != "Shortcut bar" and \

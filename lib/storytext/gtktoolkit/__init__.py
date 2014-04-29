@@ -226,7 +226,8 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
             self.tryAddDescribeHandler()
         
     def makeDescribeHandler(self, method):
-        return gobject.idle_add(method, priority=describer.PRIORITY_STORYTEXT_IDLE)
+        if "file chooser to read file system" not in self.waitingForEvents:
+            return gobject.idle_add(method, priority=describer.PRIORITY_STORYTEXT_IDLE)
             
     def tryRemoveDescribeHandler(self):
         if not self.isMonitoring() and not self.readingEnabled: # pragma: no cover - cannot test code with replayer disabled
