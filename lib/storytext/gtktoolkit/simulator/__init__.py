@@ -78,28 +78,30 @@ class FileChooserHelper:
     def __init__(self, action):
         dataMethod = self.getDataMethod(action)
         self.checkHandler = None
-        self.addCheckThread(dataMethod, None, True)
+        self.latestData = None
+        self.addCheckHandler(dataMethod, True)
         
-    def addCheckThread(self, *args):
+    def addCheckHandler(self, *args):
         if self.checkHandler is None:
             self.checkHandler = gobject.idle_add(self.runCheck, *args)
-        
+            
     def getDataMethod(self, action):
         return self.get_current_folder if action == gtk.FILE_CHOOSER_ACTION_SAVE else self.get_filename
     
-    def currentFolderChanged(self, widget, dataInfo):
-        dataMethod, data = dataInfo
-        self.addCheckThread(dataMethod, data, False)
+    def currentFolderChanged(self, widget, dataMethod):
+        if dataMethod() != self.latestData:
+            self.addCheckHandler(dataMethod, False)
         
     def loadingFromEmpty(self):
         return self.get_property("action") == gtk.FILE_CHOOSER_ACTION_OPEN and self.get_current_folder() and len(os.listdir(self.get_current_folder())) == 0
         
-    def runCheck(self, dataMethod, origData, initial):
+    def runCheck(self, dataMethod, initial):
         data = dataMethod()  
-        if (data is None or data == origData) and not self.loadingFromEmpty():
+        if (data is None or data == self.latestData) and not self.loadingFromEmpty():
             return True
+        self.latestData = data
         if initial:
-            self.connect("current-folder-changed", self.currentFolderChanged, (dataMethod, data))
+            self.connect("current-folder-changed", self.currentFolderChanged, dataMethod)
         applicationEvent("file chooser to read file system", "filechooser")
         self.checkHandler = None
         return False
