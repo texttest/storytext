@@ -848,8 +848,10 @@ class TableSelectEvent(StateChangeEvent):
             return False
     
     def findCell(self, event):
-        pt = Point(event.x, event.y)
-        table = event.widget
+        return self.getCell(event.x, event.y, event.widget)
+    
+    def getCell(self, xPos, yPos, table):
+        pt = Point(xPos, yPos)
         firstRow = table.getTopIndex()
         columnCount = table.getColumnCount()
         for rowIndex in range(firstRow, firstRow + table.getItemCount()):
@@ -863,10 +865,10 @@ class TableSelectEvent(StateChangeEvent):
                 rect = item.getBounds()
                 # No columns. For some reason, widths of cells aren't reliable in this case
                 # Use the y information only and ignore event.x and the cell widths
-                if event.y < rect.y + rect.height:
+                if yPos < rect.y + rect.height:
                     return rowIndex, None
         return None, None
-    
+
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         currOutput = self.outputForScript(*args)
         return currOutput == stateChangeOutput

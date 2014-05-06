@@ -537,16 +537,22 @@ class ViewerDragAndDropEvent(ViewerEvent):
 
     def handleDrop(self, event, method):
         if DragHolder.sourceEvent is not None and self.__class__ is DragHolder.sourceEvent.__class__:
-            for instance in self.allInstances.get(self.__class__, []):
-            # No guarantee MouseUp appers on same widget
-                dropX, dropY = instance.getDropPosition(event)
-                if dropX is not None and instance.getControl().isVisible() and instance.isValidDragAndDrop(DragHolder.sourceSwtEvent, event, dropX, dropY):
-                    method(DragHolder.draggedParts, dropX, dropY, instance, DragHolder.sourceEvent)
-                    break
-            DragHolder.reset()
+            try:
+                for instance in self.allInstances.get(self.__class__, []):
+                    # No guarantee MouseUp appers on same widget
+                    dropX, dropY = instance.getDropPosition(event)
+                    if instance.isValidDragAndDrop(instance.getControl(), dropX, dropY):
+                        method(DragHolder.draggedParts, dropX, dropY, instance, DragHolder.sourceEvent)
+                        break
+            finally:
+                DragHolder.reset()
 
-    def isValidDragAndDrop(self, dragEvent, dropEvent, dropX, dropY):
-        return dragEvent.widget is not dropEvent.widget or dragEvent.x != dropX or dragEvent.y != dropY
+    def isValidDragAndDrop(self, dropWidget, dropX, dropY):
+        if dropX is None or not dropWidget.isVisible():
+            return False
+        
+        dragEvent = DragHolder.sourceSwtEvent
+        return dragEvent.widget is not dropWidget or dragEvent.x != dropX or dragEvent.y != dropY
 
     def getDropPosition(self, event):
         return event.x, event.y
@@ -567,9 +573,13 @@ class ViewerDragAndDropEvent(ViewerEvent):
     def getSignalsToFilter(cls):
         return [ SWT.MouseUp ]
     
-    def shouldRecord(self, *args):
+    def shouldRecord(self, parts, x, y, *events):
+        controls = []
+        for event in events:
+            if hasattr(event, "getControl"):
+                controls.append(event.getControl())
         types = self.getSignalsToFilter()
-        return DisplayFilter.instance.hasEventOfType(types, self.getControl())
+        return any((DisplayFilter.instance.hasEventOfType(types, ctrl) for ctrl in controls))
 
     def generate(self, args, **kw):
         parts, x, y = args
