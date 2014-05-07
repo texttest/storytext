@@ -779,3 +779,50 @@ Swing bugfixes:
 WxPython enhancements (thanks to Roger Lindberg):
     - Support for FileDialog, DirDialog, FileSelector, DirSelector, GetFontFromUser, GetColourFromUser, MessageBox added
     - Fixed bug which meant checkboxes didn't work on Windows
+
+Version 3.11
+------------
+General enhancements:
+    - New "-k" command line option
+	Allows you to point out names of table columns to use as primary keys when deciding how to describe Table events
+	Sometimes deducing it from the data isn't possible.
+    - New "-f" command line option
+	Adding file-based manual synchronisation for conflict tests. Several StoryText processes can poll a file and
+	generate an application event if it appears or disappears
+
+PyGTK enhancements:
+    - Now support synchronisation in File Choosers from GTK+ 2.20 onwards
+	3.10 required sleeps to handle these
+    - Closing windows can be intercepted and stopped by a confirmation dialog. Now support this.
+
+SWT/Eclipse RCP/GEF enhancements:
+    - Added support for NatTable (most basic operations)
+    - Added support for newer Jython, e.g. version 2.5.3
+    - Allow disabling of the Jython cache (-Dpython.cache.skip=true). This is recommended as it slows things down.
+    - Added support for clicking on images (i.e. Labels with an image)
+    - For activating views (ActivatePart), there is now ActivatePart.clicked as well
+	Sometimes need to actually enforce the clicking, sometimes this isn't helpful. Works like Modify.typed.
+    - Describer now handles <th> elements in HTML tables in a better way
+    - added colour description for coolbar when it changes
+    - support dragging and dropping more than one GEF object at once
+
+General bugfixes:
+    - Fixing problems when row names contain ' for ' in the name
+    - Fixed race conditions arouond application event delays, renames and removals
+    - initial shortcuts ending in waits, and followed by waits in the usecase was not working properly
+    - Fixed bug when recording app events preceded by shortcuts containing other app events at the end
+
+PyGTK bugfixes:
+    - Handle case where dialog.run is called and the application has idle handlers registered
+
+SWT/Eclipse RCP bugfixes:
+    - Now describe all ControlDecorations, not just the first one we find, if a widget has many
+    - ControlDecoration finding made more reliable
+    - fix recording of single character typing in fields where the modify event completes before the keypress
+    - Closing a CTabItem now more robust
+    - trying to handle nested Modify events also on Text fields, and events triggered programmatically by DefaultSelection events in text fields - pressing Enter
+    - Must recheck for mouse pointer in window after a resize and move it out if needed
+    - don't forget about widgets that appear while a dialog is showing
+
+Swing bugfixes:
+    - Added workaround (for SwingLibrary/Abbot bug) to make Swing window closing work more reliably with Java 7.
