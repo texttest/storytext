@@ -84,10 +84,11 @@ class JobListener(JobChangeAdapter):
         if jobName in self.systemJobNames or self.shouldUseJob(job):
             self.logger.debug("Now using job name '" + jobName + "' for category '" + category + "'")
             self.jobNamesToUse[category] = jobName
-            self.removeJobName(parentJobName)
-            def matchName(eventName, delayLevel):
-                return eventName == self.appEventPrefix + parentJobName
-            DisplayFilter.removeApplicationEvent(matchName)
+            if jobName != parentJobName:
+                self.removeJobName(parentJobName)
+                def matchName(eventName, delayLevel):
+                    return eventName == self.appEventPrefix + parentJobName
+                DisplayFilter.removeApplicationEvent(matchName)
             
     def shouldUseJob(self, job):
         return not job.isSystem() or (self.customUsageMethod and self.customUsageMethod(job))
