@@ -119,17 +119,19 @@ def getTopControl(widget):
 def isVisible(widget):
     if not hasattr(widget, "getVisible"):
         return True
+    
     if not widget.getVisible():
         return False
 
     parent = widget.getParent()
     if not parent:
         return True
+    
     topControl = getTopControl(parent)
     if topControl and topControl is not widget:
         return False
     else:
-        return isVisible(parent)
+        return isVisible(parent) and not (hasattr(parent, "isExpanded") and not parent.isExpanded())
     
 def getRootMenu(menuItem):
     menu = menuItem.getParent()

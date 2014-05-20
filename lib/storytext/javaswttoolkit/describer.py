@@ -128,6 +128,7 @@ class Describer(storytext.guishared.Describer):
         self.screenshotNumber = 0
         self.colorsAdded = False
         self.canvasDescriberClasses = canvasDescriberClasses
+        self.tabOrders = {}
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -205,17 +206,26 @@ class Describer(storytext.guishared.Describer):
         if not self.colorsAdded:
             self.colorsAdded = True
             colorNameFinder.addSWTColors(shell.getDisplay())
-
-        if shell in self.windows:
-            stateChanges = self.findStateChanges(shell)
-            stateChangeWidgets = [ widget for widget, _, _ in stateChanges ]
-            if self.structureLog.isEnabledFor(logging.DEBUG):
-                for widget in stateChangeWidgets:
-                    self.structureLog.info("Widget changed state:")
-                    self.describeStructure(widget)
-            self.processMovedWidgets()
-            describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets, shell)
-            self.describeStateChanges(stateChanges, describedForAppearance)
+        if shell is not None:
+            if self.checkTabOrder():
+                _, oldDescribeOrder = self.tabOrders.get(shell, ([], []))
+                newTabOrder = self.getTabOrderList(shell, [])
+                # Keep the old order while doing state changes, prevent corruption of the list during this process...
+                self.tabOrders[shell] = newTabOrder, oldDescribeOrder
+            
+            if shell in self.windows:
+                stateChanges = self.findStateChanges(shell)
+                if self.checkTabOrder():
+                    newDescribeOrder = self.makeNewDescribeOrder(oldDescribeOrder, newTabOrder)
+                    self.tabOrders[shell] = newTabOrder, newDescribeOrder
+                stateChangeWidgets = [ widget for widget, _, _ in stateChanges ]
+                if self.structureLog.isEnabledFor(logging.DEBUG):
+                    for widget in stateChangeWidgets:
+                        self.structureLog.info("Widget changed state:")
+                        self.describeStructure(widget)
+                self.processMovedWidgets()
+                describedForAppearance = self.describeAppearedWidgets(stateChangeWidgets, shell)
+                self.describeStateChanges(stateChanges, describedForAppearance)
             
         self.widgetsAppeared = filter(lambda w: not w.isDisposed() and self.inDifferentShell(w, shell), self.widgetsAppeared)
         self.parentsResized = set()
@@ -224,7 +234,26 @@ class Describer(storytext.guishared.Describer):
         if shell is not None:
             self.describeClipboardChanges(shell.getDisplay())
             self.describe(shell)
-            
+    
+    def makeNewDescribeOrder(self, oldDescribeOrder, newTabOrder):
+        describeOrder = []
+        for i, widget in enumerate(oldDescribeOrder):
+            if widget in newTabOrder and newTabOrder.index(widget) == i:
+                describeOrder.append(widget)
+            else:
+                break
+        return describeOrder
+    
+    def getTabOrderList(self, parent, ordered=[]):
+        for control in parent.getTabList():
+            if self.describeClass(control.__class__.__name__):
+                if hasattr(control, "getTabList") and not isinstance(control, (Combo, CCombo, Table, Tree)):
+                    self.getTabOrderList(control, ordered)
+                elif not isinstance(control, Label) and util.isVisible(control):
+                    ordered.append(control)
+        
+        return ordered
+        
     def processMovedWidgets(self):
         # We are looking for cases of reordering: at least two widgets in the same parent must have moved for this to happen
         moved = filter(lambda w: not w.isDisposed() and self.describeClass(w.__class__.__name__), self.widgetsMoved)
@@ -584,7 +613,15 @@ class Describer(storytext.guishared.Describer):
             elements.append(customTooltipText)
         if hasattr(item, "getItemCount") and hasattr(item, "getExpanded") and item.getItemCount() > 0 and not item.getExpanded():
             elements.append("+")
+        
+        if self.checkTabOrder():
+            tabOrder = self.getTabOrder(item)
+            if tabOrder:
+                elements.append("tab-order "+ str(tabOrder))
         return elements, jfaceTooltip
+
+    def checkTabOrder(self):
+        return "TabOrder" not in self.excludeClassNames
 
     def getSpinnerPropertyElements(self, item):
         elements = []
@@ -599,6 +636,22 @@ class Describer(storytext.guishared.Describer):
         if step != 10:
             elements.append("Page Step " + str(step))
         return elements
+
+    def getTabOrder(self, widget):
+        if isinstance(widget, Control):
+            tabOrderList, describeOrderList = self.tabOrders.get(widget.getShell(), ([], []))
+            if len(tabOrderList) > 1:
+                try:
+                    index = tabOrderList.index(widget)
+                    if widget not in describeOrderList:
+                        describeOrderList.append(widget)
+                    describeIndex = describeOrderList.index(widget)
+                    if index != describeIndex:
+                        while len(describeOrderList) < len(tabOrderList):
+                            describeOrderList.append(None)
+                        return index + 1
+                except ValueError:
+                    return None
 
     def getLabelState(self, label):
         if label.getStyle() & SWT.SEPARATOR:
@@ -886,7 +939,7 @@ class Describer(storytext.guishared.Describer):
         desc = self.addToDescription(desc, self.getChildrenDescription(shell))
         desc += self.formatContextMenuDescriptions()
         return desc
-    
+
     def shouldDescribeChildren(self, widget):
         # Composites with StackLayout use the topControl rather than the children
         return storytext.guishared.Describer.shouldDescribeChildren(self, widget) and not util.getTopControl(widget)
@@ -1023,7 +1076,24 @@ class Describer(storytext.guishared.Describer):
             new = self.splitState(state)
             if len(old) == len(new):
                 return self.getDiffedDescription(widget, old, new)
+        elif self.isTabOrderUpdate(state):
+            # tab order can't be worked out accurately before we've described the newly appeared widgets
+            actualState = self.getState(widget)
+            if actualState == oldState:
+                self.widgetsWithState[widget] = actualState
+                return ""
+
         return storytext.guishared.Describer.getStateChangeDescription(self, widget, oldState, state)
+    
+    def isTabOrderUpdate(self, state):
+        if not self.checkTabOrder():
+            return False
+        elif isinstance(state, str):
+            return "tab-order" in state
+        elif isinstance(state, (tuple, list)):
+            return any((self.isTabOrderUpdate(part) for part in state))
+        else:
+            return False
     
     def describeStructure(self, widget, indent=0, **kw):
         storytext.guishared.Describer.describeStructure(self, widget, indent, **kw)
