@@ -1455,7 +1455,10 @@ class EventPoster:
         for _ in range(count):
             self.clickMouse(button)
         self.checkAndPostKeyReleased(keyModifiers)
-        
+    
+    def moveMouseWaitAndReturn(self,*args, **kw):
+        self.performAndReturn(self.moveMouseAndWait, *args, **kw)
+  
     def performAndReturn(self, method, *args, **kw):
         currPos = runOnUIThread(self.display.getCursorLocation)
         method(*args, **kw)
