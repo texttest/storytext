@@ -89,12 +89,50 @@ class DisplayFilter(swtsimulator.DisplayFilter):
         return isinstance(widget, Text) and widget.getParent() is not None and \
             isinstance(widget.getParent().getParent(), FilteredTree)
 
+class KeyBindingListener(Listener):
+    def __init__(self, noBindingCallback):
+        self.bindings = {}
+        self.listening = False
+        self.noBindingCallback = noBindingCallback
+    
+    def mapKeyBinding(self, keyStroke, method, display, event):
+        if not self.listening:
+            self.listening = True
+            self.addInitialFilter(display)
+        self.bindings[(keyStroke.getModifierKeys(), keyStroke.getNaturalKey())] = method, event
+            
+    def addInitialFilter(self, display):
+        # Have to push to the front of the queue (cheating as we do!) because Eclipse's own listener swallows the event
+        filterTable = util.getPrivateField(display, "filterTable")
+        existingListeners = util.callPrivateMethod(filterTable, "getListeners", [ SWT.KeyDown ], [ Integer.TYPE ])
+        for existingListener in existingListeners:
+            display.removeFilter(SWT.KeyDown, existingListener)
+        display.addFilter(SWT.KeyDown, self)
+        for existingListener in existingListeners:
+            display.addFilter(SWT.KeyDown, existingListener)
+
+    def recordBinding(self, e, binding):
+        method, event = self.bindings[binding]
+        storytext.guishared.catchAll(method, e, event)
+
+    def handleEvent(self, e): #@NoSelf
+        binding = e.stateMask, e.keyCode
+        if binding in self.bindings:
+            self.recordBinding(e, binding)
+        elif e.stateMask or (e.keyCode >= SWT.F1 and e.keyCode <= SWT.F12):
+            # Don't do this for every keypress, just likely key bindings. Recheck the popup menus to see if anything new has appeared
+            self.noBindingCallback()
+            if binding in self.bindings:
+                self.recordBinding(e, binding)
+
 
 class WidgetMonitor(swtsimulator.WidgetMonitor):
+    bindingListener = None
     def __init__(self, *args, **kw):
         self.allViews = set()
         self.swtbotMap[ExpandableComposite] = (SWTBotExpandableComposite, [])
         swtsimulator.WidgetMonitor.__init__(self, *args, **kw)
+        WidgetMonitor.bindingListener = KeyBindingListener(self.recheckPopupMenus)
             
     def createSwtBot(self):
         return SWTWorkbenchBot()
@@ -184,35 +222,8 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
     def monitorViewContentsMenus(self, botView):
         pass
     
-class KeyBindingListener(Listener):
-    def __init__(self):
-        self.bindings = {}
-        self.listening = False
-    
-    def mapKeyBinding(self, keyStroke, method, display, event):
-        if not self.listening:
-            self.listening = True
-            self.addInitialFilter(display)
-        self.bindings[(keyStroke.getModifierKeys(), keyStroke.getNaturalKey())] = method, event
-            
-    def addInitialFilter(self, display):
-        # Have to push to the front of the queue (cheating as we do!) because Eclipse's own listener swallows the event
-        filterTable = util.getPrivateField(display, "filterTable")
-        existingListeners = util.callPrivateMethod(filterTable, "getListeners", [ SWT.KeyDown ], [ Integer.TYPE ])
-        for existingListener in existingListeners:
-            display.removeFilter(SWT.KeyDown, existingListener)
-        display.addFilter(SWT.KeyDown, self)
-        for existingListener in existingListeners:
-            display.addFilter(SWT.KeyDown, existingListener)
-    
-    def handleEvent(self, e): #@NoSelf
-        binding = e.stateMask, e.keyCode
-        if binding in self.bindings:
-            method, event = self.bindings[binding]
-            storytext.guishared.catchAll(method, e, event)
 
 class RCPSelectEvent(swtsimulator.SelectEvent):
-    bindingListener = KeyBindingListener()
     def connectRecord(self, method):
         swtsimulator.SelectEvent.connectRecord(self, method)
         widget = self.widget.widget.widget
@@ -226,7 +237,7 @@ class RCPSelectEvent(swtsimulator.SelectEvent):
             keyBinding = text.split("\t")[-1].lower()
             try:
                 keyStroke = KeyStroke.getInstance(keyBinding)
-                self.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
+                WidgetMonitor.bindingListener.mapKeyBinding(keyStroke, method, widget.getDisplay(), self)
             except IllegalArgumentException:
                 pass # Tab characters don't have to imply an accelerator, a menu item label can contain these anyway
             
