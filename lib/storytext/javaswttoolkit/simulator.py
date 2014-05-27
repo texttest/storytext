@@ -579,12 +579,15 @@ class TextEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Modify"
     
+    def addPhysicalEventFilters(self):
+        TextEvent.physicalEventListener = PhysicalEventListener()
+        runOnUIThread(self.addFilter, SWT.KeyDown, TextEvent.physicalEventListener)
+        runOnUIThread(self.addFilter, SWT.MouseDown, TextEvent.physicalEventListener)
+
     def connectRecord(self, method):
         StateChangeEvent.connectRecord(self, method)
         if self.isTyped() and not TextEvent.physicalEventListener:
-            TextEvent.physicalEventListener = PhysicalEventListener()
-            runOnUIThread(self.addFilter, SWT.KeyDown, TextEvent.physicalEventListener)
-            runOnUIThread(self.addFilter, SWT.MouseDown, TextEvent.physicalEventListener)
+            self.addPhysicalEventFilters()
         
     def parseArguments(self, text):
         return text
@@ -617,6 +620,9 @@ class TextEvent(StateChangeEvent):
     def textChanged(self, newStateText):
         return self.stateText is None or self.stateText != newStateText
     
+    def physicalEventMatches(self):
+        return self.physicalEventWidget is self.widget.widget.widget
+
     def shouldRecord(self, event, *args):
         if not self.isEditable():
             return False
@@ -626,7 +632,7 @@ class TextEvent(StateChangeEvent):
             return False
         
         self.stateText = newStateText
-        if newStateText and self.isTyped() and self.physicalEventWidget is not self.widget.widget.widget:
+        if newStateText and self.isTyped() and not self.physicalEventMatches():
             return False
         
         return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, event, *args)
