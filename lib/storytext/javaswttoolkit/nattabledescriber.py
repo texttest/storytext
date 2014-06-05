@@ -48,10 +48,17 @@ class CanvasDescriber(util.CanvasDescriber):
                         
             rowToAddTo.append(self.combineElements(elements))
             
+    def iterateAttributes(self, painter):
+        if hasattr(painter, "__dict__"):
+            for obj in painter.__dict__.values():
+                yield obj
+        else:
+            for field in painter.getClass().getDeclaredFields():
+                field.setAccessible(True)
+                yield field.get(painter)
+            
     def getPainterImage(self, painter):
-        for field in painter.getClass().getDeclaredFields():
-            field.setAccessible(True)
-            obj = field.get(painter)
+        for obj in self.iterateAttributes(painter):
             if isinstance(obj, Image):
                 return obj
             
