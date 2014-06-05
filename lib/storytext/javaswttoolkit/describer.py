@@ -521,19 +521,10 @@ class Describer(storytext.guishared.Describer):
         else:
             return desc
         
-    def hasPrivateMethod(self, obj, methodName):
-        return any((method.getName() == methodName for method in obj.getClass().getDeclaredMethods())) 
-        
-    def getJfaceTooltip(self, item):
-        for listener in item.getListeners(SWT.MouseHover):
-            tooltip = self.getEnclosingInstance(listener)
-            if self.hasPrivateMethod(tooltip, "createToolTipContentArea"):
-                return tooltip
-
     def getControlDecorations(self, item):
         decorations = []
         for listener in self.getControlDecorationListeners(item):
-            deco = self.getEnclosingInstance(listener)
+            deco = util.getEnclosingInstance(listener)
             if deco:
                 decorations.append(deco)
         return decorations
@@ -546,13 +537,6 @@ class Describer(storytext.guishared.Describer):
                 if "ControlDecoration" in focusListener.__class__.__name__:
                     listeners.append(focusListener)
         return listeners
-
-    def getEnclosingInstance(self, listener):
-        cls = listener.getClass()
-        for field in cls.getDeclaredFields():
-            if field.getName().startswith("this"):
-                field.setAccessible(True)
-                return field.get(listener)
        
     def getControlDecorationDescription(self, item):
         texts = []
@@ -596,10 +580,12 @@ class Describer(storytext.guishared.Describer):
         if isinstance(item, Spinner):
             elements += self.getSpinnerPropertyElements(item)
             
-        jfaceTooltip = enclosingJfaceTooltip if isinstance(item, Item) else self.getJfaceTooltip(item)
-        tooltipText = self.getToolTipText(item, jfaceTooltip)
-        if tooltipText:
-            elements.append("Tooltip '" + tooltipText + "'")
+        jfaceTooltip = None
+        if self.describeClass("Tooltip"):
+            jfaceTooltip = enclosingJfaceTooltip if isinstance(item, Item) else util.getJfaceTooltip(item)
+            tooltipText = self.getToolTipText(item, jfaceTooltip)
+            if tooltipText:
+                elements.append(self.combineMultiline([ "Tooltip '", tooltipText + "'" ]))
         elements += self.getStyleDescriptions(item)
         if hasattr(item, "getImage") and item.getImage():
             elements.append(self.getImageDescription(item.getImage()))
@@ -816,8 +802,8 @@ class Describer(storytext.guishared.Describer):
             return ""
         
     def getCustomTooltipReference(self, item, jfaceTooltip):
-        if "CustomTooltip" not in self.excludeClassNames and jfaceTooltip and self.isCustomTooltip(jfaceTooltip):
-            itemTooltip = self.hasPrivateMethod(jfaceTooltip, "createViewerToolTipContentArea")
+        if self.describeClass("Tooltip") and self.describeClass("CustomTooltip") and jfaceTooltip and self.isCustomTooltip(jfaceTooltip):
+            itemTooltip = util.hasPrivateMethod(jfaceTooltip, "createViewerToolTipContentArea", includeBases=False)
             isItem = isinstance(item, Item)
             if isItem == itemTooltip:
                 return "Custom Tooltip " + self.customTooltipCounter.getId((jfaceTooltip, item))
@@ -967,7 +953,7 @@ class Describer(storytext.guishared.Describer):
                     menuDesc = self.getMenuDescription(contextMenu)
                     text += "\n\nContext Menu " + str(menuId) + ":\n" + menuDesc
                     self.widgetsWithState[contextMenu] = self.getMenuState(contextMenu)
-        if "CustomTooltip" not in self.excludeClassNames:
+        if self.describeClass("Tooltip") and self.describeClass("CustomTooltip"):
             for (tooltip, widget), tooltipId in self.customTooltipCounter.getWidgetsForDescribe():
                 text += "\n\nCustom Tooltip " + str(tooltipId) + ":\n" + self.getCustomTooltipDescription(tooltip, widget)
         return text

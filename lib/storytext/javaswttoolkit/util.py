@@ -164,4 +164,28 @@ def callPrivateMethod(obj, methodName, argList=[], argTypeList=[]):
             cls = cls.getSuperclass()
             if cls is None:
                 raise
+            
+def getEnclosingInstance(listener):
+    cls = listener.getClass()
+    for field in cls.getDeclaredFields():
+        if field.getName().startswith("this"):
+            field.setAccessible(True)
+            return field.get(listener)
+            
+def hasPrivateMethod(obj, methodName, includeBases):
+    cls = obj.getClass()
+    while cls is not None:
+        if any((method.getName() == methodName for method in cls.getDeclaredMethods())):
+            return True
+        elif not includeBases:
+            return False
+        cls = cls.getSuperclass()
+        
+def getJfaceTooltip(item):
+    for listener in item.getListeners(SWT.MouseHover):
+        tooltip = getEnclosingInstance(listener)
+        if hasPrivateMethod(tooltip, "createToolTipContentArea", includeBases=True):
+            return tooltip
+
+
                         

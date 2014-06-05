@@ -1248,34 +1248,44 @@ class Describer(object):
                 return getattr(self, methodName)(widget)
         return ""
 
+    def addMultilineData(self, elements, rows, separator=""):
+        for elIx, el in enumerate(elements):
+            elRows = el.split("\n")
+            while len(rows) < len(elRows):
+                rows.append(" " * len(rows[-1]))
+            
+            if len(elRows) > 1:
+                self.equaliseRows(rows)
+            for i, elRow in enumerate(elRows):
+                rows[i] += elRow
+            
+            if len(elRows) > 1:
+                self.equaliseRows(rows)
+            if elIx != len(elements) - 1:
+                rows[0] += separator
+
+    def combineMultiline(self, elements):
+        rows = [""]
+        self.addMultilineData(elements, rows)
+        return "\n".join(rows)
+
     def combineElements(self, elements):
         elements = filter(len, elements)
         if len(elements) <= 1:
             return "".join(elements)
         else:
             rows = elements[0].split("\n")
-            rows[0] += " ("
             basicLengths = map(len, rows)
-            for elIx, el in enumerate(elements[1:]):
-                elRows = el.split("\n")
-                if len(elRows) > 1:
-                    self.equaliseRows(rows)
-
-                for i, elRow in enumerate(elRows):
-                    while len(rows) <= i:
-                        rows.append(" " * len(rows[-1]))
-                    rows[i] += elRow
-                if len(elRows) > 1:
-                    self.equaliseRows(rows)
-                if elIx != len(elements) - 2:
-                    rows[0] += ", "
+            rows[0] += " ("
+            self.addMultilineData(elements[1:], rows, separator=", ")
             strippedRows = [ r.rstrip() for r in rows ]
             strippedRows[self.getLastDetailRow(strippedRows, basicLengths)] += ")"
             return "\n".join(strippedRows)
-
+        
     def getLastDetailRow(self, rows, basicLengths):
         for ix in range(-1, -1 - len(rows), -1):
-            if len(rows[ix]) > basicLengths[ix]:
+            basicLength = basicLengths[ix] if ix < len(basicLengths) else 0
+            if len(rows[ix]) > basicLength:
                 return ix
         
     def equaliseRows(self, rows):
