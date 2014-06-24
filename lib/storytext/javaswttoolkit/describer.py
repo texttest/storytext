@@ -111,6 +111,9 @@ class Describer(storytext.guishared.Describer):
                      Spinner, Group, Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
+    systemIcons = [(SWT.ICON_CANCEL, "cancel"), (SWT.ICON_ERROR, "error"), (SWT.ICON_INFORMATION, "information"), 
+                   (SWT.ICON_QUESTION, "question"), (SWT.ICON_SEARCH, "search"), (SWT.ICON_WARNING, "warning"), (SWT.ICON_WORKING, "working")]
+
     def __init__(self, canvasDescriberClasses=[]):
         storytext.guishared.Describer.__init__(self)
         self.canvasCounter = storytext.guishared.WidgetCounter()
@@ -470,7 +473,11 @@ class Describer(storytext.guishared.Describer):
                 baseName = os.path.basename(name)
                 self.imageToName[image] = baseName             
                 return baseName
-       
+        for iconId, iconName in self.systemIcons:
+            iconImage = Display.getCurrent().getSystemImage(iconId)
+            if iconImage and self.imageDataMatches(data, iconImage.getImageData(), hasExcessData):
+                return "system_" + iconName
+
     def storeImageData(self, url):
         imgDesc = ImageDescriptor.createFromURL(url)
         name = url.getFile()
