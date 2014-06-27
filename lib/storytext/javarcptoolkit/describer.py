@@ -4,6 +4,7 @@ from pprint import pprint
 
 from org.eclipse.core.internal.runtime import InternalPlatform
 from org.eclipse.ui.forms.widgets import ExpandableComposite
+from org.eclipse.ui.internal import WorkbenchImages, IWorkbenchGraphicConstants
 
 class Describer(swtdescriber.Describer):
     swtdescriber.Describer.stateWidgets = [ ExpandableComposite ] + swtdescriber.Describer.stateWidgets
@@ -11,6 +12,7 @@ class Describer(swtdescriber.Describer):
     def buildImages(self):
         swtdescriber.Describer.buildImages(self)
         self.buildImagesFromBundles()
+        self.addRenderedImages()
 
     def buildImagesFromBundles(self):            
         allImageTypes = [ "gif", "png", "jpg" ]
@@ -55,3 +57,7 @@ class Describer(swtdescriber.Describer):
             desc += "\n  " + clientDesc.replace("\n", "\n  ")
         return desc
     
+    def addRenderedImages(self):
+        image = WorkbenchImages.getImage(IWorkbenchGraphicConstants.IMG_LCL_RENDERED_VIEW_MENU)
+        if image:
+            self.renderedImages.append((image, "view_menu"))

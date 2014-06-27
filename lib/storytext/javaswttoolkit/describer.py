@@ -127,6 +127,7 @@ class Describer(storytext.guishared.Describer):
         self.clipboardText = None
         self.storedImages = {}
         self.imageToName = {}
+        self.renderedImages = []
         self.handleImages()
         self.screenshotNumber = 0
         self.colorsAdded = False
@@ -477,6 +478,9 @@ class Describer(storytext.guishared.Describer):
             iconImage = Display.getCurrent().getSystemImage(iconId)
             if iconImage and self.imageDataMatches(data, iconImage.getImageData(), hasExcessData):
                 return "system_" + iconName
+        for img, imgName in self.renderedImages:
+            if self.imageDataMatches(data, img.getImageData(), hasExcessData):
+                return "rendered_" + imgName
 
     def storeImageData(self, url):
         imgDesc = ImageDescriptor.createFromURL(url)
