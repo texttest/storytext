@@ -32,7 +32,7 @@ from org.eclipse.swtbot.swt.finder.widgets import AbstractSWTBot, AbstractSWTBot
     SWTBotTreeItem
 
 applicationEventType = 1234 # anything really, just don't conflict with the real SWT events
-
+describer = None
 class PythonResult(Result):
     def __init__(self, method, args):
         self.method = method
@@ -338,9 +338,12 @@ class DropDownGenerateFilter(Listener):
     def describeMenu(self, menu):
         from describer import Describer
         desc = Describer()
+        # Using current describer to look up an image if needed
+        desc.storedImages = describer.storedImages
+        desc.renderedImages = describer.renderedImages
+        desc.imageToName = describer.imageToName
         desc.logger.info("\nChoosing from Drop Down Menu:")
         desc.logger.info(desc.getMenuDescription(menu))
-        
     
 class DropDownSelectionEvent(SelectEvent):
     @classmethod

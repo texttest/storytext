@@ -465,7 +465,6 @@ class Describer(storytext.guishared.Describer):
         name = self.imageToName.get(image)
         if name is not None:
             return name
-
         data = image.getImageData()
         hasExcessData = data.width * data.depth / 8 < data.bytesPerLine
         imageDict = self.storedImages.get((data.width, data.height), {})
@@ -481,6 +480,15 @@ class Describer(storytext.guishared.Describer):
         for img, imgName in self.renderedImages:
             if self.imageDataMatches(data, img.getImageData(), hasExcessData):
                 return "rendered_" + imgName
+        # Last chance, see if the image has been greyed out 
+        for name, imgData in imageDict.items():
+            greyedImg = Image(Display.getCurrent(), Image(Display.getCurrent(), imgData), SWT.IMAGE_GRAY)
+            greyedData = greyedImg.getImageData()
+            hasGreyedExcessData = greyedData.width * greyedData.depth / 8 < greyedData.bytesPerLine
+            if self.imageDataMatches(data, greyedData, hasGreyedExcessData):
+                greyedName =  os.path.basename(name) + "', 'greyed out"
+                self.imageToName[image] = greyedName             
+                return greyedName
 
     def storeImageData(self, url):
         imgDesc = ImageDescriptor.createFromURL(url)
