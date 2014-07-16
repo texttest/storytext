@@ -1047,7 +1047,7 @@ class Describer(storytext.guishared.Describer):
 
     def buildImagesFromPaths(self):
         for path in self.imagePaths:
-            self.findFiles(File(path))
+            self.findFiles(File(os.path.expandvars(path)))
 
     def getImageFiles(self, path):
         d = File(path)
