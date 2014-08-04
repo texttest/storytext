@@ -40,7 +40,7 @@ class CanvasDescriber(util.CanvasDescriber):
                         if isinstance(painter, CellPainterWrapper):
                             image = self.getPainterImage(painter)
                             if image:
-                                elements.append(normalDescriber.getImageDescription(image))
+                                elements.append(normalDescriber.imageDescriber.getImageDescription(image))
                     if tooltip and self.describeClass("Tooltip"):
                         text = self.getTooltipText(tooltip, cell)
                         if text:

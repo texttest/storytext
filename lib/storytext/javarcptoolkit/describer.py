@@ -42,7 +42,8 @@ class Describer(swtdescriber.Describer):
     def storeAllImages(self, entries):
         while entries.hasMoreElements():
             url = entries.nextElement()
-            self.storeImageData(url)
+            self.logger.debug("Storing image data for file " + str(url) + " from bundles.")
+            self.imageDescriber.storeImageData(url)
                         
     def getExpandableCompositeState(self, widget):
         return widget.isExpanded()
@@ -60,4 +61,4 @@ class Describer(swtdescriber.Describer):
     def addRenderedImages(self):
         image = WorkbenchImages.getImage(IWorkbenchGraphicConstants.IMG_LCL_RENDERED_VIEW_MENU)
         if image:
-            self.renderedImages.append((image, "view_menu"))
+            self.imageDescriber.addRenderedImage(image, "view_menu")

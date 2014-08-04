@@ -94,8 +94,6 @@ class UseCaseReplayer(storytext.guishared.ThreadedUseCaseReplayer):
         # Can't make this a member, otherwise fail with classloader problems for RCP
         # (replayer constructed before Eclipse classloader set)
         describer = self.getDescriber()
-        import simulator
-        simulator.describer = describer
         runOnUIThread(describer.addFilters, monitor.getDisplay())
         def describe():
             runOnUIThread(describer.describeWithUpdates, monitor.getActiveShell)

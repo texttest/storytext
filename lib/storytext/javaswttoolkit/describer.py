@@ -89,6 +89,96 @@ class ColorNameFinder:
         
 colorNameFinder = ColorNameFinder()
 
+class ImageDescriber:
+    systemIcons = [(SWT.ICON_CANCEL, "cancel"), (SWT.ICON_ERROR, "error"), (SWT.ICON_INFORMATION, "information"), 
+                   (SWT.ICON_QUESTION, "question"), (SWT.ICON_SEARCH, "search"), (SWT.ICON_WARNING, "warning"), (SWT.ICON_WORKING, "working")]
+
+    def __init__(self, descType, imageCounter):
+        self.storedImages = {}
+        self.imageToName = {}
+        self.renderedImages = []
+        self.descriptionType = descType
+        self.imageCounter = imageCounter
+        
+    def addRenderedImage(self, image, name):
+        self.renderedImages.append((image, name))
+            
+    def getImageDescription(self, image):
+        # Seems difficult to get any sensible image information out, there is
+        # basically no query API for this in SWT
+        if self.descriptionType == "name":
+            return self.getImageNameDescription(image)
+        else:
+            return self.getDefaultImageDescription(image)
+        
+    def getImageNameDescription(self, image):
+        desc = self.getImageName(image)
+        if desc is not None:
+            return "Icon '" + desc + "'"
+        else:
+            return "Unknown Image"
+
+    def getDefaultImageDescription(self, image):
+        name = "Image"
+        if self.descriptionType == "number":
+            name += " " + self.imageCounter.getId(image)
+        return name
+    
+    def getPixels(self, data):
+        pixels = array('i', (0, ) * data.width * data.height)
+        data.getPixels(0, 0, data.width * data.height, pixels, 0)
+        return pixels
+
+    def imageDataMatches(self, data, data2, hasExcessData):
+        if hasExcessData:
+            return self.getPixels(data) == self.getPixels(data2)
+        else:
+            return data.data == data2.data
+
+    def getImageName(self, image):
+        name = self.imageToName.get(image)
+        if name is not None:
+            return name
+
+        data = image.getImageData()
+        hasExcessData = data.width * data.depth / 8 < data.bytesPerLine
+        imageDict = self.storedImages.get((data.width, data.height), {})
+        for name, imgData in imageDict.items():
+            if self.imageDataMatches(data, imgData, hasExcessData):
+                baseName = os.path.basename(name)
+                self.imageToName[image] = baseName             
+                return baseName
+        for iconId, iconName in self.systemIcons:
+            iconImage = Display.getCurrent().getSystemImage(iconId)
+            if iconImage and self.imageDataMatches(data, iconImage.getImageData(), hasExcessData):
+                return "system_" + iconName
+        for img, imgName in self.renderedImages:
+            if self.imageDataMatches(data, img.getImageData(), hasExcessData):
+                return "rendered_" + imgName
+        # Last chance, see if the image has been greyed out 
+        for name, imgData in imageDict.items():
+            greyedImg = Image(Display.getCurrent(), Image(Display.getCurrent(), imgData), SWT.IMAGE_GRAY)
+            greyedData = greyedImg.getImageData()
+            hasGreyedExcessData = greyedData.width * greyedData.depth / 8 < greyedData.bytesPerLine
+            if self.imageDataMatches(data, greyedData, hasGreyedExcessData):
+                greyedName =  os.path.basename(name) + "', 'greyed out"
+                self.imageToName[image] = greyedName             
+                return greyedName
+       
+    def storeImageData(self, url):
+        imgDesc = ImageDescriptor.createFromURL(url)
+        name = url.getFile()
+        if imgDesc is not None:
+            newImage = imgDesc.createImage()
+            data = newImage.getImageData()
+            imageDict = self.storedImages.setdefault((data.width, data.height), OrderedDict())
+            if name not in imageDict:
+                imageDict[name] = data
+            newImage.dispose()
+
+
+        
+
 
 class Describer(storytext.guishared.Describer):
     styleNames = [ (CoolItem, []),
@@ -111,9 +201,7 @@ class Describer(storytext.guishared.Describer):
                      Spinner, Group, Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
-    systemIcons = [(SWT.ICON_CANCEL, "cancel"), (SWT.ICON_ERROR, "error"), (SWT.ICON_INFORMATION, "information"), 
-                   (SWT.ICON_QUESTION, "question"), (SWT.ICON_SEARCH, "search"), (SWT.ICON_WARNING, "warning"), (SWT.ICON_WORKING, "working")]
-
+    imageDescriber = None
     def __init__(self, canvasDescriberClasses=[]):
         storytext.guishared.Describer.__init__(self)
         self.canvasCounter = storytext.guishared.WidgetCounter()
@@ -125,14 +213,38 @@ class Describer(storytext.guishared.Describer):
         self.widgetsDescribed = set()
         self.browserStates = {}
         self.clipboardText = None
-        self.storedImages = {}
-        self.imageToName = {}
-        self.renderedImages = []
-        self.handleImages()
         self.screenshotNumber = 0
+        if Describer.imageDescriber is None:
+            Describer.imageDescriber = ImageDescriber(self.imageDescriptionType, self.imageCounter)
+        self.handleImages()
         self.colorsAdded = False
         self.canvasDescriberClasses = canvasDescriberClasses
         self.tabOrders = {}
+        
+    def handleImages(self):
+        if self.imageDescriptionType:
+            self.buildImages()
+    
+    def buildImages(self):
+        self.buildImagesFromPaths()
+
+    def buildImagesFromPaths(self):
+        for path in self.imagePaths:
+            self.findFiles(File(os.path.expandvars(path)))
+    
+    def findFiles(self, pathAsFile):
+        if pathAsFile.isFile() and self.isImageType(pathAsFile.getName()):
+            path = pathAsFile.toURI().toURL()
+            self.logger.debug("Storing image data for file " + str(path) + " from given path.")
+            self.imageDescriber.storeImageData(path)
+        elif pathAsFile.isDirectory():
+            for f in pathAsFile.listFiles():
+                if f is not None:
+                    self.findFiles(f)
+
+    def isImageType(self, fileName):
+        return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
+
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -429,79 +541,6 @@ class Describer(storytext.guishared.Describer):
         tip2, widget2 = data2
         return tip1 == tip2 and widget1 == widget2
 
-    def getImageDescription(self, image):
-        # Seems difficult to get any sensible image information out, there is
-        # basically no query API for this in SWT
-        if self.imageDescriptionType == "name":
-            return self.getImageNameDescription(image)
-        else:
-            return self.getDefaultImageDescription(image)
-        
-    def getImageNameDescription(self, image):
-        desc = self.getImageName(image)
-        if desc is not None:
-            return "Icon '" + desc + "'"
-        else:
-            return "Unknown Image"
-
-    def getDefaultImageDescription(self, image):
-        name = "Image"
-        if self.imageDescriptionType == "number":
-            name += " " + self.imageCounter.getId(image)
-        return name
-    
-    def getPixels(self, data):
-        pixels = array('i', (0, ) * data.width * data.height)
-        data.getPixels(0, 0, data.width * data.height, pixels, 0)
-        return pixels
-
-    def imageDataMatches(self, data, data2, hasExcessData):
-        if hasExcessData:
-            return self.getPixels(data) == self.getPixels(data2)
-        else:
-            return data.data == data2.data
-
-    def getImageName(self, image):
-        name = self.imageToName.get(image)
-        if name is not None:
-            return name
-        data = image.getImageData()
-        hasExcessData = data.width * data.depth / 8 < data.bytesPerLine
-        imageDict = self.storedImages.get((data.width, data.height), {})
-        for name, imgData in imageDict.items():
-            if self.imageDataMatches(data, imgData, hasExcessData):
-                baseName = os.path.basename(name)
-                self.imageToName[image] = baseName             
-                return baseName
-        for iconId, iconName in self.systemIcons:
-            iconImage = Display.getCurrent().getSystemImage(iconId)
-            if iconImage and self.imageDataMatches(data, iconImage.getImageData(), hasExcessData):
-                return "system_" + iconName
-        for img, imgName in self.renderedImages:
-            if self.imageDataMatches(data, img.getImageData(), hasExcessData):
-                return "rendered_" + imgName
-        # Last chance, see if the image has been greyed out 
-        for name, imgData in imageDict.items():
-            greyedImg = Image(Display.getCurrent(), Image(Display.getCurrent(), imgData), SWT.IMAGE_GRAY)
-            greyedData = greyedImg.getImageData()
-            hasGreyedExcessData = greyedData.width * greyedData.depth / 8 < greyedData.bytesPerLine
-            if self.imageDataMatches(data, greyedData, hasGreyedExcessData):
-                greyedName =  os.path.basename(name) + "', 'greyed out"
-                self.imageToName[image] = greyedName             
-                return greyedName
-
-    def storeImageData(self, url):
-        imgDesc = ImageDescriptor.createFromURL(url)
-        name = url.getFile()
-        self.logger.debug("Storing image data for file " + name)
-        if imgDesc is not None:
-            newImage = imgDesc.createImage()
-            data = newImage.getImageData()
-            imageDict = self.storedImages.setdefault((data.width, data.height), OrderedDict())
-            if name not in imageDict:
-                imageDict[name] = data
-            newImage.dispose()
-
     def getCanvasDescription(self, widget):
         return self.getAndStoreState(widget)
     
@@ -530,7 +569,7 @@ class Describer(storytext.guishared.Describer):
         elements = [ item.getText(colIndex) ]
         if colIndex:
             if item.getImage(colIndex):
-                elements.append(self.getImageDescription(item.getImage(colIndex)))
+                elements.append(self.imageDescriber.getImageDescription(item.getImage(colIndex)))
         else:
             elements += self.getPropertyElements(item, *args)
         
@@ -562,7 +601,7 @@ class Describer(storytext.guishared.Describer):
         for deco in self.getControlDecorations(item):
             if deco:
                 image = deco.getImage()
-                imgDesc = self.getImageDescription(deco.getImage()) if image is not None else ""
+                imgDesc = self.imageDescriber.getImageDescription(deco.getImage()) if image is not None else ""
             if deco and self.decorationVisible(deco): 
                 text = "Decoration " + imgDesc
                 desc = deco.getDescriptionText()
@@ -607,7 +646,7 @@ class Describer(storytext.guishared.Describer):
                 elements.append(self.combineMultiline([ "Tooltip '", tooltipText + "'" ]))
         elements += self.getStyleDescriptions(item)
         if hasattr(item, "getImage") and item.getImage():
-            elements.append(self.getImageDescription(item.getImage()))
+            elements.append(self.imageDescriber.getImageDescription(item.getImage()))
         if hasattr(item, "getEnabled") and not item.getEnabled():
             elements.append("greyed out")
         if selected:
@@ -673,7 +712,7 @@ class Describer(storytext.guishared.Describer):
                 if fontStyle & getattr(SWT, fontAttr):
                     elements.append(fontAttr.lower())
         if label.getImage():
-            elements.append(self.getImageDescription(label.getImage()))
+            elements.append(self.imageDescriber.getImageDescription(label.getImage()))
         elements.append(self.getContextMenuReference(label))
         return self.combineElements(elements)
 
@@ -1037,36 +1076,6 @@ class Describer(storytext.guishared.Describer):
 
     def getRawDataLayoutDetails(self, layout, *args):
         return [ str(layout.numColumns) + " columns" ] if hasattr(layout, "numColumns") else []
-
-    def handleImages(self):
-        if self.imageDescriptionType:
-            self.buildImages()
-    
-    def buildImages(self):
-        self.buildImagesFromPaths()
-
-    def buildImagesFromPaths(self):
-        for path in self.imagePaths:
-            self.findFiles(File(os.path.expandvars(path)))
-
-    def getImageFiles(self, path):
-        d = File(path)
-        class Filter(FilenameFilter):
-            def accept(lself, d, fileName):#@NoSelf
-                return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
-
-        return d.listFiles(Filter())
-    
-    def findFiles(self, pathAsFile):
-        if pathAsFile.isFile() and self.isImageType(pathAsFile.getName()):
-            self.storeImageData(pathAsFile.toURI().toURL())
-        elif pathAsFile.isDirectory():
-            for f in pathAsFile.listFiles():
-                if f is not None:
-                    self.findFiles(f)
-
-    def isImageType(self, fileName):
-        return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
 
     def checkWindow(self, window):
         # Don't describe tooltips
