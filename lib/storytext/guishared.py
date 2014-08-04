@@ -1093,11 +1093,13 @@ class Describer(object):
     imagePaths = []
     imageDescriptionType = None
     excludeClassNames = {}
+    imageCounter = None
     def __init__(self):
         self.logger = encodingutils.getEncodedLogger("gui log")
         self.windows = set()
         self.widgetsWithState = OrderedDict()
-        self.imageCounter = WidgetCounter(self.imagesEqual)
+        if Describer.imageCounter is None:
+            Describer.imageCounter = WidgetCounter(self.imagesEqual)
         self.structureLog = logging.getLogger("widget structure")
 
     def imagesEqual(self, image1, image2):

@@ -93,37 +93,14 @@ class ImageDescriber:
     systemIcons = [(SWT.ICON_CANCEL, "cancel"), (SWT.ICON_ERROR, "error"), (SWT.ICON_INFORMATION, "information"), 
                    (SWT.ICON_QUESTION, "question"), (SWT.ICON_SEARCH, "search"), (SWT.ICON_WARNING, "warning"), (SWT.ICON_WORKING, "working")]
 
-    def __init__(self, descType, imageCounter):
+    def __init__(self):
         self.storedImages = {}
         self.imageToName = {}
         self.renderedImages = []
-        self.descriptionType = descType
-        self.imageCounter = imageCounter
         
     def addRenderedImage(self, image, name):
         self.renderedImages.append((image, name))
-            
-    def getImageDescription(self, image):
-        # Seems difficult to get any sensible image information out, there is
-        # basically no query API for this in SWT
-        if self.descriptionType == "name":
-            return self.getImageNameDescription(image)
-        else:
-            return self.getDefaultImageDescription(image)
-        
-    def getImageNameDescription(self, image):
-        desc = self.getImageName(image)
-        if desc is not None:
-            return "Icon '" + desc + "'"
-        else:
-            return "Unknown Image"
-
-    def getDefaultImageDescription(self, image):
-        name = "Image"
-        if self.descriptionType == "number":
-            name += " " + self.imageCounter.getId(image)
-        return name
-    
+                
     def getPixels(self, data):
         pixels = array('i', (0, ) * data.width * data.height)
         data.getPixels(0, 0, data.width * data.height, pixels, 0)
@@ -177,9 +154,6 @@ class ImageDescriber:
             newImage.dispose()
 
 
-        
-
-
 class Describer(storytext.guishared.Describer):
     styleNames = [ (CoolItem, []),
                    (Item    , [ "SEPARATOR", "DROP_DOWN", "CHECK", "CASCADE", "RADIO" ]),
@@ -201,7 +175,7 @@ class Describer(storytext.guishared.Describer):
                      Spinner, Group, Composite ]
     childrenMethodName = "getChildren"
     visibleMethodName = "getVisible"
-    imageDescriber = None
+    imageDescriber = ImageDescriber()
     def __init__(self, canvasDescriberClasses=[]):
         storytext.guishared.Describer.__init__(self)
         self.canvasCounter = storytext.guishared.WidgetCounter()
@@ -214,8 +188,6 @@ class Describer(storytext.guishared.Describer):
         self.browserStates = {}
         self.clipboardText = None
         self.screenshotNumber = 0
-        if Describer.imageDescriber is None:
-            Describer.imageDescriber = ImageDescriber(self.imageDescriptionType, self.imageCounter)
         self.handleImages()
         self.colorsAdded = False
         self.canvasDescriberClasses = canvasDescriberClasses
@@ -245,6 +217,16 @@ class Describer(storytext.guishared.Describer):
     def isImageType(self, fileName):
         return fileName.endswith(".gif") or fileName.endswith(".png") or fileName.endswith(".jpg")
 
+    def getImageDescription(self, image):
+        # Seems difficult to get any sensible image information out, there is
+        # basically no query API for this in SWT
+        if self.imageDescriptionType == "name":
+            desc = self.imageDescriber.getImageName(image)
+            return "Icon '" + desc + "'" if desc else "Unknown Image"
+        elif self.imageDescriptionType == "number":
+            return "Image " + self.imageCounter.getId(image)
+        else:
+            return "Image"        
 
     def setWidgetPainted(self, widget):
         if widget not in self.widgetsDescribed and widget not in self.windows and widget not in self.widgetsAppeared:
@@ -569,7 +551,7 @@ class Describer(storytext.guishared.Describer):
         elements = [ item.getText(colIndex) ]
         if colIndex:
             if item.getImage(colIndex):
-                elements.append(self.imageDescriber.getImageDescription(item.getImage(colIndex)))
+                elements.append(self.getImageDescription(item.getImage(colIndex)))
         else:
             elements += self.getPropertyElements(item, *args)
         
@@ -601,7 +583,7 @@ class Describer(storytext.guishared.Describer):
         for deco in self.getControlDecorations(item):
             if deco:
                 image = deco.getImage()
-                imgDesc = self.imageDescriber.getImageDescription(deco.getImage()) if image is not None else ""
+                imgDesc = self.getImageDescription(deco.getImage()) if image is not None else ""
             if deco and self.decorationVisible(deco): 
                 text = "Decoration " + imgDesc
                 desc = deco.getDescriptionText()
@@ -646,7 +628,7 @@ class Describer(storytext.guishared.Describer):
                 elements.append(self.combineMultiline([ "Tooltip '", tooltipText + "'" ]))
         elements += self.getStyleDescriptions(item)
         if hasattr(item, "getImage") and item.getImage():
-            elements.append(self.imageDescriber.getImageDescription(item.getImage()))
+            elements.append(self.getImageDescription(item.getImage()))
         if hasattr(item, "getEnabled") and not item.getEnabled():
             elements.append("greyed out")
         if selected:
@@ -712,7 +694,7 @@ class Describer(storytext.guishared.Describer):
                 if fontStyle & getattr(SWT, fontAttr):
                     elements.append(fontAttr.lower())
         if label.getImage():
-            elements.append(self.imageDescriber.getImageDescription(label.getImage()))
+            elements.append(self.getImageDescription(label.getImage()))
         elements.append(self.getContextMenuReference(label))
         return self.combineElements(elements)
 
