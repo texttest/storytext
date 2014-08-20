@@ -68,7 +68,7 @@ class NatTableIndexer(simulator.TableIndexer):
         if isinstance(data, (str, unicode)):
             return data
         elif data is not None:
-            return str(data).lower()
+            return str(data)
         else:
             return ""
     
