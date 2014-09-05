@@ -8,9 +8,17 @@ install_root = os.path.dirname(os.path.dirname(os.path.normpath(os.path.realpath
 # Find our own "lib" directory
 sys.path.insert(0, os.path.join(install_root, "lib"))
 
-binDir = os.path.normpath(os.path.dirname(__file__))
-if binDir in sys.path:
-   sys.path.remove(binDir)
+def removeSelfFromPath():
+   # On Windows, this file is storytext.py, which means it can get imported!
+   # Remove ourselves and cause a reimport in this case
+   binDir = os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
+   for path in sys.path:
+      if binDir == os.path.normpath(path):
+         sys.path.remove(path)
+         break
+
+if os.name == "nt":
+   removeSelfFromPath()
 
 if __name__ == "__main__":
     from storytext.cmdline import main
