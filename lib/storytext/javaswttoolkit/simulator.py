@@ -572,7 +572,8 @@ class TextEvent(StateChangeEvent):
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
         self.stateText = self.getStateText()
-    
+        self.logger = logging.getLogger("storytext record")
+
     @classmethod
     def getAssociatedSignal(cls, widget):
         return "Modify"
@@ -623,14 +624,19 @@ class TextEvent(StateChangeEvent):
 
     def shouldRecord(self, event, *args):
         if not self.isEditable():
+            self.logger.debug("Event rejected for '" + self.getStateText() + "', not editable")
             return False
 
         newStateText = self.getStateText()
         if not self.textChanged(newStateText):
+            self.logger.debug("Event rejected for '" + newStateText + "', text not changed for " + repr(self.widget.widget.widget.getToolTipText()))
             return False
         
         self.stateText = newStateText
+        self.logger.debug("State Text set to '" + newStateText + "' for " + repr(self.widget.widget.widget.getToolTipText()))
         if newStateText and self.isTyped() and not self.physicalEventMatches():
+            self.logger.debug("Event rejected for '" + newStateText + "', physical event widget does not match. Widget " +
+                              self.widget.widget.widget.__class__.__name__ + " " + str(self.widget.widget.widget.getToolTipText()))
             return False
         
         return not self.widget.widget.widget in CComboSelectEvent.internalWidgets and StateChangeEvent.shouldRecord(self, event, *args)
