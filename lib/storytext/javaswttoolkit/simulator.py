@@ -1487,7 +1487,7 @@ class WidgetMonitor:
                                     [ (SWT.DROP_DOWN, SWTBotToolbarDropDownButton),
                                       (SWT.RADIO    , SWTBotToolbarRadioButton),
                                       (SWT.SEPARATOR, SWTBotToolbarSeparatorButton),
-                                      (SWT.TOGGLE   , SWTBotToolbarToggleButton) ]),
+                                      (SWT.CHECK   , SWTBotToolbarToggleButton) ]),
                   Spinner       : (SWTBotSpinner, []),
                   Text          : (SWTBotText, []),
                   Label         : (SWTBotLabel, []),
@@ -1582,7 +1582,7 @@ class WidgetMonitor:
             return True
         else:
             return False
-        
+
     def forceShellActive(self):
         if os.pathsep == ":": # os.name == "java", so can't find out that way if we're on UNIX
             # Need to do this for running under Xvfb on UNIX
@@ -1748,7 +1748,7 @@ class WidgetMonitor:
                 except RuntimeException:
                     # Sometimes widgets are already disposed
                     pass
-        
+
     def getActiveShell(self):
         finder = self.bot.getFinder()
         activeShell = finder.activeShell()
@@ -1787,6 +1787,7 @@ eventTypes =  [ (SWTBotButton                   , [ SelectEvent ]),
                 (SWTBotToolbarPushButton        , [ SelectEvent ]),
                 (SWTBotToolbarDropDownButton    , [ DropDownButtonEvent, DropDownSelectionEvent ]),
                 (SWTBotToolbarRadioButton       , [ RadioSelectEvent ]),
+                (SWTBotToolbarToggleButton       , [ SelectEvent ]),
                 (SWTBotLabel                    , [ IconClickEvent ]),
                 (SWTBotLink                     , [ LinkSelectEvent ]),
                 (SWTBotRadio                    , [ RadioSelectEvent ]),
