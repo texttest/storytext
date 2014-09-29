@@ -246,6 +246,7 @@ class NatTableRowSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
         
 
 class NatTableColumnSelectEvent(NatTableEventHelper, simulator.TableSelectEvent):
+    indexSeparator = " (row "
     @classmethod
     def getAssociatedSignatures(cls, widget):
         return [ "ColumnSelection" ]
@@ -256,10 +257,22 @@ class NatTableColumnSelectEvent(NatTableEventHelper, simulator.TableSelectEvent)
     def getStateText(self, event, *args):
         table = self.widget.widget.widget
         colPos = table.getColumnPositionByX(event.x)
-        return self.getIndexer().getColumnTextByPosition(colPos)
+        rowPos = table.getRowPositionByY(event.y)
+        text = self.getIndexer().getColumnTextByPosition(colPos)
+        if rowPos > 0 and table.getStartYOfRowPosition(rowPos) > 0:
+            text += self.indexSeparator + str(rowPos + 1) + ")"
+        return text
         
     def parseArguments(self, argumentString):
-        return 0, self.getIndexer().findColumnPosition(argumentString)
+        pos = argumentString.find(self.indexSeparator)
+        if pos != -1:
+            colPosArg = argumentString[:pos]
+            indexPos = pos + len(self.indexSeparator)
+            indexEndPos = argumentString.find(")", indexPos)
+            index = int(argumentString[indexPos:indexEndPos]) - 1
+            return index, self.getIndexer().findColumnPosition(colPosArg)
+        else:
+            return 0, self.getIndexer().findColumnPosition(argumentString)
     
 class NatTableCellContextEvent(ContextEventHelper,NatTableCellSelectEvent):
     @classmethod
