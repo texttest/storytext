@@ -1733,20 +1733,24 @@ class WidgetMonitor:
     def makeAdapters(self, widgets):
         adapters = []
         for widget in widgets:
-            adapter = self.makeAdapter(widget)
+            adapter = self.makeAdapter(widget, self.uiMap.logger)
             if adapter:
                 adapters.append(adapter)
         return adapters
 
     @classmethod
-    def makeAdapter(cls, widget):
+    def makeAdapter(cls, widget, logger=None):
         for widgetClass in cls.swtbotMap.keys():
             if isinstance(widget, widgetClass):
                 swtbotClass = cls.findSwtbotClass(widget, widgetClass)
                 try:
                     return WidgetAdapter.adapt(swtbotClass(widget))
-                except RuntimeException:
+                except RuntimeException, e:
                     # Sometimes widgets are already disposed
+                    if logger:
+                        message = "Warning: The following exception has been thrown while creating widget adapter for widget " \
+                        +  widget.__class__.__name__ + " " + str(id(widget)) + ":\n"
+                        logger.debug( message +  str(e) )
                     pass
 
     def getActiveShell(self):
