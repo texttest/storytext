@@ -184,7 +184,7 @@ def hasPrivateMethod(obj, methodName, includeBases):
 def getJfaceTooltip(item):
     for listener in item.getListeners(SWT.MouseHover):
         tooltip = getEnclosingInstance(listener)
-        if hasPrivateMethod(tooltip, "createToolTipContentArea", includeBases=True):
+        if tooltip and hasPrivateMethod(tooltip, "createToolTipContentArea", includeBases=True):
             return tooltip
 
 
