@@ -423,12 +423,12 @@ class TreeViewIndexer(BaseTableIndexer):
                 self.model.foreach(self.rowInserted)
                 self.model.connect("row-changed", self.rowInserted)
 
-    def useAsPrimaryKeyColumn(self, column, renderer):
+    def useAsPrimaryKeyColumn(self, column, renderer, primaryKeyColumnTexts):
         if not isinstance(renderer, gtk.CellRendererText):
             return False
         
-        if self.primaryKeyColumnTexts:
-            return self.getColumnText(column) in self.primaryKeyColumnTexts
+        if primaryKeyColumnTexts:
+            return self.getColumnText(column) in primaryKeyColumnTexts
         else:
             return True
         
@@ -436,9 +436,16 @@ class TreeViewIndexer(BaseTableIndexer):
         return column.get_title()       
 
     def getTextRenderer(self, treeview):
+        if self.primaryKeyColumnTexts:
+            column, renderer = self._getTextRenderer(treeview, self.primaryKeyColumnTexts)
+            if column is not None:
+                return column, renderer
+        return self._getTextRenderer(treeview)
+        
+    def _getTextRenderer(self, treeview, primaryKeyColumnTexts=[]):
         for column in treeview.get_columns():
             for renderer in column.get_cell_renderers():
-                if self.useAsPrimaryKeyColumn(column, renderer):
+                if self.useAsPrimaryKeyColumn(column, renderer, primaryKeyColumnTexts):
                     return column, renderer
         return None, None
 
