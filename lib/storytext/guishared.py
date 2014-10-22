@@ -346,7 +346,7 @@ class ScriptEngine(scriptengine.ScriptEngine):
                 fieldName, minWidthStr = subStr.split("=")
                 Describer.minFieldWidths[fieldName] = int(minWidthStr)
         if options.primary_key_columns:
-            TableIndexer.primaryKeyColumnTexts += options.primary_key_columns.split(",")
+            BaseTableIndexer.primaryKeyColumnTexts += options.primary_key_columns.split(",")
 
     def run_python_or_java(self, args):
         # Two options here: either a Jython program and hence a .py file, or a Java class
@@ -1592,9 +1592,18 @@ class Indexer:
         else:
             return cls.allIndexers.setdefault(widget, cls(widget))
 
-    
-class TableIndexer(Indexer):
+# Base for Java Table indexers and also GTK's TreeIndexer, which fulfils the role of Table
+# found in e.g. SWT and Swing
+class BaseTableIndexer(Indexer):
     primaryKeyColumnTexts = []
+    def getColumnTextToUse(self, *args):
+        return self.getColumnText(*args) or "<untitled>"
+    
+    def getCellValueToUse(self, *args):
+        return self.getCellValue(*args) or "<unnamed>"
+    
+    
+class TableIndexer(BaseTableIndexer):
     def __init__(self, widget):
         Indexer.__init__(self, widget)
         self.primaryKeyColumn, self.rowNames = self.findRowNames()
@@ -1621,12 +1630,6 @@ class TableIndexer(Indexer):
             return self.addIndexes(currRowNames)
         else:
             return currRowNames 
-    
-    def getColumnTextToUse(self, *args):
-        return self.getColumnText(*args) or "<untitled>"
-    
-    def getCellValueToUse(self, *args):
-        return self.getCellValue(*args) or "<unnamed>"
     
     def findRowNames(self):
         if self.primaryKeyColumnTexts:

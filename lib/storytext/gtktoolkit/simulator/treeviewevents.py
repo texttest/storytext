@@ -4,6 +4,7 @@
 import baseevents, gtk, logging
 from .. import treeviewextract
 from storytext.definitions import UseCaseScriptError
+from storytext.guishared import BaseTableIndexer
 
 class TreeColumnHelper:
     @classmethod
@@ -404,19 +405,14 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
 
 # Class to provide domain-level lookup for rows in a tree. Convert paths to strings and back again
 # Can't store rows on TreeModelFilters, store the underlying rows and convert them at the last minute
-class TreeViewIndexer:
-    allIndexers = {}
-    @classmethod
-    def getIndexer(cls, treeView):
-        return cls.allIndexers.setdefault(treeView, cls(treeView))
-
+class TreeViewIndexer(BaseTableIndexer):
     def __init__(self, treeview):
+        BaseTableIndexer.__init__(self, treeview)
         self.givenModel = treeview.get_model()
         self.model = self.findModelToUse()
-        self.logger = logging.getLogger("TreeModelIndexer")
         self.name2row = {}
         self.uniqueNames = {}
-        self.rendererInfo = self.getFirstTextRenderer(treeview)
+        self.rendererInfo = self.getTextRenderer(treeview)
         self.extractor = None
         self.tryPopulateMapping()
 
@@ -427,19 +423,31 @@ class TreeViewIndexer:
                 self.model.foreach(self.rowInserted)
                 self.model.connect("row-changed", self.rowInserted)
 
-    def getFirstTextRenderer(self, treeview):
+    def useAsPrimaryKeyColumn(self, column, renderer):
+        if not isinstance(renderer, gtk.CellRendererText):
+            return False
+        
+        if self.primaryKeyColumnTexts:
+            return self.getColumnText(column) in self.primaryKeyColumnTexts
+        else:
+            return True
+        
+    def getColumnText(self, column):
+        return column.get_title()       
+
+    def getTextRenderer(self, treeview):
         for column in treeview.get_columns():
             for renderer in column.get_cell_renderers():
-                if isinstance(renderer, gtk.CellRendererText):
+                if self.useAsPrimaryKeyColumn(column, renderer):
                     return column, renderer
         return None, None
 
-    def getValue(self, *args):
+    def getCellValue(self, *args):
         return str(self.extractor.getValue(*args)).replace("\n", " / ")
 
     def iter2string(self, iter):
         self.tryPopulateMapping()
-        currentName = self.getValue(self.givenModel, iter)
+        currentName = self.getCellValueToUse(self.givenModel, iter)
         if not self.uniqueNames.has_key(currentName):
             return currentName
 
@@ -492,7 +500,7 @@ class TreeViewIndexer:
             return path
 
     def rowInserted(self, model, path, iter):
-        givenName = self.getValue(model, iter)
+        givenName = self.getCellValueToUse(model, iter)
         row = gtk.TreeRowReference(model, path)
         if self.store(row, givenName):
             allRows = self.findAllRows(givenName)
@@ -561,6 +569,6 @@ class TreeViewIndexer:
 
     def getParentSuffix(self, parent):
         if parent:
-            return " under " + self.getValue(self.model, parent)
+            return " under " + self.getCellValueToUse(self.model, parent)
         else:
             return " at top level"
