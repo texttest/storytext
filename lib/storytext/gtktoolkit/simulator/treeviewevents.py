@@ -274,7 +274,7 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
 
     def getModels(self):
         model = self.widget.get_model()
-        if isinstance(model, gtk.TreeModelFilter):
+        if hasattr(model, "get_model"):
             return model, model.get_model()
         else:
             return None, model
