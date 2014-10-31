@@ -5,8 +5,7 @@ will create scripts in terms of the domain language. These will then be much mor
 than traditional such tools that create complicated Tcl scripts with lots of references
 to pixel positions etc., which tend to be extremely brittle if the GUI is updated.
 """
-
-import storytext.guishared, storytext.replayer
+import compat, storytext.guishared, storytext.replayer
 import widgetadapter, simulator, describer, treeviewextract, gtk, gobject, os, logging, sys, time
 from ordereddict import OrderedDict
 
@@ -301,8 +300,8 @@ class UseCaseReplayer(storytext.guishared.IdleHandlerUseCaseReplayer):
         hint = window.get_type_hint()
         if hint == gtk.gdk.WINDOW_TYPE_HINT_TOOLTIP or hint == gtk.gdk.WINDOW_TYPE_HINT_COMBO:
             return False
-        elif isinstance(window.child, gtk.Menu) and \
-           (window.child.get_name() == "gtk-combobox-popup-menu" or isinstance(window.child.get_attach_widget(), gtk.ComboBox)):
+        elif isinstance(window.get_child(), gtk.Menu) and \
+           (window.get_child().get_name() == "gtk-combobox-popup-menu" or isinstance(window.get_child().get_attach_widget(), gtk.ComboBox)):
             return False
         else:
             return True

@@ -1,6 +1,6 @@
 
 """ Events for gtk.Windows of various types, including dialogs """
-
+import storytext.gtktoolkit.compat
 from baseevents import SignalEvent
 from storytext.guishared import WidgetAdapter
 import gtk, types
@@ -8,7 +8,7 @@ import gtk, types
 class DeletionEvent(SignalEvent):
     signalName = "delete-event"
     def getEmissionArgs(self, argumentString):
-        return [ gtk.gdk.Event(gtk.gdk.DELETE) ]
+        return [storytext.gtktoolkit.compat.createEvent("DELETE") ]
             
     def generate(self, argumentString):
         emissionStopped = SignalEvent.generate(self, argumentString)

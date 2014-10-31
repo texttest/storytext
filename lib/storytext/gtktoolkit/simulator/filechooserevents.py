@@ -1,6 +1,6 @@
 
 """ Event-handling around gtk.FileChoosers of various sorts """
-
+import storytext.gtktoolkit.compat
 from baseevents import StateChangeEvent
 from storytext.definitions import UseCaseScriptError
 import gtk, os

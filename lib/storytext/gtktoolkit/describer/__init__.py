@@ -3,7 +3,7 @@
 The basic mission of this module is to provide a standard textual output of GTK GUI elements,
 to aid in text-based UI testing for GTK
 """
-
+import storytext.gtktoolkit.compat
 import logging, gtk, gobject, locale, operator
 
 from treeviews import performTreeViewInterceptions, TreeViewDescriber, treeModelSignals
@@ -133,7 +133,7 @@ class Describer:
             return ""
 
     def getAccelerator(self, widget):
-        action = widget.get_action()
+        action = storytext.gtktoolkit.compat.getAction(widget)
         if action:
             accelPath = action.get_accel_path()
             if accelPath:
@@ -512,12 +512,12 @@ class Describer:
         idleScheduler.monitor(window, [ "notify::title" ], updateDesc, titleOnly=True)
         message = "-" * 10 + " " + title + " " + "-" * 10
         self.logger.info("\n" + message)
-        if window.maximize_initially:
+        if storytext.gtktoolkit.compat.windowMaximizedInitially(window):
             self.logger.info("Window is maximized initially")
-        if window.default_widget:
-            self.logger.info("Default widget is '" + self.getBriefDescription(window.default_widget) + "'")
-        elif window.focus_widget:
-            self.logger.info("Focus widget is '" + self.getBriefDescription(window.focus_widget) + "'")
+        if storytext.gtktoolkit.compat.getDefaultWidget(window):
+            self.logger.info("Default widget is '" + self.getBriefDescription(storytext.gtktoolkit.compat.getDefaultWidget(window)) + "'")
+        elif storytext.gtktoolkit.compat.getFocusWidget(window):
+            self.logger.info("Focus widget is '" + self.getBriefDescription(storytext.gtktoolkit.compat.getFocusWidget(window)) + "'")
         
         self.logger.info(self.getContainerDescription(window))
         footerLength = min(len(message), 100) # Don't let footers become too huge, they become ugly...
@@ -536,7 +536,7 @@ class TextViewDescriber:
 
     def getContents(self):
         # Assumes it's impossible to get text into the UI that is invalid for the current locale encoding
-        unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter())
+        unicodeInfo = self.buffer.get_text(self.buffer.get_start_iter(), self.buffer.get_end_iter(), True)
         encoding = locale.getdefaultlocale()[1] or "utf-8"
         return unicodeInfo.encode(encoding, 'replace')
 
@@ -598,7 +598,7 @@ class IdleScheduler:
         self.monitor(widget, [ "hide" ], prefix="Hiding")
         self.monitor(widget, [ "show" ], prefix="Showing ")
         
-        action = widget.get_action()
+        action = storytext.gtktoolkit.compat.getAction(widget)
         if not action:
             action = widget
         action.connect("notify::sensitive", self.storeSensitivityChange)

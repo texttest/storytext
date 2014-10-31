@@ -122,14 +122,17 @@ class GuiEvent(definitions.UserEvent):
         if isinstance(method, MethodIntercept):
             method.addEvent(self)
         else:
-            setattr(self.getSelf(method), method.__name__, interceptClass(method, self))
+            objSelf = self.getSelf(method)
+            if objSelf:
+                setattr(objSelf, method.__name__, interceptClass(method, self))
 
     def getSelf(self, method):
         # seems to be different for built-in and bound methods
         try:
             return method.im_self
         except AttributeError:
-            return method.__self__
+            if hasattr(method, "__self__"):
+                return method.__self__
 
     def getChangeMethod(self):
         pass

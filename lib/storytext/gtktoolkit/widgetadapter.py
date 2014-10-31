@@ -1,5 +1,5 @@
 
-import storytext.guishared, gtk
+import compat, storytext.guishared, gtk
 
 class WidgetAdapter(storytext.guishared.WidgetAdapter):
     builderEnabled = False

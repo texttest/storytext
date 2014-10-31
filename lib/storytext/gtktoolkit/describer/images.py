@@ -2,7 +2,7 @@
 """
 Module for handling image logging
 """
-
+import storytext.gtktoolkit.compat
 import gtk, os
 
 orig_pixbuf_new_from_file = gtk.gdk.pixbuf_new_from_file

@@ -4,7 +4,7 @@ Module that makes it possible to extract information from a treeview
 without having information about the treemodel, as we may not from inside PyUsecase
 """
 
-import gtk
+import compat, gtk
 from storytext.guishared import removeMarkup
 
 # This is the important information, used by other classes
@@ -124,7 +124,7 @@ class TreeViewColumn(origTreeViewColumn):
             orig_func(column, cell, model, iter)
         cell.set_property = orig_set_property
 
-class TreeViewHelper:
+class TreeViewHelper(object):
     def insert_column_with_data_func(self, position, title, cell, func, data=None):
         column = TreeViewColumn(title, cell)
         column.set_cell_data_func(cell, func, func_data=data)
@@ -174,7 +174,7 @@ class PropertySetter:
     def __init__(self, cell, column, model, iter):
         self.cell = cell
         self.column = column
-        self.rowRef = gtk.TreeRowReference(model, model.get_path(iter))
+        self.rowRef = compat.createTreeRowReference(model, model.get_path(iter))
         
     def __call__(self, property, value):
         self.cell.orig_set_property(property, value)

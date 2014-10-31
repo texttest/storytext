@@ -1,6 +1,7 @@
 
 """ Main entry point for simulator functionality """
 
+import storytext.gtktoolkit.compat
 import baseevents, windowevents, filechooserevents, treeviewevents, miscevents, gtk, gobject, storytext.guishared
 import types, inspect, os
 from threading import Thread
@@ -15,7 +16,7 @@ origFileChooserDialog = gtk.FileChooserDialog
 origFileChooserWidget = gtk.FileChooserWidget
 origBuilder = gtk.Builder
 
-class DialogHelper:
+class DialogHelper(object):
     uiMap = None
     def initialise(self):
         self.dialogRunLevel = 0
@@ -74,7 +75,7 @@ class DialogHelper:
         self.response_received = response
         
 
-class FileChooserHelper:
+class FileChooserHelper(object):
     def __init__(self, action):
         dataMethod = self.getDataMethod(action)
         self.checkHandler = None

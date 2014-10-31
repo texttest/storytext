@@ -1,6 +1,6 @@
 
 """ All the remaining widget events that didn't fit anywhere else """
-
+import storytext.gtktoolkit.compat
 from baseevents import StateChangeEvent, SignalEvent
 from storytext.definitions import UseCaseScriptError
 from storytext.guishared import removeMarkup
@@ -117,7 +117,7 @@ class EntryEvent(StateChangeEvent):
 class TextViewEvent(StateChangeEvent):
     def getStateDescription(self, *args):
         buffer = self.widget.get_buffer()
-        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter()).replace("\n", "\\n")
+        return buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True).replace("\n", "\\n")
 
     @staticmethod
     def widgetHasSignal(widget, signalName):

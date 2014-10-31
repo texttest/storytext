@@ -1,6 +1,7 @@
 
 """ The base classes from which widget record/replay classes are derived"""
 
+import storytext.gtktoolkit.compat
 from storytext.guishared import GuiEvent, MethodIntercept
 from storytext.definitions import UseCaseScriptError
 import gtk, gobject
@@ -163,7 +164,7 @@ class ClickEvent(SignalEvent):
 
     def getEmissionArgs(self, argumentString):
         area = self.getAreaToClick(argumentString)
-        event = gtk.gdk.Event(self.eventType)
+        event = storytext.gtktoolkit.compat.createEvent(self.eventTypeStr)
         event.x = float(area.x) + float(area.width) / 2
         event.y = float(area.y) + float(area.height) / 2
         event.button = self.buttonNumber
@@ -177,8 +178,10 @@ class LeftClickEvent(ClickEvent):
     signalName = "button-release-event" # Usually when left-clicking things (like buttons) what matters is releasing
     buttonNumber = 1
     eventType = gtk.gdk.BUTTON_RELEASE
+    eventTypeStr = "BUTTON_RELEASE"
 
 class RightClickEvent(ClickEvent):
     signalName = "button-press-event"
     buttonNumber = 3
     eventType = gtk.gdk.BUTTON_PRESS
+    eventTypeStr = "BUTTON_PRESS"

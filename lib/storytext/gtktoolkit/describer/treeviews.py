@@ -3,7 +3,7 @@
 Logging TreeViews is complicated because there are several ways to set them up
 and little direct support for extracting information from them. So they get their own module.
 """
-
+import storytext.gtktoolkit.compat
 import gtk, logging
 from images import ImageDescriber
 from ..treeviewextract import getAllExtractors
@@ -176,7 +176,7 @@ class TreeViewDescriber:
         if "Column titles" not in prefix and self.model:
             if not self.describersOK:
                 self.rendererDescribers = self.getRendererDescribers()
-            message += self.getSubTreeDescription(self.model.get_iter_root(), 0)
+            message += self.getSubTreeDescription(self.model.get_iter_first(), 0)
         return message.rstrip()
     
     def getSubTreeDescription(self, iter, indent):

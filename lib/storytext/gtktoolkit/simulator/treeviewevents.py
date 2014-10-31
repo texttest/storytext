@@ -1,6 +1,6 @@
 
 """ Wrappers for events around gtk.TreeView objects """
-
+import storytext.gtktoolkit.compat
 import baseevents, gtk, logging
 from .. import treeviewextract
 from storytext.definitions import UseCaseScriptError
@@ -16,7 +16,11 @@ class TreeColumnHelper:
 
     @staticmethod
     def getColumnName(column):
-        name = column.get_data("name")
+        name = None
+        try:
+            name = column.get_data("name")
+        except:
+            pass
         if name:
             return name
         else:
@@ -508,7 +512,7 @@ class TreeViewIndexer(BaseTableIndexer):
 
     def rowInserted(self, model, path, iter):
         givenName = self.getCellValueToUse(model, iter)
-        row = gtk.TreeRowReference(model, path)
+        row = storytext.gtktoolkit.compat.createTreeRowReference(model, path)
         if self.store(row, givenName):
             allRows = self.findAllRows(givenName)
             if len(allRows) > 1:
@@ -572,7 +576,7 @@ class TreeViewIndexer(BaseTableIndexer):
     def getParentRow(self, row):
         parentIter = self.model.iter_parent(self.model.get_iter(row.get_path()))
         if parentIter:
-            return gtk.TreeRowReference(self.model, self.model.get_path(parentIter))
+            return storytext.gtktoolkit.compat.createTreeRowReference(self.model, self.model.get_path(parentIter))
 
     def getParentSuffix(self, parent):
         if parent:
