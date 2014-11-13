@@ -185,7 +185,7 @@ class TreeViewDescriber:
         message = ""
         while iter is not None:
             colDescriptions = [ d.getDescription(self.model, iter) for d in self.rendererDescribers ]
-            while not colDescriptions[-1]:
+            while len(colDescriptions) > 1 and not colDescriptions[-1]:
                 colDescriptions.pop()
             data = " | ".join(colDescriptions)
             if self.view.get_selection().iter_is_selected(iter):

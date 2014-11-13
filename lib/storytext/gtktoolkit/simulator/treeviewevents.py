@@ -297,7 +297,8 @@ class TreeSelectionEvent(baseevents.StateChangeEvent):
         methods = [ self.selection.unselect_all, self.selection.select_all, \
                     self.selection.select_iter, self.selection.unselect_iter, \
                     self.selection.select_path, self.selection.unselect_path,self.selection.set_mode,
-                    self.widget.set_model, self.widget.row_activated, self.widget.collapse_row,
+                    self.widget.set_model, self.widget.row_activated, self.widget.collapse_row, 
+                    self.widget.set_cursor, self.widget.set_cursor_on_cell,
                     realModel.remove, realModel.clear ]
 
         return methods
@@ -454,7 +455,9 @@ class TreeViewIndexer(BaseTableIndexer):
         return None, None
 
     def getCellValue(self, *args):
-        return str(self.extractor.getValue(*args)).replace("\n", " / ")
+        value = self.extractor.getValue(*args)
+        if value is not None:
+            return str(value).replace("\n", " / ")
 
     def iter2string(self, iter):
         self.tryPopulateMapping()
