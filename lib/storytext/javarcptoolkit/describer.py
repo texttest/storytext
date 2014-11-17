@@ -21,20 +21,23 @@ class Describer(swtdescriber.Describer):
         cacheFile = os.path.join(os.getenv("STORYTEXT_HOME"), "osgi_bundle_image_types")
         cacheExists = os.path.isfile(cacheFile)
         bundleImageTypes = eval(open(cacheFile).read()) if cacheExists else {}
+        writeCache = not cacheExists or "STORYTEXT_WRITE_CACHE" in os.environ
         
         for bundle in InternalPlatform.getDefault().getBundleContext().getBundles():
             usedTypes = []
             name = bundle.getSymbolicName()
             imageTypes = bundleImageTypes.get(name, allImageTypes)
+            if name not in bundleImageTypes:
+                self.logger.debug("Bundle " + name + " not cached, trying all image types!")
             for imageType in imageTypes:
                 self.logger.debug("Searching bundle " + name + " for images of type " + imageType)
                 images = bundle.findEntries("/", "*." + imageType, True)
                 if images and images.hasMoreElements():
                     self.storeAllImages(images)
                     usedTypes.append(imageType)
-            if not cacheExists:
+            if writeCache:
                 bundleImageTypes[name] = usedTypes
-        if not cacheExists:
+        if writeCache:
             f = open(cacheFile, "w")
             pprint(bundleImageTypes, f)
             f.close()
