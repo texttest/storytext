@@ -397,9 +397,12 @@ class DropDownSelectionEvent(SelectEvent):
     
 class TabEvent(SelectEvent):
     def findTabWithText(self, text):
-        for item in self.widget.widget.widget.getItems():
+        for item in self.getTabFolder().getItems():
             if item.getText() == text:
                 return item
+    
+    def getTabFolder(self):
+        return self.widget.widget.widget
         
     def parseArguments(self, text):
         # Seems we can only get tab item text in the UI thread (?)
@@ -419,8 +422,38 @@ class TabEvent(SelectEvent):
     
 class TabSelectEvent(TabEvent):
     swtbotItemClass = SWTBotTabItem
+    def connectRecord(self, *args): 
+        TabEvent.connectRecord(self, *args)
+        if self.actuallyClick():
+            PhysicalEventListener.tryAddFilters(self.widget.widget.widget.getDisplay())    
+    
     def _generate(self, tab):
-        self.swtbotItemClass(tab).activate()
+        if self.actuallyClick():
+            runOnUIThread(self.clickItem, tab, self.getTabFolder())
+        else:
+            self.swtbotItemClass(tab).activate()
+                
+    def actuallyClick(self):
+        return "clicked" in self.generationModifiers
+                            
+    def getCenter(self, item):
+        bounds = item.getBounds()
+        return bounds.x + bounds.width / 2, bounds.y + bounds.height / 2 
+    
+    def clickItem(self, item, tabfolder):
+        x, y = self.getCenter(item)
+        displayLoc = tabfolder.toDisplay(x, y)
+        display = tabfolder.getDisplay()
+        # Move the mouse pointer back so we don't get accidental mouseovers...
+        EventPoster(display).moveClickAndReturn(displayLoc.x, displayLoc.y)
+                
+    def shouldRecord(self, *args):
+        if self.actuallyClick() and self.widget.widget.widget is not PhysicalEventListener.latestWidget:
+            return False
+        ret = TabEvent.shouldRecord(self, *args)
+        if ret and self.actuallyClick():
+            PhysicalEventListener.latestWidget = None # reset the widget so we don't record more than once...
+        return ret
             
 
 class CTabSelectEvent(TabSelectEvent):
@@ -562,13 +595,23 @@ class SpinnerSelectEvent(StateChangeEvent):
         self.widget.setSelection(argument)
 
 class PhysicalEventListener(Listener):
-    def handleEvent(listenerSelf, e): #@NoSelf
-        TextEvent.physicalEventWidget = e.widget
+    latestWidget = None
+    instance = None
+    def handleEvent(self, e):
+        PhysicalEventListener.latestWidget = e.widget
+
+    @classmethod
+    def tryAddFilters(cls, *args):
+        if cls.instance is None: 
+            cls.instance = PhysicalEventListener(*args)
+            
+    def __init__(self, display):
+        runOnUIThread(display.addFilter, SWT.KeyDown, self)
+        runOnUIThread(display.addFilter, SWT.MouseDown, self)
+
 
     
 class TextEvent(StateChangeEvent):
-    physicalEventWidget = None
-    physicalEventListener = None
     def __init__(self, *args):
         StateChangeEvent.__init__(self, *args)
         self.stateText = self.getStateText()
@@ -578,15 +621,10 @@ class TextEvent(StateChangeEvent):
     def getAssociatedSignal(cls, widget):
         return "Modify"
     
-    def addPhysicalEventFilters(self):
-        TextEvent.physicalEventListener = PhysicalEventListener()
-        runOnUIThread(self.addFilter, SWT.KeyDown, TextEvent.physicalEventListener)
-        runOnUIThread(self.addFilter, SWT.MouseDown, TextEvent.physicalEventListener)
-
     def connectRecord(self, method):
         StateChangeEvent.connectRecord(self, method)
-        if self.isTyped() and not TextEvent.physicalEventListener:
-            self.addPhysicalEventFilters()
+        if self.isTyped():
+            PhysicalEventListener.tryAddFilters(self.widget.widget.widget.getDisplay())
         
     def parseArguments(self, text):
         return text
@@ -620,7 +658,7 @@ class TextEvent(StateChangeEvent):
         return self.stateText is None or self.stateText != newStateText
     
     def physicalEventMatches(self):
-        return self.physicalEventWidget is self.widget.widget.widget
+        return PhysicalEventListener.latestWidget is self.widget.widget.widget
 
     def shouldRecord(self, event, *args):
         if not self.isEditable():

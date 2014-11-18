@@ -256,10 +256,10 @@ class ViewAdapter(swtsimulator.WidgetAdapter):
         return "View"
 
     
-class PartActivateEvent(swtsimulator.SignalEvent):
+class PartActivateEvent(swtsimulator.TabSelectEvent):
     allInstances = []
     def __init__(self, *args, **kw):
-        swtsimulator.SignalEvent.__init__(self, *args, **kw)
+        swtsimulator.TabSelectEvent.__init__(self, *args, **kw)
         self.allInstances.append(self)
         
     def connectRecord(self, method):
@@ -280,32 +280,16 @@ class PartActivateEvent(swtsimulator.SignalEvent):
             page = self.widget.getViewReference().getPage()
             view = self.widget.getViewReference().getView(False)
             swtsimulator.runOnUIThread(page.activate, view)
-        
-    def actuallyClick(self):
-        return "clicked" in self.generationModifiers
-        
+ 
     def getTabFolder(self):
         for tab in self.widget.getViewReference().getPane().getTabList():
             if hasattr(tab, "getItems"):
                 return tab
             
     def clickMatchingTab(self, argumentString):
-        tabfolder = self.getTabFolder()
-        for item in tabfolder.getItems():
-            if item.getText() == argumentString:
-                self.clickItem(item, tabfolder)
-                        
-    def getCenter(self, item):
-        bounds = item.getBounds()
-        return bounds.x + bounds.width / 2, bounds.y + bounds.height / 2 
-    
-    def clickItem(self, item, tabfolder):
-        x, y = self.getCenter(item)
-        displayLoc = tabfolder.toDisplay(x, y)
-        display = tabfolder.getDisplay()
-        # Move the mouse pointer back so we don't get accidental mouseovers...
-        swtsimulator.EventPoster(display).moveClickAndReturn(displayLoc.x, displayLoc.y)
-    
+        item = self.findTabWithText(argumentString)
+        self.clickItem(item, self.getTabFolder())
+                
     def parseArguments(self, argumentString):
         # The idea is to just do this, but it seems to cause strange things to happen
         #internally. So we do it outside SWTBot instead.
