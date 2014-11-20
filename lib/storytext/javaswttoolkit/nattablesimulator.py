@@ -24,8 +24,10 @@ class NatTableIndexer(simulator.TableIndexer):
         self.rowOffset = 0
         self.colOffset = 0
         self.setOffsets(table)
+        self.headerIndexRow = self.findHeaderIndexRow(table)
         simulator.TableIndexer.__init__(self, table)
-        self.logger.debug("NatTable indexer with row offset " + str(self.rowOffset) + " and column offset " + str(self.colOffset))
+        self.logger.debug("NatTable indexer with row offset " + str(self.rowOffset) + ", column offset " + str(self.colOffset) +
+                          " and header index row " + str(self.headerIndexRow))
         if self.colOffset == 0:
             # Probably no data yet if we have no offset at the start, best to keep an open mind...
             self.primaryKeyColumn = None
@@ -39,6 +41,21 @@ class NatTableIndexer(simulator.TableIndexer):
         newColOffset = lastColumn - table.getColumnIndexByPosition(lastColumn)
         if newColOffset >= 0:
             self.colOffset = newColOffset
+            
+    def findHeaderIndexRow(self, table):
+        for row in range(table.getRowCount()):
+            if self.isUniqueRow(table, row):
+                return row
+            labels = table.getConfigLabelsByPosition(1, row).getLabels()
+            if "CORNER" not in labels and "COLUMN_HEADER" not in labels:
+                break # We haven't found a unique row
+        
+    def isUniqueRow(self, table, row):
+        data = [ table.getDataValueByPosition(col, row) for col in range(self.colOffset, table.getColumnCount()) ]
+        uniqueData = set(data)
+        if uniqueData  == set([ None ]):
+            return False
+        return len(uniqueData) == len(data)
         
     def updateTableInfo(self):
         simulator.runOnUIThread(self.setOffsets, self.widget)
@@ -73,7 +90,9 @@ class NatTableIndexer(simulator.TableIndexer):
             return ""
     
     def getColumnTextByPosition(self, colPos):
-        return self.widget.getDataValueByPosition(colPos, 0)
+        if self.headerIndexRow is None:
+            self.headerIndexRow = self.findHeaderIndexRow(self.widget)
+        return self.widget.getDataValueByPosition(colPos, self.headerIndexRow or 0)
     
     def getColumnText(self, colIndex):
         return self.getColumnTextByPosition(colIndex + self.colOffset)
