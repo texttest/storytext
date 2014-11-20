@@ -358,6 +358,8 @@ class UseCaseEditor:
         sections, descs, badDescs = [], [], []
         for i in range(1, len(parts) + 1):
             for sectionNameParts in itertools.combinations(parts, i):
+                if len(sectionNameParts) == 1 and self.isDisallowed(sectionNameParts[0]):
+                    continue
                 sectionName = ", ".join(sectionNameParts)
                 actualSection = self.uiMapFileHandler.getSection(sectionName)
                 if actualSection:
@@ -370,6 +372,10 @@ class UseCaseEditor:
                         descs.append(utf8Name)
         return sections + descs + badDescs
     
+    def isDisallowed(self, identifier):
+        disallowedIdentifiers = ["Context="]
+        return any(disallowed in identifier for disallowed in disallowedIdentifiers)
+
     def getWidgetDescriptionWidget(self, possibleWidgetDescs, signalName, widgetType):
         if len(possibleWidgetDescs) == 1:
             label = gtk.Label()
