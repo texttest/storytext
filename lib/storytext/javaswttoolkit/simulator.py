@@ -939,8 +939,35 @@ class TableDoubleClickEvent(TableSelectEvent):
     def implies(self, stateChangeOutput, stateChangeEvent, *args):
         return isinstance(stateChangeEvent, TableSelectEvent) or SelectEvent.implies(self, stateChangeOutput, stateChangeEvent, *args)
     
+class TableMouseListener(Listener):
+    instance = None
+    @classmethod
+    def indexerCreated(cls, table, indexer):
+        if cls.instance is None:
+            cls.instance = TableMouseListener(table)
+        cls.instance.store(table, indexer)
+        
+    def __init__(self, table):
+        self.indexers = {}
+        runOnUIThread(self.addFilter, table)
+        
+    def addFilter(self, table):
+        table.getDisplay().addFilter(SWT.MouseDown, self)
+        
+    def store(self, table, indexer):
+        self.indexers[table] = indexer
+        
+    def handleEvent(self, e):
+        indexer = self.indexers.get(e.widget)
+        if indexer:
+            indexer.checkNameCache(checkRows=True)
+
     
-class TableIndexer(storytext.guishared.TableIndexer):    
+class TableIndexer(storytext.guishared.TableIndexer):
+    def __init__(self, table):
+        storytext.guishared.TableIndexer.__init__(self, table)
+        TableMouseListener.indexerCreated(table, self)
+    
     def getRowCount(self):
         return runOnUIThread(self.widget.getItemCount)
 
@@ -962,18 +989,16 @@ class TableIndexer(storytext.guishared.TableIndexer):
     def cacheCorrect(self):
         return self.getRowCount() == len(self.rowNames) and not all((r.startswith("<unnamed>") for r in self.rowNames))
 
-    def checkNameCache(self):
-        if not self.cacheCorrect():
+    def checkNameCache(self, checkRows=False):
+        if not self.cacheCorrect() or (checkRows and not self.rowNamesCorrect()):
             self.updateTableInfo()
+
+    def rowNamesCorrect(self):
+        return all((self.rowNameCorrect(r) for r in range(self.getRowCount())))
 
     def rowNameCorrect(self, row):
         return self.primaryKeyColumn is None or self.rowNames[row] == runOnUIThread(self.getCellValueToUse, row, self.primaryKeyColumn)
         
-    def getCellDescription(self, row, col, **kw):
-        if not self.cacheCorrect() or not self.rowNameCorrect(row):
-            self.updateTableInfo()
-        return storytext.guishared.TableIndexer.getCellDescription(self, row, col, **kw)
-
     def getViewCellIndices(self, *args, **kw):
         self.checkNameCache()
         try:
