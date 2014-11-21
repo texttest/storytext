@@ -1288,7 +1288,7 @@ class IconClickEvent(SignalEvent):
     
     def shouldRecord(self, event, *args):
         label = event.widget
-        return label.getImage() is not None and not label.getText() and SignalEvent.shouldRecord(self, event, *args)
+        return not label.isDisposed() and label.getImage() is not None and not label.getText() and SignalEvent.shouldRecord(self, event, *args)
 
     @classmethod
     def getRecordEventType(cls):
