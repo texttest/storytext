@@ -206,7 +206,11 @@ class WidgetMonitor(swtsimulator.WidgetMonitor):
         self.monitorViewContentsMenus(botView)
         
     def sendShowEvent(self, menu):
-        menu.notifyListeners(SWT.Show, Event())
+        try:
+            menu.notifyListeners(SWT.Show, Event())
+        except NullPointerException:
+            self.uiMap.logger.debug("Caught a NullPointerException when a menu tried to notify its listeners")
+            return
         
     def monitorViewMenus(self, botView):
         ref = botView.getViewReference()
