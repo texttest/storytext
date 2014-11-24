@@ -952,7 +952,9 @@ class TableMouseListener(Listener):
         runOnUIThread(self.addFilter, table)
         
     def addFilter(self, table):
-        table.getDisplay().addFilter(SWT.MouseDown, self)
+        display = table.getDisplay()
+        display.addFilter(SWT.MouseDown, self)
+        display.addFilter(SWT.MouseDoubleClick, self)
         
     def store(self, table, indexer):
         self.indexers[table] = indexer
@@ -960,7 +962,7 @@ class TableMouseListener(Listener):
     def handleEvent(self, e):
         indexer = self.indexers.get(e.widget)
         if indexer:
-            indexer.checkNameCache(checkRows=True)
+            indexer.checkNameCache(fromEvent=e)
 
     
 class TableIndexer(storytext.guishared.TableIndexer):
@@ -989,8 +991,8 @@ class TableIndexer(storytext.guishared.TableIndexer):
     def cacheCorrect(self):
         return self.getRowCount() == len(self.rowNames) and not all((r.startswith("<unnamed>") for r in self.rowNames))
 
-    def checkNameCache(self, checkRows=False):
-        if not self.cacheCorrect() or (checkRows and not self.rowNamesCorrect()):
+    def checkNameCache(self, fromEvent=None):
+        if not self.cacheCorrect() or (fromEvent and not self.rowNamesCorrect()):
             self.updateTableInfo()
 
     def rowNamesCorrect(self):

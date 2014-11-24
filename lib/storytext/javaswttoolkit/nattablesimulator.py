@@ -23,6 +23,7 @@ class NatTableIndexer(simulator.TableIndexer):
     def __init__(self, table):
         self.rowOffset = 0
         self.colOffset = 0
+        self.eventCells = {}
         self.setOffsets(table)
         self.headerIndexRow = self.findHeaderIndexRow(table)
         simulator.TableIndexer.__init__(self, table)
@@ -61,6 +62,20 @@ class NatTableIndexer(simulator.TableIndexer):
         simulator.runOnUIThread(self.setOffsets, self.widget)
         self.logger.debug("Updated NatTable indexer with row offset " + str(self.rowOffset) + " and column offset " + str(self.colOffset))
         simulator.TableIndexer.updateTableInfo(self)
+    
+    def checkNameCache(self, fromEvent=None):
+        simulator.TableIndexer.checkNameCache(self, fromEvent)
+        if fromEvent:
+            self.eventCells[fromEvent] = self.findCell(fromEvent)
+            
+    def findCell(self, event):
+        if event in self.eventCells:
+            return self.eventCells.get(event)
+        
+        rowPos = self.widget.getRowPositionByY(event.y)
+        colPos = self.widget.getColumnPositionByX(event.x)
+        cell = self.widget.getCellByPosition(colPos, rowPos)
+        return cell.getOriginRowPosition(), cell.getOriginColumnPosition()
     
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
@@ -234,10 +249,7 @@ class NatTableCellEventHelper(NatTableEventHelper):
         return "BODY"
             
     def findCell(self, event):
-        table = self.widget.widget.widget
-        rowPos = table.getRowPositionByY(event.y)
-        colPos = table.getColumnPositionByX(event.x)
-        return rowPos, colPos
+        return self.getIndexer().findCell(event)
     
         
 class NatTableCellSelectEvent(NatTableCellEventHelper, simulator.TableSelectEvent):
