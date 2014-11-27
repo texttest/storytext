@@ -95,9 +95,12 @@ public class Application implements IApplication, ITestHarness {
 	 */
 	private String getApplicationToRun(String[] args) {
 		IProduct product = Platform.getProduct();
+		String testApp = getArgument(args, "-testApplication", DEFAULT_APP_3_0);
+		if (testApp != DEFAULT_APP_3_0)
+			return testApp;
 		if (product != null)
 			return product.getApplication();
-		return getArgument(args, "-testApplication", DEFAULT_APP_3_0);
+		return DEFAULT_APP_3_0;
 	}
 
 	private String getArgument(String[] args, String argName, String defaultValue) {
