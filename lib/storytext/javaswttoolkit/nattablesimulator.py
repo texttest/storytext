@@ -25,10 +25,10 @@ class NatTableIndexer(simulator.TableIndexer):
         self.colOffset = 0
         self.eventCells = {}
         self.setOffsets(table)
-        self.headerIndexRow = self.findHeaderIndexRow(table)
+        self.headerIndexRows = self.findHeaderIndexRows(table)
         simulator.TableIndexer.__init__(self, table)
         self.logger.debug("NatTable indexer with row offset " + str(self.rowOffset) + ", column offset " + str(self.colOffset) +
-                          " and header index row " + str(self.headerIndexRow))
+                          " and header index rows " + str(self.headerIndexRows))
         if self.colOffset == 0:
             # Probably no data yet if we have no offset at the start, best to keep an open mind...
             self.primaryKeyColumn = None
@@ -43,21 +43,23 @@ class NatTableIndexer(simulator.TableIndexer):
         if newColOffset >= 0:
             self.colOffset = newColOffset
             
-    def findHeaderIndexRow(self, table):
+    def findHeaderIndexRows(self, table):
+        allRows = []
         for row in range(table.getRowCount()):
-            if self.isUniqueRow(table, row):
-                return row
+            data = [ table.getDataValueByPosition(col, row) for col in range(self.colOffset, table.getColumnCount()) ]
+            uniqueData = set(data)
+            if uniqueData  == set([ None ]):
+                continue
             labels = table.getConfigLabelsByPosition(1, row).getLabels()
             if "CORNER" not in labels and "COLUMN_HEADER" not in labels:
-                break # We haven't found a unique row
-        
-    def isUniqueRow(self, table, row):
-        data = [ table.getDataValueByPosition(col, row) for col in range(self.colOffset, table.getColumnCount()) ]
-        uniqueData = set(data)
-        if uniqueData  == set([ None ]):
-            return False
-        return len(uniqueData) == len(data)
-        
+                return allRows # We haven't found a unique row, give up and return everything we found so far
+            
+            if len(uniqueData) == len(data):
+                return [ row ]
+            else:
+                allRows.append(row)
+        return allRows
+                
     def updateTableInfo(self):
         simulator.runOnUIThread(self.setOffsets, self.widget)
         self.logger.debug("Updated NatTable indexer with row offset " + str(self.rowOffset) + " and column offset " + str(self.colOffset))
@@ -105,9 +107,10 @@ class NatTableIndexer(simulator.TableIndexer):
             return ""
     
     def getColumnTextByPosition(self, colPos):
-        if self.headerIndexRow is None:
-            self.headerIndexRow = self.findHeaderIndexRow(self.widget)
-        return self.widget.getDataValueByPosition(colPos, self.headerIndexRow or 0)
+        if len(self.headerIndexRows) == 0:
+            self.headerIndexRows = self.findHeaderIndexRows(self.widget)
+        rows = self.headerIndexRows or [ 0 ]
+        return "/".join((self.widget.getDataValueByPosition(colPos, r) or self.UNTITLED for r in rows))
     
     def getColumnText(self, colIndex):
         return self.getColumnTextByPosition(colIndex + self.colOffset)

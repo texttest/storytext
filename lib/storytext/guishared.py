@@ -1599,11 +1599,13 @@ class Indexer:
 # found in e.g. SWT and Swing
 class BaseTableIndexer(Indexer):
     primaryKeyColumnTexts = []
+    UNTITLED = "<untitled>"
+    UNNAMED = "<unnamed>"
     def getColumnTextToUse(self, *args):
-        return self.getColumnText(*args) or "<untitled>"
+        return self.getColumnText(*args) or self.UNTITLED 
     
     def getCellValueToUse(self, *args):
-        return self.getCellValue(*args) or "<unnamed>"
+        return self.getCellValue(*args) or self.UNNAMED
     
     
 class TableIndexer(BaseTableIndexer):
