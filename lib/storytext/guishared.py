@@ -150,6 +150,10 @@ class GuiEvent(definitions.UserEvent):
     def getAssociatedSignatures(cls, widget):
         return set([ cls.getAssociatedSignal(widget) ])
 
+    @classmethod
+    def getPossibleModifiers(cls, *args):
+        return []
+
     def widgetDisposed(self):
         return False
     
@@ -164,7 +168,7 @@ class GuiEvent(definitions.UserEvent):
 
     def allowsIdenticalCopies(self):
         return False
-
+    
     def checkWidgetStatus(self):
         if self.widgetDisposed():
             raise definitions.UseCaseScriptError, "widget " + self.describeWidget() + \
@@ -681,9 +685,9 @@ class UIMap:
         signaturesInstrumented, autoInstrumented = self.instrumentFromMapFile(widget)
         if self.scriptEngine.recorderActive() or not self.fileHandler.hasInfo():
             widgetType = widget.getType()
-            for signature in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
+            for signature, modifiers in self.findAutoInstrumentSignatures(widget, signaturesInstrumented):
                 identifier = self.getAutoInstrumentIdentifier(widget)
-                autoEventName = "Auto." + widgetType + "." + signature + ".'" + identifier + "'"
+                autoEventName = "Auto." + widgetType + "." + self.getAutoEventSignatureText(signature, modifiers) + ".'" + identifier + "'"
                 signalName, argumentParseData = self.parseSignature(signature)
                 self.autoInstrument([ autoEventName ], signalName, widget, argumentParseData, widgetType)
         return autoInstrumented
@@ -721,13 +725,19 @@ class UIMap:
         except definitions.UseCaseScriptError, e:
             sys.stderr.write(encodingutils.encodeToLocale("ERROR in UI map file: " + unicode(e) + "\n"))
         return False
+    
+    def getAutoEventSignatureText(self, signature, modifiers):
+        possibleSignatures = [ signature ]
+        for modifier in modifiers:
+            possibleSignatures.append(signature + "." + modifier)
+        return "|".join(possibleSignatures)    
 
     def findAutoInstrumentSignatures(self, widget, preInstrumented):
         signatures = []
         for eventClass in self.scriptEngine.findEventClassesFor(widget):
             for signature in eventClass.getAssociatedSignatures(widget):
                 if signature not in signatures and signature not in preInstrumented:
-                    signatures.append(signature)
+                    signatures.append((signature, eventClass.getPossibleModifiers(signature)))
         return signatures
     
     def findAllSignatureInfo(self, widget):
