@@ -432,10 +432,6 @@ class TabSelectEvent(TabEvent):
             runOnUIThread(self.clickItem, tab, self.getTabFolder())
         else:
             self.swtbotItemClass(tab).activate()
-            
-    @classmethod
-    def getPossibleModifiers(cls, *args):
-        return [ "clicked" ]
                 
     def actuallyClick(self):
         return "clicked" in self.generationModifiers
@@ -646,10 +642,6 @@ class TextEvent(StateChangeEvent):
 
     def isTyped(self):
         return "typed" in self.generationModifiers
-    
-    @classmethod
-    def getPossibleModifiers(cls, *args):
-        return [ "typed" ]
 
     def _generate(self, argumentString):
         self.widget.setFocus()
