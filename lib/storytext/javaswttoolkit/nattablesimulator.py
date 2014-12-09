@@ -77,7 +77,10 @@ class NatTableIndexer(simulator.TableIndexer):
         rowPos = self.widget.getRowPositionByY(event.y)
         colPos = self.widget.getColumnPositionByX(event.x)
         cell = self.widget.getCellByPosition(colPos, rowPos)
-        return cell.getOriginRowPosition(), cell.getOriginColumnPosition()
+        if cell is not None:
+            return cell.getOriginRowPosition(), cell.getOriginColumnPosition()
+        else:
+            return rowPos, colPos # If there is no cell, at least one of these will be -1
     
     def getRowCount(self):
         return self.widget.getRowCount() - self.rowOffset
@@ -199,8 +202,11 @@ class NatTableEventHelper:
         return event.count == self.clickCount() and event.button == self.mouseButton() and self.isCorrectRegion(event)
     
     def isCorrectRegion(self, event):
-        labels = self.widget.widget.widget.getRegionLabelsByXY(event.x, event.y).getLabels()
-        return self.getRegionLabel() in labels
+        labelStack = self.widget.widget.widget.getRegionLabelsByXY(event.x, event.y)
+        if labelStack is not None:
+            return self.getRegionLabel() in labelStack.getLabels()
+        else:
+            return False
 
     def getIndexer(self):
         return NatTableIndexer.getIndexer(self.widget.widget.widget)
