@@ -36,6 +36,15 @@ class UseCaseEditor:
         self.allActionWidgets = []
         self.popupSensitivities = {}
         self.createdShortcuts = []
+        self.readGtkRCFiles()
+        
+    def readGtkRCFiles(self, *args):
+        for dir in self.findRcDirs():
+            gtk.rc_parse(os.path.join(dir, ".gtkrc-2.0"))
+    
+    def findRcDirs(self):
+        # Read the TextTest personal location also as we're often started from there. But apply our own last to override if needed
+        return [ os.path.expanduser("~/.texttest/etc"), os.path.expanduser("~/.storytext")  ]
 
     def initShortcutManager(self):
         self.shortcutManager = ShortcutManager()
