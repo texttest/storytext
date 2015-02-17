@@ -122,7 +122,12 @@ class StoryTextSWTBotGefViewer(SWTBotGefViewer):
                     overlaps.append(intersection)
                     self.logger.debug("Overlap found at " + repr(intersection))
             overlaps += self.findOverlapRegionsUnder(otherPart, ignoreEditPart, bounds)
+        # Handle the largest overlaps first, likely to give the best effect. Need to sort somehow to prevent indeterminism
+        overlaps.sort(key=self.getArea, reverse=True)
         return overlaps
+
+    def getArea(self, rect):
+        return getInt(rect.height) * getInt(rect.width)
 
     def clickOnCenter(self, editPart, keyModifiers=0):
         if self.widgetMonitor:
