@@ -283,7 +283,6 @@ class MenuEvent(SignalEvent):
 
     def getLabelText(self, event):
         evtId = event.GetId()
-        label = str(evtId)
         for menu, menuLabel in self.getMenusWithLabels():
             label_list = []
             if self.getLabelFromId(menu, menuLabel, evtId, label_list):

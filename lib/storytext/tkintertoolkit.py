@@ -103,7 +103,6 @@ class Tk(WindowIdleManager, origTk):
         WindowIdleManager.__init__(self)
         origTk.__init__(self, *args, **kw)
         # Set up the handlers from the mainloop call, don't want things to happen before we're ready as seems quite possible
-        origMainLoop = self.tk.mainloop
         def mainloop(n=0):
             self.setUpHandlers()
             self.tk.mainloop(n)

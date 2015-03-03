@@ -19,17 +19,16 @@ class DeletionEvent(SignalEvent):
     def shouldRecord(self, *args):
         return True # Even if the window is hidden, we still want to record it being closed...
 
+def getStandardResponses():
+    info = {}
+    for name in dir(gtk):
+        # RESPONSE_NONE is meant to be like None and shouldn't be recorded (at least not like this)
+        if name.startswith("RESPONSE_") and name != "RESPONSE_NONE":
+            info[getattr(gtk, name)] = name.lower().replace("_", ".", 1)
+    return info
 
 class ResponseEvent(SignalEvent):
     signalName = "response"
-    def getStandardResponses():
-        info = {}
-        for name in dir(gtk):
-            # RESPONSE_NONE is meant to be like None and shouldn't be recorded (at least not like this)
-            if name.startswith("RESPONSE_") and name != "RESPONSE_NONE":
-                info[getattr(gtk, name)] = name.lower().replace("_", ".", 1)
-        return info
-
     dialogInfo = {}
     standardResponseInfo = getStandardResponses()
 

@@ -418,7 +418,6 @@ class Describer:
     def getNotebookDescription(self, notebook):
         tabNames = []
         idleScheduler.monitor(notebook, [ "switch-page", "page-added" ], "Current page changed in ")
-        message = ""
         for child in notebook.get_children():
             idleScheduler.monitor(child, [ "hide", "show" ], "Child visibility changed in ", notebook, titleOnly=True)
             if child.get_property("visible"):

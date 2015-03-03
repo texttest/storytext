@@ -491,7 +491,6 @@ class UseCaseEditor:
 
     def showPopupMenu(self, treeView, event):
         if event.button == 3:
-            time = event.time
             pathInfo = treeView.get_path_at_pos(int(event.x), int(event.y))
             selection = treeView.get_selection()
             selectedRows = selection.get_selected_rows()
