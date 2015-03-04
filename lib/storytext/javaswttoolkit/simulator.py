@@ -1547,6 +1547,42 @@ class EventPoster:
         method(*args, **kw)
         time.sleep(0.1)
         self.moveMouseAndWait(currPos.x, currPos.y)
+        
+    def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0, dragDelay = 0.3):
+        # These values, and the broad algorithm here, are taken from a draft implementation of DnD for SWTBot
+        # The code is attached to the bug at https://bugs.eclipse.org/bugs/show_bug.cgi?id=285271
+        # When it is integrated into SWTBot we should probably use it directly
+        dragThreshold = 16
+        self.moveMouseAndWait(fromX, fromY)
+               
+        self.checkAndPostKeyPressed(keyModifiers)
+        initialDragTargetX = fromX + dragThreshold
+        initialDragTargetY = fromY
+        runOnUIThread(storytext.guishared.catchAll, self.startDrag, initialDragTargetX, initialDragTargetY)
+        time.sleep(dragDelay)
+        self.moveDragged(initialDragTargetX, initialDragTargetY, toX, toY)
+        runOnUIThread(storytext.guishared.catchAll, self.postMouseUp)
+        self.checkAndPostKeyReleased(keyModifiers)
+
+    def startDrag(self, targetX, targetY):
+        self.postMouseDown()
+        self.postMouseMove(targetX, targetY)
+       
+    def getCounters(self, x1, y1, x2, y2):
+        counterX = 1 if x1 < x2 else -1
+        counterY = 1 if y1 < y2 else -1
+        return counterX, counterY
+    
+    def moveDragged(self, fromX, fromY, toX, toY):
+        counterX, counterY = self.getCounters(fromX, fromY, toX, toY)
+        startX = fromX
+        startY = fromY
+        while startX != toX:
+            startX += counterX
+            self.moveMouseAndWait(startX, fromY)
+        while startY != toY:
+            startY += counterY
+            self.moveMouseAndWait(startX, startY)
 
 class WidgetMonitor:
     startupError = None

@@ -176,42 +176,8 @@ class StoryTextSWTBotGefFigureCanvas(SWTBotGefFigureCanvas):
         SWTBotGefFigureCanvas.__init__(self, *args, **kw)
         self.eventPoster = swtsimulator.EventPoster(self.display)
         
-    def mouseDrag(self, fromX, fromY, toX, toY, keyModifiers=0):
-        # These values, and the broad algorithm here, are taken from a draft implementation of DnD for SWTBot
-        # The code is attached to the bug at https://bugs.eclipse.org/bugs/show_bug.cgi?id=285271
-        # When it is integrated into SWTBot we should probably use it directly
-        dragThreshold = 16
-        dragDelay = 0.3
-        self.eventPoster.moveMouseAndWait(fromX, fromY)
-               
-        self.eventPoster.checkAndPostKeyPressed(keyModifiers)
-        initialDragTargetX = fromX + dragThreshold
-        initialDragTargetY = fromY
-        swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.startDrag, initialDragTargetX, initialDragTargetY)
-        time.sleep(dragDelay)
-        self.moveDragged(initialDragTargetX, initialDragTargetY, toX, toY)
-        swtsimulator.runOnUIThread(storytext.guishared.catchAll, self.eventPoster.postMouseUp)
-        self.eventPoster.checkAndPostKeyReleased(keyModifiers)
-
-    def startDrag(self, targetX, targetY):
-        self.eventPoster.postMouseDown()
-        self.eventPoster.postMouseMove(targetX, targetY)
-       
-    def getCounters(self, x1, y1, x2, y2):
-        counterX = 1 if x1 < x2 else -1
-        counterY = 1 if y1 < y2 else -1
-        return counterX, counterY
-    
-    def moveDragged(self, fromX, fromY, toX, toY):
-        counterX, counterY = self.getCounters(fromX, fromY, toX, toY)
-        startX = fromX
-        startY = fromY
-        while startX != toX:
-            startX += counterX
-            self.eventPoster.moveMouseAndWait(startX, fromY)
-        while startY != toY:
-            startY += counterY
-            self.eventPoster.moveMouseAndWait(startX, startY)
+    def mouseDrag(self, *args):
+        self.eventPoster.mouseDrag(*args)
             
     def getViewportBounds(self):
         return rcpsimulator.swtsimulator.runOnUIThread(self.widget.getViewport().getBounds)
