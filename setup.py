@@ -13,9 +13,12 @@ sys.path.insert(0, "lib")
 from storytext import __version__
 import os
 
-mod_files = [ "ordereddict" ]
+py_modules = []
+if "FROM_RPM" not in os.environ:
+    py_modules.append("ordereddict")
+
 if sys.version_info[:2] < (2, 6):
-    mod_files.append("ConfigParser26")
+    py_modules.append("ConfigParser26")
 
 scripts = ["bin/storytext"]
 jython = os.name == "java"
@@ -103,7 +106,7 @@ setupKeywords = { "name"         : "StoryText",
                   "packages"     : packages,
                   "package_dir"  : { "" : "lib"},
                   "package_data" : package_data,
-                  "py_modules"   : mod_files,
+                  "py_modules"   : py_modules,
                   "classifiers"  : [ "Programming Language :: Python",
                                      "License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)",
                                      "Operating System :: OS Independent",
